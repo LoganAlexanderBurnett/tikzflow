@@ -19,7 +19,7 @@ What makes it better than existing tools (TikZiT, TikzEdt, Mathcha, draw.io's Ti
 
 ## Hard constraints
 - 100% client-side. There is no backend, and user diagrams never leave the browser.
-- Deployable as static files to Cloudflare Pages. Keep every individual file under 25 MB and split larger assets into chunks.
+- Deployable as static files to Cloudflare Pages. Keep every individual file under 25 MB and split larger assets into chunks. Keep the total file count within the Pages per-deployment limit by bundling many small files (such as TeX package trees) into packs.
 - Pasting code must never destroy user content. If parsing fails or a construct isn't understood, keep it verbatim.
 - TypeScript throughout, strict mode.
 
@@ -30,11 +30,11 @@ What makes it better than existing tools (TikZiT, TikzEdt, Mathcha, draw.io's Ti
 - SVG for the canvas.
 - KaTeX for math in node labels in the quick preview.
 - elk.js for auto-layout.
-- A WebAssembly TeX engine (evaluate busytex and SwiftLaTeX) running in a Web Worker for the accurate preview.
+- A WebAssembly TeX engine (evaluate busytex, SwiftLaTeX, and TikZJax) running in a Web Worker for the accurate preview.
 - Vitest for unit tests, Playwright for end-to-end tests.
 
 ## Architecture
-- **Concrete syntax tree.** It is the single source of truth. Visual edits become small text patches applied to the source. The tree is never fully re-serialized, except when generating a brand-new diagram.
+- **Concrete syntax tree.** It is the single source of truth. Visual edits become small text patches applied to the source. The tree is never fully re-serialized, except when generating a brand-new diagram. A fixed grammar can't fully parse TeX, because catcode changes and macros can alter meaning. The grammar recognises the TikZ commands it knows, and everything else falls through to opaque blocks.
 - **Opaque blocks.** Anything the editor can't model (`\foreach`, `pic`, custom macros, unknown options) becomes a locked opaque block. It is rendered by the TeX engine and selectable as a unit, but not editable visually.
 - **Semantic model.** Derived from the tree: nodes (name, shape or style, label, position expression), edges (endpoints with anchors, waypoints, labels with `pos=`), styles, groups (`fit`), and libraries used.
 - **Emitter rules.** These generate new code fragments in priority order:
@@ -47,10 +47,16 @@ What makes it better than existing tools (TikZiT, TikzEdt, Mathcha, draw.io's Ti
 
 ### Milestone 0: Technical spike (do this first)
 Prove the riskiest pieces before building the app:
-- Compile a minimal TikZ flowchart to PDF or SVG in the browser with a WASM TeX engine, inside a Web Worker.
-- Measure the download size of a curated package set: pgf/TikZ with the positioning, shapes, arrows.meta, fit, backgrounds, calc, and matrix libraries, plus standalone, amsmath, and Latin Modern fonts.
+- Compile a minimal TikZ flowchart to PDF or SVG in the browser with a WASM TeX engine, inside a Web Worker. Evaluate busytex, SwiftLaTeX, and TikZJax.
+- Measure the download size of a curated package set: pgf/TikZ with the positioning, shapes, arrows.meta, fit, backgrounds, calc, and matrix libraries, plus standalone, amsmath, and Latin Modern fonts. Also report the largest single file and the total file count.
 - Measure cold and warm compile times.
-- Write a minimal Lezer grammar for `\node`, `\draw`, `\path`, and `\tikzset`, and confirm it can round-trip three sample files byte-for-byte.
+- For each engine, report the pgf/TikZ version it ships with, and confirm that every library listed above actually loads (especially arrows.meta and positioning).
+- For each engine, confirm its license.
+- Timebox each engine. If one won't compile the sample after a reasonable effort, document what failed and move on.
+- Write a minimal Lezer grammar for `\node`, `\draw`, `\path`, and `\tikzset`. On three sample files, confirm that:
+  - the tree's leaves cover every byte of the source exactly once, with no gaps and no overlaps, so joining them reproduces the file;
+  - the report shows how much of each file is modelled structure rather than catch-all or error nodes;
+  - an incremental reparse after an edit gives the same tree as a full parse.
 
 Report the results and a recommendation on which engine to use. If WASM TeX isn't viable, propose a fallback, for example the native preview only plus a "compile on Overleaf" export.
 
@@ -62,7 +68,10 @@ Report the results and a recommendation on which engine to use. If WASM TeX isn'
 - Drag nodes. Writes back follow the emitter rules, and snapping and alignment guides encourage relational positions.
 - Bidirectional selection sync: clicking a shape highlights its code, and moving the cursor in code highlights the shape.
 - Undo and redo across both panes.
-- Round-trip test suite: a corpus of at least 20 real-world TikZ flowcharts. Loading and saving without edits must be byte-identical. Single edits must produce minimal diffs, checked against golden files.
+- Round-trip test suite: a corpus of at least 20 real-world TikZ flowcharts. For every file:
+  - The syntax tree must cover every byte exactly once.
+  - Loading and saving without edits must be byte-identical. This holds by construction, so it is only a cheap regression guard.
+  - Single edits must produce minimal diffs, checked against golden files. Only the bytes the edit is about may change.
 
 ### Milestone 2: Creating from scratch and editing edges
 - A shape palette with process, decision, terminal, I/O, connector, and document shapes. Each inserts a styled node, and the needed style is added to `\tikzset` if it's missing.
@@ -106,7 +115,7 @@ Beamer overlay timeline, visual diff between versions, and natural-language edit
 Prepare everything so deployment is push-to-publish: a Vite build to `dist/`, Cloudflare Pages settings documented in the README, and TeX assets chunked under the file-size limit (or documented for hosting on Cloudflare R2). I will create the GitHub repo and the Cloudflare account and connect them. Give me exact step-by-step instructions when we get there.
 
 ## Quality bar
-- Never lose user content. Treat any round-trip diff on unedited code as a release-blocking bug.
+- Never lose user content. Treat any round-trip diff on unedited code, any byte not covered by the syntax tree, or any edit that changes bytes outside its target as a release-blocking bug.
 - Generated TikZ should look like an experienced user wrote it by hand.
 - Each milestone ends with passing tests and a working build I can run locally with `npm install && npm run dev`.
 
@@ -119,3 +128,12 @@ Start with Milestone 0. Before writing code, give me a brief plan for the spike 
 - Test corpus: if you gather example TikZ code from the web (e.g., TeX Stack Exchange, which is CC BY-SA licensed), record the source URL and license for each file in `corpus/SOURCES.md`, since this repo will be public. Prefer examples you write yourself where attribution would be awkward.
 - No analytics or tracking in the app.
 - For the accurate-preview path, evaluate producing SVG (e.g., via dvisvgm) rather than PDF, so the compiled output can be overlaid precisely on the native canvas without bundling a PDF renderer.
+- Don't choose a project license until the engine licenses are confirmed.
+
+## Spec revisions
+- **2026-10-07** (approved by the project owner; reasons in DECISIONS.md D3–D7):
+  - Replaced byte-identical round-trip checks with byte coverage plus minimal-diff checks.
+  - Added TikZJax to the engine evaluation.
+  - Added the pgf version, library-loading, license, and timebox requirements to Milestone 0.
+  - Added the Cloudflare Pages file-count constraint.
+  - Recorded the limits of parsing TeX with a fixed grammar.

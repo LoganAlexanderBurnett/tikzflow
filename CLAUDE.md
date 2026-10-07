@@ -5,7 +5,7 @@ A free, static, fully client-side web app for creating and editing TikZ flowchar
 ## Start of every session
 1. Read [PROGRESS.md](PROGRESS.md) for the current milestone, its status, and known issues.
 2. Read [DECISIONS.md](DECISIONS.md) before changing architecture, stack, or conventions.
-3. [SPEC.md](SPEC.md) holds the full requirements. Don't edit it. Record deviations and the reasons for them in DECISIONS.md.
+3. [SPEC.md](SPEC.md) holds the full requirements. Change it only when the owner approves. Then log the change in its "Spec revisions" section and the reasons in DECISIONS.md.
 
 ## Workflow
 - Work one milestone at a time. At the end of each, stop and report what works, what doesn't, how to try it, and which decisions are needed. Wait for approval before starting the next milestone.
@@ -13,6 +13,8 @@ A free, static, fully client-side web app for creating and editing TikZ flowchar
 - Commit after each meaningful step with clear messages. Push to `origin` (branch `trunk`) at the end of each milestone.
 - Keep DECISIONS.md and PROGRESS.md current as you go, not only at the end of a milestone.
 - Don't build the "Later" features in SPEC.md unless asked.
+- Before downloading engine binaries or TeX packages, list each file's source and size. These assets go in a gitignored folder and never into git.
+- Don't choose a project license until the engine licenses are confirmed.
 
 ## Hard rules
 - **Client-side only.** No backend, no analytics or tracking, and no runtime requests to third-party servers. User diagrams never leave the browser.

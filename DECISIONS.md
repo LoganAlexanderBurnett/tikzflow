@@ -9,3 +9,34 @@ Architecture and process choices, with the reasons for them. Add new entries at 
 ## D2: Default branch is `trunk` (2026-10-06)
 **Decision:** The repo uses `trunk`, inherited from the local git config. It was the first branch pushed to GitHub.
 **Why:** Recorded so that future sessions push to the right branch.
+
+## D3: Round-trip testing checks byte coverage and minimal diffs (2026-10-07)
+**Decision:** The round-trip checks are:
+- the syntax tree's leaves cover every source byte exactly once;
+- the share of each file that is modelled structure, rather than catch-all or error nodes, is reported;
+- an incremental reparse matches a full parse;
+- single edits change only the bytes they target, checked against golden files.
+
+The byte-identical load/save check stays only as a cheap regression guard.
+
+**Why:** The editor keeps the original text and patches it, so saving unedited code is byte-identical automatically and that check alone proves nothing. Content gets lost when part of the source isn't represented in the tree, or when an edit touches bytes it shouldn't. The new checks test for exactly that.
+
+## D4: Evaluate TikZJax alongside busytex and SwiftLaTeX (2026-10-07)
+**Decision:** Add TikZJax as a third candidate engine in Milestone 0.
+**Why:** TikZJax already turns TikZ into SVG in the browser, using TeX compiled to WASM plus a DVI-to-SVG step. That matches our preferred SVG output for overlaying on the canvas. Even if we don't adopt it, its approach may be the best way to get SVG.
+
+## D5: The grammar recognises known commands and leaves the rest opaque (2026-10-07)
+**Decision:** The Lezer grammar recognises the TikZ commands it knows and sends everything else to catch-all or opaque nodes. It doesn't try to model TeX in full.
+**Why:** TeX can't be parsed completely by a fixed grammar, because catcode changes and macro expansion can alter what the code means. This approach can never drop content, but it limits how much of an unusual file stays editable. The share of each file that is modelled is tracked so we can see that limit.
+
+## D6: Plan for the Cloudflare Pages file-count limit, not only file size (2026-10-07)
+**Decision:** Bundle TeX package trees into a small number of packs, each under 25 MB.
+**Why:** Pages also caps the number of files per deployment. A TeX tree has thousands of small files, so splitting large files isn't enough. The exact limit is to be confirmed during Milestone 0.
+
+## D7: Choose the project license only after engine licenses are confirmed (2026-10-07)
+**Decision:** Milestone 0 confirms each engine's license. The project license recommendation waits until then.
+**Why:** If we bundle a copyleft engine (SwiftLaTeX may be AGPL), it limits which licenses the project can use.
+
+## D8: Large TeX assets stay out of git (2026-10-07)
+**Decision:** Engine binaries and TeX Live packages go in a gitignored folder, and a cross-platform Node script fetches them. Whether production fetches them at build time or hosts them on R2 is decided in Milestone 3.
+**Why:** GitHub rejects files over 100 MB, and keeping hundreds of MB of binaries in history would make the repo very large.
