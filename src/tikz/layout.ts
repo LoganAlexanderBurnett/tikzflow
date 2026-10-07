@@ -246,6 +246,7 @@ export function layoutPicture(pic: PictureSyntax, env: LayoutEnv, overrides: Rea
     root.sizes = env.font.sizes;
     const [size, baselineskip] = env.font.sizes["\\normalsize"]!;
     root.font = { ...root.font, size, baselineskip, family: env.font.family };
+    root.docFont = { ...root.font };
     root.baseFontSize = size;
   }
   const rootStyles = env.styles.child();

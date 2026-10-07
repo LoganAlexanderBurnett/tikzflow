@@ -417,3 +417,31 @@ New features:
 - **Undrawable options.** A node with options the preview ignores, or a shape it draws as a rectangle, gets a small amber dot at its top-right corner. Its tooltip lists them. Approximated shapes are now also listed in the summary.
 
 **Why:** These are the owner's findings from the M1 review (D31, D33). A locked node that only says "unknown node" leaves the user stuck. Pointing at the code, and fixing it in one click, doesn't.
+
+## D37: The properties panel (2026-10-07)
+**Decision:**
+- **Panel.** A panel to the right of the canvas shows the selected nodes. It has the lock explanation (D36) when the primary node is locked, then the properties: fill, outline and text colour, font (size, bold, italic, family) and alignment. With nothing selected, it says how to select. Paths get their panel in M2b.
+- **Scope** is a radio group at the top, as D34 asked. "This node" (or "These N nodes") is the default, and every new selection starts there again.
+  - **Style options.** Styles that every selected node names directly are offered as "All state nodes (14)". The count includes nodes that use the style through another style.
+  - **Unwritable styles.** A style the editor can't write (an unsupported form) is shown but disabled, with the reason.
+- **Reading values** (`src/edit/properties.ts`). The panel follows the document's styles the way TikZ applies them: "every node" first, then the node's keys in order, with each named style's chain expanded where it is named.
+  - **Labels.** A value from a style is labelled "(from control)". Values that differ across the selection show "Mixed".
+  - **Swatches** come from the laid-out node, so they show what is drawn.
+- **Writing values.** Each node or style gets one `setOptions` call. It replaces the last item for each key in place and appends the rest together in the list's own separator style. Several selected nodes make one undo step. An item that uses a style argument (`#1`) is never edited; the whole edit is refused and says so.
+  - **Colours** write `fill=`, `draw=` and `text=`. "None" writes `none` for fill and outline.
+  - **Fonts** write the whole font, because a later `font=` replaces an earlier one. With `control` giving `\small`, bold on the node writes `font=\small\bfseries`. Other commands in the value (`\color{…}`, `\scshape`) are kept where they are.
+  - **Undoing a font change.** A node whose font goes back to what its style gives loses its own `font=` item. Turning off a font the node only inherits writes `font={}`.
+  - **Alignment** writes `align=`. Justify on a node without a text width also sets one: the text's current width, rounded up to whole millimetres. The status bar says so. On a style without a text width, Justify is disabled and its tooltip says why.
+  - **Style scope** reports nodes that set the key themselves and so keep their value: "1 of the 2 process nodes set their own fill".
+- **Colour picker** sections, in order:
+  - the document's own `\definecolor` and `\colorlet` names, before and inside the picture;
+  - common xcolor mixes, light and dark;
+  - the base colours, and None;
+  - a custom colour. It can be named and added as `\definecolor` in one undo step, or used without a name as `{rgb,255:red,…;green,…;blue,…}`.
+- **New `\definecolor` lines** go after the document's last colour definition, in the same colour model (`{RGB}{31,119,180}` next to RGB definitions). Otherwise they go in the preamble after `\usetikzlibrary`, or at the start of a bare picture's body. Names must be letters and digits and not already a colour.
+- **Interpreter fix.** A later `font=` now replaces an earlier one instead of adding to it, from the document's font. pdfTeX confirmed it with the new probe `spike/engines/probes/p3-font-replace.tex`, where `[big, font=\bfseries]` is normal size. No corpus node changed. Font editing depends on this.
+
+**Why:**
+- Following styles, rather than reading only the node's own options, is what makes "This node" changes correct. It also lets the panel show where a value comes from.
+- Writing whole fonts and dropping redundant `font=` items keeps the code as a person would write it.
+- Named colours and in-place edits keep generated code hand-written in style (SPEC.md, "Human-quality output").

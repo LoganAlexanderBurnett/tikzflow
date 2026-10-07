@@ -1,0 +1,12 @@
+\documentclass[tikz]{standalone}
+% Does a later "font=" replace an earlier one, or add to it? The properties
+% panel writes the whole font, so the interpreter must agree with TeX.
+\tikzset{big/.style={font=\Large}, every node/.style={draw, inner sep=0pt, outer sep=0pt}}
+\begin{tikzpicture}
+  \node (f1) at (0,0) {Mg};
+  \node[font=\Large] (f2) at (2,0) {Mg};
+  \node[big, font=\bfseries] (f3) at (4,0) {Mg};
+  \node[font=\Large, font=\bfseries] (f4) at (6,0) {Mg};
+  \node[big, font=\Large\bfseries] (f5) at (8,0) {Mg};
+  \node[bold/.style={font=\bfseries}, big, bold] (f6) at (10,0) {Mg};
+\end{tikzpicture}

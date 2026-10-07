@@ -451,3 +451,229 @@ button.link {
   opacity: 0.85;
   cursor: help;
 }
+
+/* Properties panel */
+
+.tf-inspector .tf-title {
+  font-size: 14px;
+  margin: 0 0 10px;
+  overflow-wrap: anywhere;
+}
+
+.tf-inspector .tf-empty {
+  color: var(--muted);
+}
+
+.tf-lock {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tf-scope {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 12px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.tf-scope label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.tf-prop {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  align-items: center;
+  gap: 4px 8px;
+  margin-bottom: 8px;
+}
+
+.tf-prop-label {
+  color: var(--muted);
+}
+
+.tf-prop > .tf-picker,
+.tf-prop > .tf-note {
+  grid-column: 1 / -1;
+}
+
+.tf-note {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.tf-color-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  text-align: left;
+}
+
+.tf-color-btn.open {
+  border-color: var(--accent);
+}
+
+.tf-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+}
+
+.tf-swatch {
+  flex: none;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  vertical-align: middle;
+}
+
+.tf-swatch.none {
+  background: linear-gradient(to top right, transparent 46%, #dc2626 46%, #dc2626 54%, transparent 54%), #ffffff;
+}
+
+.tf-picker {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px 8px;
+  background: var(--bg);
+}
+
+.tf-picker h4 {
+  margin: 6px 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.tf-named {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.tf-named-btn,
+.tf-none-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: none;
+  padding: 2px 4px;
+  text-align: left;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+}
+
+.tf-named-btn:hover,
+.tf-none-btn:hover {
+  background: var(--accent-soft);
+}
+
+.tf-none-btn {
+  margin-top: 6px;
+  font-family: inherit;
+}
+
+.tf-swatches {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 3px;
+  margin-bottom: 3px;
+}
+
+.tf-swatch-btn {
+  padding: 2px;
+  border: 1px solid transparent;
+  background: none;
+  line-height: 0;
+}
+
+.tf-swatch-btn .tf-swatch {
+  width: 100%;
+  height: 18px;
+}
+
+.tf-custom {
+  display: flex;
+  gap: 6px;
+}
+
+.tf-custom input[type="color"] {
+  width: 40px;
+  height: 28px;
+  padding: 0 2px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+}
+
+.tf-custom input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  color: inherit;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 6px;
+}
+
+.tf-custom-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.tf-problem {
+  color: var(--lock);
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+
+.tf-font,
+.tf-align {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.tf-font select {
+  flex: 1 1 80px;
+  min-width: 0;
+}
+
+.tf-font select.tf-family {
+  flex-basis: 100%;
+}
+
+.tf-toggle.on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.tf-align .tf-toggle {
+  flex: 1;
+  padding: 3px 4px;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

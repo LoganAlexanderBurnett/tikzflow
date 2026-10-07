@@ -15,8 +15,8 @@ Milestone 0 is done and was approved on 2026-10-07:
 |---|---|---|
 | 1 | Shared editing core: option and style edits, statement insertion, library management, multi-selection model, node naming (D35) | Done |
 | 2 | M1 fixes: nudge shifts, locked-node explanations and fixes, clickable errors, undefined references, coordinate markers, undrawable-option marker (D36) | Done |
-| 3 | Properties panel with style scope, colour picker, multi-select | Next |
-| 4 | Resizing | Not started |
+| 3 | Properties panel with style scope, colour picker, multi-select (D37) | Done |
+| 4 | Resizing | Next |
 | 5 | In-place label editing | Not started |
 | 6 | Palette (standard shapes and the document's own styles) and keyboard creation | Not started |
 | 7 | Style panel and factoring repeated options | Not started |

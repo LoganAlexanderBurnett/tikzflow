@@ -129,6 +129,8 @@ export interface State {
   fillOpacity?: number;
   textOpacity?: number;
   font: FontSpec;
+  /** The document's font, before any "font=" key: a later "font=" replaces an earlier one (checked against pdfTeX, probe p3). */
+  docFont: FontSpec;
   /** The tips ">" and "<" stand for. */
   defaultEndTip: ArrowTip;
   defaultStartTip: ArrowTip;
@@ -221,6 +223,7 @@ export function initialState(): State {
     roundedCorners: 0,
     opacity: 1,
     font: { ...NORMAL_FONT },
+    docFont: { ...NORMAL_FONT },
     defaultEndTip: DEFAULT_TIP,
     defaultStartTip: DEFAULT_TIP,
     startTip: null,

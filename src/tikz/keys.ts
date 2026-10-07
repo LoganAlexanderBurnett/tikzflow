@@ -642,6 +642,8 @@ export function applyKey(s: State, kv: KeyValue, ctx: KeyContext, depth = 0): vo
     }
     case "font":
     case "node font":
+      // "font=" replaces the previous font= value rather than adding to it (probe p3).
+      if (key === "font") s.font = { ...s.docFont };
       if (value === undefined || !applyFont(s, value, ctx)) unknown();
       return;
     case ">":

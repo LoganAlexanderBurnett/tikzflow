@@ -7,6 +7,7 @@ import { batch, computed, signal } from "@preact/signals";
 import type { Change } from "../edit/changes.ts";
 import { withLibraries } from "../edit/libraries.ts";
 import { planAttach, planPin } from "../edit/move.ts";
+import { type PropEdit, propertyChanges, type Scope } from "../edit/properties.ts";
 import type { GapMark, Guide } from "../edit/snap.ts";
 import { analyzeDocument, layoutDocumentPicture } from "../model/document.ts";
 import type { Range } from "../model/syntax.ts";
@@ -247,6 +248,34 @@ function libraryNote(added: readonly string[], removed: readonly string[], notes
   if (removed.length) out.push(`Removed the unused ${removed.join(", ")} library.`);
   for (const n of notes) out.push(`Note: ${n}.`);
   return out.length ? ` ${out.join(" ")}` : "";
+}
+
+/**
+ * Applies a properties-panel edit to the selected nodes or a style, as one
+ * undoable step. `extra` holds changes that go with it, such as a new
+ * \definecolor. Returns false if the edit was refused.
+ */
+export function applyProperty(scope: Scope, edit: PropEdit, extra: Change[] = [], done?: string): boolean {
+  const l = baseLayout.value;
+  if (!l) return false;
+  const r = propertyChanges(doc.value, currentPicture.value, l, scope, edit);
+  if (!r.ok) {
+    status.value = r.reason;
+    return false;
+  }
+  const changes = [...extra, ...r.changes];
+  if (!r.changes.length) {
+    status.value = "Nothing to change: it already has that value.";
+    return false;
+  }
+  if (extra.some((e) => r.changes.some((c) => e.from < c.to && c.from < e.to))) {
+    status.value = "That edit would overlap another; make it in the code instead.";
+    return false;
+  }
+  applyEdit(changes, "input.properties");
+  const what = scope.kind === "style" ? `the ${scope.name} style` : scope.ids.length === 1 ? "the node" : `${scope.ids.length} nodes`;
+  status.value = `${done ?? "Changed"} ${what}.${r.notes.map((n) => ` ${n}.`).join("")}`;
+  return true;
 }
 
 /** "Pin at current position" for a locked node. */
