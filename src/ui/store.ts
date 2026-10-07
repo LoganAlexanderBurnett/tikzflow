@@ -5,6 +5,7 @@ import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { batch, computed, effect, signal } from "@preact/signals";
 import type { Change } from "../edit/changes.ts";
+import { draftOf, labelBlocker, labelProblem, planLabelEdit } from "../edit/label.ts";
 import { withLibraries } from "../edit/libraries.ts";
 import { planAttach, planPin } from "../edit/move.ts";
 import { type PropEdit, propertyChanges, type Scope, sharedStyles } from "../edit/properties.ts";
@@ -346,4 +347,65 @@ export function undoEdit(): void {
 
 export function redoEdit(): void {
   if (view) redo(view);
+}
+
+// ---------------------------------------------------------------- label editing
+
+/** A label being edited in place: the node, the TeX as it was, and as it is now. */
+export interface LabelEdit {
+  id: string;
+  original: string;
+  draft: string;
+}
+
+export const labelEdit = signal<LabelEdit | null>(null);
+
+/** Why the draft can't be applied, or null. */
+export const labelEditProblem = computed(() => {
+  const e = labelEdit.value;
+  return e ? labelProblem(e.draft) : null;
+});
+
+/** Starts editing the label of node `id`. Says why in the status bar if it can't. */
+export function startLabelEdit(id: string): boolean {
+  const l = baseLayout.value;
+  const n = l?.nodes.find((x) => x.id === id);
+  const why = labelBlocker(text.value, currentPicture.value, id);
+  if (!n || why) {
+    status.value = why ?? "There is no such node.";
+    return false;
+  }
+  const original = draftOf(n.syntax.label!.text);
+  selectFromCanvas({ kind: "node", id });
+  labelEdit.value = { id, original, draft: original };
+  return true;
+}
+
+export function setLabelDraft(draft: string): void {
+  const e = labelEdit.value;
+  if (e) labelEdit.value = { ...e, draft };
+}
+
+export function cancelLabelEdit(): void {
+  labelEdit.value = null;
+}
+
+/** Applies the label being edited. Returns false (and keeps editing) if the text can't be used. */
+export function commitLabelEdit(): boolean {
+  const e = labelEdit.value;
+  if (!e) return true;
+  if (e.draft === e.original) {
+    labelEdit.value = null;
+    return true;
+  }
+  const r = planLabelEdit(text.value, currentPicture.value, e.id, e.draft);
+  if (!r.ok) {
+    status.value = r.reason;
+    return false;
+  }
+  labelEdit.value = null;
+  const name = baseLayout.value?.nodes.find((x) => x.id === e.id)?.name ?? e.id;
+  applyEdit(r.changes, "input.label");
+  status.value = `Changed the label of ${name}.`;
+  return true;
 }

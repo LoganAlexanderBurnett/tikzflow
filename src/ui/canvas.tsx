@@ -22,6 +22,12 @@ import {
   activeScope,
   applyEdit,
   applyResize,
+  cancelLabelEdit,
+  commitLabelEdit,
+  labelEdit,
+  labelEditProblem,
+  setLabelDraft,
+  startLabelEdit,
   baseLayout,
   currentPicture,
   doc,
@@ -269,7 +275,66 @@ function drawOrder(l: PictureLayout): Item[] {
   return items.sort((a, b) => a.layer - b.layer || a.at - b.at);
 }
 
-type HandleId = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
+/**
+ * The in-place label editor: a text box over the node holding the label's TeX.
+ * Enter applies it, Shift+Enter adds a line, Escape cancels, and clicking
+ * elsewhere applies it too. Text that would break the code is refused.
+ */
+function LabelEditor({ view, size, onDone }: { view: View; size: { w: number; h: number }; onDone: () => void }) {
+  const e = labelEdit.value;
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const id = e?.id;
+  useEffect(() => {
+    if (!id) return;
+    ref.current?.focus();
+    ref.current?.select();
+  }, [id]);
+  const n = e ? baseLayout.value?.nodes.find((x) => x.id === e.id) : undefined;
+  if (!e || !n) return null;
+  const problem = labelEditProblem.value;
+  const x = (n.shape.center.x - (view.cx - size.w / 2 / view.scale)) * view.scale;
+  const y = (-n.shape.center.y - (-view.cy - size.h / 2 / view.scale)) * view.scale;
+  const width = Math.max(240, 2 * n.shape.hw * view.scale + 16);
+  const finish = () => {
+    labelEdit.value = null;
+    onDone();
+  };
+  return (
+    <div class="tf-label-editor" style={{ left: `${f(x)}px`, top: `${f(y)}px`, width: `${f(width)}px` }} data-testid="label-editor">
+      <textarea
+        ref={ref}
+        value={e.draft}
+        rows={Math.max(1, e.draft.split("\n").length)}
+        spellcheck={false}
+        aria-label="Node label, as TeX"
+        aria-invalid={!!problem}
+        onInput={(ev) => setLabelDraft((ev.target as HTMLTextAreaElement).value)}
+        onKeyDown={(ev) => {
+          // Keep keys like Ctrl+Z for the text box itself.
+          ev.stopPropagation();
+          if (ev.key === "Escape") {
+            ev.preventDefault();
+            cancelLabelEdit();
+            onDone();
+          } else if (ev.key === "Enter" && !ev.shiftKey && !ev.isComposing) {
+            ev.preventDefault();
+            if (commitLabelEdit()) onDone();
+          }
+        }}
+        onBlur={() => {
+          if (!labelEdit.value) return;
+          if (!commitLabelEdit()) {
+            status.value = `Label not changed. ${status.value ?? ""}`.trim();
+            finish();
+          }
+        }}
+      />
+      <div class="tf-label-hint">{problem ? <span class="tf-problem">{problem}</span> : "Enter applies · Shift+Enter new line · Esc cancels"}</div>
+    </div>
+  );
+}
+
+type HandleId ="n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 const HANDLES: Array<{ id: HandleId; fx: -1 | 0 | 1; fy: -1 | 0 | 1; cursor: string }> = [
   { id: "nw", fx: -1, fy: 1, cursor: "nwse-resize" },
   { id: "n", fx: 0, fy: 1, cursor: "ns-resize" },
@@ -586,6 +651,28 @@ export function Canvas() {
     for (const note of result.notes) status.value += ` Note: ${note}.`;
   };
 
+  /** Double-click a node to edit its label where it is. */
+  const onDoubleClick = (e: MouseEvent) => {
+    const l = baseLayout.value;
+    if (!l) return;
+    for (const el of document.elementsFromPoint(e.clientX, e.clientY)) {
+      const id = el.closest("[data-node]")?.getAttribute("data-node");
+      const n = id ? l.nodes.find((x) => x.id === id) : undefined;
+      if (n?.kind === "statement") {
+        e.preventDefault();
+        startLabelEdit(n.id);
+        return;
+      }
+    }
+  };
+
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "F2" && selectedIds.value.length) {
+      e.preventDefault();
+      startLabelEdit(selectedIds.value[selectedIds.value.length - 1]!);
+    }
+  };
+
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();
     const before = toModel(e);
@@ -623,15 +710,18 @@ export function Canvas() {
   const handleNode = only && !resizeBlocker(only) && !overrides.value.size ? only : undefined;
 
   return (
+    <>
     <svg
       ref={svgRef}
       class="tf-canvas"
       viewBox={vb}
-      tabIndex={0}
+      tabindex={0}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
+      onDblClick={onDoubleClick}
+      onKeyDown={onKeyDown}
       data-testid="canvas"
     >
       <defs>{gradients}</defs>
@@ -711,6 +801,8 @@ export function Canvas() {
         ))}
       </g>
     </svg>
+    <LabelEditor view={v} size={size.value} onDone={() => svgRef.current?.focus({ preventScroll: true })} />
+    </>
   );
 }
 

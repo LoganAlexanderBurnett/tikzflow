@@ -264,7 +264,7 @@ export function App() {
   // Undo and redo work when the canvas has focus too.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const inEditor = (e.target as Element | null)?.closest?.(".cm-editor");
+      const inEditor = (e.target as Element | null)?.closest?.(".cm-editor, textarea, input, select");
       if (inEditor || !(e.ctrlKey || e.metaKey)) return;
       const k = e.key.toLowerCase();
       if (k === "z" && !e.shiftKey) {

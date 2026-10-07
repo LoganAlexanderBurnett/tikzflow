@@ -469,3 +469,23 @@ New features:
 - Growing around the anchor is TikZ's own behaviour and keeps the diff to the size items; moving the node to hold the opposite edge would mean rewriting its position on every resize.
 - Whole-millimetre values and in-place updates keep the code as a person would write it, and repeated resizes don't pile up items.
 - Following the panel's scope keeps one rule for every change: it applies to this node unless "all state nodes" is chosen.
+
+## D39: Editing labels in place (2026-10-07)
+**Decision:**
+- **Double-click** a node (or press F2 with it selected) to edit its label. A text box opens over the node holding the TeX between the label's braces, exactly as written (`Return\ $n \cdot f(n-1)$`), not a rendered version. Enter applies it, Shift+Enter adds a line, Escape cancels, and clicking elsewhere applies it.
+- **Patch.** Only the characters that differ are replaced (`src/edit/label.ts`, `planLabelEdit`): changing "world" to "there" in `{Hello world}` is a five-character change. Comments and line breaks inside the label stay. In a file with CRLF line endings, new lines are written as CRLF.
+- **What is refused,** with the reason shown under the box and in the status bar. The text box stays open, so nothing typed is lost:
+  - unbalanced braces (`\{` and `\}` are fine);
+  - a `%` with no line break after it, which would comment out the closing brace;
+  - a trailing backslash, which would escape it.
+  If the label is applied while one of these holds (clicking elsewhere), the edit is dropped and the status bar says "Label not changed".
+- **Checked by parsing.** The patched text must still contain the same node with the label as written, the same number of nodes, and no new syntax errors. Anything else is refused as changing the structure of the code.
+- **Which nodes.** Any node with a closed label, including locked ones: a label edit doesn't touch position. Not coordinates, unclosed labels, or edge labels (those come with edges in 2b).
+- **Undo.** One undo step, in the shared history. While the text box has focus, Ctrl+Z undoes the typing in the box; the app-wide shortcut now ignores text boxes, selects and inputs.
+- **No live preview while typing:** the box covers the node, and the canvas updates when the label is applied.
+
+**Also fixed:** the canvas never took keyboard focus, because Preact writes `tabIndex` on an SVG element as a case-sensitive attribute the browser ignores. It's `tabindex` now. F2 needed that.
+
+**Why:**
+- Labels often hold macros, math and font commands. Editing the TeX keeps all of them and keeps the diff to the characters typed, which is the project's rule.
+- The parse check turns "the user typed something odd" into a refusal rather than a broken statement, in the same spirit as checking moves by laying the result out.
