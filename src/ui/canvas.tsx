@@ -24,6 +24,8 @@ import {
   applyResize,
   cancelLabelEdit,
   commitLabelEdit,
+  createFromKeyboard,
+  dropFromPalette,
   labelEdit,
   labelEditProblem,
   setLabelDraft,
@@ -35,14 +37,17 @@ import {
   guides,
   layout,
   overrides,
+  PALETTE_DRAG,
+  palette,
   pinNode,
-  resizePreview,
+  previewLayout,
   selectFromCanvas,
   selectedIds,
   selection,
   status,
   text,
   unusedCoords,
+  viewCentre,
 } from "./store.ts";
 
 /** \coordinate markers: a dot with the name on hover; hollow if nothing uses it. */
@@ -282,7 +287,7 @@ function drawOrder(l: PictureLayout): Item[] {
  */
 function LabelEditor({ view, size, onDone }: { view: View; size: { w: number; h: number }; onDone: () => void }) {
   const e = labelEdit.value;
-  const id = e?.id;
+  const session = e?.session;
   // Focus the box as soon as it exists, so the first keystroke lands in it. The
   // callback only changes with the node, so typing doesn't refocus or reselect.
   const ref = useCallback(
@@ -290,9 +295,10 @@ function LabelEditor({ view, size, onDone }: { view: View; size: { w: number; h:
       el?.focus();
       el?.select();
     },
-    [id],
+    [session],
   );
-  const n = e ? baseLayout.value?.nodes.find((x) => x.id === e.id) : undefined;
+  // A node being created isn't in the code yet; it is in the preview layout.
+  const n = e ? (e.creating ? layout.value : baseLayout.value)?.nodes.find((x) => x.id === e.id) : undefined;
   if (!e || !n) return null;
   const problem = labelEditProblem.value;
   const x = (n.shape.center.x - (view.cx - size.w / 2 / view.scale)) * view.scale;
@@ -322,6 +328,13 @@ function LabelEditor({ view, size, onDone }: { view: View; size: { w: number; h:
           } else if (ev.key === "Enter" && !ev.shiftKey && !ev.isComposing) {
             ev.preventDefault();
             if (commitLabelEdit()) onDone();
+          } else if (ev.key === "Tab" && !ev.shiftKey && !ev.ctrlKey && !ev.metaKey && !ev.isComposing) {
+            // Apply this label and go straight on to the next connected node.
+            ev.preventDefault();
+            if (commitLabelEdit()) {
+              onDone();
+              createFromKeyboard("child");
+            }
           }
         }}
         onBlur={() => {
@@ -542,7 +555,7 @@ export function Canvas() {
     }
     d.last = out;
     d.match = {};
-    resizePreview.value = out.changes.length ? out.layout : null;
+    previewLayout.value = out.changes.length ? out.layout : null;
     // Mark the nodes it now has the same width or height as.
     const after = out.layout.nodes.find((n) => n.id === d.id);
     const gaps: GapMark[] = [];
@@ -603,7 +616,7 @@ export function Canvas() {
       return;
     }
     if (d.kind === "resize") {
-      resizePreview.value = null;
+      previewLayout.value = null;
       guides.value = { lines: [], gaps: [] };
       if (!d.moved || !d.last) return;
       const name = (n: LaidOutNode) => n.name ?? n.id;
@@ -668,8 +681,33 @@ export function Canvas() {
     if (e.key === "F2" && selectedIds.value.length) {
       e.preventDefault();
       startLabelEdit(selectedIds.value[selectedIds.value.length - 1]!);
+      return;
+    }
+    // Tab adds a connected node after the selected one, Enter one beside it.
+    if ((e.key === "Tab" || e.key === "Enter") && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && !labelEdit.value) {
+      const empty = !baseLayout.value?.nodes.some((n) => n.kind === "statement");
+      if (selectedIds.value.length || (empty && e.key === "Tab")) {
+        e.preventDefault();
+        createFromKeyboard(e.key === "Tab" ? "child" : "sibling");
+      }
     }
   };
+
+  /** A shape dragged from the palette is dropped here. */
+  const onDragOver = (e: DragEvent) => {
+    if (e.dataTransfer?.types.includes(PALETTE_DRAG)) e.preventDefault();
+  };
+  const onDrop = (e: DragEvent) => {
+    const id = e.dataTransfer?.getData(PALETTE_DRAG);
+    if (!id) return;
+    e.preventDefault();
+    const entry = palette.value.find((x) => x.id === id);
+    if (entry) dropFromPalette(entry, toModel(e), 7 / view.value.scale);
+  };
+
+  useEffect(() => {
+    viewCentre.get = () => ({ x: view.value.cx, y: view.value.cy });
+  }, []);
 
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();
@@ -720,6 +758,8 @@ export function Canvas() {
       onPointerCancel={onPointerUp}
       onDblClick={onDoubleClick}
       onKeyDown={onKeyDown}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
       data-testid="canvas"
     >
       <defs>{gradients}</defs>

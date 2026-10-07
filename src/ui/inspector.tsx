@@ -361,6 +361,15 @@ function Properties({ layout, nodes }: { layout: PictureLayout; nodes: LaidOutNo
   );
 }
 
+/** A node's name, or for an unnamed one its label (cut short), so it can be told from the others. */
+export function nodeTitle(n: LaidOutNode): string {
+  if (n.name && !n.implicitName) return n.name;
+  const label = n.syntax.label?.inner ? doc.value.text.slice(n.syntax.label.inner.from, n.syntax.label.inner.to) : "";
+  const flat = label.replace(/%[^\n]*/g, "").replace(/\\\\/g, " ").replace(/\s+/g, " ").trim();
+  if (flat) return `"${flat.length > 28 ? `${flat.slice(0, 27)}…` : flat}"`;
+  return n.name ?? "Unnamed node";
+}
+
 const COLLAPSE_KEY = "tikzflow.inspector.collapsed";
 
 /** Whether the panel was collapsed last time, remembered per viewer in this browser. */
@@ -412,7 +421,9 @@ export function Inspector() {
         <p class="tf-empty">{selection.value?.kind === "path" ? "Editing paths comes in a later step." : "Select a node to edit its colours, font and alignment. Shift-click selects several."}</p>
       ) : (
         <>
-          <h2 class="tf-title">{nodes.length === 1 ? (primary.name ?? "Unnamed node") : `${nodes.length} nodes`}</h2>
+          <h2 class="tf-title" title={nodes.length === 1 ? nodeTitle(primary) : undefined}>
+            {nodes.length === 1 ? nodeTitle(primary) : `${nodes.length} nodes`}
+          </h2>
           {primary.lock && <LockCard key={primary.id} layout={layout} node={primary} />}
           {statements.length > 0 ? (
             <Properties key={key} layout={layout} nodes={statements} />

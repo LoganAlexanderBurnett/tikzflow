@@ -504,3 +504,27 @@ New features:
 **Also fixed:** the canvas refitted the view after every edit that changed the picture's bounds, because the fit effect read the layout and so subscribed to it. A resize that made the picture larger rescaled the view under the pointer. `fit` now reads the layout without subscribing, so only a fit request or a change of canvas size refits. This was in M1.
 
 **Why:** Growing around the anchor made the node's far edge move when it was centred, which is not what a drag on a corner means. Using the move planner keeps the output looking hand-written, and merging the edits keeps one drag one undo step.
+
+## D41: Creating nodes: the palette and keyboard creation (2026-10-07)
+**Decision:**
+- **Palette** (`src/edit/create.ts`, `src/ui/palette.tsx`). A strip above the canvas holds the six standard shapes (D34): process (`rectangle`), decision (`diamond`), terminal (`rounded rectangle`), I/O (`trapezium`), connector (small `circle`) and document (`tape`). Then, under "This figure", the document's own node styles.
+  - **Standard entries use the document's style when it has one of that name** (the sample defines `process`, `decision`, `terminal` and `io`, so none of them is redefined). Otherwise the style is added where the document keeps its styles (D35), with the libraries its shape needs.
+  - **A document style is a palette entry** if a node uses it directly. A style only other styles build on (`base`) stays out; so do styles with arguments, and styles no node uses unless they look like node styles (a minimum size, a text width, a shape).
+- **What is written.** `\node[process, below=of stop] (archive) {Archive};` after the picture's last node, and `\draw[->] (stop) -- (archive);` after its last path, copying the `\draw` form the picture uses most for plain connections (D34).
+  - **Names** come from the label and follow the document's style (D35). The naming style is read from the real node names, not from every `(name)` in the text, which math such as `f(n-1)` had pushed towards kebab-case.
+  - **A reused parent name** (a picture that defines `a` twice) puts the node and its edge right after the parent instead.
+  - **Refused**, with the reason: a parent with no name to refer to, a locked parent, a label that would break the code (D39), and code after the last node that has a syntax error (D35).
+- **Placement.**
+  - **Tab: a connected child.** It goes on the flow's side: the direction of the edge into the selected node, else its own positioning, else down. If the spot is taken, it tries the sides in turn (`flow`, `right`, `left`, `above`), then steps along the cross axis. Each candidate is checked by laying the patched text out and looking for overlaps.
+  - **Enter: a sibling.** It goes on the perpendicular side and gets an edge from the node that leads to the selected one, in that edge's own form. With no incoming edge it gets none.
+  - **Drop or palette click without a selection: a point.** The node is written at the origin, laid out, snapped like a drag (`snapNode`) and moved by the move planner (D24), so it ends up as `below=of stop` when it lines up and as plain coordinates when nothing does. The two edits are merged (`composeChanges`, D40). A drop writes no edge.
+  - **A palette click with a node selected** works like Tab with that shape.
+- **Typing edits the label, and nothing is written until it is applied.** Tab, Enter on the palette and a drop show the new node (a preview layout, the same signal resizing uses) with the label box open and the placeholder selected. Enter writes the node, its style, libraries and edge as one undo step. Escape writes nothing. Tab inside the box applies it and starts the next connected node. Names are derived from the label that was typed, not from the placeholder.
+- **The shape last picked** is the one Tab and Enter use. The default is the document's own `process`, else its most used node style, else the standard process.
+
+**Also:** the properties panel shows an unnamed node's label (cut to 28 characters) instead of "Unnamed node". `resizePreview` became `previewLayout`, since creation uses it too.
+
+**Why:**
+- Writing only when the label is applied gives names that mean something, instead of renaming a placeholder name afterwards, and makes Escape clean.
+- Reusing the move planner for drops keeps one place where positions are chosen and verified. Checking each placement by layout is the same safety net as for moves.
+- Keeping the document's own styles in the palette is what lets someone extend an existing figure in its own look (D34).

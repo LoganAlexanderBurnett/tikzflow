@@ -5,6 +5,7 @@ import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { batch, computed, effect, signal } from "@preact/signals";
 import type { Change } from "../edit/changes.ts";
+import { defaultEntry, type PaletteEntry, paletteEntries, planCreate, type Placement } from "../edit/create.ts";
 import { draftOf, labelBlocker, labelProblem, planLabelEdit } from "../edit/label.ts";
 import { withLibraries } from "../edit/libraries.ts";
 import { planAttach, planPin } from "../edit/move.ts";
@@ -49,12 +50,12 @@ export const currentPicture = computed(() => Math.min(pictureIndex.value, Math.m
 /** The layout as the text describes it. */
 export const baseLayout = computed<PictureLayout | null>(() => layoutDocumentPicture(doc.value, currentPicture.value));
 
-/** The picture as it would be laid out with the resize in progress applied. */
-export const resizePreview = signal<PictureLayout | null>(null);
+/** The picture as it would be laid out with the resize or creation in progress applied. */
+export const previewLayout = signal<PictureLayout | null>(null);
 
 /** The layout shown, with any drag in progress applied. */
 export const layout = computed<PictureLayout | null>(() => {
-  const preview = resizePreview.value;
+  const preview = previewLayout.value;
   if (preview) return preview;
   const o = overrides.value;
   if (!o.size) return baseLayout.value;
@@ -314,7 +315,7 @@ export function applyResize(
   position?: string,
   extra = "",
 ): void {
-  resizePreview.value = null;
+  previewLayout.value = null;
   guides.value = { lines: [], gaps: [] };
   if (!changes.length) return;
   applyEdit(changes, "input.resize");
@@ -359,14 +360,22 @@ export function redoEdit(): void {
 
 // ---------------------------------------------------------------- label editing
 
-/** A label being edited in place: the node, the TeX as it was, and as it is now. */
+/**
+ * A label being edited in place: the node, the TeX as it was, and as it is
+ * now. For a node that doesn't exist yet (`creating`), nothing has been
+ * written: the node is a preview, and it is added when the label is applied.
+ */
 export interface LabelEdit {
+  /** Tells one editing session from the next, even for the same node id. */
+  session: number;
   id: string;
   original: string;
   draft: string;
+  creating?: { entry: PaletteEntry; placement: Placement };
 }
 
 export const labelEdit = signal<LabelEdit | null>(null);
+let sessions = 0;
 
 /** Why the draft can't be applied, or null. */
 export const labelEditProblem = computed(() => {
@@ -385,7 +394,7 @@ export function startLabelEdit(id: string): boolean {
   }
   const original = draftOf(n.syntax.label!.text);
   selectFromCanvas({ kind: "node", id });
-  labelEdit.value = { id, original, draft: original };
+  labelEdit.value = { session: ++sessions, id, original, draft: original };
   return true;
 }
 
@@ -395,6 +404,7 @@ export function setLabelDraft(draft: string): void {
 }
 
 export function cancelLabelEdit(): void {
+  if (labelEdit.value?.creating) previewLayout.value = null;
   labelEdit.value = null;
 }
 
@@ -402,6 +412,7 @@ export function cancelLabelEdit(): void {
 export function commitLabelEdit(): boolean {
   const e = labelEdit.value;
   if (!e) return true;
+  if (e.creating) return commitCreate(e, e.creating);
   if (e.draft === e.original) {
     labelEdit.value = null;
     return true;
@@ -416,4 +427,92 @@ export function commitLabelEdit(): boolean {
   applyEdit(r.changes, "input.label");
   status.value = `Changed the label of ${name}.`;
   return true;
+}
+
+// ---------------------------------------------------------------- creating nodes
+
+/** The drag-and-drop type a palette shape carries. */
+export const PALETTE_DRAG = "application/x-tikzflow-shape";
+
+/** The palette for the current picture. */
+export const palette = computed<PaletteEntry[]>(() => {
+  const pic = doc.value.syntax.pictures[currentPicture.value];
+  const l = baseLayout.value;
+  return pic && l ? paletteEntries(doc.value, pic, l) : [];
+});
+
+/** The palette entry the user picked last; new nodes from the keyboard use it. */
+export const activeEntryId = signal<string | null>(null);
+
+export const activeEntry = computed<PaletteEntry | null>(() => {
+  const list = palette.value;
+  const picked = list.find((e) => e.id === activeEntryId.value);
+  if (picked) return picked;
+  const pic = doc.value.syntax.pictures[currentPicture.value];
+  const l = baseLayout.value;
+  return pic && l && list.length ? defaultEntry(list, doc.value, pic, l) : null;
+});
+
+/** Where the canvas is centred, set by the canvas. */
+export const viewCentre: { get: () => Point } = { get: () => ({ x: 0, y: 0 }) };
+
+/**
+ * Starts adding a node of `entry`: it is shown where it would go, with its
+ * label ready to type over. Nothing is written until the label is applied;
+ * Escape leaves the code as it was.
+ */
+export function startCreate(entry: PaletteEntry, placement: Placement): boolean {
+  const r = planCreate(text.value, currentPicture.value, { entry, label: entry.placeholder, placement });
+  if (!r.ok) {
+    status.value = r.reason;
+    return false;
+  }
+  previewLayout.value = r.layout;
+  labelEdit.value = { session: ++sessions, id: r.id, original: entry.placeholder, draft: entry.placeholder, creating: { entry, placement } };
+  status.value = `New ${entry.label.toLowerCase()} ${r.written}. Type its label, then press Enter. Esc cancels, Tab adds the next one.`;
+  return true;
+}
+
+/** Writes the node being created with the label typed. Returns false (and keeps editing) if it can't be. */
+function commitCreate(e: LabelEdit, creating: NonNullable<LabelEdit["creating"]>): boolean {
+  const label = e.draft.trim() === "" ? e.original : e.draft;
+  const r = planCreate(text.value, currentPicture.value, { entry: creating.entry, label, placement: creating.placement });
+  if (!r.ok) {
+    status.value = r.reason;
+    return false;
+  }
+  labelEdit.value = null;
+  previewLayout.value = null;
+  applyEdit(r.changes, "input.create");
+  selectFromCanvas({ kind: "node", id: r.id });
+  status.value = `Added ${r.name}: ${r.written}.${r.notes.map((n) => ` Also ${n}.`).join("")}`;
+  return true;
+}
+
+/** Tab (a connected child) and Enter (a sibling) on the selected node. */
+export function createFromKeyboard(kind: "child" | "sibling"): boolean {
+  const entry = activeEntry.value;
+  const l = baseLayout.value;
+  if (!entry || !l) return false;
+  if (!l.nodes.some((n) => n.kind === "statement")) return startCreate(entry, { kind: "at", center: viewCentre.get(), threshold: 0 });
+  const primary = selectedNodes.value.at(-1);
+  if (!primary || primary.kind !== "statement") {
+    status.value = "Select a node first: Tab adds a connected node after it, Enter adds one beside it.";
+    return false;
+  }
+  return startCreate(entry, { kind, of: primary.id });
+}
+
+/** A palette button: after the selected node, connected to it, or at the middle of the view. */
+export function addFromPalette(entry: PaletteEntry): boolean {
+  activeEntryId.value = entry.id;
+  const primary = selectedNodes.value.at(-1);
+  if (primary?.kind === "statement") return startCreate(entry, { kind: "child", of: primary.id });
+  return startCreate(entry, { kind: "at", center: viewCentre.get(), threshold: 4 });
+}
+
+/** A palette shape dropped on the canvas at `center` (canvas pt). */
+export function dropFromPalette(entry: PaletteEntry, center: Point, threshold: number): boolean {
+  activeEntryId.value = entry.id;
+  return startCreate(entry, { kind: "at", center, threshold });
 }

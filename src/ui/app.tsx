@@ -6,6 +6,7 @@ import { useEffect, useRef } from "preact/hooks";
 import { decode, encode, UnencodableError } from "../source/encoding.ts";
 import { Canvas } from "./canvas.tsx";
 import { Inspector } from "./inspector.tsx";
+import { Palette } from "./palette.tsx";
 import { editorExtensions } from "./editor.ts";
 import { SAMPLE } from "./sample.ts";
 import {
@@ -321,12 +322,13 @@ export function App() {
         />
         <section class="tf-canvas-pane">
           <Summary />
+          <Palette />
           <div class="tf-stage">
             <Canvas />
             <Inspector />
           </div>
           <footer class="tf-status" data-testid="status">
-            {status.value ?? "Drag nodes to move them. Hold Alt to drag without snapping. Scroll to zoom, drag the background to pan."}
+            {status.value ?? "Drag nodes to move them. Hold Alt to drag without snapping. Tab adds a connected node. Scroll to zoom, drag the background to pan."}
           </footer>
         </section>
       </main>
