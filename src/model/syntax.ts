@@ -75,7 +75,7 @@ export type BodyItem =
   | { kind: "node"; node: NodeSyntax; trailing?: PathSyntax }
   | { kind: "path"; path: PathSyntax }
   | { kind: "styles"; range: Range; defs: StyleDef[]; settings: OptionList[] }
-  | { kind: "library"; range: Range; names: string[] }
+  | { kind: "library"; range: Range; names: string[]; list?: OptionList }
   | { kind: "scope-begin"; range: Range; options?: OptionList }
   | { kind: "scope-end"; range: Range }
   | { kind: "opaque"; range: Range; reason: OpaqueReason; names: string[] }
@@ -114,7 +114,7 @@ export interface DocumentSyntax {
   /** Definitions outside pictures, in document order. */
   preamble: Array<
     | { kind: "styles"; range: Range; defs: StyleDef[]; settings: OptionList[] }
-    | { kind: "library"; range: Range; names: string[] }
+    | { kind: "library"; range: Range; names: string[]; list?: OptionList }
     | { kind: "definition"; range: Range; def: Definition }
   >;
 }
@@ -315,8 +315,9 @@ function tikzstyleItem(node: SyntaxNode, text: string): BodyItem & { kind: "styl
 
 function libraryItem(node: SyntaxNode, text: string): BodyItem & { kind: "library" } {
   const block = node.getChild("OptionBlock");
-  const names = block ? optionList(block, text).items.map((i) => i.key).filter(Boolean) : [];
-  return { kind: "library", range: { from: node.from, to: node.to }, names };
+  if (!block) return { kind: "library", range: { from: node.from, to: node.to }, names: [] };
+  const list = optionList(block, text);
+  return { kind: "library", range: { from: node.from, to: node.to }, names: list.items.map((i) => i.key).filter(Boolean), list };
 }
 
 /** Reads a "\cs{arg}{arg}..." definition out of a run of siblings. Returns the definition and the last node consumed. */

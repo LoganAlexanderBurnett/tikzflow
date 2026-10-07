@@ -1,0 +1,66 @@
+\documentclass[tikz,border=10pt]{standalone}
+\usetikzlibrary{positioning,chains}
+
+\begin{document}
+
+\tikzset{
+    mynode/.style={
+        draw, rectangle, align=center, text width=5cm, font=\small, inner sep=3ex},
+    mylabel/.style={
+        draw, rectangle, align=center, rounded corners, font=\small\bf, inner sep=2ex, 
+        fill=cyan!30, minimum height=3.8cm},
+    arrow/.style={
+        very thick,->,>=stealth}
+}
+
+\begin{tikzpicture}[
+    node distance=1.5cm,
+    start chain=1 going below,
+    every join/.style=arrow,
+    ]
+    % the chain in the center going below
+    \coordinate[on chain=1] (tc);
+    \node[mynode, on chain=1] (n2)
+        {\# of records after duplicates removed};
+    \node[mynode, join, on chain=1] (n3)
+        {\# of records screened};
+    \node[mynode, join, on chain=1] (n4)
+        {\# of full-text articles accessed for eligbility};
+    \node[mynode, join, on chain=1] (n5)
+        {\# of studies included in qualitative synthesis};
+    \node[mynode, join, on chain=1] (n6)
+        {\# of studies included in quantitative sysntesis\\ (meta-analysis)};
+
+    % the branches to the right
+    \begin{scope}[start chain=going right]
+        \chainin (n3);
+        \node[mynode, join, on chain]
+            {\# of records excluded};
+        \chainin (n4);
+        \node[mynode, join, on chain]
+            {\# of full-text articles excluded, with reasons};
+    \end{scope}
+
+    % the nodes at the top  
+    \node[mynode, left=1cm of tc, anchor=south east] (n1l)
+        {\# of records is identified through database searching};
+    \node[mynode, right=1cm of tc, anchor=south west] (n1r) 
+        {\# of additional records indentified\\ through other sources};
+
+    \coordinate (n2nl) at ([xshift=-2cm]n2.north);
+    \coordinate (n2nr) at ([xshift= 2cm]n2.north);
+    \draw[arrow] (n1l.south -| n2nl) -- (n2nl);
+    \draw[arrow] (n1r.south -| n2nr) -- (n2nr);
+
+    % the labels on the left
+    \begin{scope}[start chain=going below, xshift=-8cm, node distance=.8cm]
+        \node[mylabel, on chain] {\rotatebox{90}{Identification}};
+        \node[mylabel, on chain] {\rotatebox{90}{Screening}};
+        \node[mylabel, on chain] {\rotatebox{90}{Eligibility}};
+        \node[mylabel, on chain] {\rotatebox{90}{Included}};
+    \end{scope}
+
+    % the title
+    \node[above=2.2cm of tc, xshift=5mm, font=\bf] {PRISMA 2009 Flow Diagram};
+\end{tikzpicture}
+\end{document}

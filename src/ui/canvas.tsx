@@ -325,7 +325,15 @@ export function Canvas() {
     applyEdit(result.changes, "move.drag");
     const s = result.spec;
     status.value =
-      s.kind === "positioning" ? `Wrote ${positioningText(s)}.` : s.kind === "perp" ? `Wrote at (${s.xFrom} |- ${s.yFrom}).` : "Wrote an absolute position.";
+      s.kind === "positioning"
+        ? `Wrote ${positioningText(s)}.`
+        : s.kind === "perp"
+          ? `Wrote at (${s.xFrom} |- ${s.yFrom}).`
+          : s.kind === "shift"
+            ? "Kept the position as written and adjusted its shift."
+            : "Wrote coordinates: nothing nearby lines up.";
+    if (result.library) status.value += " Loaded the positioning library.";
+    for (const note of result.notes) status.value += ` Note: ${note}.`;
   };
 
   const onWheel = (e: WheelEvent) => {

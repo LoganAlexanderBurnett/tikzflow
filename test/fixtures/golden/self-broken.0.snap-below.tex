@@ -1,0 +1,15 @@
+% Messy real-world input: old \tikzstyle, a macro, a matrix, and three
+% deliberate syntax errors (marked ERROR) that must not lose any text.
+\newcommand{\yes}{\textsf{yes}}
+\tikzstyle{block}=[rectangle, draw, text width=5em, text centered]
+\begin{tikzpicture}
+  \matrix (m) [matrix of nodes, row sep=6mm] {
+    |[block]| init \\
+    |[block]| loop \\
+  };
+  \node[block, right=2cm of m-1-1] (x) {Some {nested {braces}} and 50\% done};
+  \draw[->] (m-1-1) -- (m-2-1)                % ERROR: missing semicolon
+  \draw[->, thick (m-2-1) -- node {\yes} (x); % ERROR: unclosed option list
+  \node[below=of x] (y) {Y   % ERROR: unclosed label and missing semicolon
+  \draw (x) -- (y);
+\end{tikzpicture}

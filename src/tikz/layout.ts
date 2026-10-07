@@ -108,6 +108,8 @@ export interface PictureLayout {
   bounds: { minX: number; minY: number; maxX: number; maxY: number };
   /** Names defined inside kept-as-is blocks: references to them can't be drawn. */
   opaqueNames: Set<string>;
+  /** "local bounding box" names and the ids of the nodes each one covers. */
+  boxes: Map<string, string[]>;
   issues: Array<{ range: Range; message: string }>;
 }
 
@@ -200,6 +202,7 @@ export function layoutPicture(pic: PictureSyntax, env: LayoutEnv, overrides: Rea
     opaque: [],
     bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0 },
     opaqueNames: new Set(),
+    boxes: new Map(),
     issues: [],
   };
   const ctx: Ctx = {
@@ -289,6 +292,7 @@ function registerBox(box: { name: string; nodes: number; paths: number }, ctx: C
     { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 },
   );
   ctx.names.set(box.name, { shape });
+  ctx.out.boxes.set(box.name, part.nodes.map((n) => n.id));
 }
 
 /** Moves accumulated xshift/yshift of a scope into its matrix. */

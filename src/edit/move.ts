@@ -7,8 +7,9 @@ import type { LaidOutNode, PictureLayout } from "../tikz/layout.ts";
 import { positioningAnchor, positioningDirection } from "../tikz/layout.ts";
 import { anchorOffset, anchorPoint, type Point } from "../tikz/shapes.ts";
 import { applyLinear, applyMatrix, invert, type Matrix } from "../tikz/state.ts";
-import { PT_PER_UNIT, trimNumber } from "../tikz/units.ts";
+import { evalLength, PT_PER_UNIT, trimNumber } from "../tikz/units.ts";
 import { applyChanges, type Change } from "./changes.ts";
+import { ensureLibrary } from "./libraries.ts";
 import { addOptionList, appendItem, removeAtClause, removeItems, setAtClause } from "./optionEdits.ts";
 
 const MM = PT_PER_UNIT.mm!;
@@ -19,15 +20,22 @@ const ROUND_TOLERANCE = 0.75 * MM;
 
 export type PositionSpec =
   /** positioning library; distances in pt, undefined meaning "node distance". */
-  | { kind: "positioning"; dir: string; target: string; v?: number; h?: number }
+  | { kind: "positioning"; dir: string; target: string; v?: number; h?: number; shift?: Point }
   /** "at (a |- b)": x from one node, y from another. */
   | { kind: "perp"; xFrom: string; yFrom: string }
   /** "at (x,y)" in the node's own frame. */
-  | { kind: "absolute"; local: Point };
+  | { kind: "absolute"; local: Point }
+  /** Keep the position as written and set the node's own xshift/yshift, in local pt. */
+  | { kind: "shift"; shift: Point };
 
 export interface MoveResult {
   spec: PositionSpec;
+  /** All changes, including a library the new position needs. */
   changes: Change[];
+  /** The change that loads a library, if one was needed. */
+  library?: Change;
+  /** Things the user should know, e.g. a library to add by hand. */
+  notes: string[];
   /** The whole text after the change. */
   text: string;
   /** Where the node's centre ends up, which may differ from the request by rounding. */
@@ -53,10 +61,13 @@ export function dependents(layout: PictureLayout, id: string): Set<string> {
   const out = new Set<string>();
   const queue = [id];
   while (queue.length) {
-    const cur = layout.nodes.find((n) => n.id === queue.pop());
-    if (!cur?.name) continue;
+    const curId = queue.pop();
+    const cur = layout.nodes.find((n) => n.id === curId);
+    // Names that move when this node moves: its own, and bounding boxes around it.
+    const names = [...layout.boxes].filter(([, ids]) => ids.includes(curId!)).map(([name]) => name);
+    if (cur?.name) names.push(cur.name);
     for (const m of layout.nodes) {
-      if (!out.has(m.id) && m.id !== id && m.position.refs.includes(cur.name)) {
+      if (!out.has(m.id) && m.id !== id && m.position.refs.some((r) => names.includes(r))) {
         out.add(m.id);
         queue.push(m.id);
       }
@@ -102,7 +113,13 @@ export function candidateSpecs(layout: PictureLayout, node: LaidOutNode, c: Poin
   const specs: PositionSpec[] = [];
   const explicit: PositionSpec[] = [];
   const diagonal: PositionSpec[] = [];
+  const shifted: PositionSpec[] = [];
   const perp: PositionSpec[] = [];
+  const kept: PositionSpec[] = [];
+  const prev = previousRelation(layout, node);
+  // The node it was positioned relative to stays a candidate even if it is a coordinate.
+  const prevTarget = prev && layout.nodes.find((n) => n.name === prev.target && !refs.includes(n));
+  const targets = prevTarget ? [...refs, prevTarget] : refs;
 
   /**
    * The offset from the target's anchor to the moved node's anchor for a
@@ -117,20 +134,34 @@ export function candidateSpecs(layout: PictureLayout, node: LaidOutNode, c: Poin
     return { x: c.x + own.x - theirs.x, y: c.y + own.y - theirs.y };
   };
 
-  for (const t of refs) {
+  for (const t of targets) {
+    const isPrev = t === prevTarget || (prev !== null && t.name === prev.target);
+    const onlyPrev = t === prevTarget;
     for (const dir of STRAIGHT) {
       const off = offsetFor(t, dir);
       if (!off) continue;
       const vertical = dir === "below" || dir === "above";
-      if (Math.abs(vertical ? off.x : off.y) > ALIGN_EPS) continue;
       const [ux, uy] = positioningDirection(dir);
-      // Distance along the direction, in canvas pt.
+      // Distance along the direction, and the offset across it, in canvas pt.
       const gap = off.x * ux + off.y * uy;
+      const cross = vertical ? off.x : off.y;
       if (gap < -ALIGN_EPS) continue;
       const local = vertical ? gap / sy : gap / sx;
       const nodeDist = vertical ? nd.v : nd.h;
-      if (Math.abs(local - nodeDist) <= ROUND_TOLERANCE) specs.push({ kind: "positioning", dir, target: t.name! });
-      else explicit.push(vertical ? { kind: "positioning", dir, target: t.name!, v: local } : { kind: "positioning", dir, target: t.name!, h: local });
+      const base: PositionSpec & { kind: "positioning" } = { kind: "positioning", dir, target: t.name! };
+      if (Math.abs(cross) <= ALIGN_EPS) {
+        if (Math.abs(local - nodeDist) <= ROUND_TOLERANCE) (onlyPrev ? kept : specs).push(base);
+        else if (onlyPrev || gap <= FAR) (onlyPrev ? kept : explicit).push(vertical ? { ...base, v: local } : { ...base, h: local });
+        continue;
+      }
+      // Off-axis: keep the direction and add a shift across it, but only while
+      // the two still overlap across the axis; past that it is a diagonal.
+      const overlap = vertical ? t.shape.hw + node.shape.hw : t.shape.hh + node.shape.hh;
+      if (Math.abs(cross) >= overlap) continue;
+      const shift = vertical ? { x: cross / sx, y: 0 } : { x: 0, y: cross / sy };
+      const spec: PositionSpec = vertical ? { ...base, v: local, shift } : { ...base, h: local, shift };
+      if (isPrev && dir === prev!.dir) kept.push(spec);
+      else if (!onlyPrev && Math.abs(cross) <= NEARBY) shifted.push(spec);
     }
     for (const dir of DIAGONAL) {
       const off = offsetFor(t, dir);
@@ -139,7 +170,9 @@ export function candidateSpecs(layout: PictureLayout, node: LaidOutNode, c: Poin
       const h = off.x * ux;
       const v = off.y * uy;
       if (h < -ALIGN_EPS || v < -ALIGN_EPS) continue;
-      diagonal.push({ kind: "positioning", dir, target: t.name!, v: v / sy, h: h / sx });
+      const spec: PositionSpec = { kind: "positioning", dir, target: t.name!, v: v / sy, h: h / sx };
+      if (isPrev && dir === prev!.dir) kept.push(spec);
+      else if (!onlyPrev && h <= NEARBY && v <= NEARBY) diagonal.push(spec);
     }
   }
   // Perpendicular: x from one node and y from another.
@@ -147,12 +180,70 @@ export function candidateSpecs(layout: PictureLayout, node: LaidOutNode, c: Poin
   const yAligned = refs.filter((t) => Math.abs(t.shape.center.y - c.y) <= ALIGN_EPS);
   for (const a of xAligned) for (const b of yAligned) if (a !== b) perp.push({ kind: "perp", xFrom: a.name!, yFrom: b.name! });
 
+  // A node placed with a relational "at" ("at (a -| b)") keeps it and gets a shift.
+  if (node.position.kind === "at" && node.position.refs.length) {
+    const own = ownShift(node.syntax);
+    const inv = invert(node.frame);
+    if (own && inv) {
+      const [dx, dy] = applyLinear(inv, c.x - node.shape.center.x, c.y - node.shape.center.y);
+      kept.push({ kind: "shift", shift: { x: own.x + dx, y: own.y + dy } });
+    }
+  }
   const absolute: PositionSpec = { kind: "absolute", local: toLocal(node.frame, c) };
   // A node that was placed with plain numbers keeps that style unless the
   // drop lines up with other nodes.
   const wasAbsolute = node.position.kind === "at" && node.position.refs.length === 0;
   if (wasAbsolute) return [...specs, ...perp.slice(0, 1), ...explicit.slice(0, 1), absolute];
-  return [...specs, ...perp.slice(0, 1), ...explicit.slice(0, 2), ...diagonal.slice(0, 1), absolute];
+  // Order: lined up at node distance; lined up with two nodes; lined up at
+  // another distance; the relation it had before (with a shift if needed);
+  // a nearby diagonal; a nearby node plus a shift; plain coordinates.
+  return [...specs, ...perp.slice(0, 1), ...explicit.slice(0, 2), ...kept, ...diagonal.slice(0, 1), ...shifted.slice(0, 1), absolute];
+}
+
+/** Diagonal gaps and shifts are only used up to this distance, in pt. */
+const NEARBY = 3 * PT_PER_UNIT.cm!;
+/** Straight relations to another node are only used up to this distance, in pt. */
+const FAR = 5 * PT_PER_UNIT.cm!;
+
+/** The node's own xshift and yshift, in pt, or null if they aren't plain lengths. */
+function ownShift(syn: NodeSyntax): Point | null {
+  let x = 0;
+  let y = 0;
+  for (const list of syn.options) {
+    for (const item of list.items) {
+      if (item.key !== "xshift" && item.key !== "yshift" && item.key !== "shift") continue;
+      const v = item.key === "shift" ? null : evalLength(item.value ?? "");
+      if (v === null) return null;
+      if (item.key === "xshift") x += v;
+      else y += v;
+    }
+  }
+  return { x, y };
+}
+
+function shiftText(shift: Point): string {
+  const parts: string[] = [];
+  if (formatDistance(shift.x) !== "0pt") parts.push(`xshift=${formatDistance(shift.x)}`);
+  if (formatDistance(shift.y) !== "0pt") parts.push(`yshift=${formatDistance(shift.y)}`);
+  return parts.join(", ");
+}
+
+/** The positioning relation the node's own options give it now, if it names a simple target. */
+export function previousRelation(layout: PictureLayout, node: LaidOutNode): { dir: string; target: string } | null {
+  for (const list of node.syntax.options) {
+    for (const item of list.items) {
+      if (!isRelationalItem(item) || item.key === "at") continue;
+      const old = / of$/.test(item.key);
+      const dir = item.key.replace(/ of$/, "");
+      const target = (old ? item.value ?? "" : (item.value ?? "").replace(/^.*?\bof\s+/, "")).trim();
+      if (!SIMPLE_NAME.test(target)) return null;
+      const t = layout.nodes.find((n) => n.name === target);
+      if (!t || t.id === node.id || dependents(layout, node.id).has(t.id)) return null;
+      if (layout.nodes.indexOf(t) > layout.nodes.indexOf(node)) return null;
+      return { dir, target };
+    }
+  }
+  return null;
 }
 
 function toLocal(frame: Matrix, p: Point): Point {
@@ -180,7 +271,11 @@ export function positioningText(spec: PositionSpec & { kind: "positioning" }): s
     dist = v === h ? `${v} ` : `${v} and ${h} `;
   } else if (spec.v !== undefined) dist = `${formatDistance(spec.v)} `;
   else if (spec.h !== undefined) dist = `${formatDistance(spec.h)} `;
-  return `${spec.dir}=${dist}of ${spec.target}`;
+  const main = `${spec.dir}=${dist}of ${spec.target}`;
+  const shifts: string[] = [];
+  if (spec.shift && formatDistance(spec.shift.x) !== "0pt") shifts.push(`xshift=${formatDistance(spec.shift.x)}`);
+  if (spec.shift && formatDistance(spec.shift.y) !== "0pt") shifts.push(`yshift=${formatDistance(spec.shift.y)}`);
+  return [main, ...shifts].join(", ");
 }
 
 /** Coordinate text in the node's units: "(1.5,-2)". Matches the spacing of the existing clause. */
@@ -210,7 +305,12 @@ export function specChanges(text: string, syn: NodeSyntax, spec: PositionSpec, c
   const changes: Change[] = [];
   // An absolute position keeps anchors and shifts ("left", "anchor=west", "xshift")
   // and accounts for them; other kinds replace all of them.
-  const removeTest = spec.kind === "absolute" ? isRelationalItem : (i: OptionItem) => isPlacementKey(i.key);
+  const removeTest =
+    spec.kind === "absolute"
+      ? isRelationalItem
+      : spec.kind === "shift"
+        ? (i: OptionItem) => /^(xshift|yshift|shift)$/.test(i.key)
+        : (i: OptionItem) => isPlacementKey(i.key);
   const remove = ownItems(syn, removeTest);
   let replaced: OwnItem | undefined;
   if (spec.kind === "positioning") {
@@ -221,6 +321,12 @@ export function specChanges(text: string, syn: NodeSyntax, spec: PositionSpec, c
     else changes.push(addOptionList(syn, newText));
     const at = removeAtClause(text, syn);
     if (at) changes.push(at);
+  } else if (spec.kind === "shift") {
+    const newText = shiftText(spec.shift);
+    replaced = newText ? remove[0] : undefined;
+    if (replaced) changes.push({ from: replaced.item.from, to: replaced.item.to, insert: newText });
+    else if (newText && syn.options[0]) changes.push(appendItem(text, syn.options[0], newText));
+    else if (newText) changes.push(addOptionList(syn, newText));
   } else {
     const coord = spec.kind === "perp" ? `${spec.xFrom} |- ${spec.yFrom}` : coordText!;
     changes.push(setAtClause(syn, coord));
@@ -230,7 +336,7 @@ export function specChanges(text: string, syn: NodeSyntax, spec: PositionSpec, c
     const items = remove.filter((r) => r.list === list && r !== replaced).map((r) => r.item);
     if (!items.length) continue;
     const keptAfter = list.items.filter((i) => !items.includes(i));
-    if (!keptAfter.length && spec.kind === "positioning" && !replaced && list === syn.options[0]) {
+    if (!keptAfter.length && (spec.kind === "positioning" || spec.kind === "shift") && !replaced && list === syn.options[0]) {
       // The new item goes into this list, so keep the brackets.
       continue;
     }
@@ -266,7 +372,22 @@ export function planMove(text: string, picIndex: number, nodeId: string, center:
   const syn = node.syntax;
   for (const spec of candidateSpecs(layout, node, center)) {
     const result = trySpec(text, picIndex, node, syn, spec, center);
-    if (result) return result;
+    if (!result) continue;
+    // Relational positions need the positioning library.
+    if (spec.kind === "positioning") {
+      const pic = doc.syntax.pictures[picIndex]!;
+      const lib = ensureLibrary(doc, pic, "positioning");
+      if (!lib.ok) {
+        // A bare picture that already uses "=of" must have the library in its real preamble.
+        const usesIt = /\b(above|below|left|right)( left| right)?\s*=[^,\]]*\bof\b/.test(text.slice(pic.from, pic.to));
+        if (!usesIt) result.notes.push(lib.reason);
+      } else if (lib.change) {
+        result.library = lib.change;
+        result.changes = [...result.changes, lib.change];
+        result.text = applyChanges(text, result.changes);
+      }
+    }
+    return result;
   }
   return null;
 }
@@ -300,7 +421,7 @@ function trySpec(
     next = applyChanges(text, changes);
     const final = centerOf(next, picIndex, node.id);
     if (!final || Math.hypot(final.x - want.x, final.y - want.y) > 2 * ROUND_TOLERANCE) return null;
-    return { spec: { kind: "absolute", local }, changes, text: next, center: final };
+    return { spec: { kind: "absolute", local }, changes, text: next, center: final, notes: [] };
   }
   const changes = specChanges(text, syn, spec);
   const next = applyChanges(text, changes);
@@ -308,7 +429,7 @@ function trySpec(
   if (!got) return null;
   const tolerance = spec.kind === "perp" ? ALIGN_EPS : Math.SQRT2 * ROUND_TOLERANCE;
   if (Math.hypot(got.x - want.x, got.y - want.y) > tolerance) return null;
-  return { spec, changes, text: next, center: got };
+  return { spec, changes, text: next, center: got, notes: [] };
 }
 
 /** The anchor point of a node, for guides. */

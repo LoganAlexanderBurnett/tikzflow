@@ -1,0 +1,8 @@
+﻿% UTF-8 with a byte-order mark, CRLF line endings, tabs, and non-ASCII text.
+\begin{tikzpicture}[node distance=8mm]
+	\node[draw, rounded corners]	(a)	{Début — café};
+	\node[draw, below=of a]	(b)	{Größe prüfen};
+	\node[draw, below=1.1cm of b, xshift=5mm]	(c)	{检查 ✓ 😀};
+	\draw[->] (a) -- (b);	% kommentar: äöü
+	\draw[->] (b) -- node[right] {$\alpha \to \beta$} (c);
+\end{tikzpicture}
