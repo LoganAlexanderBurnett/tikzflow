@@ -256,12 +256,6 @@ button.link {
   pointer-events: all;
 }
 
-.tf-coordinate {
-  fill: none;
-  stroke: #9ca3af;
-  pointer-events: all;
-}
-
 .tf-path-hit {
   fill: none;
   stroke: transparent;
@@ -323,4 +317,137 @@ button.link {
 .tf-gap {
   stroke: var(--guide);
   pointer-events: none;
+}
+
+/* Summary bar: headline, error and undefined-name buttons, details toggle */
+
+.tf-summary .bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 10px;
+}
+
+.tf-summary .bar .headline {
+  flex: 1;
+  min-width: 0;
+}
+
+.tf-summary .bar .more {
+  border: none;
+  color: var(--accent);
+}
+
+.tf-errors,
+.tf-undefined {
+  white-space: nowrap;
+  color: var(--lock);
+  border-color: currentColor;
+  font-weight: 600;
+}
+
+/* Stage: the canvas with the inspector beside it */
+
+.tf-stage {
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+}
+
+.tf-stage .tf-canvas {
+  flex: 1;
+  min-width: 0;
+}
+
+.tf-inspector {
+  width: 280px;
+  flex: none;
+  overflow-y: auto;
+  border-left: 1px solid var(--line);
+  background: var(--panel);
+  padding: 10px 12px;
+}
+
+.tf-inspector h3 {
+  font-size: 13px;
+  margin: 0 0 6px;
+}
+
+.tf-inspector p {
+  margin: 0 0 8px;
+}
+
+.tf-lock h3 {
+  color: var(--lock);
+}
+
+.tf-hint {
+  font-weight: 600;
+}
+
+.tf-fixes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tf-attach {
+  display: flex;
+  gap: 6px;
+}
+
+.tf-attach select {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Coordinate markers and the "can't draw everything" marker */
+
+.tf-coord {
+  cursor: grab;
+}
+
+.tf-coord .hit {
+  fill: transparent;
+  pointer-events: all;
+}
+
+.tf-coord .dot {
+  fill: #6b7280;
+  stroke: #6b7280;
+}
+
+.tf-coord.unused .dot {
+  fill: #ffffff;
+  stroke: #9ca3af;
+}
+
+.tf-coord.selected .dot {
+  fill: var(--accent);
+  stroke: var(--accent);
+}
+
+.tf-coord .name {
+  display: none;
+  fill: #374151;
+  stroke: #ffffff;
+  paint-order: stroke;
+  font-family: ui-monospace, Consolas, monospace;
+  pointer-events: none;
+}
+
+.tf-coord.unused .name {
+  fill: #9ca3af;
+}
+
+.tf-coord:hover .name,
+.tf-coord.selected .name {
+  display: inline;
+}
+
+.tf-undrawn circle {
+  fill: #f59e0b;
+  stroke: #ffffff;
+  opacity: 0.85;
+  cursor: help;
 }

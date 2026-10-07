@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef } from "preact/hooks";
 import { planMove, positioningText, referenceCandidates } from "../edit/move.ts";
 import { snapNode } from "../edit/snap.ts";
 import { pictureEnv } from "../model/document.ts";
+import { undrawable } from "../model/explain.ts";
 import { type RGB, cssColor } from "../tikz/colors.ts";
 import { defaultTipLength, defaultTipWidth } from "../tikz/keys.ts";
 import type { LaidOutNode, LaidOutPath, PictureLayout, Tip } from "../tikz/layout.ts";
@@ -28,7 +29,40 @@ import {
   selection,
   status,
   text,
+  unusedCoords,
 } from "./store.ts";
+
+/** \coordinate markers: a dot with the name on hover; hollow if nothing uses it. */
+function CoordinateMark({ n, scale, selected, unused }: { n: LaidOutNode; scale: number; selected: boolean; unused: boolean }) {
+  const x = f(n.shape.center.x);
+  const y = f(-n.shape.center.y);
+  const name = n.name ?? "";
+  return (
+    <g data-node={n.id} data-testid="coordinate" class={`tf-coord${unused ? " unused" : ""}${selected ? " selected" : ""}${n.locked ? " locked" : ""}`}>
+      <title>{unused ? `${name}: not used by anything in the picture` : name}</title>
+      <circle cx={x} cy={y} r={f(8 / scale)} class="hit" />
+      <circle cx={x} cy={y} r={f(2.6 / scale)} class="dot" stroke-width={f(1.2 / scale)} stroke-dasharray={unused ? `${f(1.6 / scale)} ${f(1.2 / scale)}` : undefined} />
+      <text x={f(n.shape.center.x + 5 / scale)} y={f(-n.shape.center.y - 5 / scale)} font-size={f(11 / scale)} stroke-width={f(3 / scale)} class="name">
+        {name}
+        {unused ? " (unused)" : ""}
+      </text>
+    </g>
+  );
+}
+
+/** A small marker on a node with options the preview can't draw. */
+function UndrawnMark({ n, scale }: { n: LaidOutNode; scale: number }) {
+  const what = undrawable(n);
+  if (!what.length) return null;
+  const x = f(n.shape.center.x + n.shape.hw);
+  const y = f(-(n.shape.center.y + n.shape.hh));
+  return (
+    <g data-node={n.id} class="tf-undrawn" data-testid="undrawn-marker">
+      <title>{`The preview doesn't draw: ${what.join(", ")}. They're kept in the code and will show in the accurate preview.`}</title>
+      <circle cx={x} cy={y} r={f(4 / scale)} stroke-width={f(1.2 / scale)} />
+    </g>
+  );
+}
 
 interface View {
   /** Screen pixels per pt. */
@@ -125,6 +159,8 @@ const nodeSig = (n: LaidOutNode) =>
 const NodeShape = memo(NodeShapeView, (a, b) => a.scale === b.scale && a.selected === b.selected && nodeSig(a.n) === nodeSig(b.n));
 
 function NodeShapeView({ n, scale, selected }: { n: LaidOutNode; scale: number; selected: boolean }) {
+  // Coordinates are drawn as markers on top (CoordinateMark).
+  if (n.kind === "coordinate") return null;
   const d = outline(n.shape);
   const minStroke = 0.6 / scale;
   const fill = n.shading ? `url(#${gradId(n.id)})` : rgba(n.fill, "transparent");
@@ -143,7 +179,6 @@ function NodeShapeView({ n, scale, selected }: { n: LaidOutNode; scale: number; 
           vector-effect="none"
         />
       )}
-      {n.kind === "coordinate" && <circle cx={n.shape.center.x} cy={n.shape.center.y} r={2 / scale} class="tf-coordinate" />}
     </g>
   );
 }
@@ -303,7 +338,7 @@ export function Canvas() {
         const p = toModel(e);
         drag.current = { kind: "node", id, pointer: p, center: n.shape.center, moved: false, target: n.shape.center, alignedWith: [] };
         svg.setPointerCapture(e.pointerId);
-      } else if (n?.locked) status.value = `Locked: ${n.locked}.`;
+      } else if (n?.locked) status.value = `Locked: ${n.locked}. The panel on the right says why and how to fix it.`;
       return;
     }
     if (e.button === 0 && pathEl) {
@@ -451,6 +486,13 @@ export function Canvas() {
           <NodeLabel n={n} macros={macros.value} />
         </g>
       ))}
+      {l?.nodes.map((n) =>
+        n.kind === "coordinate" ? (
+          <CoordinateMark key={`mark-${n.id}`} n={n} scale={v.scale} selected={selIds.includes(n.id)} unused={unusedCoords.value.has(n.id)} />
+        ) : n.kind === "statement" ? (
+          <UndrawnMark key={`mark-${n.id}`} n={n} scale={v.scale} />
+        ) : null,
+      )}
       <g transform="scale(1 -1)" class="tf-overlay">
         {selected.map((n) => (
           <rect

@@ -5,6 +5,7 @@ import { useSignal } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
 import { decode, encode, UnencodableError } from "../source/encoding.ts";
 import { Canvas } from "./canvas.tsx";
+import { Inspector } from "./inspector.tsx";
 import { editorExtensions } from "./editor.ts";
 import { SAMPLE } from "./sample.ts";
 import {
@@ -21,6 +22,10 @@ import {
   redoEdit,
   replaceDocument,
   selectFromCanvas,
+  showError,
+  showReference,
+  describeError,
+  lineOf,
   status,
   summary,
   text,
@@ -79,15 +84,67 @@ function Summary() {
     );
   }
   const kept = Object.entries(s.kept);
-  const details = s.locked.length + s.unknownKeys.length + s.notes.length + kept.length;
+  const details = s.locked.length + s.unknownKeys.length + s.notes.length + kept.length + s.unresolved.length + s.parseErrors;
+  const t = text.value;
+  const errors = doc.value.errors;
   return (
     <div class={`tf-summary${open.value ? " open" : ""}`} data-testid="summary">
-      <button class="headline" onClick={() => (open.value = !open.value)} disabled={!details} title="What the editor understood">
-        <span data-testid="summary-headline">{s.headline}</span>
-        {details > 0 && <span class="more">{open.value ? "Hide details" : "Details"}</span>}
-      </button>
+      <div class="bar">
+        <button class="headline" onClick={() => (open.value = !open.value)} disabled={!details} title="What the editor understood">
+          <span data-testid="summary-headline">{s.main}</span>
+        </button>
+        {s.parseErrors > 0 && (
+          <button class="tf-errors" data-testid="error-count" onClick={() => showError()} title="Jump to the next syntax error in the code">
+            {s.parseErrors} syntax {s.parseErrors === 1 ? "error" : "errors"}
+          </button>
+        )}
+        {s.unresolved.length > 0 && (
+          <button class="tf-undefined" onClick={() => (open.value = true)} title="Names the code refers to that aren't defined">
+            {s.unresolved.length} undefined {s.unresolved.length === 1 ? "name" : "names"}
+          </button>
+        )}
+        {details > 0 && (
+          <button class="more" onClick={() => (open.value = !open.value)}>
+            {open.value ? "Hide details" : "Details"}
+          </button>
+        )}
+      </div>
       {open.value && (
         <div class="details">
+          {errors.length > 0 && (
+            <section>
+              <h3>Syntax errors</h3>
+              <p>LaTeX would stop on these too. The editor keeps the code around them as-is.</p>
+              <ul data-testid="error-list">
+                {errors.map((e, i) => (
+                  <li>
+                    <button class="link" onClick={() => showError(i)}>
+                      Line {lineOf(t, e.from)}
+                    </button>
+                    : {describeError(t, e)}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {s.unresolved.length > 0 && (
+            <section>
+              <h3>Undefined references</h3>
+              <p>LaTeX would stop with "No shape named … is known" on these too.</p>
+              <ul data-testid="undefined-list">
+                {s.unresolved.map((u) => (
+                  <li>
+                    <button class="link" onClick={() => showReference(u.name, u.refs.map((r) => r.nameRange ?? r.range))} title="Show where it's used">
+                      {u.name}
+                    </button>
+                    : {u.kind === "later" ? "defined only later in the code" : "not defined anywhere"}, used{" "}
+                    {u.refs.length === 1 ? "once" : `${u.refs.length} times`}
+                    {u.refs.some((r) => r.in === "path") && u.refs.some((r) => r.in === "node") ? " (by nodes and paths)" : u.refs[0]!.in === "path" ? " in paths" : " to place nodes"}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           {kept.length > 0 && (
             <section>
               <h3>Kept as-is</h3>
@@ -264,7 +321,10 @@ export function App() {
         />
         <section class="tf-canvas-pane">
           <Summary />
-          <Canvas />
+          <div class="tf-stage">
+            <Canvas />
+            <Inspector />
+          </div>
           <footer class="tf-status" data-testid="status">
             {status.value ?? "Drag nodes to move them. Hold Alt to drag without snapping. Scroll to zoom, drag the background to pan."}
           </footer>

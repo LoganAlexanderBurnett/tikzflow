@@ -2,6 +2,7 @@
 // SPEC.md), turn that into a minimal text patch, and check the result by
 // laying out the patched text again.
 import { analyzeDocument, layoutDocumentPicture } from "../model/document.ts";
+import { pictureReferences } from "../model/references.ts";
 import type { NodeSyntax, OptionItem, OptionList } from "../model/syntax.ts";
 import type { LaidOutNode, PictureLayout } from "../tikz/layout.ts";
 import { positioningAnchor, positioningDirection } from "../tikz/layout.ts";
@@ -119,6 +120,19 @@ export function candidateSpecs(layout: PictureLayout, node: LaidOutNode, c: Poin
   // The node it was positioned relative to stays a candidate even if it is a coordinate.
   const prevTarget = prev && layout.nodes.find((n) => n.name === prev.target && !refs.includes(n));
   const targets = prevTarget ? [...refs, prevTarget] : refs;
+  // Keeping the position as written and setting the node's own shifts.
+  const own = ownShift(node.syntax);
+  const keepShift: PositionSpec | null = own && {
+    kind: "shift",
+    shift: { x: own.x + (c.x - node.shape.center.x) / node.vectorScale, y: own.y + (c.y - node.shape.center.y) / node.vectorScale },
+  };
+  // A relation with a shift along its direction ("below=of a, yshift=-2mm")
+  // keeps the relation as written and updates the shifts, so repeated nudges
+  // change the same items instead of adding more (D36).
+  const [pux, puy] = prev ? positioningDirection(prev.dir) : [0, 0];
+  const ownAlong = !!own && ((pux !== 0 && own.x !== 0) || (puy !== 0 && own.y !== 0));
+  const alongShift = ownAlong && !prev!.dir.includes(" ") ? keepShift : null;
+  const nudged: PositionSpec[] = [];
 
   /**
    * The offset from the target's anchor to the moved node's anchor for a
@@ -150,6 +164,7 @@ export function candidateSpecs(layout: PictureLayout, node: LaidOutNode, c: Poin
       const base: PositionSpec & { kind: "positioning" } = { kind: "positioning", dir, target: t.name! };
       if (Math.abs(cross) <= ALIGN_EPS) {
         if (Math.abs(local - nodeDist) <= ROUND_TOLERANCE) (onlyPrev ? kept : specs).push(base);
+        else if (isPrev && dir === prev!.dir && alongShift) nudged.push(alongShift);
         else if (onlyPrev || gap <= FAR) (onlyPrev ? kept : explicit).push(vertical ? { ...base, v: local } : { ...base, h: local });
         continue;
       }
@@ -159,7 +174,8 @@ export function candidateSpecs(layout: PictureLayout, node: LaidOutNode, c: Poin
       if (Math.abs(cross) >= overlap) continue;
       const shift = vertical ? { x: cross / sx, y: 0 } : { x: 0, y: cross / sy };
       const spec: PositionSpec = vertical ? { ...base, v: local, shift } : { ...base, h: local, shift };
-      if (isPrev && dir === prev!.dir) kept.push(spec);
+      if (isPrev && dir === prev!.dir && alongShift) nudged.push(alongShift);
+      else if (isPrev && dir === prev!.dir) kept.push(spec);
       else if (!onlyPrev && Math.abs(cross) <= NEARBY) shifted.push(spec);
     }
     for (const dir of DIAGONAL) {
@@ -180,13 +196,8 @@ export function candidateSpecs(layout: PictureLayout, node: LaidOutNode, c: Poin
   for (const a of xAligned) for (const b of yAligned) if (a !== b) perp.push({ kind: "perp", xFrom: a.name!, yFrom: b.name! });
 
   // A node placed with a relational "at" ("at (a -| b)") keeps it and gets a shift.
-  if (node.position.kind === "at" && node.position.refs.length) {
-    const own = ownShift(node.syntax);
-    if (own) {
-      const [dx, dy] = [(c.x - node.shape.center.x) / node.vectorScale, (c.y - node.shape.center.y) / node.vectorScale];
-      kept.push({ kind: "shift", shift: { x: own.x + dx, y: own.y + dy } });
-    }
-  }
+  if (node.position.kind === "at" && node.position.refs.length && keepShift) kept.push(keepShift);
+  if (prev?.dir.includes(" ") && ownAlong) kept.unshift(keepShift!);
   const absolute: PositionSpec = { kind: "absolute", local: toLocal(node.frame, c) };
   // A node that was placed with plain numbers keeps that style unless the
   // drop lines up with other nodes.
@@ -195,7 +206,7 @@ export function candidateSpecs(layout: PictureLayout, node: LaidOutNode, c: Poin
   // Order: lined up at node distance; lined up with two nodes; lined up at
   // another distance; the relation it had before (with a shift if needed);
   // a nearby diagonal; a nearby node plus a shift; plain coordinates.
-  return [...specs, ...perp.slice(0, 1), ...explicit.slice(0, 2), ...kept, ...diagonal.slice(0, 1), ...shifted.slice(0, 1), absolute];
+  return [...specs, ...perp.slice(0, 1), ...nudged.slice(0, 1), ...explicit.slice(0, 2), ...kept, ...diagonal.slice(0, 1), ...shifted.slice(0, 1), absolute];
 }
 
 /** Diagonal gaps and shifts are only used up to this distance, in pt. */
@@ -217,6 +228,29 @@ function ownShift(syn: NodeSyntax): Point | null {
     }
   }
   return { x, y };
+}
+
+/**
+ * Updates the node's own xshift and yshift items to `shift` (local pt), in
+ * place: the last item for each axis gets the new value. Returns the items it
+ * kept and the shift still to be written for axes that have no item.
+ */
+function updateShifts(syn: NodeSyntax, shift: Point): { changes: Change[]; kept: OptionItem[]; missing?: Point } {
+  const changes: Change[] = [];
+  const kept: OptionItem[] = [];
+  const missing = { x: 0, y: 0 };
+  for (const axis of ["x", "y"] as const) {
+    const value = formatDistance(shift[axis]);
+    if (value === "0pt") continue;
+    const item = ownItems(syn, (i) => i.key === `${axis}shift` && i.valueRange !== undefined && evalLength(i.value ?? "") !== null).at(-1)?.item;
+    if (!item) {
+      missing[axis] = shift[axis];
+      continue;
+    }
+    kept.push(item);
+    if (formatDistance(evalLength(item.value!)!) !== value) changes.push({ from: item.valueRange!.from, to: item.valueRange!.to, insert: value });
+  }
+  return missing.x || missing.y ? { changes, kept, missing } : { changes, kept };
 }
 
 function shiftText(shift: Point): string {
@@ -309,22 +343,33 @@ export function specChanges(text: string, syn: NodeSyntax, spec: PositionSpec, c
       : spec.kind === "shift"
         ? (i: OptionItem) => /^(xshift|yshift|shift)$/.test(i.key)
         : (i: OptionItem) => isPlacementKey(i.key);
-  const remove = ownItems(syn, removeTest);
+  let remove = ownItems(syn, removeTest);
   let replaced: OwnItem | undefined;
-  if (spec.kind === "positioning") {
-    const newText = positioningText(spec);
-    replaced = remove.find((r) => isRelationalItem(r.item)) ?? remove.find((r) => POSITIONING_KEY.test(r.item.key)) ?? remove[0];
-    if (replaced) changes.push({ from: replaced.item.from, to: replaced.item.to, insert: newText });
-    else if (syn.options[0]) changes.push(appendItem(text, syn.options[0], newText));
-    else changes.push(addOptionList(syn, newText));
-    const at = removeAtClause(text, syn);
-    if (at) changes.push(at);
-  } else if (spec.kind === "shift") {
-    const newText = shiftText(spec.shift);
-    replaced = newText ? remove[0] : undefined;
-    if (replaced) changes.push({ from: replaced.item.from, to: replaced.item.to, insert: newText });
-    else if (newText && syn.options[0]) changes.push(appendItem(text, syn.options[0], newText));
-    else if (newText) changes.push(addOptionList(syn, newText));
+  if (spec.kind === "positioning" || spec.kind === "shift") {
+    // Shifts the node already has are updated in place, one per axis; only a
+    // missing one is added (D36).
+    const shifts = updateShifts(syn, spec.shift ?? { x: 0, y: 0 });
+    changes.push(...shifts.changes);
+    remove = remove.filter((r) => !shifts.kept.includes(r.item));
+    const extra = shifts.missing ? shiftText(shifts.missing) : "";
+    if (spec.kind === "positioning") {
+      const { shift: _, ...relation } = spec;
+      const newText = [positioningText(relation), extra].filter(Boolean).join(", ");
+      replaced = remove.find((r) => isRelationalItem(r.item)) ?? remove.find((r) => POSITIONING_KEY.test(r.item.key)) ?? remove[0];
+      if (replaced) changes.push({ from: replaced.item.from, to: replaced.item.to, insert: newText });
+      else if (syn.options[0]) changes.push(appendItem(text, syn.options[0], newText));
+      else changes.push(addOptionList(syn, newText));
+      const at = removeAtClause(text, syn);
+      if (at) changes.push(at);
+    } else if (extra) {
+      // After the relation, in place of a shift item that goes, or at the end of the node's options.
+      const rel = ownItems(syn, isRelationalItem).at(-1);
+      replaced = rel ? undefined : remove[0];
+      if (rel) changes.push({ from: rel.item.to, to: rel.item.to, insert: `, ${extra}` });
+      else if (replaced) changes.push({ from: replaced.item.from, to: replaced.item.to, insert: extra });
+      else if (syn.options.length) changes.push(appendItem(text, syn.options[syn.options.length - 1]!, extra));
+      else changes.push(addOptionList(syn, extra));
+    }
   } else {
     const coord = spec.kind === "perp" ? `${spec.xFrom} |- ${spec.yFrom}` : coordText!;
     changes.push(setAtClause(syn, coord));
@@ -388,6 +433,55 @@ export function planMove(text: string, picIndex: number, nodeId: string, center:
     return result;
   }
   return null;
+}
+
+/**
+ * "Pin at current position": writes plain coordinates for where the node is
+ * drawn now, replacing a placement the editor can't use (an undefined name,
+ * say). The node's anchor and shifts stay and are accounted for. Returns null
+ * if the node would still be locked afterwards.
+ */
+export function planPin(text: string, picIndex: number, nodeId: string): MoveResult | null {
+  const layout = layoutDocumentPicture(analyzeDocument(text), picIndex);
+  const node = layout?.nodes.find((n) => n.id === nodeId);
+  if (!layout || !node || node.kind === "path") return null;
+  const c = node.shape.center;
+  const result = trySpec(text, picIndex, node, node.syntax, { kind: "absolute", local: toLocal(node.frame, c) }, c);
+  if (!result) return null;
+  const after = layoutDocumentPicture(analyzeDocument(result.text), picIndex)?.nodes.find((n) => n.id === nodeId);
+  return after && !after.locked ? result : null;
+}
+
+/**
+ * "Attach to another node": replaces the name `from` in the node's own
+ * placement (its "at" clause and positioning options) with `to`, keeping
+ * anchors, shifts and distances as written. Returns null if the node would
+ * still be locked afterwards.
+ */
+export function planAttach(text: string, picIndex: number, nodeId: string, from: string, to: string): { changes: Change[]; text: string } | null {
+  const doc = analyzeDocument(text);
+  const pic = doc.syntax.pictures[picIndex];
+  const node = layoutDocumentPicture(doc, picIndex)?.nodes.find((n) => n.id === nodeId);
+  if (!pic || !node || !SIMPLE_NAME.test(to)) return null;
+  const syn = node.syntax;
+  const changes: Change[] = pictureReferences(text, pic)
+    .filter((r) => r.in === "node" && r.name === from && r.nameRange && r.range.from >= syn.from && r.range.to <= syn.to)
+    .map((r) => ({ from: r.nameRange!.from, to: r.nameRange!.to, insert: to }));
+  if (!changes.length) return null;
+  const next = applyChanges(text, changes);
+  const after = layoutDocumentPicture(analyzeDocument(next), picIndex)?.nodes.find((n) => n.id === nodeId);
+  return after && !after.locked ? { changes, text: next } : null;
+}
+
+/** Nodes a locked node could be attached to: named nodes defined before it. */
+export function attachCandidates(layout: PictureLayout, node: LaidOutNode): LaidOutNode[] {
+  const index = layout.nodes.indexOf(node);
+  const seen = new Set<string>();
+  return layout.nodes
+    .slice(0, index)
+    .reverse()
+    .filter((n) => n.name && !n.implicitName && SIMPLE_NAME.test(n.name) && !seen.has(n.name) && seen.add(n.name))
+    .reverse();
 }
 
 function centerOf(text: string, picIndex: number, nodeId: string): Point | null {

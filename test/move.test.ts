@@ -125,6 +125,55 @@ describe("planMove", () => {
     expect(r.text).toContain("\\node (b) at (a |- c) {B};");
   });
 
+  describe("nudges", () => {
+    const nudge = (text: string, id: string, dx: number, dy: number) => {
+      const c = nodes(text).get(id)!.shape.center;
+      return move(text, id, { x: c.x + dx, y: c.y + dy });
+    };
+    const MM = CM / 10;
+
+    it("a repeated nudge updates the shift it wrote instead of adding another", () => {
+      const text = pic("\\node[draw] (a) {Alpha node};\n\\node[draw, below=of a] (b) {Beta node};");
+      const once = nudge(text, "b", 5 * MM, -3 * MM).text;
+      expect(once).toContain("\\node[draw, below=1.3cm of a, xshift=5mm] (b) {Beta node};");
+      const twice = nudge(once, "b", 5 * MM, 0).text;
+      expect(twice).toContain("\\node[draw, below=1.3cm of a, xshift=1cm] (b) {Beta node};");
+      // Only the value changed.
+      const d = diffRange(once, twice)!;
+      expect(once.slice(0, d.from)).toMatch(/xshift=$/);
+    });
+
+    it("updates a shift in place wherever it is in the options", () => {
+      const text = pic("\\node[draw] (a) {Alpha node};\n\\node[draw, below=1.3cm of a, fill=red, xshift=5mm] (b) {Beta node};");
+      const r = nudge(text, "b", 5 * MM, 0);
+      expect(r.text).toContain("\\node[draw, below=1.3cm of a, fill=red, xshift=1cm] (b) {Beta node};");
+    });
+
+    it("keeps a hand-written shift along the relation and updates it", () => {
+      const text = pic("\\node[draw] (a) {Alpha node};\n\\node[draw, below=of a, yshift=-2mm] (b) {Beta node};");
+      const r = nudge(text, "b", 0, -3 * MM);
+      expect(r.text).toContain("\\node[draw, below=of a, yshift=-5mm] (b) {Beta node};");
+      const r2 = nudge(r.text, "b", 4 * MM, 0);
+      expect(r2.text).toContain("\\node[draw, below=of a, xshift=4mm, yshift=-5mm] (b) {Beta node};");
+    });
+
+    it("a nudge that lands on a clean relation drops the shift", () => {
+      const text = pic("\\node[draw] (a) {Alpha node};\n\\node[draw, below=1.3cm of a, fill=red, xshift=5mm] (b) {Beta node};");
+      const r = move(text, "b", below(text, "b", "a", CM));
+      expect(r.text).toContain("\\node[draw, below=of a, fill=red] (b) {Beta node};");
+      const r2 = move(text, "b", below(text, "b", "a", 1.5 * CM));
+      expect(r2.text).toContain("\\node[draw, below=1.5cm of a, fill=red] (b) {Beta node};");
+    });
+
+    it("a relational at clause keeps its coordinate and updates the shift", () => {
+      const text = pic("\\node (a) {Alpha node};\n\\node (c) at (4,-3) {C};\n\\node[draw, xshift=2mm] (b) at (a |- c) {Beta node};");
+      const r = nudge(text, "b", 3 * MM, 2 * MM);
+      expect(r.text).toContain("\\node[draw, xshift=5mm, yshift=2mm] (b) at (a |- c) {Beta node};");
+      const back = nudge(r.text, "b", -5 * MM, -2 * MM);
+      expect(back.text).toContain("\\node[draw] (b) at (a |- c) {Beta node};");
+    });
+  });
+
   it("works in scaled pictures", () => {
     // TikZ doesn't scale positioning distances (nodes keep only the
     // translation), so node distance is 1cm even at scale=0.5.

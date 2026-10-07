@@ -2,12 +2,15 @@
 // visual edit is a CodeMirror transaction, so one history covers both panes.
 import { isolateHistory, redo, undo } from "@codemirror/commands";
 import { EditorSelection } from "@codemirror/state";
-import type { EditorView } from "@codemirror/view";
+import { EditorView } from "@codemirror/view";
 import { batch, computed, signal } from "@preact/signals";
 import type { Change } from "../edit/changes.ts";
+import { withLibraries } from "../edit/libraries.ts";
+import { planAttach, planPin } from "../edit/move.ts";
 import type { GapMark, Guide } from "../edit/snap.ts";
 import { analyzeDocument, layoutDocumentPicture } from "../model/document.ts";
 import type { Range } from "../model/syntax.ts";
+import { unusedCoordinates } from "../model/references.ts";
 import { summarize } from "../model/summary.ts";
 import type { Encoding } from "../source/encoding.ts";
 import type { LaidOutNode, LaidOutPath, PictureLayout } from "../tikz/layout.ts";
@@ -53,7 +56,14 @@ export const layout = computed<PictureLayout | null>(() => {
 
 export const summary = computed(() => {
   const l = baseLayout.value;
-  return l ? summarize(doc.value, l) : null;
+  return l ? summarize(doc.value, l, currentPicture.value) : null;
+});
+
+/** \coordinate nodes nothing refers to. */
+export const unusedCoords = computed<ReadonlySet<string>>(() => {
+  const l = baseLayout.value;
+  const pic = doc.value.syntax.pictures[currentPicture.value];
+  return l && pic ? unusedCoordinates(doc.value.text, pic, l) : new Set();
 });
 
 let view: EditorView | null = null;
@@ -154,6 +164,52 @@ export function selectFromCanvas(hit: Hit | null, add = false): void {
   });
 }
 
+/** Selects `r` in the code pane, scrolls it into view, and focuses the code. */
+export function revealInCode(r: Range): void {
+  if (!view) return;
+  const len = view.state.doc.length;
+  const from = Math.min(r.from, len);
+  view.dispatch({ selection: EditorSelection.range(from, Math.min(r.to, len)), effects: EditorView.scrollIntoView(from, { y: "center" }) });
+  view.focus();
+}
+
+/** Which syntax error was shown last, for stepping through them. */
+const errorCursor = signal(-1);
+
+/** The line number (1-based) of `pos`. */
+export function lineOf(t: string, pos: number): number {
+  let n = 1;
+  for (let i = t.indexOf("\n"); i >= 0 && i < pos; i = t.indexOf("\n", i + 1)) n++;
+  return n;
+}
+
+/** What a syntax error is, in a few words. */
+export function describeError(t: string, e: Range): string {
+  if (e.to === e.from) return "something is missing here, such as a closing brace or a semicolon";
+  const s = t.slice(e.from, e.to).replace(/\s+/g, " ").trim();
+  return `"${s.length > 24 ? `${s.slice(0, 24)}…` : s}" isn't valid here`;
+}
+
+/** Jumps to syntax error `index`, or to the next one, and says where it is. */
+export function showError(index?: number): void {
+  const errors = doc.value.errors;
+  if (!errors.length) return;
+  const i = index ?? (errorCursor.value + 1) % errors.length;
+  errorCursor.value = i;
+  const e = errors[i]!;
+  revealInCode(e);
+  status.value = `Syntax error ${i + 1} of ${errors.length}, line ${lineOf(text.value, e.from)}: ${describeError(text.value, e)}.`;
+}
+
+/** Steps through the references to a name: each call shows the next one. */
+const refCursor = new Map<string, number>();
+export function showReference(name: string, ranges: readonly Range[]): void {
+  if (!ranges.length) return;
+  const i = ((refCursor.get(name) ?? -1) + 1) % ranges.length;
+  refCursor.set(name, i);
+  revealInCode(ranges[i]!);
+}
+
 /** Applies a visual edit as one undoable step. */
 export function applyEdit(changes: Change[], label: string): void {
   if (!view || !changes.length) return;
@@ -182,6 +238,38 @@ export function replaceDocument(t: string, name: string | null, enc: Encoding): 
     userEvent: "input.replace",
     selection: EditorSelection.cursor(0),
   });
+}
+
+/** Libraries an edit needs or made unused, with what to tell the user. */
+function libraryNote(added: readonly string[], removed: readonly string[], notes: readonly string[]): string {
+  const out: string[] = [];
+  if (added.length) out.push(`Loaded ${added.join(", ")}.`);
+  if (removed.length) out.push(`Removed the unused ${removed.join(", ")} library.`);
+  for (const n of notes) out.push(`Note: ${n}.`);
+  return out.length ? ` ${out.join(" ")}` : "";
+}
+
+/** "Pin at current position" for a locked node. */
+export function pinNode(id: string): void {
+  const r = planPin(text.value, currentPicture.value, id);
+  if (!r) {
+    status.value = "This node couldn't be pinned where it is.";
+    return;
+  }
+  const lib = withLibraries(text.value, currentPicture.value, r.changes);
+  applyEdit(lib.changes, "fix.pin");
+  status.value = `Pinned with plain coordinates, so LaTeX can place it. You can drag it now.${libraryNote(lib.added, lib.removed, lib.notes)}`;
+}
+
+/** "Attach to another node" for a locked node: refers to `to` instead of `from`. */
+export function attachNode(id: string, from: string, to: string): void {
+  const r = planAttach(text.value, currentPicture.value, id, from, to);
+  if (!r) {
+    status.value = `Attaching to ${to} doesn't work here: the node would still be locked.`;
+    return;
+  }
+  applyEdit(r.changes, "fix.attach");
+  status.value = `Now placed relative to ${to} instead of ${from}. You can drag it now.`;
 }
 
 export function undoEdit(): void {

@@ -1,7 +1,6 @@
 // The document model: parse, extract, and lay out pictures with the
 // definitions that come before them.
-import type { Tree } from "@lezer/common";
-import { breakdown } from "../parser/analyze.ts";
+import { IterMode, type Tree } from "@lezer/common";
 import { parser } from "../parser/parser.ts";
 import type { Macro } from "../text/label.ts";
 import { ColorTable } from "../tikz/colors.ts";
@@ -10,20 +9,34 @@ import { type LayoutEnv, layoutPicture, type PictureLayout } from "../tikz/layou
 import type { KeyValue } from "../tikz/options.ts";
 import { fontSizes, type SizeTable } from "../tikz/state.ts";
 import type { Point } from "../tikz/shapes.ts";
-import { type DocumentSyntax, documentSyntax, type PictureSyntax } from "./syntax.ts";
+import { type DocumentSyntax, documentSyntax, type PictureSyntax, type Range } from "./syntax.ts";
 
 export interface DocumentModel {
   text: string;
   tree: Tree;
   syntax: DocumentSyntax;
-  /** Parse error nodes in the whole document. */
+  /** Syntax errors in the whole document: the number of places with parse errors. */
   errorCount: number;
+  /** Where they are, in document order. Zero-length ones mark a missing token. */
+  errors: Range[];
 }
 
 export function analyzeDocument(text: string): DocumentModel {
   // Always a full parse: the model must not depend on edit history (D17).
   const tree = parser.parse(text);
-  return { text, tree, syntax: documentSyntax(tree, text), errorCount: breakdown(tree, text).errorNodes };
+  // Error nodes, one per place: recovery can leave nested or repeated
+  // markers at the same position.
+  const errors: Range[] = [];
+  tree.iterate({
+    mode: IterMode.IncludeAnonymous,
+    enter: (n) => {
+      if (!n.type.isError) return;
+      const last = errors[errors.length - 1];
+      if (last && n.from < Math.max(last.to, last.from + 1)) last.to = Math.max(last.to, n.to);
+      else errors.push({ from: n.from, to: n.to });
+    },
+  });
+  return { text, tree, syntax: documentSyntax(tree, text), errorCount: errors.length, errors };
 }
 
 /** Styles, colours, macros and settings defined before `pic`. */

@@ -34,7 +34,8 @@ export function removeItems(text: string, list: OptionList, remove: readonly Opt
     const after = commaAfter(item);
     let from = item.from;
     let to = item.to;
-    if (after !== undefined && (next === undefined ? after < list.to - 1 : after < next.from)) {
+    // With no item kept after it, it's the last item now, so it takes the comma before it.
+    if (after !== undefined && next !== undefined && after < next.from) {
       // Take the comma after the item and spaces up to the next item on the same line.
       to = after + 1;
       while (isHSpace(text[to])) to++;

@@ -1,10 +1,13 @@
 // The "what I understood" summary shown after parsing.
 import type { PictureLayout } from "../tikz/layout.ts";
 import type { DocumentModel } from "./document.ts";
+import { type UnresolvedRef, unresolvedReferences } from "./references.ts";
 
 export interface Summary {
   /** One-line headline, e.g. "12 nodes and 14 edges editable; 1 block kept as-is". */
   headline: string;
+  /** The headline without the syntax-error count, which the app shows as a button. */
+  main: string;
   nodes: number;
   editableNodes: number;
   edges: number;
@@ -17,6 +20,8 @@ export interface Summary {
   /** Things drawn approximately or not at all. */
   notes: string[];
   parseErrors: number;
+  /** Node references LaTeX would reject too: undefined names, or names defined only later. */
+  unresolved: UnresolvedRef[];
 }
 
 const KEPT_LABEL: Record<string, string> = {
@@ -30,7 +35,7 @@ function plural(n: number, word: string, words = `${word}s`) {
   return `${n} ${n === 1 ? word : words}`;
 }
 
-export function summarize(doc: DocumentModel, layout: PictureLayout): Summary {
+export function summarize(doc: DocumentModel, layout: PictureLayout, picIndex = 0): Summary {
   const real = layout.nodes.filter((n) => n.kind !== "coordinate");
   const editable = real.filter((n) => !n.locked);
   let edges = 0;
@@ -62,9 +67,13 @@ export function summarize(doc: DocumentModel, layout: PictureLayout): Summary {
   const keptTotal = Object.values(kept).reduce((a, b) => a + b, 0);
   const parts = [`${plural(editable.length, "node")}${editable.length < real.length ? ` of ${real.length}` : ""} and ${plural(edges, "edge")} editable`];
   if (keptTotal) parts.push(`${plural(keptTotal, "block")} kept as-is`);
+  const main = parts.join("; ");
   if (doc.errorCount) parts.push(plural(doc.errorCount, "syntax error"));
+  const pic = doc.syntax.pictures[picIndex];
+  const unresolved = pic ? unresolvedReferences(doc.text, pic, layout) : [];
   return {
     headline: parts.join("; "),
+    main,
     nodes: real.length,
     editableNodes: editable.length,
     edges,
@@ -73,5 +82,6 @@ export function summarize(doc: DocumentModel, layout: PictureLayout): Summary {
     unknownKeys: [...keys].map(([key, count]) => ({ key, count })).sort((a, b) => b.count - a.count),
     notes: [...notes],
     parseErrors: doc.errorCount,
+    unresolved,
   };
 }

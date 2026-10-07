@@ -60,12 +60,29 @@ export interface LaidOutNode {
   onGrid: boolean;
   /** Why the node can't be dragged, or undefined if it can. */
   locked?: string;
+  /** The same, for explanations and fixes. */
+  lock?: Lock;
   unknownKeys: string[];
   unrendered: string[];
   /** Rotation of the label in degrees (sloped path labels). */
   rotate?: number;
   /** -1 for the background layer. */
   layer: number;
+}
+
+/**
+ * Why a node can't be moved:
+ * - "undefined-ref": placed relative to a name that isn't defined before it;
+ * - "opaque-ref": relative to a name defined inside a block kept as-is;
+ * - "position": its placement uses something the editor doesn't model;
+ * - "fit", "chain", "path": its position follows other things;
+ * - "macro-name": its name contains a macro.
+ */
+export interface Lock {
+  kind: "undefined-ref" | "opaque-ref" | "position" | "fit" | "chain" | "path" | "macro-name";
+  message: string;
+  /** The name the node refers to, for the reference kinds. */
+  ref?: string;
 }
 
 export interface Tip {
@@ -298,6 +315,8 @@ export function layoutPicture(pic: PictureSyntax, env: LayoutEnv, overrides: Rea
         }
         out.opaque.push({ range: item.range, reason: item.reason, names: item.names });
         for (const n of item.names) out.opaqueNames.add(n);
+        // Names made with loop variables, "(n\i)": mayBeOpaqueName matches them as patterns.
+        for (const m of item.text.matchAll(/\(\s*([^()\s,:$]*\\[A-Za-z@]+[^()\s,:$]*)\s*\)/g)) out.opaqueNames.add(m[1]!.replace(/\.[A-Za-z ]+$/, ""));
         break;
       }
       case "node": {
@@ -366,6 +385,34 @@ function coordEnv(ctx: Ctx, st: State): CoordEnv {
 }
 
 /** Evaluates a coordinate written in node options ("at=(...)"), without parentheses or with. */
+/** Shapes the native preview draws as they are; others are drawn as rectangles. */
+const DRAWN_SHAPES = new Set(["rectangle", "coordinate", "circle", "ellipse", "diamond", "trapezium", "rounded rectangle", "cylinder", "tape", "document"]);
+
+/**
+ * Whether `name` may be defined inside a block kept as-is: one of its names,
+ * a name made with a loop variable ("n\i" matches n1), or a matrix cell or
+ * pic part ("m" matches m-1-1).
+ */
+export function mayBeOpaqueName(layout: Pick<PictureLayout, "opaqueNames">, name: string): boolean {
+  for (const o of layout.opaqueNames) {
+    if (o === name || name.startsWith(`${o}-`)) return true;
+    if (o.includes("\\")) {
+      const parts = o.split(/\\[A-Za-z@]+/).map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, (ch) => `\\${ch}`));
+      if (new RegExp(`^${parts.join(".+")}$`).test(name)) return true;
+    }
+  }
+  return false;
+}
+
+/** Why a coordinate the node is placed by can't be evaluated. */
+function coordLock(r: CoordResult & { ok: false }, ctx: Ctx): Lock {
+  const opaque = r.refs.find((n) => mayBeOpaqueName(ctx.out, n));
+  if (opaque) return { kind: "opaque-ref", message: `it is placed relative to "${opaque}", inside a block kept as-is`, ref: opaque };
+  const unknown = /^unknown node "(.*)"$/.exec(r.reason);
+  if (unknown) return { kind: "undefined-ref", message: r.reason, ref: unknown[1]! };
+  return { kind: "position", message: r.reason };
+}
+
 function evalLoose(text: string, ctx: Ctx, st: State): CoordResult {
   let t = text.trim();
   if (t.startsWith("{") && t.endsWith("}")) t = t.slice(1, -1).trim();
@@ -454,7 +501,8 @@ function layoutNode(
   const th = st.textHeight ?? text?.height ?? 0;
   const td = st.textDepth ?? text?.depth ?? 0;
 
-  const locked: string[] = [];
+  const locked: Lock[] = [];
+  const lockCoord = (r: CoordResult & { ok: false }) => locked.push(coordLock(r, ctx));
   const refs: string[] = [];
   let posKind: PositionKind = "default";
 
@@ -469,7 +517,7 @@ function layoutNode(
       minWidth = Math.max(minWidth, box.maxX - box.minX + 2 * st.innerXSep);
       minHeight = Math.max(minHeight, box.maxY - box.minY + 2 * st.innerYSep);
       fitCenter = { x: (box.minX + box.maxX) / 2, y: (box.minY + box.maxY) / 2 };
-    } else locked.push("fits nodes the editor can't place");
+    } else locked.push({ kind: "position", message: "fits nodes the editor can't place" });
   }
 
   const shape0 = makeShape(
@@ -506,7 +554,7 @@ function layoutNode(
     const r = syn.at ? evalCoordText(atText, coordEnv(ctx, st)) : evalLoose(atText, ctx, st);
     refs.push(...r.refs);
     if (r.ok) at = r.point;
-    else locked.push(r.reason);
+    else lockCoord(r);
   }
   const placement = st.placement;
   // The positioning library reads "on grid" and "node distance" when its key
@@ -522,7 +570,7 @@ function layoutNode(
   if (placement) {
     if (placement.kind === "relative" && placement.dir === "unmodelled") {
       posKind = "unknown";
-      locked.push(`position set by "${placement.of}"`);
+      locked.push({ kind: "position", message: `position set by "${placement.of}"` });
     } else if (placement.kind === "old") {
       posKind = "old-positioning";
       const target = evalLoose(placement.of, ctx, st);
@@ -536,7 +584,7 @@ function layoutNode(
         const [dx, dy] = nodeVector(st, (ux / len) * dist.v, (uy / len) * dist.v);
         const base = target.node ? target.node.shape.center : target.point;
         at = { x: base.x + dx, y: base.y + dy };
-      } else locked.push(target.reason);
+      } else lockCoord(target);
     } else if (placement.kind === "relative") {
       const [ux, uy] = positioningDirection(placement.dir);
       let shiftV = 0;
@@ -546,7 +594,7 @@ function layoutNode(
         if (d) {
           shiftV = d.v;
           shiftH = d.h;
-        } else locked.push(`distance "${placement.shift}"`);
+        } else locked.push({ kind: "position", message: `distance "${placement.shift}"` });
       }
       if (placement.of !== undefined) {
         posKind = "positioning";
@@ -566,7 +614,7 @@ function layoutNode(
           if (grid && anchor === positioningAnchor(placement.dir)) anchor = "center";
           const [dx, dy] = nodeVector(st, ux * shiftH, uy * shiftV);
           at = { x: base.x + dx, y: base.y + dy };
-        } else locked.push(target.reason);
+        } else lockCoord(target);
       } else {
         // "below=2pt": shift the node away from its at point.
         const [dx, dy] = nodeVector(st, ux * shiftH, uy * shiftV);
@@ -582,7 +630,7 @@ function layoutNode(
   }
   let center: Point;
   const off = anchorOffset(shape0, anchor);
-  if (!off) locked.push(`anchor "${anchor}"`);
+  if (!off) locked.push({ kind: "position", message: `anchor "${anchor}"` });
   center = { x: at.x - (off?.x ?? 0), y: at.y - (off?.y ?? 0) };
   if (fitCenter) center = fitCenter;
   const override = ctx.overrides.get(id);
@@ -595,10 +643,13 @@ function layoutNode(
   if (needs && ctx.env.libraries && !ctx.env.libraries.some((lib) => lib === needs || lib === "shapes")) {
     ctx.out.issues.push({ range: { from: syn.from, to: syn.to }, message: `The ${st.shape} shape needs \\usetikzlibrary{${needs}}, which this document doesn't load.` });
   }
-  if (kind === "path" || pathPos) locked.push("it is part of a path (edge labels are edited in a later milestone)");
-  if (name && /[\\#]/.test(name)) locked.push("its name contains a macro");
-  if (posKind === "fit") locked.push("its size and position follow the nodes it fits");
-  for (const r of refs) if (ctx.out.opaqueNames.has(r)) locked.push(`it is placed relative to "${r}", inside a block kept as-is`);
+  if (kind === "path" || pathPos) locked.push({ kind: "path", message: "it is part of a path (edge labels are edited in a later milestone)" });
+  if (name && /[\\#]/.test(name)) locked.push({ kind: "macro-name", message: "its name contains a macro" });
+  if (posKind === "fit") locked.push({ kind: "fit", message: "its size and position follow the nodes it fits" });
+  for (const r of refs) {
+    // A name the picture defines itself is only a problem if it's a block's own name.
+    if (ctx.out.opaqueNames.has(r) || (!ctx.names.has(r) && mayBeOpaqueName(ctx.out, r))) locked.push({ kind: "opaque-ref", message: `it is placed relative to "${r}", inside a block kept as-is`, ref: r });
+  }
 
   const strokeColor = st.drawColor === "none" ? undefined : (st.drawColor ?? st.color);
   const fillColor = st.fillColor === "none" ? undefined : (st.fillColor ?? st.color);
@@ -623,7 +674,11 @@ function layoutNode(
     nodeDistance: { ...placementDistance },
     onGrid: placementGrid,
     unknownKeys: st.unknown,
-    unrendered: [...st.unrendered, ...(text?.issues ?? []).map((i) => `label: ${i}`)],
+    unrendered: [
+      ...st.unrendered,
+      ...(DRAWN_SHAPES.has(st.shape) ? [] : [`the ${st.shape} shape (drawn as a ${st.shape === "circle split" ? "circle" : "rectangle"})`]),
+      ...(text?.issues ?? []).map((i) => `label: ${i}`),
+    ],
     layer: st.layer,
   };
   if (name) node.name = name;
@@ -632,7 +687,10 @@ function layoutNode(
   if (st.draw && strokeColor) node.stroke = strokeColor;
   if (st.fill && fillColor && !st.shading) node.fill = fillColor;
   if (st.shading) node.shading = st.shading;
-  if (locked.length) node.locked = locked[0]!;
+  if (locked.length) {
+    node.lock = locked[0]!;
+    node.locked = node.lock.message;
+  }
   if (kind === "path" && st.sloped && pathPos) {
     let a = (pathPos.angle * 180) / Math.PI;
     if (a > 90) a -= 180;
@@ -654,7 +712,10 @@ function layoutNode(
     const prev = chain.last;
     chain.count++;
     chain.last = { id, name };
-    if (st.onChain) node.locked ??= "its position is set by a chain";
+    if (st.onChain && !node.lock) {
+      node.lock = { kind: "chain", message: "its position is set by a chain" };
+      node.locked = node.lock.message;
+    }
     if (st.join && prev) addJoin(prev.name, node, st.join, scope, ctx);
   }
   return node;
@@ -1143,7 +1204,7 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint):
         const r = evalAt(it.coord, base);
         pathRefs.push(...r.refs);
         if (!r.ok) {
-          const opaqueRef = r.refs.find((n) => ctx.out.opaqueNames.has(n));
+          const opaqueRef = r.refs.find((n) => mayBeOpaqueName(ctx.out, n));
           main.issues.push(opaqueRef ? `refers to "${opaqueRef}" inside a block kept as-is` : r.reason);
           broken = true;
           break;

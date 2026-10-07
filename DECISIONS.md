@@ -394,3 +394,26 @@ New features:
 - A sweep in `test/edit-core.test.ts` defines a style, inserts a node using it and connects it, on every corpus picture with a named node (27 pictures). Nothing else moves, and the parse doesn't get worse.
 
 **Note for step 6:** a picture can reuse a node name (`se-102785-foreach-scope.tex` defines `a` twice). A new node placed after the second definition refers to the second one. Creation must insert right after the parent when its name is reused later, and verify by layout.
+
+## D36: Fixes from testing Milestone 1 (2026-10-07)
+**Decision:**
+- **Nudges** (`src/edit/move.ts`). Shifts a node already has are updated in place, one item per axis: a repeated nudge changes `xshift=5mm` to `xshift=1cm` and nothing else. Only a missing axis gets a new item, and a shift that rounds to zero is removed.
+  - A relation with a hand-written shift along its own direction (`below=of a, yshift=-2mm`) keeps the relation as written and updates the shifts.
+  - Our own nudges (`below=1.3cm of a, xshift=5mm`) keep putting the along-axis part into the distance, as in M1.
+  - A drop that lines up exactly (node distance, a perpendicular coordinate, or a straight relation with a written distance) still wins and drops every shift.
+- **Locked nodes** carry a structured reason (`LaidOutNode.lock`): an undefined reference, a reference into code kept as-is, an unmodelled position, fit, chain, path label, or a macro in the name. `src/model/explain.ts` turns it into plain language.
+  - **Undefined and later-defined references** say that LaTeX would stop too ("No shape named … is known"), suggest a close name (`pkin` → `pkin2`), and offer two fixes.
+  - **Pin at current position** writes plain coordinates for where the node is drawn now, keeping its anchor and shifts.
+  - **Attach to another node** swaps the name in the node's own placement, keeping anchors, shifts and distances: `at ([xshift=2mm]model.north west)` becomes `at ([xshift=2mm]v1.north west)`. Only nodes defined earlier are offered.
+  - Both are refused if the node would still be locked afterwards.
+  - The other reasons get an explanation and no fix. References into code kept as-is say LaTeX is fine with them. Pinning there would write the wrong place, because the editor doesn't know where the target is.
+- **Undefined references** (`src/model/references.ts`) are found by reading the code, not the layout, so a path that stops drawing at its first bad coordinate still reports the rest. They are never reported when the name might come from something the editor can't see:
+  - a name in code kept as-is, a loop pattern like `n\i`, or a matrix cell or pic part (`m-1-1`);
+  - TikZ's own names (`current bounding box`);
+  - pictures with `remember picture`;
+  - names keys like `append after command` may make (`h-rho`).
+- **Syntax errors** are counted once per place; recovery can stack several error nodes at one position. The count in the summary bar is a button that steps through them. Details lists each one with its line.
+- **Coordinates** are drawn as markers on top of the picture, with the name on hover. A coordinate whose name appears nowhere else in the picture, blocks kept as-is included, is drawn hollow and labelled "unused".
+- **Undrawable options.** A node with options the preview ignores, or a shape it draws as a rectangle, gets a small amber dot at its top-right corner. Its tooltip lists them. Approximated shapes are now also listed in the summary.
+
+**Why:** These are the owner's findings from the M1 review (D31, D33). A locked node that only says "unknown node" leaves the user stuck. Pointing at the code, and fixing it in one click, doesn't.
