@@ -3,11 +3,11 @@
 import { isolateHistory, redo, undo } from "@codemirror/commands";
 import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { batch, computed, signal } from "@preact/signals";
+import { batch, computed, effect, signal } from "@preact/signals";
 import type { Change } from "../edit/changes.ts";
 import { withLibraries } from "../edit/libraries.ts";
 import { planAttach, planPin } from "../edit/move.ts";
-import { type PropEdit, propertyChanges, type Scope } from "../edit/properties.ts";
+import { type PropEdit, propertyChanges, type Scope, sharedStyles } from "../edit/properties.ts";
 import type { GapMark, Guide } from "../edit/snap.ts";
 import { analyzeDocument, layoutDocumentPicture } from "../model/document.ts";
 import type { Range } from "../model/syntax.ts";
@@ -48,8 +48,13 @@ export const currentPicture = computed(() => Math.min(pictureIndex.value, Math.m
 /** The layout as the text describes it. */
 export const baseLayout = computed<PictureLayout | null>(() => layoutDocumentPicture(doc.value, currentPicture.value));
 
+/** The picture as it would be laid out with the resize in progress applied. */
+export const resizePreview = signal<PictureLayout | null>(null);
+
 /** The layout shown, with any drag in progress applied. */
 export const layout = computed<PictureLayout | null>(() => {
+  const preview = resizePreview.value;
+  if (preview) return preview;
   const o = overrides.value;
   if (!o.size) return baseLayout.value;
   return layoutDocumentPicture(doc.value, currentPicture.value, o);
@@ -125,6 +130,27 @@ export const selectedNodes = computed<LaidOutNode[]>(() => {
   const l = baseLayout.value;
   if (!l) return [];
   return selectedIds.value.flatMap((id) => l.nodes.find((n) => n.id === id) ?? []);
+});
+
+/**
+ * The style the properties panel and resizing apply to, or null for the
+ * selected nodes themselves (D34, D38). A new selection starts at null again.
+ */
+export const scopeStyle = signal<string | null>(null);
+const selectionKey = computed(() => selectedIds.value.join("|"));
+effect(() => {
+  void selectionKey.value;
+  scopeStyle.value = null;
+});
+
+/** What a change to the selection applies to: the chosen style if every selected node uses it, else the nodes. */
+export const activeScope = computed<Scope | null>(() => {
+  const nodes = selectedNodes.value.filter((n) => n.kind === "statement");
+  if (!nodes.length) return null;
+  const pic = doc.value.syntax.pictures[currentPicture.value];
+  const style = scopeStyle.value;
+  if (style && pic && sharedStyles(doc.value, pic, nodes).includes(style)) return { kind: "style", name: style };
+  return { kind: "nodes", ids: nodes.map((n) => n.id) };
 });
 
 /** The code of the selected objects, primary last. */
@@ -276,6 +302,16 @@ export function applyProperty(scope: Scope, edit: PropEdit, extra: Change[] = []
   const what = scope.kind === "style" ? `the ${scope.name} style` : scope.ids.length === 1 ? "the node" : `${scope.ids.length} nodes`;
   status.value = `${done ?? "Changed"} ${what}.${r.notes.map((n) => ` ${n}.`).join("")}`;
   return true;
+}
+
+/** Applies a finished resize drag as one undoable step, and says what was written. */
+export function applyResize(changes: Change[], written: readonly string[], scope: Scope, notes: readonly string[], extra = ""): void {
+  resizePreview.value = null;
+  guides.value = { lines: [], gaps: [] };
+  if (!changes.length) return;
+  applyEdit(changes, "input.resize");
+  const where = scope.kind === "style" ? ` in the ${scope.name} style` : "";
+  status.value = `Wrote ${written.join(", ")}${where}.${extra}${notes.map((n) => ` Note: ${n}.`).join("")}`;
 }
 
 /**

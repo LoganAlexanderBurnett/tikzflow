@@ -6,17 +6,22 @@ import type { JSX } from "preact";
 import { memo } from "preact/compat";
 import { useEffect, useMemo, useRef } from "preact/hooks";
 import { planMove, positioningText, referenceCandidates } from "../edit/move.ts";
-import { snapNode } from "../edit/snap.ts";
+import type { Scope } from "../edit/properties.ts";
+import { planResize, type ResizeOutcome, resizeBlocker, type SizeWant } from "../edit/resize.ts";
+import { type GapMark, snapNode } from "../edit/snap.ts";
 import { pictureEnv } from "../model/document.ts";
 import { undrawable } from "../model/explain.ts";
 import { type RGB, cssColor } from "../tikz/colors.ts";
 import { defaultTipLength, defaultTipWidth } from "../tikz/keys.ts";
 import type { LaidOutNode, LaidOutPath, PictureLayout, Tip } from "../tikz/layout.ts";
-import { outline, type Point } from "../tikz/shapes.ts";
+import { anchorOffset, outline, type Point } from "../tikz/shapes.ts";
+import { PT_PER_UNIT } from "../tikz/units.ts";
 import type { Shading } from "../tikz/state.ts";
 import { katexMacros, labelHtml } from "./labelHtml.ts";
 import {
+  activeScope,
   applyEdit,
+  applyResize,
   baseLayout,
   currentPicture,
   doc,
@@ -25,6 +30,7 @@ import {
   layout,
   overrides,
   pinNode,
+  resizePreview,
   selectFromCanvas,
   selectedIds,
   selection,
@@ -263,6 +269,45 @@ function drawOrder(l: PictureLayout): Item[] {
   return items.sort((a, b) => a.layer - b.layer || a.at - b.at);
 }
 
+type HandleId = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
+const HANDLES: Array<{ id: HandleId; fx: -1 | 0 | 1; fy: -1 | 0 | 1; cursor: string }> = [
+  { id: "nw", fx: -1, fy: 1, cursor: "nwse-resize" },
+  { id: "n", fx: 0, fy: 1, cursor: "ns-resize" },
+  { id: "ne", fx: 1, fy: 1, cursor: "nesw-resize" },
+  { id: "e", fx: 1, fy: 0, cursor: "ew-resize" },
+  { id: "se", fx: 1, fy: -1, cursor: "nwse-resize" },
+  { id: "s", fx: 0, fy: -1, cursor: "ns-resize" },
+  { id: "sw", fx: -1, fy: -1, cursor: "nesw-resize" },
+  { id: "w", fx: -1, fy: 0, cursor: "ew-resize" },
+];
+
+/** The state of a resize drag: where it started and the last plan that worked. */
+interface ResizeDrag {
+  kind: "resize";
+  id: string;
+  handle: (typeof HANDLES)[number];
+  scope: Scope;
+  pointer: Point;
+  w0: number;
+  h0: number;
+  /** Where the node's anchor sits across its width and height, 0 to 1 from west and south. */
+  anchor: Point;
+  moved: boolean;
+  key: string;
+  last: Extract<ResizeOutcome, { ok: true }> | null;
+  /** Nodes whose width or height the drag snapped to. */
+  match: { w?: LaidOutNode; h?: LaidOutNode };
+}
+
+const MM_PT = PT_PER_UNIT.mm!;
+
+/**
+ * How far a size change moves the edge being dragged, as a share of the
+ * change: a node grows around its anchor, so an edge far from the anchor
+ * moves most. Edges at the anchor itself can't move, so use half.
+ */
+const edgeShare = (share: number) => (share < 0.25 ? 0.5 : share);
+
 export function Canvas() {
   const svgRef = useRef<SVGSVGElement>(null);
   const size = useSignal({ w: 800, h: 600 });
@@ -270,6 +315,7 @@ export function Canvas() {
   const drag = useRef<
     | { kind: "node"; id: string; pointer: Point; center: Point; moved: boolean; target: Point; alignedWith: string[] }
     | { kind: "pan"; client: Point; view: View; moved: boolean }
+    | ResizeDrag
     | null
   >(null);
 
@@ -326,6 +372,32 @@ export function Canvas() {
     const pathEl = target.closest("[data-path]");
     const svg = svgRef.current!;
     svg.focus({ preventScroll: true });
+    const handleEl = target.closest("[data-handle]");
+    if (e.button === 0 && handleEl) {
+      const handle = HANDLES.find((h) => h.id === handleEl.getAttribute("data-handle"));
+      const id = selectedIds.value[0];
+      const n = baseLayout.value?.nodes.find((x) => x.id === id);
+      const scope = activeScope.value;
+      if (handle && n && scope && selectedIds.value.length === 1) {
+        const off = anchorOffset(n.shape, n.position.anchor) ?? { x: 0, y: 0 };
+        drag.current = {
+          kind: "resize",
+          id: n.id,
+          handle,
+          scope,
+          pointer: toModel(e),
+          w0: 2 * n.shape.hw,
+          h0: 2 * n.shape.hh,
+          anchor: { x: n.shape.hw ? 0.5 + off.x / (2 * n.shape.hw) : 0.5, y: n.shape.hh ? 0.5 + off.y / (2 * n.shape.hh) : 0.5 },
+          moved: false,
+          key: "",
+          last: null,
+          match: {},
+        };
+        svg.setPointerCapture(e.pointerId);
+      }
+      return;
+    }
     if (e.button === 0 && nodeEl) {
       const id = nodeEl.getAttribute("data-node")!;
       const n = baseLayout.value?.nodes.find((x) => x.id === id);
@@ -353,6 +425,84 @@ export function Canvas() {
     svg.setPointerCapture(e.pointerId);
   };
 
+  /** A resize drag: work out the size wanted, snap it, and show the result live. */
+  const resizeMove = (d: ResizeDrag, e: PointerEvent) => {
+    const p = toModel(e);
+    const dx = p.x - d.pointer.x;
+    const dy = p.y - d.pointer.y;
+    if (!d.moved && Math.hypot(dx, dy) * view.value.scale < 3) return;
+    d.moved = true;
+    const l = baseLayout.value;
+    if (!l) return;
+    const { fx, fy } = d.handle;
+    const shareW = fx ? edgeShare(fx > 0 ? 1 - d.anchor.x : d.anchor.x) : 1;
+    const shareH = fy ? edgeShare(fy > 0 ? 1 - d.anchor.y : d.anchor.y) : 1;
+    const want: SizeWant = {};
+    if (fx) want.w = Math.max(1, d.w0 + (fx > 0 ? dx : -dx) / shareW);
+    if (fy) want.h = Math.max(1, d.h0 + (fy > 0 ? dy : -dy) / shareH);
+    // Snap to the width or height of another node (Alt drags without).
+    const snapped: { w?: LaidOutNode; h?: LaidOutNode } = {};
+    if (!e.altKey) {
+      const threshold = 7 / view.value.scale;
+      const others = l.nodes.filter((n) => n.id !== d.id && n.kind === "statement");
+      const nearest = (value: number, share: number, size: (n: LaidOutNode) => number) => {
+        let best: { node: LaidOutNode; dist: number } | undefined;
+        for (const o of others) {
+          const dist = Math.abs(size(o) - value) * share;
+          if (dist < threshold && (!best || dist < best.dist)) best = { node: o, dist };
+        }
+        return best?.node;
+      };
+      if (want.w !== undefined) {
+        const m = nearest(want.w, shareW, (n) => 2 * n.shape.hw);
+        if (m) {
+          want.w = 2 * m.shape.hw;
+          snapped.w = m;
+        }
+      }
+      if (want.h !== undefined) {
+        const m = nearest(want.h, shareH, (n) => 2 * n.shape.hh);
+        if (m) {
+          want.h = 2 * m.shape.hh;
+          snapped.h = m;
+        }
+      }
+    }
+    // Sizes are written in whole millimetres, so only re-plan when that changes.
+    const key = `${Math.round((want.w ?? 0) / MM_PT)}|${Math.round((want.h ?? 0) / MM_PT)}|${snapped.w?.id ?? ""}|${snapped.h?.id ?? ""}`;
+    if (key === d.key) return;
+    d.key = key;
+    const out = planResize(doc.value, currentPicture.value, l, d.id, want, d.scope);
+    if (!out.ok) {
+      status.value = out.reason;
+      return;
+    }
+    d.last = out;
+    d.match = {};
+    resizePreview.value = out.changes.length ? out.layout : null;
+    // Mark the nodes it now has the same width or height as.
+    const after = out.layout.nodes.find((n) => n.id === d.id);
+    const gaps: GapMark[] = [];
+    const mark = (n: LaidOutNode, axis: "w" | "h") => {
+      const c = n.shape.center;
+      const off = 6 / view.value.scale;
+      if (axis === "w") gaps.push({ from: { x: c.x - n.shape.hw, y: c.y + n.shape.hh + off }, to: { x: c.x + n.shape.hw, y: c.y + n.shape.hh + off } });
+      else gaps.push({ from: { x: c.x + n.shape.hw + off, y: c.y - n.shape.hh }, to: { x: c.x + n.shape.hw + off, y: c.y + n.shape.hh } });
+    };
+    for (const axis of ["w", "h"] as const) {
+      const m = snapped[axis];
+      if (!m || !after) continue;
+      const mine = axis === "w" ? 2 * after.shape.hw : 2 * after.shape.hh;
+      const theirs = axis === "w" ? 2 * m.shape.hw : 2 * m.shape.hh;
+      if (Math.abs(mine - theirs) > 0.75 * MM_PT) continue;
+      d.match[axis] = m;
+      mark(after, axis);
+      const other = out.layout.nodes.find((n) => n.id === m.id);
+      if (other) mark(other, axis);
+    }
+    guides.value = { lines: [], gaps };
+  };
+
   const onPointerMove = (e: PointerEvent) => {
     const d = drag.current;
     if (!d) return;
@@ -361,6 +511,10 @@ export function Canvas() {
       const dy = e.clientY - d.client.y;
       if (Math.hypot(dx, dy) > 3) d.moved = true;
       view.value = { ...d.view, cx: d.view.cx - dx / d.view.scale, cy: d.view.cy + dy / d.view.scale };
+      return;
+    }
+    if (d.kind === "resize") {
+      resizeMove(d, e);
       return;
     }
     const p = toModel(e);
@@ -383,6 +537,15 @@ export function Canvas() {
     if (!d) return;
     if (d.kind === "pan") {
       if (!d.moved) selectFromCanvas(null);
+      return;
+    }
+    if (d.kind === "resize") {
+      resizePreview.value = null;
+      guides.value = { lines: [], gaps: [] };
+      if (!d.moved || !d.last) return;
+      const name = (n: LaidOutNode) => n.name ?? n.id;
+      const same = [d.match.w && `width as ${name(d.match.w)}`, d.match.h && `height as ${name(d.match.h)}`].filter(Boolean);
+      applyResize(d.last.changes, d.last.written, d.scope, d.last.notes, same.length ? ` Same ${same.join(" and ")}.` : "");
       return;
     }
     if (!d.moved) return;
@@ -455,6 +618,9 @@ export function Canvas() {
   }
   const selIds = selectedIds.value;
   const selected = l ? selIds.flatMap((id) => l.nodes.find((n) => n.id === id) ?? []) : [];
+  // One selected node that can be resized gets handles, unless it's being moved.
+  const only = selected.length === 1 ? selected[0] : undefined;
+  const handleNode = only && !resizeBlocker(only) && !overrides.value.size ? only : undefined;
 
   return (
     <svg
@@ -515,6 +681,24 @@ export function Canvas() {
             stroke-dasharray={`${4 / v.scale} ${3 / v.scale}`}
           />
         ))}
+        {handleNode &&
+          HANDLES.map((h) => {
+            const r = 3.5 / v.scale;
+            return (
+              <rect
+                key={h.id}
+                data-handle={h.id}
+                data-testid="resize-handle"
+                x={f(handleNode.shape.center.x + h.fx * (handleNode.shape.hw + 3 / v.scale) - r)}
+                y={f(handleNode.shape.center.y + h.fy * (handleNode.shape.hh + 3 / v.scale) - r)}
+                width={f(2 * r)}
+                height={f(2 * r)}
+                class="tf-handle"
+                style={{ cursor: h.cursor }}
+                stroke-width={f(1 / v.scale)}
+              />
+            );
+          })}
         {g.lines.map((gl) =>
           gl.axis === "v" ? (
             <line x1={gl.at} x2={gl.at} y1={gl.from} y2={gl.to} class="tf-guide" stroke-width={1 / v.scale} />

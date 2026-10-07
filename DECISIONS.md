@@ -445,3 +445,27 @@ New features:
 - Following styles, rather than reading only the node's own options, is what makes "This node" changes correct. It also lets the panel show where a value comes from.
 - Writing whole fonts and dropping redundant `font=` items keeps the code as a person would write it.
 - Named colours and in-place edits keep generated code hand-written in style (SPEC.md, "Human-quality output").
+
+## D38: Resizing nodes (2026-10-07)
+**Decision:**
+- **Handles.** One selected node shows eight handles (corners and sides), unless it can't be resized: a `fit` node (its size follows what it fits), a node scaled with `transform shape`, or a shape the preview only approximates (`star`, `cloud`, …). Resizing is for one node at a time.
+- **A node grows around its anchor,** as in TeX. The dragged edge follows the pointer: a node placed with `below=of a` (anchor north) keeps its top edge and grows downward, and a centred node grows both ways, so the pointer moves half as far as the width changes (D38's `edgeShare`). The size change is never paid for by editing the node's position.
+- **What is written** (`src/edit/resize.ts`, `planResize`):
+  - **Width and height:** `minimum width` and `minimum height`, in whole millimetres (`5mm`, `2.5cm`, never `86.0000007pt`). An existing item is replaced in place; otherwise the item is appended. Asking for less than the natural size writes nothing, or lifts a minimum that a style gives down to the natural size.
+  - **Rewrap:** a node that already has a `text width`, or whose label can break at a space, gets `text width` instead when the drag makes it narrower than its text. The text width never goes below the widest unbreakable word. A single word never gets one.
+  - **Circles** get `minimum size`.
+  - **Shapes with a text width** (rectangle, rounded rectangle, tape, trapezium, cylinder) can rewrap. Diamonds and ellipses only take minimums, because their width isn't text width plus padding.
+- **Checked by layout.** The patched text is laid out again. If the drawn size is off by more than 0.75 mm (a rounded rectangle's width depends on its height, for one), the written value is corrected by the error, up to twice. If the size doesn't change at all, the drag is refused with the reason, for example a later `minimum size` or, in style scope, a node that sets its own size.
+- **Snapping.** The size snaps to whole millimetres and to the width or height of another node (within 7 px of the dragged edge). Alt drags without snapping to other nodes. A match is marked with a dimension line on both nodes and named in the status bar ("Same width as start").
+- **Live preview.** Each new millimetre during a drag lays out the patched text (`resizePreview` in the store), so dependent nodes and edges follow. The edit is applied once, on release, as one undo step.
+- **Scope.** A resize follows the properties panel's scope (D34, D37): "This node" by default, or the chosen style ("All process nodes"), whose body gets the `minimum width` and so changes every node using it. The scope signal moved from the panel into the store (`scopeStyle`, `activeScope`) so the canvas can read it. Nodes that set their own size keep it, and the status bar says how many.
+- **Sizing data.** `LaidOutNode.sizing` holds the natural size, the minimums in effect, the text width and a function for the widest word.
+
+**Also in this step** (feedback on steps 2–3):
+- **Drag to pin.** A node locked only by an undefined or later-defined reference can be dragged. Dropping it pins it with plain coordinates at the drop position (`planPin(…, center)`). Snapping and guides work as usual. The panel's "Pin at current position" button stays.
+- **Collapsible panel.** The properties panel folds into a 30 px strip. The state is remembered per viewer in `localStorage`.
+
+**Why:**
+- Growing around the anchor is TikZ's own behaviour and keeps the diff to the size items; moving the node to hold the opposite edge would mean rewriting its position on every resize.
+- Whole-millimetre values and in-place updates keep the code as a person would write it, and repeated resizes don't pile up items.
+- Following the panel's scope keeps one rule for every change: it applies to this node unless "all state nodes" is chosen.

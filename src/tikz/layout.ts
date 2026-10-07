@@ -68,6 +68,20 @@ export interface LaidOutNode {
   rotate?: number;
   /** -1 for the background layer. */
   layer: number;
+  /** What the size is made of, for resizing (D38). */
+  sizing: Sizing;
+}
+
+/** What a node's drawn size is made of. Lengths are canvas pt. */
+export interface Sizing {
+  /** The drawn width and height without any minimum width or height. */
+  natural: { w: number; h: number };
+  /** The effective minimum width and height. */
+  min: { w: number; h: number };
+  /** The text width in effect, if the label wraps. */
+  textWidth?: number;
+  /** The widest unbreakable piece of the label: a text width can't go below it. */
+  minContent: () => number;
 }
 
 /**
@@ -521,26 +535,36 @@ function layoutNode(
     } else locked.push({ kind: "position", message: "fits nodes the editor can't place" });
   }
 
-  const shape0 = makeShape(
-    {
-      kind: st.shape,
-      textWidth: tw,
-      textHeight: th,
-      textDepth: td,
-      innerXSep: st.innerXSep,
-      innerYSep: st.innerYSep,
-      outerXSep: st.outerXSep,
-      outerYSep: st.outerYSep,
-      minWidth,
-      minHeight,
-      roundedCorners: st.roundedCorners,
-      aspect: st.aspect,
-      trapeziumLeftAngle: st.trapeziumLeftAngle,
-      trapeziumRightAngle: st.trapeziumRightAngle,
-      shapeBorderRotate: st.shapeBorderRotate,
+  const shapeParams = {
+    kind: st.shape,
+    textWidth: tw,
+    textHeight: th,
+    textDepth: td,
+    innerXSep: st.innerXSep,
+    innerYSep: st.innerYSep,
+    outerXSep: st.outerXSep,
+    outerYSep: st.outerYSep,
+    minWidth,
+    minHeight,
+    roundedCorners: st.roundedCorners,
+    aspect: st.aspect,
+    trapeziumLeftAngle: st.trapeziumLeftAngle,
+    trapeziumRightAngle: st.trapeziumRightAngle,
+    shapeBorderRotate: st.shapeBorderRotate,
+  };
+  const shape0 = makeShape(shapeParams, { x: 0, y: 0 });
+  const natural = makeShape({ ...shapeParams, minWidth: 0, minHeight: 0 }, { x: 0, y: 0 });
+  const sizing: Sizing = {
+    natural: { w: 2 * natural.hw, h: 2 * natural.hh },
+    min: { w: minWidth, h: minHeight },
+    minContent: () => {
+      if (!syn.label) return 0;
+      const opts: Parameters<typeof layoutLabel>[1] = { font: st.font, color: st.textColor ?? st.color, textWidth: 0.01 };
+      if (st.align !== undefined) opts.align = st.align;
+      return Math.max(0, ...layoutLabel(syn.label.text, opts, ctx.labelEnv).lines.map((l) => l.width));
     },
-    { x: 0, y: 0 },
-  );
+  };
+  if (st.textWidth !== undefined) sizing.textWidth = st.textWidth;
 
   // Position: the "at" point, which the node's anchor is put on.
   let at: Point = { x: st.matrix[4], y: st.matrix[5] };
@@ -681,6 +705,7 @@ function layoutNode(
       ...(text?.issues ?? []).map((i) => `label: ${i}`),
     ],
     layer: st.layer,
+    sizing,
   };
   if (name) node.name = name;
   if (name && !syn.name && !st.name) node.implicitName = true;
@@ -839,6 +864,7 @@ function labelNode(spec: string, owner: LaidOutNode, scope: Scope, ctx: Ctx): La
     unknownKeys: st.unknown,
     unrendered: [],
     layer: owner.layer,
+    sizing: { natural: { w: 2 * shape0.hw, h: 2 * shape0.hh }, min: { w: 0, h: 0 }, minContent: () => 0 },
   };
 }
 

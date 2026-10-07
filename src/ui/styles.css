@@ -701,3 +701,14 @@ button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+/* Resize handles on the selected node */
+
+.tf-handle {
+  fill: var(--panel);
+  stroke: var(--accent);
+}
+
+.tf-handle:hover {
+  fill: var(--accent);
+}

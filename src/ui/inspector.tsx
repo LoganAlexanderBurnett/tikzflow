@@ -24,7 +24,7 @@ import { pictureEnv } from "../model/document.ts";
 import { explainLock } from "../model/explain.ts";
 import { cssColor, type RGB } from "../tikz/colors.ts";
 import type { LaidOutNode, PictureLayout } from "../tikz/layout.ts";
-import { applyProperty, attachNode, baseLayout, currentPicture, doc, pinNode, selectedNodes, selection } from "./store.ts";
+import { applyProperty, attachNode, baseLayout, currentPicture, doc, pinNode, scopeStyle, selectedNodes, selection } from "./store.ts";
 
 function LockCard({ layout, node }: { layout: PictureLayout; node: LaidOutNode }) {
   const candidates = attachCandidates(layout, node).map((n) => n.name!);
@@ -192,7 +192,7 @@ const SIZE_LABEL: Record<string, string> = {
 
 function Properties({ layout, nodes }: { layout: PictureLayout; nodes: LaidOutNode[] }) {
   // "This node" by default (D34); a new selection starts there again.
-  const scopeName = useSignal<string | null>(null);
+  const scopeName = scopeStyle;
   const d = doc.value;
   const pic = d.syntax.pictures[currentPicture.value];
   const open = useSignal<string | null>(null);
