@@ -3,6 +3,7 @@
 // labels at (x, -y).
 import { useComputed, useSignal, useSignalEffect } from "@preact/signals";
 import type { JSX } from "preact";
+import { memo } from "preact/compat";
 import { useEffect, useMemo, useRef } from "preact/hooks";
 import { planMove, positioningText } from "../edit/move.ts";
 import { snapNode } from "../edit/snap.ts";
@@ -115,7 +116,14 @@ function Gradient({ id, shading }: { id: string; shading: Shading }) {
 
 const gradId = (id: string) => `sh-${id.replace(/[^A-Za-z0-9_-]/g, "_")}`;
 
-function NodeShape({ n, scale, selected }: { n: LaidOutNode; scale: number; selected: boolean }) {
+// The components below are memoised on what they draw: while dragging, only
+// the moved node and the paths touching it change.
+const nodeSig = (n: LaidOutNode) =>
+  [n.id, n.shape.kind, n.shape.center.x, n.shape.center.y, n.shape.hw, n.shape.hh, n.shape.roundedCorners, n.stroke, n.fill, n.lineWidth, n.dash, n.opacity, n.fillOpacity, n.shadow, n.locked, n.shading && JSON.stringify(n.shading)].join("|");
+
+const NodeShape = memo(NodeShapeView, (a, b) => a.scale === b.scale && a.selected === b.selected && nodeSig(a.n) === nodeSig(b.n));
+
+function NodeShapeView({ n, scale, selected }: { n: LaidOutNode; scale: number; selected: boolean }) {
   const d = outline(n.shape);
   const minStroke = 0.6 / scale;
   const fill = n.shading ? `url(#${gradId(n.id)})` : rgba(n.fill, "transparent");
@@ -139,7 +147,19 @@ function NodeShape({ n, scale, selected }: { n: LaidOutNode; scale: number; sele
   );
 }
 
-function NodeLabel({ n, macros }: { n: LaidOutNode; macros: Record<string, string> }) {
+const NodeLabel = memo(
+  NodeLabelView,
+  (a, b) =>
+    a.macros === b.macros &&
+    a.n.text === b.n.text &&
+    a.n.textOrigin.x === b.n.textOrigin.x &&
+    a.n.textOrigin.y === b.n.textOrigin.y &&
+    a.n.rotate === b.n.rotate &&
+    a.n.opacity === b.n.opacity &&
+    String(a.n.textColor) === String(b.n.textColor),
+);
+
+function NodeLabelView({ n, macros }: { n: LaidOutNode; macros: Record<string, string> }) {
   const t = n.text;
   const html = useMemo(() => (t ? labelHtml(t, macros) : ""), [t, macros]);
   if (!t || !html) return null;
@@ -155,7 +175,12 @@ function NodeLabel({ n, macros }: { n: LaidOutNode; macros: Record<string, strin
   );
 }
 
-function PathShape({ p, scale, selected }: { p: LaidOutPath; scale: number; selected: boolean }) {
+const pathSig = (p: LaidOutPath) =>
+  [p.id, p.d, p.stroke, p.fill, p.lineWidth, p.dash, p.opacity, p.fillOpacity, p.shading && JSON.stringify(p.shading), JSON.stringify(p.tips)].join("|");
+
+const PathShape = memo(PathShapeView, (a, b) => a.scale === b.scale && a.selected === b.selected && pathSig(a.p) === pathSig(b.p));
+
+function PathShapeView({ p, scale, selected }: { p: LaidOutPath; scale: number; selected: boolean }) {
   if (!p.d && !p.tips.length) return null;
   const minStroke = 0.6 / scale;
   const fill = p.shading ? `url(#${gradId(p.id)})` : rgba(p.fill);

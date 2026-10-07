@@ -1,3 +1,5 @@
+// Prints, for each golden file, the line a scripted move changed: before and after.
+// Usage: npm run golden:review
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { diffRange } from "../src/edit/changes.ts";

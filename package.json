@@ -23,7 +23,9 @@
     "fetch-engines": "node scripts/fetch-engines.ts",
     "bench-engines": "node scripts/bench-engines.ts",
     "compare-engines": "node scripts/compare-engines.ts",
-    "fidelity": "node scripts/fidelity.ts"
+    "fidelity": "node scripts/fidelity.ts",
+    "layout:bench": "node scripts/layout-bench.ts",
+    "golden:review": "node scripts/golden-review.ts"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",

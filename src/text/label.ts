@@ -794,7 +794,38 @@ function measureItem(it: Item, macros: Record<string, string>, issues: string[])
   }
 }
 
+const layoutCache = new Map<string, TextLayout>();
+const envKeys = new WeakMap<LabelEnv, string>();
+
+/** A string that changes when anything in `env` that affects layout changes. */
+function envKey(env: LabelEnv): string {
+  let k = envKeys.get(env);
+  if (k === undefined) {
+    k = JSON.stringify([[...env.macros], env.sizes ?? null]);
+    envKeys.set(env, k);
+  }
+  return k;
+}
+
+/**
+ * Lays out a label. Results are cached, so an unchanged label keeps the same
+ * object across layouts (the canvas relies on that to skip re-rendering).
+ * Colour names are resolved through env.color, so a label using \color or
+ * \textcolor is not cached.
+ */
 export function layoutLabel(src: string, opts: LayoutOptions, env: LabelEnv): TextLayout {
+  if (/\\(text)?color/.test(src)) return layoutLabelUncached(src, opts, env);
+  const key = `${envKey(env)}\u0000${JSON.stringify(opts)}\u0000${src}`;
+  let out = layoutCache.get(key);
+  if (!out) {
+    out = layoutLabelUncached(src, opts, env);
+    if (layoutCache.size > 5000) layoutCache.clear();
+    layoutCache.set(key, out);
+  }
+  return out;
+}
+
+function layoutLabelUncached(src: string, opts: LayoutOptions, env: LabelEnv): TextLayout {
   const issues: string[] = [];
   const base: TextStyle = {
     size: opts.font.size,
