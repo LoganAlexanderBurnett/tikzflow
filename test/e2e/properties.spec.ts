@@ -100,3 +100,15 @@ test("justify sets a text width on a node, and explains why it's off for a style
   await expect(justify).toBeDisabled();
   await expect(justify).toHaveAttribute("title", "Justify needs a text width, and the process style doesn't set one.");
 });
+
+test("the properties panel collapses, and stays collapsed after a reload", async ({ page }) => {
+  await expect(page.getByTestId("inspector")).toHaveCSS("width", "280px");
+  await page.getByTestId("inspector-toggle").click();
+  await expect(page.getByTestId("inspector")).toHaveCSS("width", "30px");
+  await expect(page.getByTestId("properties")).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByTestId("summary-headline")).toHaveText("6 nodes and 6 edges editable");
+  await expect(page.getByTestId("inspector")).toHaveCSS("width", "30px");
+  await page.getByTestId("inspector-toggle").click();
+  await expect(page.getByTestId("inspector")).toHaveCSS("width", "280px");
+});

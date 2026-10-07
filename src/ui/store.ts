@@ -278,16 +278,19 @@ export function applyProperty(scope: Scope, edit: PropEdit, extra: Change[] = []
   return true;
 }
 
-/** "Pin at current position" for a locked node. */
-export function pinNode(id: string): void {
-  const r = planPin(text.value, currentPicture.value, id);
+/**
+ * "Pin at current position" for a locked node. With `center`, the node was
+ * dragged there and is pinned at the drop position instead.
+ */
+export function pinNode(id: string, center?: Point): void {
+  const r = planPin(text.value, currentPicture.value, id, center);
   if (!r) {
-    status.value = "This node couldn't be pinned where it is.";
+    status.value = center ? "That position couldn't be written; the node stays where it was." : "This node couldn't be pinned where it is.";
     return;
   }
   const lib = withLibraries(text.value, currentPicture.value, r.changes);
   applyEdit(lib.changes, "fix.pin");
-  status.value = `Pinned with plain coordinates, so LaTeX can place it. You can drag it now.${libraryNote(lib.added, lib.removed, lib.notes)}`;
+  status.value = `${center ? "Pinned at the drop position" : "Pinned"} with plain coordinates, so LaTeX can place it. You can drag it with the usual snapping now.${libraryNote(lib.added, lib.removed, lib.notes)}`;
 }
 
 /** "Attach to another node" for a locked node: refers to `to` instead of `from`. */

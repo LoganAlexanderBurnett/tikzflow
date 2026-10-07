@@ -150,6 +150,27 @@ describe("locked nodes", () => {
     expect(Math.hypot(after.shape.center.x - locked.shape.center.x, after.shape.center.y - locked.shape.center.y)).toBeLessThan(1);
   });
 
+  it("pinning with a position writes the drop position, not the drawn one", () => {
+    const text = pic("\\node (a) {A};\n\\node[draw, below=of b, fill=red] (c) {C};");
+    const r = planPin(text, 0, "c", { x: 85.35, y: -56.9 })!;
+    expect(r.text).toMatch(/\\node\[draw, fill=red\] \(c\) at \(3,-2\) \{C\};/);
+    const after = node(layout(r.text), "c");
+    expect(after.locked).toBeUndefined();
+    expect(after.shape.center.x).toBeCloseTo(85.35, 0);
+    expect(after.shape.center.y).toBeCloseTo(-56.9, 0);
+  });
+
+  it("pinning at a drop position accounts for the node's anchor", () => {
+    const l = layout(hybrid);
+    const locked = l.nodes.find((n) => n.lock?.kind === "undefined-ref")!;
+    const want = { x: locked.shape.center.x + 40, y: locked.shape.center.y - 28 };
+    const r = planPin(hybrid, 0, locked.id, want)!;
+    expect(r.text).toContain("anchor=north west] at (");
+    const after = node(layout(r.text), locked.id);
+    expect(Math.hypot(after.shape.center.x - want.x, after.shape.center.y - want.y)).toBeLessThan(1.5);
+    expect(after.locked).toBeUndefined();
+  });
+
   it("pin replaces an unresolved positioning option", () => {
     const text = pic("\\node (a) {A};\n\\node[draw, below=of b, fill=red] (c) {C};");
     const r = planPin(text, 0, "c")!;

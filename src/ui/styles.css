@@ -368,6 +368,30 @@ button.link {
   padding: 10px 12px;
 }
 
+.tf-inspector {
+  position: relative;
+}
+
+.tf-inspector.collapsed {
+  width: 30px;
+  padding: 6px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.tf-collapse {
+  float: right;
+  padding: 0 7px;
+  line-height: 20px;
+}
+
+.tf-inspector.collapsed .tf-collapse {
+  float: none;
+}
+
 .tf-inspector h3 {
   font-size: 13px;
   margin: 0 0 6px;

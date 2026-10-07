@@ -24,6 +24,7 @@ import {
   guides,
   layout,
   overrides,
+  pinNode,
   selectFromCanvas,
   selectedIds,
   selection,
@@ -334,10 +335,13 @@ export function Canvas() {
         return;
       }
       selectFromCanvas({ kind: "node", id });
-      if (n && !n.locked) {
+      // A node locked only by an undefined reference can still be dragged:
+      // dropping it pins it there with plain coordinates.
+      if (n && (!n.locked || n.lock?.kind === "undefined-ref")) {
         const p = toModel(e);
         drag.current = { kind: "node", id, pointer: p, center: n.shape.center, moved: false, target: n.shape.center, alignedWith: [] };
         svg.setPointerCapture(e.pointerId);
+        if (n.locked) status.value = `${n.locked}. Drag it to pin it where you drop it, or see the panel for other fixes.`;
       } else if (n?.locked) status.value = `Locked: ${n.locked}. The panel on the right says why and how to fix it.`;
       return;
     }
@@ -382,6 +386,12 @@ export function Canvas() {
       return;
     }
     if (!d.moved) return;
+    if (baseLayout.value?.nodes.find((x) => x.id === d.id)?.lock) {
+      overrides.value = new Map();
+      guides.value = { lines: [], gaps: [] };
+      pinNode(d.id, d.target);
+      return;
+    }
     const result = planMove(text.value, currentPicture.value, d.id, d.target);
     overrides.value = new Map();
     guides.value = { lines: [], gaps: [] };

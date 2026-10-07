@@ -437,15 +437,16 @@ export function planMove(text: string, picIndex: number, nodeId: string, center:
 
 /**
  * "Pin at current position": writes plain coordinates for where the node is
- * drawn now, replacing a placement the editor can't use (an undefined name,
- * say). The node's anchor and shifts stay and are accounted for. Returns null
- * if the node would still be locked afterwards.
+ * drawn now, or at `center` when the node was dragged there, replacing a
+ * placement the editor can't use (an undefined name, say). The node's anchor
+ * and shifts stay and are accounted for. Returns null if the node would still
+ * be locked afterwards.
  */
-export function planPin(text: string, picIndex: number, nodeId: string): MoveResult | null {
+export function planPin(text: string, picIndex: number, nodeId: string, center?: Point): MoveResult | null {
   const layout = layoutDocumentPicture(analyzeDocument(text), picIndex);
   const node = layout?.nodes.find((n) => n.id === nodeId);
   if (!layout || !node || node.kind === "path") return null;
-  const c = node.shape.center;
+  const c = center ?? node.shape.center;
   const result = trySpec(text, picIndex, node, node.syntax, { kind: "absolute", local: toLocal(node.frame, c) }, c);
   if (!result) return null;
   const after = layoutDocumentPicture(analyzeDocument(result.text), picIndex)?.nodes.find((n) => n.id === nodeId);

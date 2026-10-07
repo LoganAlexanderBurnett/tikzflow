@@ -55,14 +55,14 @@ export function explainLock(layout: PictureLayout, node: LaidOutNode, earlierNam
       const help: LockHelp = later
         ? {
             title: `"${ref}" comes later in the code`,
-            body: `This node is placed relative to "${ref}", which is only defined further down. A node can only refer to nodes defined before it, so LaTeX would stop here too, with "No shape named ${ref} is known". Pin the node where it is now, or attach it to a node defined earlier.`,
+            body: `This node is placed relative to "${ref}", which is only defined further down. A node can only refer to nodes defined before it, so LaTeX would stop here too, with "No shape named ${ref} is known". Drag it to where it belongs to pin it there, pin it where it is now, or attach it to a node defined earlier.`,
             canPin: true,
             canAttach: true,
             ref,
           }
         : {
             title: `"${ref}" doesn't exist`,
-            body: `This node is placed relative to "${ref}", but no node in the picture has that name. LaTeX would stop here too, with "No shape named ${ref} is known". Perhaps the node was renamed or deleted. Pin this node where it is now, or attach it to another node.`,
+            body: `This node is placed relative to "${ref}", but no node in the picture has that name. LaTeX would stop here too, with "No shape named ${ref} is known". Perhaps the node was renamed or deleted. Drag it to where it belongs to pin it there, pin it where it is now, or attach it to another node.`,
             canPin: true,
             canAttach: true,
             ref,

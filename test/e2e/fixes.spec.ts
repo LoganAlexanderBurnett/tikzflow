@@ -88,3 +88,28 @@ test("nodes with options the preview can't draw get a marker", async ({ page }) 
   await expect(marker).toHaveCount(1);
   await expect(marker.locator("title")).toHaveText(/The preview doesn't draw: double\./);
 });
+
+test("dragging a node locked by an undefined reference pins it where it is dropped", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByTestId("summary-headline")).toHaveText("6 nodes and 6 edges editable");
+  const doc = "\\begin{tikzpicture}\n\\node[draw] (a) at (0,3) {A};\n\\node[draw, right=of ghost] (c) {C};\n\\end{tikzpicture}\n";
+  await page.evaluate((t) => {
+    const w = window as unknown as { tikzflow: { store: { replaceDocument: (t: string, n: string | null, e: string) => void } } };
+    w.tikzflow.store.replaceDocument(t, null, "utf-8");
+  }, doc);
+  await expect(page.getByTestId("summary-headline")).toHaveText("1 node of 2 and 0 edges editable");
+  const box = await page.locator('g[data-node="c"] path').first().boundingBox();
+  if (!box) throw new Error("c not drawn");
+  const from = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(from.x + 60, from.y + 40, { steps: 6 });
+  await page.mouse.move(from.x + 130, from.y + 90, { steps: 6 });
+  await page.mouse.up();
+  expect(await code(page)).toMatch(/\\node\[draw\] \(c\) at \(-?[\d.]+,-?[\d.]+\) \{C\};/);
+  await expect(page.getByTestId("status")).toContainText("Pinned at the drop position");
+  await expect(page.getByTestId("summary-headline")).toHaveText("2 nodes and 0 edges editable");
+  // It's an ordinary node now: undo takes the pin back.
+  await page.keyboard.press("Control+z");
+  expect(await code(page)).toBe(doc);
+});

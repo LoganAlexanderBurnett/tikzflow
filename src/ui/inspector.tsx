@@ -1,6 +1,6 @@
 // The side panel for the selected nodes: why a node is locked and how to fix
 // it, and its properties (colours, font, alignment) for the node or its style.
-import { useSignal } from "@preact/signals";
+import { signal, useSignal } from "@preact/signals";
 import type { Change } from "../edit/changes.ts";
 import { attachCandidates } from "../edit/move.ts";
 import {
@@ -361,14 +361,53 @@ function Properties({ layout, nodes }: { layout: PictureLayout; nodes: LaidOutNo
   );
 }
 
+const COLLAPSE_KEY = "tikzflow.inspector.collapsed";
+
+/** Whether the panel was collapsed last time, remembered per viewer in this browser. */
+function loadCollapsed(): boolean {
+  try {
+    return localStorage.getItem(COLLAPSE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+const collapsed = signal(loadCollapsed());
+
+function setCollapsed(v: boolean): void {
+  collapsed.value = v;
+  try {
+    localStorage.setItem(COLLAPSE_KEY, v ? "1" : "0");
+  } catch {
+    // Storage can be blocked; the panel still works for this visit.
+  }
+}
+
 export function Inspector() {
   const layout = baseLayout.value;
   const nodes = selectedNodes.value;
   const primary = nodes[nodes.length - 1];
   const statements = nodes.filter((n) => n.kind === "statement");
   const key = nodes.map((n) => n.id).join("|");
+  if (collapsed.value) {
+    return (
+      <aside class="tf-inspector collapsed" data-testid="inspector">
+        <button class="tf-collapse" onClick={() => setCollapsed(false)} title="Show the properties panel" aria-label="Show the properties panel" aria-expanded={false} data-testid="inspector-toggle">
+          «
+        </button>
+        {primary?.lock && (
+          <span class="tf-lock-icon" title={`Locked: ${primary.locked}. Open the panel to see why.`} aria-hidden="true">
+            🔒
+          </span>
+        )}
+      </aside>
+    );
+  }
   return (
     <aside class="tf-inspector" data-testid="inspector">
+      <button class="tf-collapse" onClick={() => setCollapsed(true)} title="Hide the properties panel" aria-label="Hide the properties panel" aria-expanded={true} data-testid="inspector-toggle">
+        »
+      </button>
       {!layout || !primary ? (
         <p class="tf-empty">{selection.value?.kind === "path" ? "Editing paths comes in a later step." : "Select a node to edit its colours, font and alignment. Shift-click selects several."}</p>
       ) : (
