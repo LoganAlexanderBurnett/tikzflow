@@ -1,0 +1,30 @@
+{
+  "name": "tikzflow",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "grammar": "lezer-generator --typeScript spike/grammar/tikz.grammar -o spike/grammar/parser.ts",
+    "predev": "npm run grammar",
+    "dev": "vite",
+    "prebuild": "npm run grammar",
+    "build": "tsc --noEmit && vite build",
+    "pretypecheck": "npm run grammar",
+    "typecheck": "tsc --noEmit",
+    "pretest": "npm run grammar",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "grammar:inspect": "node spike/grammar/inspect.ts"
+  },
+  "dependencies": {
+    "@lezer/common": "^1.5.3",
+    "@lezer/lr": "^1.4.10"
+  },
+  "devDependencies": {
+    "@lezer/generator": "^1.8.1",
+    "@types/node": "^26.6.4",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
+  }
+}

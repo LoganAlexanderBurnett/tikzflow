@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TikZFlow Spike</title>
+    <style>
+      :root { --bg: #fff; --fg: #1d1d1f; --muted: #6b6b70; --line: #d9d9de;
+              --modelled: #d6ecff; --opaque: #ffe8b8; --error: #ffc9c9; --document: transparent; }
+      @media (prefers-color-scheme: dark) {
+        :root { --bg: #18181b; --fg: #ececf0; --muted: #a0a0a8; --line: #3a3a40;
+                --modelled: #17395a; --opaque: #5a4512; --error: #6b1f1f; }
+      }
+      body { margin: 0; padding: 16px; background: var(--bg); color: var(--fg);
+             font: 14px/1.5 system-ui, sans-serif; }
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      p { margin: 0 0 12px; color: var(--muted); }
+      .panes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      @media (max-width: 800px) { .panes { grid-template-columns: 1fr; } }
+      textarea, pre { box-sizing: border-box; width: 100%; height: 70vh; margin: 0; padding: 8px;
+                      border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg);
+                      font: 13px/1.45 ui-monospace, Consolas, monospace; tab-size: 4; overflow: auto; white-space: pre; }
+      .modelled { background: var(--modelled); } .opaque { background: var(--opaque); }
+      .error { background: var(--error); outline: 1px solid red; }
+      .legend span { padding: 0 6px; border-radius: 3px; margin-right: 8px; }
+      #stats { margin: 8px 0; font-variant-numeric: tabular-nums; }
+    </style>
+  </head>
+  <body>
+    <h1>TikZFlow: grammar spike</h1>
+    <p>Paste TikZ on the left. The right pane shows how each byte was classified.
+      <span class="legend"><span class="modelled">modelled</span><span class="opaque">opaque</span><span class="error">error</span></span>
+    </p>
+    <div id="stats"></div>
+    <div class="panes">
+      <textarea id="input" spellcheck="false"></textarea>
+      <pre id="output"></pre>
+    </div>
+    <script type="module" src="/spike/grammar/playground.ts"></script>
+  </body>
+</html>

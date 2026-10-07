@@ -27,9 +27,16 @@ A free, static, fully client-side web app for creating and editing TikZ flowchar
 
 ## Conventions
 - Generated TikZ should read as hand-written: `positioning`-library relative placement, named styles in `\tikzset`, meaningful node names, and managed `\usetikzlibrary` lines. Follow the emitter priority order in SPEC.md.
-- Test inputs under `corpus/` and `test/fixtures/` must stay byte-exact. `.gitattributes` marks them `-text` so git never rewrites their line endings.
+- Test inputs under `corpus/` and any `fixtures/` folder must stay byte-exact. `.gitattributes` marks them `-text` so git never rewrites their line endings.
 - For every corpus file taken from the web, record the source URL and license in `corpus/SOURCES.md`, because the repo is public. Prefer self-written examples.
 
 ## Repo
 - Remote: `origin` → https://github.com/LoganAlexanderBurnett/tikzflow (default branch `trunk`).
-- Commands: none yet. Add them here once the project is scaffolded.
+- Commands:
+  - `npm run dev`: starts the Vite dev server, currently the grammar playground.
+  - `npm test`: runs Vitest.
+  - `npm run typecheck`: runs strict `tsc`.
+  - `npm run grammar`: regenerates the parser. It runs automatically before dev, test, build and typecheck.
+  - `npm run grammar:inspect`: prints coverage and error details for each fixture.
+  - `node spike/grammar/bench.ts`: runs the parse benchmark. Node 24 runs `.ts` files directly.
+- Layout: `spike/` holds throwaway Milestone 0 code. The generated `spike/grammar/parser*.ts` files are gitignored.

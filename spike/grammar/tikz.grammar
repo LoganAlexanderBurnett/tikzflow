@@ -1,0 +1,170 @@
+// Milestone 0 spike grammar for a TikZ subset.
+//
+// Design rules (see DECISIONS.md D5):
+// - Every token is named, so every byte of the input ends up in a named leaf
+//   node. Whitespace and comments are named skip tokens for the same reason.
+// - Only known TikZ commands get structure. Anything else is kept as generic
+//   tokens (Opaque, UnknownPathItem, or plain document text), never dropped.
+// - Tokens are contextual: each context (document text, picture body, path,
+//   options, coordinates) has its own text token, so a word like "at" is only
+//   a keyword where TikZ would treat it as one.
+
+@top Document { topItem* }
+
+@skip { Whitespace | Comment }
+
+// ---------------------------------------------------------------- document
+
+topItem {
+  TikzPicture |
+  Tikzset |
+  UseTikzLibrary |
+  topCs |
+  Text |
+  Group
+}
+
+topCs { ControlSequence | NodeKw | DrawKw | PathKw | FillKw | FilldrawKw | CoordinateKw }
+
+anyCs { topCs | TikzsetKw | UseTikzLibraryKw }
+
+Group { "{" groupItem* "}" }
+
+groupItem { anyCs | Text | Group }
+
+Tikzset { TikzsetKw OptionBlock }
+
+UseTikzLibrary { UseTikzLibraryKw OptionBlock }
+
+// ---------------------------------------------------------------- picture
+
+// Picture-level options ("\begin{tikzpicture}[...]") parse as a leading
+// Opaque Options item; the semantic layer interprets them.
+TikzPicture { BeginTikz bodyItem* EndTikz }
+
+bodyItem {
+  PathStatement |
+  NodeStatement |
+  CoordinateStatement |
+  Tikzset |
+  UseTikzLibrary |
+  Opaque
+}
+
+Opaque { ControlSequence | BodyText | Group | Options }
+
+PathStatement { (DrawKw | PathKw | FillKw | FilldrawKw) pathItem* ";" }
+
+NodeStatement { NodeKw nodePart* Label pathItem* ";" }
+
+CoordinateStatement { CoordinateKw nodePart* ";" }
+
+nodePart { Options | NodeName | AtClause }
+
+NodeName { "(" coordItem* ")" }
+
+AtClause { AtKw Coordinate }
+
+Label { "{" groupItem* "}" }
+
+// ---------------------------------------------------------------- paths
+
+pathItem {
+  Coordinate |
+  RelativeCoordinate |
+  PathOperator |
+  Options |
+  PathNode |
+  PathCoordinate |
+  PathKeyword |
+  UnknownPathItem
+}
+
+Coordinate { "(" coordItem* ")" }
+
+RelativeCoordinate { ("+" | "++") Coordinate }
+
+PathOperator { "--" | "-|" | "|-" | ".." }
+
+PathNode { NodeWordKw nodePart* Label }
+
+PathCoordinate { CoordinateWordKw Options? NodeName }
+
+PathKeyword { ToKw | EdgeKw | ControlsKw | AndKw | CycleKw }
+
+UnknownPathItem { ControlSequence | PathWord | PathOther | Group }
+
+coordItem { CoordText | "-|" | "|-" | Coordinate | Options | Group | ControlSequence }
+
+// ---------------------------------------------------------------- options
+
+Options { "[" optionList "]" }
+
+// Brace groups inside options (style bodies, \tikzset, \usetikzlibrary) are
+// parsed as option lists too; the semantic layer decides what they mean.
+OptionBlock { "{" optionList "}" }
+
+optionList { Option? ("," Option?)* }
+
+Option { OptionKey ("=" OptionValue?)? }
+
+OptionKey { optToken+ }
+
+OptionValue { (optToken | "=")+ }
+
+optToken { OptText | anyCs | OptionBlock | Options }
+
+// ---------------------------------------------------------------- keywords
+
+NodeKw { @specialize<ControlSequence, "\\node"> }
+DrawKw { @specialize<ControlSequence, "\\draw"> }
+PathKw { @specialize<ControlSequence, "\\path"> }
+FillKw { @specialize<ControlSequence, "\\fill"> }
+FilldrawKw { @specialize<ControlSequence, "\\filldraw"> }
+CoordinateKw { @specialize<ControlSequence, "\\coordinate"> }
+TikzsetKw { @specialize<ControlSequence, "\\tikzset"> }
+UseTikzLibraryKw { @specialize<ControlSequence, "\\usetikzlibrary"> }
+
+NodeWordKw { @specialize<PathWord, "node"> }
+CoordinateWordKw { @specialize<PathWord, "coordinate"> }
+AtKw { @specialize<PathWord, "at"> }
+ToKw { @specialize<PathWord, "to"> }
+EdgeKw { @specialize<PathWord, "edge"> }
+ControlsKw { @specialize<PathWord, "controls"> }
+AndKw { @specialize<PathWord, "and"> }
+CycleKw { @specialize<PathWord, "cycle"> }
+
+// ---------------------------------------------------------------- tokens
+
+@tokens {
+  Whitespace { $[ \t\r\n]+ }
+
+  Comment { "%" ![\n]* }
+
+  ControlSequence { "\\" ($[a-zA-Z@]+ | ![a-zA-Z@]) }
+
+  // Recognised as single tokens so the picture boundaries need no lookahead.
+  // "\begin {tikzpicture}" (with a space) falls back to plain document text.
+  BeginTikz { "\\begin{tikzpicture}" }
+  EndTikz { "\\end{tikzpicture}" }
+
+  // Document text and brace-group content.
+  Text { ![\\{}% \t\r\n]+ }
+
+  // Picture-body text. It can't start with "[" so that "[" opens Options.
+  BodyText { ![\\{}%[ \t\r\n] ![\\{}% \t\r\n]* }
+
+  OptText { ![\\{}%[\],=; \t\r\n]+ }
+
+  CoordText { ![\\{}%[\]();| \t\r\n]+ }
+
+  PathWord { $[a-zA-Z]+ }
+
+  PathOther { ![\\{}%[\]();a-zA-Z+\-|. \t\r\n]+ }
+
+  "(" ")" "[" "]" "{" "}" ";" "," "="
+  "--" "-|" "|-" ".." "+" "++"
+
+  @precedence { BeginTikz, EndTikz, ControlSequence }
+  @precedence { "-|", CoordText }
+}
