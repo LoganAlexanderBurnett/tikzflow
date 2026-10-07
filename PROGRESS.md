@@ -66,6 +66,9 @@ Stopped there, as agreed.
   - render the PDF with pdf.js, which means bundling a PDF renderer and getting canvas, not SVG.
 - Writing our own DVI-to-SVG converter (roughly a few thousand lines) would remove the GPL-3.0 `dvi2html` dependency.
 
+## Notes for later milestones
+- **M3 PDF export (owner direction, 2026-10-07):** `.tex` export is the primary output. For quick PDF exports, prefer converting the preview SVG to PDF in the browser. Don't ship busytex for this. Decide the details in Milestone 3.
+
 ## Known issues and limitations
 **Grammar spike**
 - **Opaque `\foreach` and brace scopes.** `\foreach` bodies and `{ ... }` scope groups inside a picture are opaque. `\begin{scope}...\end{scope}` works, because those are just markers.

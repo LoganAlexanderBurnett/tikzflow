@@ -14,7 +14,7 @@ A free, static, fully client-side web app for creating and editing TikZ flowchar
 - Keep DECISIONS.md and PROGRESS.md current as you go, not only at the end of a milestone.
 - Don't build the "Later" features in SPEC.md unless asked.
 - Before downloading engine binaries or TeX packages, list each file's source and size. These assets go in a gitignored folder and never into git.
-- Don't choose a project license until the engine licenses are confirmed.
+- The project license is GPL-3.0-or-later (see `LICENSE` and DECISIONS.md D14). Every bundled dependency must be GPL-3.0-compatible.
 
 ## Hard rules
 - **Client-side only.** No backend, no analytics or tracking, and no runtime requests to third-party servers. User diagrams never leave the browser.

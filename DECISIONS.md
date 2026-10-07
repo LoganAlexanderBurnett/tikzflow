@@ -61,7 +61,13 @@ The byte-identical load/save check stays only as a cheap regression guard.
 **Decision:** A Vite middleware serves `vendor/` raw. It never sets `Content-Encoding`, returns real 404s, and sends COEP/CORP headers on every response. The page itself is served with COOP/COEP.
 **Why:** Vite's static server marked `.gz` files as gzip-encoded, so the browser inflated them before the engines' own decompressors saw them. Its `index.html` fallback also answered missing files with HTTP 200, so engines stored HTML as TeX files. Workers in a cross-origin-isolated page need COEP on their script responses. Production hosting must follow the same three rules.
 
-## D13: Engine recommendation (PROPOSED, awaiting owner decision, 2026-10-07)
+## D13: Engine recommendation (PROVISIONALLY APPROVED 2026-10-07, pending two checks)
+**Status:** The owner approved this on 2026-10-07, on condition of two timeboxed checks:
+1. Find the root cause of the missing `\matrix` cell borders, and compare TikZJax with busytex on at least 10 diagrams, with busytex as the reference.
+2. Confirm that TikZJax can load packages outside its format at compile time and can handle a user preamble with `\usepackage`, `\newcommand` and `\definecolor`.
+
+The license question is settled by D14. Results of the checks go into PROGRESS.md.
+
 **Proposal:**
 - Use a **TikZJax-style pipeline** for the accurate preview: TeX compiled to WASM with a pre-dumped LaTeX + TikZ format, a DVI-to-SVG step, and SVG overlaid on the canvas.
 - **Don't ship busytex for now.** Revisit it, lazy-loaded, if Milestone 3 needs full TeX Live fidelity or user-supplied packages.
@@ -75,3 +81,8 @@ The byte-identical load/save check stays only as a cheap regression guard.
 **Open questions for the owner:**
 - **License direction.** Using the fork and `dvi2html` as-is means GPL-3.0. A permissive license would mean replacing them with our own DVI-to-SVG converter and building our own format dump. That would also let us move to pgf 3.1.12.
 - **Matrix-cell borders.** The defect needs a root cause in either case.
+
+## D14: The project license is GPL-3.0-or-later (2026-10-07)
+**Decision:** The owner chose GPL-3.0, option (a) in the M0 report. `LICENSE` holds the official GNU text, and `package.json` declares `GPL-3.0-or-later`. This supersedes D7.
+**Why:** The recommended preview pipeline uses the TikZJax fork (GPL-3.0+) and `dvi2html` (GPL-3.0), so a GPL-3.0 project can use them as they are. "Or later" matches the TikZJax fork and is the FSF's recommended form. It stays compatible with the GPL-3.0 dependencies, because the combined work is distributed under GPL-3.0. Switching to GPL-3.0-only would be a one-line change if the owner prefers it.
+**Consequences:** Every bundled component must be GPL-3.0-compatible, which the Milestone 5 license audit will check. LPPL, OFL, GUST, MIT, Apache-2.0 and public-domain components can all be combined with GPL-3.0 code. Pure GPL-2.0-only code could not, so any busytex binaries would need checking before they ship.
