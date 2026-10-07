@@ -1,6 +1,6 @@
-// Milestone 0 spike grammar for a TikZ subset.
+// Lezer grammar for the TikZ subset the editor models.
 //
-// Design rules (see DECISIONS.md D5):
+// Design rules (DECISIONS.md D5, D9):
 // - Every token is named, so every byte of the input ends up in a named leaf
 //   node. Whitespace and comments are named skip tokens for the same reason.
 // - Only known TikZ commands get structure. Anything else is kept as generic
@@ -8,6 +8,8 @@
 // - Tokens are contextual: each context (document text, picture body, path,
 //   options, coordinates) has its own text token, so a word like "at" is only
 //   a keyword where TikZ would treat it as one.
+
+@precedence { pictureOptions }
 
 @top Document { topItem* }
 
@@ -18,46 +20,71 @@
 topItem {
   TikzPicture |
   Tikzset |
+  TikzStyle |
   UseTikzLibrary |
   topCs |
   Text |
   Group
 }
 
-topCs { ControlSequence | NodeKw | DrawKw | PathKw | FillKw | FilldrawKw | CoordinateKw }
+topCs { ControlSequence | NodeKw | DrawKw | PathKw | FillKw | FilldrawKw | CoordinateKw | ForeachKw | MatrixKw }
 
-anyCs { topCs | TikzsetKw | UseTikzLibraryKw }
+anyCs { topCs | TikzsetKw | TikzstyleKw | UseTikzLibraryKw }
 
+// Pictures can sit inside groups, e.g. \resizebox{\linewidth}{!}{...}.
 Group { "{" groupItem* "}" }
 
-groupItem { anyCs | Text | Group }
+groupItem { anyCs | Text | Group | TikzPicture }
 
 Tikzset { TikzsetKw OptionBlock }
+
+// \tikzstyle{name}=[...], \tikzstyle{name}+=[...] and \tikzstyle name=[...].
+TikzStyle { TikzstyleKw StyleName ("=" | "+=") Options }
+
+StyleName { OptionBlock | OptText+ }
 
 UseTikzLibrary { UseTikzLibraryKw OptionBlock }
 
 // ---------------------------------------------------------------- picture
 
-// Picture-level options ("\begin{tikzpicture}[...]") parse as a leading
-// Opaque Options item; the semantic layer interprets them.
-TikzPicture { BeginTikz bodyItem* EndTikz }
+TikzPicture { BeginTikz PictureOptions? bodyItem* EndTikz }
+
+// Options directly after \begin{tikzpicture}. The precedence marker makes a
+// leading "[...]" picture options rather than an Opaque item.
+PictureOptions { Options !pictureOptions }
 
 bodyItem {
   PathStatement |
   NodeStatement |
   CoordinateStatement |
   Tikzset |
+  TikzStyle |
   UseTikzLibrary |
+  Foreach |
+  MatrixStatement |
+  BodyGroup |
   Opaque
 }
 
-Opaque { ControlSequence | BodyText | Group | Options }
+// A brace group in a picture body. It is either a scope ("{[red] \draw...;}")
+// or the argument of an unknown command (\begin{scope}, \pgfonlayer{...}).
+// The grammar can't tell which; the semantic layer decides from context.
+BodyGroup { "{" bodyItem* "}" }
+
+Opaque { ControlSequence | BodyText | Options }
 
 PathStatement { (DrawKw | PathKw | FillKw | FilldrawKw) pathItem* ";" }
 
 NodeStatement { NodeKw nodePart* Label pathItem* ";" }
 
-CoordinateStatement { CoordinateKw nodePart* ";" }
+// \coordinate is \path coordinate, so the path can go on:
+// "\coordinate (a) at (0,0) coordinate (b) at (1,0);". The continuation can't
+// start with "(" or "[", which would still belong to the first coordinate.
+CoordinateStatement { CoordinateKw nodePart* coordinateTail? ";" }
+
+coordinateTail {
+  (PathCoordinate | PathNode | PathOperator | PathKeyword | UnknownPathItem | RelativeCoordinate) pathItem*
+}
 
 nodePart { Options | NodeName | AtClause }
 
@@ -66,6 +93,18 @@ NodeName { "(" coordItem* ")" }
 AtClause { AtKw Coordinate }
 
 Label { "{" groupItem* "}" }
+
+// \foreach is always kept as-is. Its body is the next statement or group.
+Foreach { ForeachKw foreachHead* InKw foreachList foreachBody }
+
+foreachHead { ControlSequence | BodyText | Options }
+
+foreachList { BodyGroup | ControlSequence }
+
+foreachBody { BodyGroup | PathStatement | NodeStatement | CoordinateStatement | Foreach }
+
+// \matrix is kept as-is. Its cells are document-like text.
+MatrixStatement { MatrixKw nodePart* Group ";" }
 
 // ---------------------------------------------------------------- paths
 
@@ -88,9 +127,12 @@ PathOperator { "--" | "-|" | "|-" | ".." }
 
 PathNode { NodeWordKw nodePart* Label }
 
-PathCoordinate { CoordinateWordKw Options? NodeName }
+PathCoordinate { CoordinateWordKw Options? NodeName AtClause? }
 
-PathKeyword { ToKw | EdgeKw | ControlsKw | AndKw | CycleKw }
+PathKeyword {
+  ToKw | EdgeKw | ControlsKw | AndKw | CycleKw |
+  RectangleKw | CircleKw | EllipseKw | ArcKw | GridKw
+}
 
 UnknownPathItem { ControlSequence | PathWord | PathOther | Group }
 
@@ -102,9 +144,14 @@ Options { "[" optionList "]" }
 
 // Brace groups inside options (style bodies, \tikzset, \usetikzlibrary) are
 // parsed as option lists too; the semantic layer decides what they mean.
-OptionBlock { "{" optionList "}" }
+// Inside braces a ";" is part of the value (pic code={...;}), so these lists
+// accept it. In square brackets it stays an error, so an unclosed "[" stops
+// at the end of its statement.
+OptionBlock { "{" blockOptionList "}" }
 
 optionList { Option? ("," Option?)* }
+
+blockOptionList { BlockOption? ("," BlockOption?)* }
 
 Option { OptionKey ("=" OptionValue?)? }
 
@@ -112,7 +159,15 @@ OptionKey { optToken+ }
 
 OptionValue { (optToken | "=")+ }
 
+BlockOption[@name=Option] { BlockOptionKey ("=" BlockOptionValue?)? }
+
+BlockOptionKey[@name=OptionKey] { blockOptToken+ }
+
+BlockOptionValue[@name=OptionValue] { (blockOptToken | "=")+ }
+
 optToken { OptText | anyCs | OptionBlock | Options }
+
+blockOptToken { optToken | ";" }
 
 // ---------------------------------------------------------------- keywords
 
@@ -123,7 +178,12 @@ FillKw { @specialize<ControlSequence, "\\fill"> }
 FilldrawKw { @specialize<ControlSequence, "\\filldraw"> }
 CoordinateKw { @specialize<ControlSequence, "\\coordinate"> }
 TikzsetKw { @specialize<ControlSequence, "\\tikzset"> }
+TikzstyleKw { @specialize<ControlSequence, "\\tikzstyle"> }
 UseTikzLibraryKw { @specialize<ControlSequence, "\\usetikzlibrary"> }
+ForeachKw { @specialize<ControlSequence, "\\foreach"> }
+MatrixKw { @specialize<ControlSequence, "\\matrix"> }
+
+InKw { @extend<BodyText, "in"> }
 
 NodeWordKw { @specialize<PathWord, "node"> }
 CoordinateWordKw { @specialize<PathWord, "coordinate"> }
@@ -133,6 +193,11 @@ EdgeKw { @specialize<PathWord, "edge"> }
 ControlsKw { @specialize<PathWord, "controls"> }
 AndKw { @specialize<PathWord, "and"> }
 CycleKw { @specialize<PathWord, "cycle"> }
+RectangleKw { @specialize<PathWord, "rectangle"> }
+CircleKw { @specialize<PathWord, "circle"> }
+EllipseKw { @specialize<PathWord, "ellipse"> }
+ArcKw { @specialize<PathWord, "arc"> }
+GridKw { @specialize<PathWord, "grid"> }
 
 // ---------------------------------------------------------------- tokens
 
@@ -156,15 +221,19 @@ CycleKw { @specialize<PathWord, "cycle"> }
 
   OptText { ![\\{}%[\],=; \t\r\n]+ }
 
-  CoordText { ![\\{}%[\]();| \t\r\n]+ }
+  // Coordinate text stops before "-|" so "(a.north-|b)" splits correctly. A
+  // dash that isn't followed by another text character is a token by itself.
+  coordChar { ![\\{}%[\]();|\- \t\r\n] }
+  CoordText { (coordChar | "-" coordChar)+ | "-" }
 
   PathWord { $[a-zA-Z]+ }
 
   PathOther { ![\\{}%[\]();a-zA-Z+\-|. \t\r\n]+ }
 
-  "(" ")" "[" "]" "{" "}" ";" "," "="
+  "(" ")" "[" "]" "{" "}" ";" "," "=" "+="
   "--" "-|" "|-" ".." "+" "++"
 
   @precedence { BeginTikz, EndTikz, ControlSequence }
   @precedence { "-|", CoordText }
+  @precedence { "+=", OptText }
 }

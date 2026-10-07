@@ -5,7 +5,7 @@
   "license": "GPL-3.0-or-later",
   "type": "module",
   "scripts": {
-    "grammar": "lezer-generator --typeScript spike/grammar/tikz.grammar -o spike/grammar/parser.ts",
+    "grammar": "lezer-generator --typeScript src/parser/tikz.grammar -o src/parser/parser.ts",
     "predev": "npm run grammar",
     "dev": "vite",
     "prebuild": "npm run grammar",
@@ -15,7 +15,8 @@
     "pretest": "npm run grammar",
     "test": "vitest run",
     "test:watch": "vitest",
-    "grammar:inspect": "node spike/grammar/inspect.ts",
+    "grammar:inspect": "node scripts/grammar-inspect.ts",
+    "grammar:bench": "node scripts/grammar-bench.ts",
     "fetch-engines": "node scripts/fetch-engines.ts",
     "bench-engines": "node scripts/bench-engines.ts",
     "compare-engines": "node scripts/compare-engines.ts"

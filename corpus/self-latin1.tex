@@ -1,0 +1,12 @@
+\documentclass{article}
+\usepackage[latin1]{inputenc}
+\usepackage{tikz}
+\usetikzlibrary{positioning}
+% Saved as ISO-8859-1, not UTF-8: these bytes are not valid UTF-8.
+\begin{document}
+\begin{tikzpicture}
+  \node[draw] (s) {Größe messen};
+  \node[draw, right=of s] (t) {Maß prüfen ± 5 °C};
+  \draw[->] (s) -- (t);
+\end{tikzpicture}
+\end{document}

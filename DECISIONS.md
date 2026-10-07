@@ -129,3 +129,43 @@ Until this is done, `fixBoxStroke()` and the 72/72.27 scaling are spike-only wor
 
 **Why:** The TikZJax pipeline renders text with web fonts that need matching TeX metrics and per-encoding glyph maps. Supporting arbitrary font packages would mean converting each font family. Computer Modern keeps the preview fast and small, and the notice stops users from trusting text widths the preview can't promise.
 
+
+## D17: The semantic layer always works from a full parse (2026-10-07)
+**Decision:**
+- CodeMirror's incremental parse is used only for syntax highlighting.
+- Every time the text changes, the semantic model (nodes, edges, styles) is rebuilt from a full parse.
+- The round-trip tests require an incremental parse to match a full parse exactly whenever the document has no parse errors. With errors, the incremental parse must still cover every byte.
+
+**Why:**
+- Over 12,500 chained random edits to the corpus, incremental and full parses never differed on error-free documents.
+- On documents with errors they differed about 0.6% of the time. Lezer's error recovery can settle differently when it reuses nodes from the old tree.
+- A full parse is cheap: about 2.6 ms for a 28 KB picture.
+- Rebuilding from a full parse means the model never depends on edit history. Reloading a file always gives what typing it gave.
+
+## D18: Error nodes can hold bytes without leaves of their own (2026-10-07)
+**Decision:** The byte-coverage check treats bytes inside an error node (`⚠`) that none of its children cover as covered by the error node itself. They count as error bytes. A gap anywhere else is still a coverage failure.
+**Why:** During recovery, Lezer skips characters that no token valid in the current context can match, such as a `;` inside an unclosed coordinate. It puts them inside the error node's range but gives them no child node. They are still represented, as an error, and since the editor never re-serialises the tree, they can't be lost. Random mutation testing of the extended grammar found this case. The M0 fixtures never hit it.
+
+## D19: Grammar additions for real-world flowcharts (2026-10-07)
+**Decision:** The grammar moved from `spike/grammar/` to `src/parser/` and now models the constructs that the TeX.SE corpus showed are common:
+- `\tikzstyle{name}=[...]`, including `+=` and the brace-less form.
+- Picture options as their own `PictureOptions` node. A precedence marker resolves the conflict with a leading Opaque `[...]`.
+- `{...}` in a picture body as `BodyGroup`, with nested statements. `bodyGroupRole()` in `src/parser/structure.ts` decides from context whether the group is a scope or an argument of an unknown command. `\begin{scope}` and `\end{scope}` stay flat markers, which the semantic layer pairs up.
+- `\foreach` and `\matrix` as their own nodes (`Foreach`, `MatrixStatement`). Everything inside them is opaque.
+- Pictures inside document-level groups, such as `\resizebox{...}{!}{...}`.
+- `-|` and `|-` inside coordinates without spaces (`(a.north-|b)`).
+- `;` inside braced option values (`pic code={...;}`).
+- Path continuations after `\coordinate`, `at` after a path `coordinate`, and the path keywords `rectangle`, `circle`, `ellipse`, `arc` and `grid`.
+
+**Why:** On 431 TikZ blocks from TeX.SE flowchart answers, these were the constructs that produced parse errors, or left modelled content opaque. After the change, no corpus file has a parse error except the deliberately broken one.
+
+## D20: The corpus is mostly real TeX.SE answers, fetched verbatim (2026-10-07)
+**Decision:**
+- 17 of the 25 corpus files are code blocks from top-scoring TeX.SE flowchart answers, fetched through the Stack Exchange API and saved byte-for-byte.
+- Each file's author, link and CC BY-SA version (as the API reports it) is in `corpus/SOURCES.md`.
+- The other 8 are self-written. They cover what the TeX.SE set lacks: CRLF, a BOM, Latin-1, deliberate errors, TikZiT output, and both scope forms.
+
+**Why:**
+- SPEC.md asks for real-world flowcharts. Self-written examples tend to match the grammar's own assumptions, while real answers exposed gaps such as `-|` without spaces and pictures inside `\resizebox`.
+- Fetching through the API gives the exact code with its license. Copying from rendered pages could change whitespace.
+- The corpus is a test input and isn't bundled into the app, so CC BY-SA doesn't affect the app's license.

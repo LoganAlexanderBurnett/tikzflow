@@ -1,5 +1,5 @@
-import { breakdown, categorize, checkCoverage, leaves, parser } from "./analyze.ts";
-import sample from "./fixtures/document.tex?raw";
+import { breakdown, categorize, checkCoverage, leaves, parser } from "../parser/analyze.ts";
+import sample from "../../corpus/self-document.tex?raw";
 
 const input = document.querySelector<HTMLTextAreaElement>("#input")!;
 const output = document.querySelector<HTMLPreElement>("#output")!;
@@ -11,7 +11,7 @@ function render() {
   const tree = parser.parse(text);
   const ms = performance.now() - t0;
   const cov = checkCoverage(tree, text);
-  const { bytes, errorNodes } = breakdown(tree);
+  const { bytes, errorNodes } = breakdown(tree, text);
   const picture = bytes.modelled + bytes.opaque + bytes.error || 1;
   const pct = (n: number) => `${((100 * n) / picture).toFixed(1)}%`;
   stats.textContent =
@@ -22,7 +22,7 @@ function render() {
   output.replaceChildren();
   for (const leaf of leaves(tree)) {
     const span = document.createElement("span");
-    span.className = categorize(leaf);
+    span.className = categorize(leaf, text);
     span.title = leaf.name;
     span.textContent = text.slice(leaf.from, leaf.to);
     output.append(span);

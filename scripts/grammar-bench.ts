@@ -1,7 +1,7 @@
 // Parse-time benchmark on a generated 200-node, 250-edge flowchart.
-// Usage: node spike/grammar/bench.ts
+// Usage: npm run grammar:bench
 import { TreeFragment } from "@lezer/common";
-import { checkCoverage, parser } from "./analyze.ts";
+import { checkCoverage, parser } from "../src/parser/analyze.ts";
 
 const lines = ["\begin{tikzpicture}[node distance=8mm]"];
 for (let i = 0; i < 200; i++) {

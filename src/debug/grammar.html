@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>TikZFlow Spike</title>
+    <title>Grammar Playground</title>
     <style>
       :root { --bg: #fff; --fg: #1d1d1f; --muted: #6b6b70; --line: #d9d9de;
               --modelled: #d6ecff; --opaque: #ffe8b8; --error: #ffc9c9; --document: transparent; }
@@ -27,7 +27,7 @@
     </style>
   </head>
   <body>
-    <h1>TikZFlow: grammar spike</h1>
+    <h1>TikZFlow: grammar playground</h1>
     <p>Paste TikZ on the left. The right pane shows how each byte was classified.
       <span class="legend"><span class="modelled">modelled</span><span class="opaque">opaque</span><span class="error">error</span></span>
     </p>
@@ -36,6 +36,6 @@
       <textarea id="input" spellcheck="false"></textarea>
       <pre id="output"></pre>
     </div>
-    <script type="module" src="/spike/grammar/playground.ts"></script>
+    <script type="module" src="./grammar.ts"></script>
   </body>
 </html>
