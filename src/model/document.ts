@@ -54,7 +54,11 @@ export function pictureEnv(doc: DocumentModel, pic: PictureSyntax): LayoutEnv {
       }
     }
   }
-  return { styles, colors, macros, settings, font: classFont(doc.text.slice(0, pic.from)) };
+  const before = doc.text.slice(0, pic.from);
+  const env: LayoutEnv = { styles, colors, macros, settings, font: classFont(before) };
+  // Only a document with a preamble says which libraries it loads.
+  if (/\\documentclass|\\usetikzlibrary/.test(before)) env.libraries = librariesBefore(doc, pic);
+  return env;
 }
 
 /** The base font a \documentclass line implies: its size option, and sans serif for beamer. */

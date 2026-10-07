@@ -126,9 +126,14 @@ describe("planMove", () => {
   });
 
   it("works in scaled pictures", () => {
+    // TikZ doesn't scale positioning distances (nodes keep only the
+    // translation), so node distance is 1cm even at scale=0.5.
     const text = pic("\\node (a) {A};\n\\node (b) at (3,-2) {B};", "[scale=0.5]");
-    const r = move(text, "b", below(text, "b", "a", CM * 0.5));
-    // node distance is scaled with the picture, so the gap equals it.
+    const r = move(text, "b", below(text, "b", "a", CM));
     expect(r.text).toContain("\\node[below=of a] (b) {B};");
+    // Plain coordinates are scaled: 1cm on the canvas is 2 units at scale=0.5.
+    const c = nodes(text).get("b")!.shape.center;
+    const r2 = move(text, "b", { x: c.x + CM, y: c.y + 0.37 * CM });
+    expect(r2.text).toContain("\\node (b) at (5,-1.26) {B};");
   });
 });

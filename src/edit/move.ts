@@ -98,16 +98,15 @@ const OPPOSITE_ANCHOR: Record<string, string> = {
   "south west": "north east",
 };
 
-function frameScale(m: Matrix): { sx: number; sy: number } {
-  return { sx: Math.hypot(m[0], m[1]) || 1, sy: Math.hypot(m[2], m[3]) || 1 };
-}
-
 /** Candidate specs for putting `node` with its centre at `c`, best first. */
 export function candidateSpecs(layout: PictureLayout, node: LaidOutNode, c: Point): PositionSpec[] {
   const refs = referenceCandidates(layout, node).sort(
     (a, b) => Math.hypot(a.shape.center.x - c.x, a.shape.center.y - c.y) - Math.hypot(b.shape.center.x - c.x, b.shape.center.y - c.y),
   );
-  const { sx, sy } = frameScale(node.frame);
+  // Positioning distances and node shifts are not scaled by the picture's
+  // transformation (nodes keep only its translation), so they are canvas pt.
+  const sx = node.vectorScale;
+  const sy = node.vectorScale;
   const nd = node.nodeDistance;
   const grid = node.onGrid;
   const specs: PositionSpec[] = [];
@@ -183,9 +182,8 @@ export function candidateSpecs(layout: PictureLayout, node: LaidOutNode, c: Poin
   // A node placed with a relational "at" ("at (a -| b)") keeps it and gets a shift.
   if (node.position.kind === "at" && node.position.refs.length) {
     const own = ownShift(node.syntax);
-    const inv = invert(node.frame);
-    if (own && inv) {
-      const [dx, dy] = applyLinear(inv, c.x - node.shape.center.x, c.y - node.shape.center.y);
+    if (own) {
+      const [dx, dy] = [(c.x - node.shape.center.x) / node.vectorScale, (c.y - node.shape.center.y) / node.vectorScale];
       kept.push({ kind: "shift", shift: { x: own.x + dx, y: own.y + dy } });
     }
   }

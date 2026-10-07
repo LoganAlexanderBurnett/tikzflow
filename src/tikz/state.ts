@@ -114,6 +114,8 @@ export interface Shading {
 export interface State {
   /** Font sizes of the document class. */
   sizes: SizeTable;
+  /** The document's normal font size: what "em" means in lengths. */
+  baseFontSize: number;
   // Graphic state, inherited by scopes and nested paths.
   color: RGB;
   drawColor?: RGB | "none";
@@ -150,6 +152,8 @@ export interface State {
   sloped: boolean;
   shading?: Shading;
   shadow: boolean;
+  /** "transform shape": nodes are scaled with the picture. */
+  transformShape?: boolean;
   /** -1 on the background layer, 0 on the main one. */
   layer: number;
 
@@ -210,6 +214,7 @@ export const DEFAULT_TIP: ArrowTip = { kind: "to", open: false, count: 1, revers
 export function initialState(): State {
   return {
     sizes: FONT_SIZES,
+    baseFontSize: 10,
     color: [0, 0, 0],
     lineWidth: 0.4,
     dash: null,

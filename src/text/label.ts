@@ -200,7 +200,9 @@ type Item =
   | { kind: "space"; style: TextStyle; width?: number; breakable: boolean }
   | { kind: "math"; tex: string; display: boolean; style: TextStyle }
   | { kind: "unknown"; text: string; style: TextStyle }
-  | { kind: "break" };
+  | { kind: "break" }
+  /** \vspace: extra space before the next line. */
+  | { kind: "vspace"; amount: number };
 
 const SPACES: Record<string, number> = {
   "\\,": 0.16667,
@@ -591,6 +593,13 @@ function read(src: string, style: TextStyle, env: LabelEnv, out: Item[], issues:
       pushSpace(cs === "\\ " ? undefined : 0);
       continue;
     }
+    if (csName === "\\vspace") {
+      const arg = readGroup(r) ?? "";
+      const l = /^\s*(-?[\d.]+)\s*(pt|em|ex|cm|mm|in|bp)/.exec(arg);
+      const unit: Record<string, number> = { pt: 1, em: st.size, ex: st.size * 0.43, cm: 28.4528, mm: 2.84528, in: 72.27, bp: 1.00375 };
+      if (l) out.push({ kind: "vspace", amount: parseFloat(l[1]!) * unit[l[2]!]! });
+      continue;
+    }
     if (cs in SPACES) {
       pushSpace(SPACES[cs]! * st.size, cs === "\\quad" || cs === "\\qquad" || cs === "\\hfill");
       continue;
@@ -780,6 +789,7 @@ function measureItem(it: Item, macros: Record<string, string>, issues: string[])
       return { item: it, width: m.width * k, height: m.height * k, depth: m.depth * k };
     }
     case "break":
+    case "vspace":
       return { item: it, width: 0, height: 0, depth: 0 };
   }
 }
@@ -804,30 +814,49 @@ export function layoutLabel(src: string, opts: LayoutOptions, env: LabelEnv): Te
   const rawLines: Box[][] = [[]];
   const maxW = opts.textWidth;
   let lineW = 0;
+  // TeX's interword glue can shrink by a third of its width (fontdimen 4),
+  // so a line fits if it fits with every space shrunk.
+  const shrinkOf = (x: Box) => (x.item.kind === "space" && x.item.width === undefined && x.item.style.family !== "tt" ? x.width / 3 : 0);
+  let lineShrink = 0;
+  // Extra space before each line, from \vspace.
+  const vBefore: number[] = [0];
+  let pendingV = 0;
+  const newLine = (content: Box[] = []) => {
+    rawLines.push(content);
+    vBefore.push(pendingV);
+    pendingV = 0;
+  };
   for (const b of boxes) {
     const line = rawLines[rawLines.length - 1]!;
-    if (b.item.kind === "break") {
-      rawLines.push([]);
-      lineW = 0;
+    if (b.item.kind === "vspace") {
+      // At the start of a line it comes before that line; otherwise before the next.
+      if (line.length) pendingV += b.item.amount;
+      else vBefore[vBefore.length - 1]! += b.item.amount;
       continue;
     }
-    if (maxW !== undefined && b.item.kind !== "space" && lineW + b.width > maxW + 0.01 && line.length) {
+    if (b.item.kind === "break") {
+      newLine();
+      lineW = 0;
+      lineShrink = 0;
+      continue;
+    }
+    if (maxW !== undefined && b.item.kind !== "space" && lineW + b.width - lineShrink > maxW + 0.01 && line.length) {
       // Move the trailing word (everything after the last breakable space) to a new line.
       let cut = line.length;
       while (cut > 0 && !(line[cut - 1]!.item.kind === "space" && (line[cut - 1]!.item as { breakable: boolean }).breakable)) cut--;
       if (cut > 0) {
         const moved = line.splice(cut);
         line.pop(); // the space itself
-        rawLines.push(moved);
+        newLine(moved);
         lineW = moved.reduce((w, x) => w + x.width, 0);
+        lineShrink = moved.reduce((w, x) => w + shrinkOf(x), 0);
       }
     }
     rawLines[rawLines.length - 1]!.push(b);
     lineW += b.width;
+    lineShrink += shrinkOf(b);
   }
 
-  const strutH = 0.7 * opts.font.size;
-  const strutD = 0.3 * opts.font.size;
   const lines: Line[] = [];
   for (const raw of rawLines) {
     while (raw.length && raw[raw.length - 1]!.item.kind === "space") raw.pop();
@@ -867,21 +896,17 @@ export function layoutLabel(src: string, opts: LayoutOptions, env: LabelEnv): Te
     else {
       const prev = lines[i - 1]!;
       // TeX: baselines are \baselineskip apart unless the lines would touch.
-      y += Math.max(skip, prev.depth + l.height + 1);
+      y += Math.max(skip, prev.depth + l.height + 1) + (vBefore[i] ?? 0);
     }
     l.baseline = y;
     if (align === "center") l.x = (width - l.width) / 2;
     else if (align === "right") l.x = width - l.width;
   });
   const last = lines[lines.length - 1]!;
-  const multi = lines.length > 1 || maxW !== undefined;
-  // A one-line node uses its glyphs' height and depth. Multi-line and
-  // fixed-width text sits in a box with struts on its first and last line.
-  const height = multi ? Math.max(lines[0]!.height, strutH) : lines[0]!.height;
-  if (multi) {
-    const shift = height - lines[0]!.height;
-    for (const l of lines) l.baseline += shift;
-  }
-  const bottom = last.baseline + (multi ? Math.max(last.depth, strutD) : last.depth);
+  // The box is as tall as the glyphs: the first line's height on top, the
+  // last line's depth at the bottom, with or without a text width. (Checked
+  // against pdfTeX: TikZ adds no struts.)
+  const height = lines[0]!.height;
+  const bottom = last.baseline + last.depth;
   return { lines, width, height, depth: bottom - height, issues: [...new Set(issues)] };
 }

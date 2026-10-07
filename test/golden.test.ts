@@ -26,8 +26,7 @@ interface Move {
 /** The centre that puts `n` directly below `t` at its node distance. */
 function belowOf(n: LaidOutNode, t: LaidOutNode): Point {
   const south = anchorPoint(t.shape, "south")!;
-  const sy = Math.hypot(n.frame[2], n.frame[3]) || 1;
-  return { x: t.shape.center.x, y: south.y - n.nodeDistance.v * sy - (n.shape.hh + n.shape.outerY) };
+  return { x: t.shape.center.x, y: south.y - n.nodeDistance.v * n.vectorScale - (n.shape.hh + n.shape.outerY) };
 }
 
 function scriptedMoves(layout: PictureLayout): Move[] {

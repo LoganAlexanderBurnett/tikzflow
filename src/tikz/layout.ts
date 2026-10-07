@@ -4,7 +4,7 @@ import type { BodyItem, NodeSyntax, OptionList, PathItemSyntax, PathSyntax, Pict
 import { layoutLabel, type LabelEnv, type Macro, type TextLayout } from "../text/label.ts";
 import { ColorTable, type RGB } from "./colors.ts";
 import { type CoordEnv, type CoordResult, evalCoordText, type NameEntry } from "./coords.ts";
-import { applyKeys, applyStyle, defaultTipLength, defaultTipWidth, KNOWN_SHAPES, parseNodeDistance, StyleTable } from "./keys.ts";
+import { applyKeys, applyStyle, defaultTipLength, defaultTipWidth, KNOWN_SHAPES, parseNodeDistance, SHAPE_LIBRARY, StyleTable } from "./keys.ts";
 import { type KeyValue, parseOptionString } from "./options.ts";
 import { anchorOffset, anchorPoint, borderToward, makeShape, type NodeShape, outline, type Point, shapeBounds } from "./shapes.ts";
 import { applyLinear, applyMatrix, type ArrowTip, initialState, itemCopy, type Matrix, multiply, scopeCopy, type Shading, type SizeTable, type State } from "./state.ts";
@@ -18,6 +18,8 @@ export interface LayoutEnv {
   settings: KeyValue[];
   /** The document class's font: size table and family. */
   font?: { sizes: SizeTable; family: "rm" | "sf" };
+  /** Libraries the document loads before the picture; undefined for a bare picture. */
+  libraries?: readonly string[];
 }
 
 /** How a node's position is written, for the editor. */
@@ -52,6 +54,8 @@ export interface LaidOutNode {
   frame: Matrix;
   /** Lengths of the x and y unit vectors: what a plain number in a coordinate means. */
   units: { x: number; y: number };
+  /** How much positioning distances and node shifts are scaled: 1 unless "transform shape". */
+  vectorScale: number;
   nodeDistance: { v: number; h: number };
   onGrid: boolean;
   /** Why the node can't be dragged, or undefined if it can. */
@@ -225,6 +229,7 @@ export function layoutPicture(pic: PictureSyntax, env: LayoutEnv, overrides: Rea
     root.sizes = env.font.sizes;
     const [size, baselineskip] = env.font.sizes["\\normalsize"]!;
     root.font = { ...root.font, size, baselineskip, family: env.font.family };
+    root.baseFontSize = size;
   }
   const rootStyles = env.styles.child();
   const kc = keyCtx(ctx, rootStyles);
@@ -333,6 +338,15 @@ function registerBox(box: { name: string; nodes: number; paths: number }, ctx: C
   ctx.out.boxes.set(box.name, part.nodes.map((n) => n.id));
 }
 
+/**
+ * A node's own shifts and positioning distances: canvas pt, because nodes
+ * drop all but the translation of the transformation, unless "transform
+ * shape" keeps it.
+ */
+function nodeVector(st: State, x: number, y: number): [number, number] {
+  return st.transformShape ? applyLinear(st.matrix, x, y) : [x, y];
+}
+
 /** Moves accumulated xshift/yshift of a scope into its matrix. */
 function foldShift(st: State) {
   if (st.xshift || st.yshift) st.matrix = multiply(st.matrix, [1, 0, 0, 1, st.xshift, st.yshift]);
@@ -410,6 +424,24 @@ function layoutNode(
   const name = syn.name?.text ?? st.name ?? (chain ? `${chainName}-${chain.count + 1}` : undefined);
   const id = nextId(ctx, name);
 
+  // "transform shape": the node itself is scaled with the picture.
+  if (st.transformShape) {
+    const k = Math.sqrt(Math.abs(st.matrix[0] * st.matrix[3] - st.matrix[1] * st.matrix[2]));
+    if (k > 0 && Math.abs(k - 1) > 1e-9) {
+      st.font = { ...st.font, size: st.font.size * k, baselineskip: st.font.baselineskip * k };
+      st.innerXSep *= k;
+      st.innerYSep *= k;
+      st.outerXSep *= k;
+      st.outerYSep *= k;
+      st.minWidth *= k;
+      st.minHeight *= k;
+      st.roundedCorners *= k;
+      if (st.textWidth !== undefined) st.textWidth *= k;
+      if (st.textHeight !== undefined) st.textHeight *= k;
+      if (st.textDepth !== undefined) st.textDepth *= k;
+    }
+  }
+
   // Text.
   let text: TextLayout | undefined;
   if (syn.label && st.shape !== "coordinate") {
@@ -464,7 +496,7 @@ function layoutNode(
   // Position: the "at" point, which the node's anchor is put on.
   let at: Point = { x: st.matrix[4], y: st.matrix[5] };
   let anchor = st.anchor;
-  if (kind === "path" && pathPos) {
+  if (pathPos) {
     posKind = "path";
     at = pathPos.point;
   }
@@ -496,9 +528,12 @@ function layoutNode(
       const target = evalLoose(placement.of, ctx, st);
       refs.push(...target.refs);
       if (target.ok) {
+        // The old syntax moves node distance along the direction: diagonals
+        // go 45 degrees, not node distance on each axis (checked against pdfTeX).
         const [ux, uy] = positioningDirection(placement.dir);
+        const len = Math.hypot(ux, uy) || 1;
         const dist = st.nodeDistance;
-        const [dx, dy] = applyLinear(st.matrix, ux * dist.v, uy * dist.v);
+        const [dx, dy] = nodeVector(st, (ux / len) * dist.v, (uy / len) * dist.v);
         const base = target.node ? target.node.shape.center : target.point;
         at = { x: base.x + dx, y: base.y + dy };
       } else locked.push(target.reason);
@@ -529,18 +564,20 @@ function layoutNode(
             base = grid ? target.node.shape.center : (anchorPoint(target.node.shape, OPPOSITE[positioningAnchor(placement.dir)] ?? "center") ?? base);
           }
           if (grid && anchor === positioningAnchor(placement.dir)) anchor = "center";
-          const [dx, dy] = applyLinear(st.matrix, ux * shiftH, uy * shiftV);
+          const [dx, dy] = nodeVector(st, ux * shiftH, uy * shiftV);
           at = { x: base.x + dx, y: base.y + dy };
         } else locked.push(target.reason);
       } else {
         // "below=2pt": shift the node away from its at point.
-        const [dx, dy] = applyLinear(st.matrix, ux * shiftH, uy * shiftV);
+        const [dx, dy] = nodeVector(st, ux * shiftH, uy * shiftV);
         at = { x: at.x + dx, y: at.y + dy };
       }
     }
   }
   if (st.xshift || st.yshift) {
-    const [dx, dy] = applyLinear(st.matrix, st.xshift, st.yshift);
+    // Nodes drop the non-translation part of the transformation, so their own
+    // shifts and positioning distances are not scaled (checked against pdfTeX).
+    const [dx, dy] = nodeVector(st, st.xshift, st.yshift);
     at = { x: at.x + dx, y: at.y + dy };
   }
   let center: Point;
@@ -553,7 +590,12 @@ function layoutNode(
   const shape: NodeShape = { ...shape0, center };
 
   // Editing restrictions.
-  if (kind === "path") locked.push("it is part of a path (edge labels are edited in a later milestone)");
+  // A shape from a library the document doesn't load is an error in TeX.
+  const needs = SHAPE_LIBRARY[st.shape];
+  if (needs && ctx.env.libraries && !ctx.env.libraries.some((lib) => lib === needs || lib === "shapes")) {
+    ctx.out.issues.push({ range: { from: syn.from, to: syn.to }, message: `The ${st.shape} shape needs \\usetikzlibrary{${needs}}, which this document doesn't load.` });
+  }
+  if (kind === "path" || pathPos) locked.push("it is part of a path (edge labels are edited in a later milestone)");
   if (name && /[\\#]/.test(name)) locked.push("its name contains a macro");
   if (posKind === "fit") locked.push("its size and position follow the nodes it fits");
   for (const r of refs) if (ctx.out.opaqueNames.has(r)) locked.push(`it is placed relative to "${r}", inside a block kept as-is`);
@@ -577,6 +619,7 @@ function layoutNode(
     position: { kind: posKind, refs: [...new Set(refs)], anchor },
     frame: st.matrix,
     units: { x: Math.hypot(...st.xUnit), y: Math.hypot(...st.yUnit) },
+    vectorScale: st.transformShape ? Math.sqrt(Math.abs(st.matrix[0] * st.matrix[3] - st.matrix[1] * st.matrix[2])) : 1,
     nodeDistance: { ...placementDistance },
     onGrid: placementGrid,
     unknownKeys: st.unknown,
@@ -728,6 +771,7 @@ function labelNode(spec: string, owner: LaidOutNode, scope: Scope, ctx: Ctx): La
     position: { kind: "path", refs: [], anchor: "center" },
     frame: st.matrix,
     units: { x: Math.hypot(...st.xUnit), y: Math.hypot(...st.yUnit) },
+    vectorScale: 1,
     nodeDistance: st.nodeDistance,
     onGrid: false,
     unknownKeys: st.unknown,
@@ -921,6 +965,8 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint):
   let opNodes: PendingNode[] = [];
   let controls: Array<{ text: string; relative?: "+" | "++" }> = [];
   let broken = false;
+  // The segment that ended at the current point, if the last step drew one.
+  let lastSeg: Segment | null = null;
 
   const evalAt = (coord: { text: string; relative?: "+" | "++" }, origin: Point | null): CoordResult => {
     if (coord.relative) {
@@ -933,6 +979,8 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint):
     return evalCoordText(coord.text, coordEnv(ctx, st));
   };
 
+  // Names the path has referred to so far.
+  const pathRefs: string[] = start?.node?.nodeId ? [start.node.nodeId] : [];
   const placeNodes = (nodes: PendingNode[], seg: Segment | null, at: Point, nodeState: State) => {
     for (const pn of nodes) {
       const probe = itemCopy(nodeState);
@@ -952,9 +1000,10 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint):
         const anchorItem = { from: 0, to: 0, key: "anchor", keyRange: { from: 0, to: 0 }, value: anchors[idx]! };
         synEff = { ...pn.syn, options: [...pn.syn.options, { from: 0, to: 0, items: [anchorItem], commas: [] }] };
       }
-      const n = layoutNode(synEff, scope, ctx, pn.syn.kind === "coordinate" ? "coordinate" : "path", nodeState, syn, where);
-      // Path coordinates are points other paths can use, not labels.
-      if (n && pn.syn.kind === "coordinate") ctx.out.pathNodes.pop();
+      // Path coordinates ("coordinate (m)") are named points, kept with the nodes.
+      const placed = layoutNode(synEff, scope, ctx, pn.syn.kind === "coordinate" ? "coordinate" : "path", nodeState, syn, where);
+      // It moves with whatever the path goes through.
+      if (placed) placed.position.refs = [...new Set([...placed.position.refs, ...pathRefs])];
     }
   };
 
@@ -997,6 +1046,7 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint):
             if (cur && subStart) {
               const seg: Segment = { kind: "line", from: cur.point, to: subStart };
               main.segments.push(seg);
+              lastSeg = seg;
               placeNodes(pending.splice(0), seg, subStart, st);
               cur = { point: subStart };
               base = subStart;
@@ -1031,10 +1081,22 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint):
             op = "skip";
         }
         break;
-      case "node":
-        if (op === "edge") opNodes.push({ syn: it.node, after: true });
-        else pending.push({ syn: it.node, after: op !== "move" && op !== "skip" });
+      case "node": {
+        if (op === "edge") {
+          opNodes.push({ syn: it.node, after: true });
+          break;
+        }
+        // A node right after a coordinate sits at that point, or at its pos on
+        // the segment that ended there. Otherwise it waits for the operation's
+        // target and sits midway along it.
+        let k = i - 1;
+        while (k >= 0 && (items[k]!.kind === "node" || items[k]!.kind === "options")) k--;
+        const prevItem = items[k];
+        const afterTarget = !prevItem || prevItem.kind === "coord" || (prevItem.kind === "keyword" && prevItem.word === "cycle");
+        if (afterTarget) placeNodes([{ syn: it.node, after: false }], lastSeg, cur?.point ?? { x: 0, y: 0 }, st);
+        else pending.push({ syn: it.node, after: true });
         break;
+      }
       case "unknown": {
         const t = it.text.trim();
         main.issues.push(`"${t.slice(0, 30)}" isn't understood here`);
@@ -1062,6 +1124,7 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint):
             const large = Math.abs(a1 - a0) > Math.PI ? 1 : 0;
             main.extra.push(`M ${P(cur.point)} A ${f3(r)} ${f3(r)} 0 ${large} ${a1 > a0 ? 1 : 0} ${P(end)}`);
             cur = { point: end };
+            lastSeg = null;
             base = end;
           } else main.issues.push(`arc "${it.coord.text}"`);
           op = "move";
@@ -1078,6 +1141,7 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint):
           }
         }
         const r = evalAt(it.coord, base);
+        pathRefs.push(...r.refs);
         if (!r.ok) {
           const opaqueRef = r.refs.find((n) => ctx.out.opaqueNames.has(n));
           main.issues.push(opaqueRef ? `refers to "${opaqueRef}" inside a block kept as-is` : r.reason);
@@ -1095,6 +1159,7 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint):
         if (op === "move" || op === "skip" || !cur) {
           placeNodes(pending.splice(0), null, cur?.point ?? r.point, st);
           cur = target;
+          lastSeg = null;
           moveBase();
           subStart = target.point;
           main.subpathStarts.push(main.segments.length);
@@ -1108,6 +1173,7 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint):
           const b = target.point;
           main.extra.push(`M ${P(a)} L ${f3(b.x)} ${f3(a.y)} L ${P(b)} L ${f3(a.x)} ${f3(b.y)} Z`);
           cur = target;
+          lastSeg = null;
           moveBase();
           op = "move";
           break;
@@ -1150,6 +1216,7 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint):
           break;
         }
         main.segments.push(seg);
+        lastSeg = seg;
         placeNodes(pending.splice(0), seg, seg.to, opState ?? st);
         if (refId) {
           main.connects.push(refId);

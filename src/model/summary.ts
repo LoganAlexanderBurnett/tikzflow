@@ -57,6 +57,7 @@ export function summarize(doc: DocumentModel, layout: PictureLayout): Summary {
     }
   }
   for (const p of layout.paths) for (const u of p.unrendered) notes.add(`Not shown natively: ${u}`);
+  for (const i of layout.issues) notes.add(i.message);
 
   const keptTotal = Object.values(kept).reduce((a, b) => a + b, 0);
   const parts = [`${plural(editable.length, "node")}${editable.length < real.length ? ` of ${real.length}` : ""} and ${plural(edges, "edge")} editable`];

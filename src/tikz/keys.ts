@@ -158,7 +158,6 @@ const IGNORED = new Set([
   "remember picture",
   "overlay",
   "baseline",
-  "transform shape",
   "line cap",
   "line join",
   "miter limit",
@@ -239,8 +238,12 @@ const UNRENDERED = new Set([
 /** Keys that mean the node's position depends on something the editor doesn't model. */
 export const UNMODELLED_PLACEMENT = new Set(["start branch", "below delimiter", "matrix anchor"]);
 
+/**
+ * Units for lengths in keys. "em" is the document font's, not the node's:
+ * "font=" only applies inside node text (checked against pdfTeX).
+ */
 function fontUnits(s: State): FontUnits {
-  return { em: s.font.size, ex: s.font.size * 0.430554 };
+  return { em: s.baseFontSize, ex: s.baseFontSize * 0.430554 };
 }
 
 /** A coordinate-like length: unitless numbers are multiples of the x unit (1cm by default). */
@@ -830,6 +833,9 @@ export function applyKey(s: State, kv: KeyValue, ctx: KeyContext, depth = 0): vo
       return;
     case "on background layer":
       s.layer = -1;
+      return;
+    case "transform shape":
+      s.transformShape = value !== "false";
       return;
     case "local bounding box":
       if (value) s.localBoundingBox = value;

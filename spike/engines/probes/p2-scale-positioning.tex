@@ -1,0 +1,13 @@
+\documentclass[tikz]{standalone}
+\usetikzlibrary{positioning}
+% Does "scale" apply to positioning distances, node shifts and at coordinates?
+\begin{tikzpicture}[scale=0.5, node distance=2cm, every node/.style={draw, minimum size=5mm, inner sep=0pt, outer sep=0pt}]
+  \node (a) at (0,0) {};
+  \node[below of=a] (old) {};
+  \node (b) at (4,0) {};
+  \node[below=of b] (new) {};
+  \node[below=1cm of b, xshift=1cm] (shifted) {};
+  \node (c) at (8,0) {};
+  \node[on grid, below=of c] (grid) {};
+  \node[xshift=1cm] (xs) at (12,0) {};
+\end{tikzpicture}

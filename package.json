@@ -22,7 +22,8 @@
     "gen:font-metrics": "node scripts/gen-font-metrics.ts",
     "fetch-engines": "node scripts/fetch-engines.ts",
     "bench-engines": "node scripts/bench-engines.ts",
-    "compare-engines": "node scripts/compare-engines.ts"
+    "compare-engines": "node scripts/compare-engines.ts",
+    "fidelity": "node scripts/fidelity.ts"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",
