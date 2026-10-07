@@ -21,6 +21,8 @@ export interface SnapResult {
   center: Point;
   guides: Guide[];
   gaps: GapMark[];
+  /** Ids of the nodes the result lines up with. */
+  targets: string[];
 }
 
 interface Box {
@@ -130,10 +132,17 @@ export function snapNode(layout: PictureLayout, node: LaidOutNode, raw: Point, t
   }
 
   const guides: Guide[] = [];
+  const aligned = new Set<string>();
   // Draw a guide for every node the final position lines up with.
   for (const t of targets) {
-    if (Math.abs(t.cx - x) < 0.01) guides.push({ axis: "v", at: x, from: t.cy, to: y });
-    if (Math.abs(t.cy - y) < 0.01) guides.push({ axis: "h", at: y, from: t.cx, to: x });
+    if (Math.abs(t.cx - x) < 0.01) {
+      guides.push({ axis: "v", at: x, from: t.cy, to: y });
+      aligned.add(t.node.id);
+    }
+    if (Math.abs(t.cy - y) < 0.01) {
+      guides.push({ axis: "h", at: y, from: t.cx, to: x });
+      aligned.add(t.node.id);
+    }
   }
-  return { center: { x, y }, guides, gaps };
+  return { center: { x, y }, guides, gaps, targets: [...aligned] };
 }

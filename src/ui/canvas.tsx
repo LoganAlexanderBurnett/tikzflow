@@ -5,7 +5,7 @@ import { useComputed, useSignal, useSignalEffect } from "@preact/signals";
 import type { JSX } from "preact";
 import { memo } from "preact/compat";
 import { useEffect, useMemo, useRef } from "preact/hooks";
-import { planMove, positioningText } from "../edit/move.ts";
+import { planMove, positioningText, referenceCandidates } from "../edit/move.ts";
 import { snapNode } from "../edit/snap.ts";
 import { pictureEnv } from "../model/document.ts";
 import { type RGB, cssColor } from "../tikz/colors.ts";
@@ -231,7 +231,7 @@ export function Canvas() {
   const size = useSignal({ w: 800, h: 600 });
   const view = useSignal<View>({ scale: 2, cx: 0, cy: 0 });
   const drag = useRef<
-    | { kind: "node"; id: string; pointer: Point; center: Point; moved: boolean; target: Point }
+    | { kind: "node"; id: string; pointer: Point; center: Point; moved: boolean; target: Point; alignedWith: string[] }
     | { kind: "pan"; client: Point; view: View; moved: boolean }
     | null
   >(null);
@@ -295,7 +295,7 @@ export function Canvas() {
       selectFromCanvas({ kind: "node", id });
       if (n && !n.locked) {
         const p = toModel(e);
-        drag.current = { kind: "node", id, pointer: p, center: n.shape.center, moved: false, target: n.shape.center };
+        drag.current = { kind: "node", id, pointer: p, center: n.shape.center, moved: false, target: n.shape.center, alignedWith: [] };
         svg.setPointerCapture(e.pointerId);
       } else if (n?.locked) status.value = `Locked: ${n.locked}.`;
       return;
@@ -325,8 +325,9 @@ export function Canvas() {
     const l = baseLayout.value;
     const n = l?.nodes.find((x) => x.id === d.id);
     if (!l || !n) return;
-    const snapped = e.altKey ? { center: raw, guides: [], gaps: [] } : snapNode(l, n, raw, 7 / view.value.scale);
+    const snapped = e.altKey ? { center: raw, guides: [], gaps: [], targets: [] } : snapNode(l, n, raw, 7 / view.value.scale);
     d.target = snapped.center;
+    d.alignedWith = snapped.targets;
     overrides.value = new Map([[d.id, snapped.center]]);
     guides.value = { lines: snapped.guides, gaps: snapped.gaps };
   };
@@ -358,6 +359,16 @@ export function Canvas() {
             ? "Kept the position as written and adjusted its shift."
             : "Wrote coordinates: nothing nearby lines up.";
     if (result.library) status.value += " Loaded the positioning library.";
+    // Explain when a node it lines up with couldn't be used: TikZ only lets a
+    // node refer to nodes defined before it.
+    const l = baseLayout.value;
+    const moved = l?.nodes.find((x) => x.id === d.id);
+    if (l && moved && s.kind !== "perp") {
+      const usable = new Set(referenceCandidates(l, moved).map((x) => x.id));
+      const later = d.alignedWith.filter((id) => !usable.has(id) && l.nodes.findIndex((x) => x.id === id) > l.nodes.indexOf(moved));
+      const name = (id: string) => l.nodes.find((x) => x.id === id)?.name ?? id;
+      if (later.length) status.value += ` It lines up with ${later.map(name).join(", ")}, which comes later in the code, so the position is written relative to earlier nodes.`;
+    }
     for (const note of result.notes) status.value += ` Note: ${note}.`;
   };
 
