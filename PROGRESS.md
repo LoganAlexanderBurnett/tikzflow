@@ -8,7 +8,7 @@ Milestone 0 is done and was approved on 2026-10-07:
 - **Engine:** TikZJax, with our own build in Milestone 3 (D13, D15).
 - **Preview fonts:** always Computer Modern (D16).
 
-**Now:** Milestone 2a (nodes and styles) is in progress. Steps 1–3 of 8 are done; step 4 (resizing) is next. The plan was approved on 2026-10-07, with the owner's answers in D34. Milestone 2 was split into 2a and 2b, each with its own checkpoint (D32). The full list is in SPEC.md, "Milestone 2a". Also read the "Notes for later milestones" below.
+**Now:** Milestone 2a (nodes and styles) is in progress. Steps 1–5 of 8 are done; step 6 (palette and keyboard creation) is next. The plan was approved on 2026-10-07, with the owner's answers in D34. Milestone 2 was split into 2a and 2b, each with its own checkpoint (D32). The full list is in SPEC.md, "Milestone 2a". Also read the "Notes for later milestones" below.
 
 ## M2a plan and status
 | Step | Content | Status |
@@ -16,11 +16,60 @@ Milestone 0 is done and was approved on 2026-10-07:
 | 1 | Shared editing core: option and style edits, statement insertion, library management, multi-selection model, node naming (D35) | Done |
 | 2 | M1 fixes: nudge shifts, locked-node explanations and fixes, clickable errors, undefined references, coordinate markers, undrawable-option marker (D36) | Done |
 | 3 | Properties panel with style scope, colour picker, multi-select (D37) | Done |
-| 4 | Resizing | Next |
-| 5 | In-place label editing | Not started |
-| 6 | Palette (standard shapes and the document's own styles) and keyboard creation | Not started |
+| 4 | Resizing (D38) | Done |
+| 5 | In-place label editing (D39) | Done |
+| 6 | Palette (standard shapes and the document's own styles) and keyboard creation | Next |
 | 7 | Style panel and factoring repeated options | Not started |
 | 8 | End-to-end tests, docs, report, push | Not started |
+
+## M2a steps 4–5, and feedback on steps 2–3 (2026-10-07)
+### How to try it
+- `npm run dev`, open http://localhost:5173, and click a node: eight handles appear. Drag one.
+  - With "This node" chosen in the panel, the node gets `minimum width` or `minimum height`.
+  - With "All process nodes" chosen, the `process` style gets it, and every process node changes.
+  - Drag a width to line up with another node and the status bar says "Same width as …".
+- Double-click a node (or select it and press F2) to edit its label as TeX. Enter applies, Shift+Enter adds a line, Esc cancels. Try typing `50%` to see a refusal.
+- Open `corpus/self-hybrid-surrogate.tex`, pick the locked node `#2` and drag it: dropping it pins it with plain coordinates. The "Pin at current position" button is still there.
+- The `»` button at the top of the properties panel folds it into a strip. It stays folded after a reload.
+
+### What works
+**Feedback on steps 2–3.**
+- **Drag to pin.** A node locked only by an undefined or later-defined reference can be dragged. The drop writes `at (x,y)` at the drop position (`planPin` takes an optional centre). Snapping and guides work. Nodes locked for other reasons still refuse.
+- **Collapsible panel.** The state is kept in `localStorage`, per viewer. The collapsed strip shows a lock icon when the selected node is locked. I did it now rather than in step 8; it was small.
+- Your handling of hand-written shifts is unchanged.
+
+**Step 4, resizing (D38).**
+- **Handles** on one selected node: corners and sides. Not on `fit` nodes, nodes scaled with `transform shape`, or shapes the preview draws approximately.
+- **What gets written:** whole-millimetre `minimum width` and `minimum height` (never `86.0000007pt`), updated in place on a second drag.
+  - A drag that should rewrap the text writes `text width`, never below the widest word. That is a node that already has a `text width`, or a label that can break at a space, made narrower than its text.
+  - Circles get `minimum size`.
+- **A node grows around its anchor,** as in TeX, and the dragged edge follows the pointer. The node's position is never edited to hold the other edge.
+- **Live preview:** dependent nodes and edges follow while dragging. The edit is one undo step.
+- **Snapping** to whole millimetres and to other nodes' widths and heights, with dimension marks. Alt drags without snapping to nodes.
+- **Scope.** The drag follows the panel's choice, "This node" or the style. The scope now lives in the store so the canvas can read it.
+- **Checked by layout.** If the drawn size is off by more than 0.75 mm, the written value is corrected. If nothing changes (a later `minimum size`, or a node that sets its own size under style scope), the drag is refused with the reason.
+
+**Step 5, label editing (D39).**
+- The text box holds the label's TeX between its braces, as written. Only the characters that changed are patched. Comments and line breaks inside the label stay, and CRLF files get CRLF.
+- Refused, with the reason under the box: unbalanced braces, a `%` that would comment out the closing brace, and a trailing backslash. The patched text is parsed again and must still be the same node with no new syntax errors.
+- Works on locked nodes too, since it doesn't touch position. Not on coordinates, unclosed labels, or edge labels (2b).
+
+**Also fixed:** the canvas never had keyboard focus, because SVG `tabIndex` is case-sensitive in Preact. It's `tabindex` now.
+
+### Tests
+- **Vitest:** 513 tests in 9 files, about 10 s. New: `test/resize.test.ts` (23) and `test/label.test.ts` (39). The latter includes a sweep that appends a character to every closed label in the corpus and checks it is exactly one inserted character. There are also two drag-to-pin tests in `test/fixes.test.ts`. The golden minimal-diff files didn't change.
+- **Playwright:** 30 tests in Edge. New: `test/e2e/resize.spec.ts` (5), `test/e2e/label.spec.ts` (5), one drag-to-pin test in `fixes.spec.ts` and one panel-collapse test in `properties.spec.ts`.
+- `npm run typecheck` and `npm run build` pass. `npm run layout:bench` is unchanged (parse 7.6 ms, layout 7.9 ms, drop 28 ms).
+- I didn't re-run `npm run fidelity`. It needs the engines fetched, and these steps changed no interpreter behaviour: the layout only gained a `sizing` field per node.
+
+### Known limits (steps 4–5)
+- **Resizing is one node at a time.** A multi-selection shows no handles. Resizing several nodes together needs a rule for nodes of different shapes; say if you want it.
+- **Handles act on the size, not the position.** For a node placed with an anchor, the edge at the anchor can't move, so its handle uses half the pointer movement.
+- **Diamonds and ellipses** only take minimums (no rewrap), because their width isn't text width plus padding.
+- **Matched sizes are approximate.** Snapping to another node's width writes a whole-millimetre value, so a node whose width comes from its text matches to within 0.5 mm.
+- **Label editing shows no live preview** while typing, because the box covers the node. The canvas updates when the label is applied.
+- **Label text isn't checked as LaTeX** beyond braces, `%` and the final backslash. An unbalanced `$` is accepted and only shows up when compiling.
+- **Resized shapes** are checked against the native layout and unit tests, not against pdfTeX beyond what the existing fidelity probes cover.
 
 ## M2a steps 1–3 (2026-10-07)
 ### How to try it
@@ -67,7 +116,7 @@ Milestone 0 is done and was approved on 2026-10-07:
   - It reads styles from the preamble, the picture's options and top-level `\tikzset`. Styles set inside a `scope` aren't followed, and the `color=` shorthand isn't shown as a fill or outline source.
   - There is no "Default" choice to remove a node's own colour and fall back to its style. Pick the style's value instead, or edit the code.
   - `node font` isn't edited. A `\fontsize{…}{…}` size is kept, and shown as "Custom", until a named size is chosen.
-- **The panel is always shown** and takes 280 px from the canvas. It can't be collapsed yet.
+- **The panel takes 280 px** from the canvas unless it is collapsed (see steps 4–5 below).
 
 ## Milestones
 | Milestone | Status |

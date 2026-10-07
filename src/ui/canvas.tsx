@@ -4,7 +4,7 @@
 import { useComputed, useSignal, useSignalEffect } from "@preact/signals";
 import type { JSX } from "preact";
 import { memo } from "preact/compat";
-import { useEffect, useMemo, useRef } from "preact/hooks";
+import { useCallback, useEffect, useMemo, useRef } from "preact/hooks";
 import { planMove, positioningText, referenceCandidates } from "../edit/move.ts";
 import type { Scope } from "../edit/properties.ts";
 import { planResize, type ResizeOutcome, resizeBlocker, type SizeWant } from "../edit/resize.ts";
@@ -282,13 +282,16 @@ function drawOrder(l: PictureLayout): Item[] {
  */
 function LabelEditor({ view, size, onDone }: { view: View; size: { w: number; h: number }; onDone: () => void }) {
   const e = labelEdit.value;
-  const ref = useRef<HTMLTextAreaElement>(null);
   const id = e?.id;
-  useEffect(() => {
-    if (!id) return;
-    ref.current?.focus();
-    ref.current?.select();
-  }, [id]);
+  // Focus the box as soon as it exists, so the first keystroke lands in it. The
+  // callback only changes with the node, so typing doesn't refocus or reselect.
+  const ref = useCallback(
+    (el: HTMLTextAreaElement | null) => {
+      el?.focus();
+      el?.select();
+    },
+    [id],
+  );
   const n = e ? baseLayout.value?.nodes.find((x) => x.id === e.id) : undefined;
   if (!e || !n) return null;
   const problem = labelEditProblem.value;
