@@ -1,0 +1,256 @@
+% =========================================================
+% Refined hybrid surrogate architecture
+% =========================================================
+\begin{figure*}[t]
+\centering
+
+% --- colors ---
+\definecolor{StateFill}{RGB}{230,238,252}
+\definecolor{StateDraw}{RGB}{60,102,174}
+\definecolor{ControlFill}{RGB}{253,238,221}
+\definecolor{ControlDraw}{RGB}{207,123,32}
+\definecolor{RhoFill}{RGB}{251,229,233}
+\definecolor{RhoDraw}{RGB}{191,77,95}
+\definecolor{KinFill}{RGB}{228,243,231}
+\definecolor{KinDraw}{RGB}{69,144,84}
+\definecolor{NeutFill}{RGB}{245,245,245}
+\definecolor{NeutDraw}{RGB}{90,90,90}
+
+% --- styles ---
+\tikzset{
+  arr/.style={-{Latex[length=2.4mm]}, line width=0.95pt},
+  box/.style={
+    draw, rounded corners=3pt, align=center,
+    font=\small, inner sep=4pt, minimum height=9.5mm
+  },
+  state/.style={box, fill=StateFill, draw=StateDraw, text width=28mm},
+  control/.style={box, fill=ControlFill, draw=ControlDraw, text width=24mm},
+  rho/.style={box, fill=RhoFill, draw=RhoDraw, text width=27mm},
+  kin/.style={box, fill=KinFill, draw=KinDraw, text width=28mm},
+  neut/.style={box, fill=NeutFill, draw=NeutDraw, text width=18mm},
+  group/.style={draw=NeutDraw, dashed, rounded corners=4pt, inner sep=6pt},
+  lab/.style={font=\bfseries\small}
+}
+
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[x=1cm,y=1cm]
+
+% =========================================================
+% Inputs
+% =========================================================
+\node[group, minimum width=108pt, minimum height=80pt, anchor=north west] (inpanel) at (0.74,6.44) {};
+\node[lab, anchor=north] at (2.64,6.9) {Autoregressive Context};
+
+\node[state, anchor=north west, text width=33mm] (paststate)
+  at (0.85,4.83)
+  {State History\\
+   $\{\mathbf{h}_{j-L},\ldots,\mathbf{h}_{j-1}\}$};
+
+\node[control, text width=33mm] (pastcontrol)
+  at (2.64,5.79) {Control Sequence\\
+   $\{\theta_{j-L+1},\ldots,\theta_j\}$};
+
+
+% =========================================================
+% Main model
+% =========================================================
+
+% Six independently movable vertices
+\coordinate (v1) at (5.0,8.0);   % top-left
+\coordinate (v2) at (17.0,8.0);  % top-right
+\coordinate (v3) at (17.0,2.0);  % bottom-right
+\coordinate (v4) at (12.28,-0.5);   % bottom edge, right side of cutout
+\coordinate (v5) at (12.28,4.04);   % inner corner of cutout
+\coordinate (v6) at (6,4.04);   % left edge, above cutout
+
+\draw[
+    dashed,
+    rounded corners=3pt,
+    line width=0.8pt,
+    black!55
+]
+(6,6.65)
+-- (20.73,6.65)
+-- (20.8,-0.5)
+-- (v4)
+-- (v5)
+-- (v6)
+-- cycle;
+
+\node[lab, anchor=north west] at ([xshift=2mm,yshift=-1mm]model.north west)
+  {Hybrid Physics+ML Surrogate: PKE+POD-LSTM};
+
+\node[state, anchor=west] (temporal) at (6.5,5.3)
+  {Temporal Encoder\\
+   (LSTM)};
+
+\node[neut, right=6mm of temporal] (latent)
+  {Temporal Latent State\\ $\mathbf{z}_j$};
+
+\node[state, right=6mm of latent] (spatial)
+  \mbox{{Spatial State Decoder\\}};
+
+\node[state] (flux)
+  at (18.54,3.35) {Multigroup Flux Projection\\
+   $\hat{\mathbf{a}}^{\phi}_j \subset \hat{\mathbf{s}}_j$};
+
+\node[
+    control,
+    anchor=north,
+    minimum width=116pt,
+    text width=108pt,
+    align=center] 
+(ctrl) at (8.15,3.83)
+  {\mbox{Current Control Action} $\theta_j$};
+
+\node[
+    control,
+    anchor=north,
+    minimum width=94pt,
+    text width=71pt,
+    align=center,
+    minimum height=29pt]  (rhead)
+  at (14.5,3.86) {Reactivity\\ MLP Regressor};
+
+\node[rho, text width=86.0000007pt, minimum height=28.4527564pt] (rout)
+  at (14.5,1.9) {Predicted Reactivity
+
+$\hat{\rho}_j$};
+
+\node[kin, minimum width=97.9107079pt, minimum height=27.5492527pt] (pkin2)
+  at (8.15,0.37) {Prior Kinetics State\\
+\mbox{$\mathbf{y}_{j-1}=(n_{j-1},\mathbf{c}_{j-1})$}};
+
+\node[kin] (pke)
+  at (14.5,0.37) {Implicit PKE Solver};
+
+\node[kin, text width=95pt] (kout)
+  at (18.54,0.37) {Updated Kinetics State\\
+   $\mathbf{y}_{j}=(n_j, \mathbf{c}_j)$};
+
+% =========================================================
+% Outputs
+% =========================================================
+
+\node[
+    state,
+    anchor=north,
+    text width=105pt,
+    minimum width=107pt,
+    align=center
+] (outstate) at (18.54,5.78)
+{\mbox{Predicted Spatial State } $\hat{\mathbf{s}}_j$};
+
+
+
+% =========================================================
+% Next autoregressive state
+% =========================================================
+\node[group, minimum width=255pt, minimum height=61pt, anchor=north west] (nextpanel) at (21.37,4.43) {};
+\node[lab, anchor=north] at ([yshift=-1mm]nextpanel.north)
+  {Autogressive Update};
+
+\node[state, anchor=west, text width=41mm] (hybrid) at (21.61,3.16)
+  {Updated Hybrid State\\
+   $\mathbf{h}_j=[\hat{\mathbf{s}}_j,\,\mathbf{y}_j$]};
+
+\node[control, text width=102pt] (nextctrl)
+  at (28.13,3.16) {Update Control Sequence\\ $\{\theta_{j-L+2},\ldots,\theta_{j+1}\}$};
+\node[control, text width=102pt] (nextctrl2)
+  at (28.13,5.29) {Next Control Action\\ $\theta_{j+1}$};
+
+% =========================================================
+% Arrows
+% =========================================================
+% Inputs into model
+\draw[arr] (4.54,5.3) -- ++(0.35,0) |- (temporal.west);
+\draw[arr] (2.65,3.86) -- ++(0,-1.61) |- (pkin2.west);
+\draw[arr] (4.44,5.77) -- ++(0.5,0) |- (ctrl.west);
+\draw[arr, fill=none] (4.44,5.77) -- ++(0.5,0) |- (ctrl.west);
+\draw[arr] (nextpanel.south) |- ++(-6.2,-3.38) -| (2.24,3.5);
+\draw[arr] (outstate.east) -- ++(0.47,0) |- (21.62,3.16);
+\draw[arr] (kout.east) -- ++(0.64,0) |- (21.62,3.16);
+\draw[arr] (prevkinleft.east) -- ++(0.45,0) |- (pkin.west);
+
+% Internal model flow
+\draw[arr] (temporal.east) -- (latent.west);
+\draw[arr] (rout.south) -- (pke.north);
+\draw[arr] (latent.east) -- (spatial.west);
+\draw[arr] (nextctrl2.south) -- (28.13,3.64);
+\draw[arr] (spatial.east) -- (outstate.west);
+\draw[arr] (flux.west) -- (rhead.east);
+\draw[arr] (outstate.south) -- (flux.north);
+\draw[arr] (rhead.south) -- (rout.north);
+\draw[arr] (pke.east) -- (kout.west);\draw[arr] (pkin2.east) -- (pke.west);
+\draw[arr] (ctrl.east) -- (rhead.west);
+
+% vertical, then horizontal
+
+% Model outputs
+
+% Assemble next state from state and kinetics outputs
+\coordinate (merge) at (24,2);
+\draw[arr] (outkin.west) -- ++(outkin.west) -- ++(-5.87,0.17) |- (merge);
+
+% Repeat / feedback indication
+\node[font=\bfseries\small, anchor=west] at (2.39,-0.84)
+  {Repeat for $j=1,\ldots,N$ (Autoregressive Forecast)};
+\node[font=\bfseries\small, anchor=west] at (19.97,7.5)
+  {Note: All state history, $\mathbf{h_t}$, contain the reduced POD coefficients
+
+extracted from all spatial fields at time t };
+
+% =========================================================
+% Legend
+% =========================================================
+\node[state, minimum height=5.5mm, text width=12mm] at (11.16,7.33) {State};
+\node[control, minimum height=5.5mm, text width=14mm] at (13.22,7.33) {Control};
+\node[rho, minimum height=5.5mm, text width=16mm] at (15.48,7.33) {Reactivity};
+\node[kin, minimum height=5.5mm, text width=14mm] at (17.74,7.33) {Kinetics};
+
+
+
+  Hybrid PKE+POD-LSTM (per time step $j$)
+
+  Hybrid PKE+POD-LSTM (per time step $j$)
+
+  Hybrid PKE+POD-LSTM (per time step $j$)
+
+  Hybrid PKE+POD-LSTM (per time step $j$)
+
+  Hybrid PKE+POD-LSTM (per time step $j$)
+
+  Hybrid PKE+POD-LSTM (per time step $j$)
+
+  Hybrid PKE+POD-LSTM (per time step $j$)
+
+  Hybrid PKE+POD-LSTM (per time step $j$)
+
+  Hybrid PKE+POD-LSTM (per time step $j$)
+
+  Hybrid PKE+POD-LSTM (per time step $j$)
+
+  \node[state, right=6mm of latent] (spatial2) {Spatial State Decoder};
+  \node[state, right=6mm of latent] (spatial3) {Spatial State Decoder};
+  \node[state, right=6mm of latent] (spatial4) {Spatial State Decoder};
+  \node[state, right=6mm of latent] (spatial5) {Spatial State Decoder};
+  \node[state, right=6mm of latent] (spatial6) {Spatial State Decoder};
+  \node[state, right=6mm of latent] (spatial7) {Spatial State Decoder};
+  \node[state, right=6mm of latent] (spatial8) {Spatial State Decoder};
+\end{tikzpicture}%
+}
+
+\caption{Refined hybrid surrogate architecture. The temporal surrogate predicts the current reduced spatial state $\hat{\mathbf{s}}_j$. A separate instantaneous reactivity head predicts $\hat{\rho}_j$ from the predicted current multigroup flux state and the current control drum angle $\theta_j$. The predicted reactivity drives a higher-order implicit PKE solve, advancing the kinetics state from $\mathbf{y}_{j-1}$ to $\mathbf{y}_j=(n_j,\mathbf{c}_j)$. The predicted spatial state and solved kinetics state are then assembled into the next autoregressive hybrid state.}
+\label{fig:refined_hybrid_surrogate_architecture}
+\end{figure*}
+5.08.0
+
+
+
+
+
+
+
+
+
+\\ }\node[control, anchor=north, minimum width=116pt, align=center, align=center, , minimum width=113ptSe

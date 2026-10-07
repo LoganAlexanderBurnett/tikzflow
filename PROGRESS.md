@@ -1,24 +1,46 @@
 # Progress
 
 ## Current status
-**Milestone 1 (core loop): done, awaiting the owner's review (2026-10-07).** It is pushed to `trunk`. The report is in the M1 section below. Decisions needed are under "M1: decisions for the owner".
+**Milestone 1 (core loop): done and approved (2026-10-07).** The owner's answers and refinements are in DECISIONS.md D31.
 
 Milestone 0 is done and was approved on 2026-10-07:
 - **License:** GPL-3.0-or-later (D14).
 - **Engine:** TikZJax, with our own build in Milestone 3 (D13, D15).
 - **Preview fonts:** always Computer Modern (D16).
 
-**Next:** Milestone 2, once the owner approves M1. Read the "Notes for later milestones" below first.
+**Next:** Milestone 2a (nodes and styles). It hasn't been started. Milestone 2 was split into 2a and 2b, each with its own checkpoint (D32). 2a starts with the fixes from the owner's M1 testing (D33). The full list is in SPEC.md, "Milestone 2a". Also read the "Notes for later milestones" below.
 
 ## Milestones
 | Milestone | Status |
 |---|---|
 | M0: Technical spike | Done, approved 2026-10-07 |
-| M1: Core loop | Done 2026-10-07, awaiting review |
-| M2: Creating from scratch and editing edges | Not started |
+| M1: Core loop | Done, approved 2026-10-07 |
+| M2a: Creating and editing nodes and styles | Not started (next) |
+| M2b: Editing edges | Not started |
 | M3: Accurate preview and export | Not started |
 | M4: Layout and import | Not started |
 | M5: Polish and launch prep | Not started |
+
+## M1 review (2026-10-07)
+The owner approved M1 and answered its four questions (D31):
+1. **Emitter order: approved.** In 2a, repeated nudges must update an existing `xshift`/`yshift` instead of adding more. A nudge that lands exactly on a clean relation drops the shift.
+2. **Locking: approved.** The rule is "never damage or misedit unknown content", not "lock everything". 2a adds a subtle marker on nodes with options the preview can't draw.
+3. **Loading positioning automatically: approved.**
+4. **Chains: keep.** Dragging chain nodes, by converting them to explicit positioning, is now in Milestone 4.
+
+The owner tested with a real 27-node research figure. Their findings are now at the start of Milestone 2a (D33):
+- **Locked nodes:** a plain-language explanation that says LaTeX would fail too, and one-click fixes ("Pin at current position", "Attach to another node").
+- **Syntax errors:** the error count is clickable and jumps to each error.
+- **Undefined references:** listed in the summary, including those inside `\draw` paths.
+- **Coordinates:** markers show their name on hover, and unused ones look different.
+
+Missing features added to 2a:
+- resizing nodes, with snapped values;
+- a properties panel with node-or-style scope, a colour picker that prefers `\definecolor` names, and font and alignment controls;
+- in-place label editing;
+- multi-select.
+
+**Corpus:** the figure is now `corpus/self-hybrid-surrogate.tex`, byte-exact with its code errors kept as a realistic test case. It has round-trip tests and two golden moves like every corpus file.
 
 ## M1: Core loop (2026-10-07)
 ### How to try it
@@ -134,7 +156,7 @@ In Edge, a drag frame at that size takes about 30–40 ms, roughly 25–30 fps. 
 - **Not in M1:** editing edges and labels (M2), and creating nodes (M2).
 - **TeX.SE files that pdfTeX itself rejects.** Six corpus pictures fail in the fidelity check: tikz-ext libraries, a custom shape, a pasted bare picture with CJK text, TikZiT styles defined elsewhere, a deliberately broken file, and `self-document.tex`, whose `rounded rectangle` needs `shapes.misc`. The summary now warns about that last case.
 
-### M1: decisions for the owner
+### M1: decisions for the owner (answered, see "M1 review" above)
 1. **Emitter order (D24).** A perpendicular coordinate (`at (a |- b)`) ranks above a relation with an arbitrary written distance when a node lines up with two nodes. A nudged node keeps its previous relation plus `xshift`/`yshift`. Is this ordering what you want?
 2. **Locking (D26).** Unknown cosmetic options (`drop shadow`, decorations) don't lock a node; only placement it can't model does. SPEC.md says unknown options become locked blocks; this reads that as "the option is kept as-is", not "the node is frozen". Agree?
 3. **Library management pulled forward (D28).** Moves add `positioning` to `\usetikzlibrary` when it's missing, because otherwise the written code wouldn't compile. Full library management stays in M2. OK?

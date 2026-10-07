@@ -286,3 +286,63 @@ For each move it checks that:
 
 Goldens are regenerated with `UPDATE_GOLDEN=1` and reviewed with `npm run golden:review`.
 **Why:** This is SPEC.md's "single edits must produce minimal diffs, checked against golden files". The placement and dependency checks catch wrong edits that a byte comparison alone would happily record. The dependency check found a real bug: cycle protection had been seeing no dependents.
+
+## D31: Milestone 1 review: approvals and refinements (2026-10-07)
+**Decision:** The owner approved Milestone 1 and the four questions in its report:
+1. **Emitter order (D24): approved, with a refinement for Milestone 2a.** Repeated nudges update the node's existing `xshift`/`yshift` instead of adding more. A nudge that lands exactly on a clean relation drops the shift entirely.
+2. **Locking (D26): approved.** The intent is "never damage or misedit unknown content", not "lock everything". Milestone 2a adds a subtle visual marker on nodes whose options the native preview can't draw.
+3. **Loading positioning automatically (D28): approved.**
+4. **Chains: keep.** Making chain nodes draggable, by converting them to explicit positioning, is a Milestone 4 item.
+
+The owner also added a workflow rule to CLAUDE.md: when asked for a plan first, stop after presenting it and wait for approval before writing code.
+**Why:** These are the owner's answers to the decisions requested in the M1 report (PROGRESS.md).
+
+## D32: Milestone 2 is split into 2a (nodes and styles) and 2b (edges) (2026-10-07)
+**Decision:** Each part ends with its own report and approval checkpoint.
+- **2a, nodes and styles:**
+  - first, the fixes from M1 testing (D33);
+  - the shape palette and keyboard creation;
+  - in-place label editing;
+  - resizing;
+  - the properties panel with node-or-style scope;
+  - multi-select;
+  - the style panel;
+  - library management.
+- **2b, edges:**
+  - anchors that stay attached;
+  - the edge context menu, ghost handles and vertices;
+  - orthogonal and curved modes;
+  - sliding edge labels (`pos=`);
+  - automatic yes/no labels on decisions.
+
+**Why:**
+- The split follows the code each half touches. 2a edits node statements and `\tikzset` styles. 2b edits paths, which needs its own patching rules for operators, waypoints and path nodes.
+- The pieces of 2a depend on each other:
+  - the palette inserts styled nodes, so it needs style editing and library management (new shapes need `shapes.geometric` and others);
+  - the properties panel's "all State nodes" scope is style editing;
+  - resizing and the panel share the selection model that multi-select extends.
+- 2b builds on 2a: yes/no branch labels need nodes created from the palette.
+- The M1 fixes go first because they affect files users already have.
+
+## D33: Requirements from the owner's test with a real research figure (2026-10-07)
+**Decision:** The owner tested M1 with a 27-node research figure, added as `corpus/self-hybrid-surrogate.tex` with its own code errors left in place. These requirements were added to Milestone 2a in SPEC.md.
+
+Fixes to M1 behaviour:
+- **Locked nodes explain themselves in plain language.** For an unresolved reference, the explanation says LaTeX would fail on it too. It offers one-click fixes: "Pin at current position" (absolute coordinates) or "Attach to another node".
+- **Errors.** The syntax-error count is clickable and jumps to each error's line.
+- **Undefined references.** The summary lists undefined node references, including those inside `\draw` paths (in that file: `model`, `prevkinleft`, `pkin`, `outkin`).
+- **Coordinates.** `\coordinate` markers show their name on hover, and unused coordinates look different.
+
+New features:
+- **Resizing** writes `minimum width`/`minimum height`, or `text width` when the text should rewrap. Sizes snap to round values and to the sizes of other nodes, never values like `86.0000007pt`.
+- **Properties panel.** Fill, outline and text colour; font size, weight, shape and family; and alignment.
+  - Each change asks whether it applies to this node or to its style.
+  - The colour picker lists the document's `\definecolor` names first, then common xcolor mixes, then a custom colour. A custom colour can be named and added as a `\definecolor` rather than written as raw RGB.
+  - Justify sets a text width or explains why it can't be used.
+- **Label editing.** Double-click to edit a label in place.
+- **Multi-select.** Shift-click applies a change to every selected node.
+
+**Why:**
+- A locked node that merely says "unknown node" leaves the user stuck. Saying that LaTeX would fail too shows the problem is in the code, not in the editor, and the one-click fixes resolve it without hand-editing.
+- Errors and undefined references are what a user pasting real code needs to find first.
+- The panel's style scope and named colours keep generated code hand-written in style (SPEC.md, "Human-quality output"), instead of scattering inline options and raw RGB values.

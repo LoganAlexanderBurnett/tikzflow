@@ -9,6 +9,7 @@ A free, static, fully client-side web app for creating and editing TikZ flowchar
 4. The owner has added requirements for later milestones that aren't in SPEC.md, notably Milestone 3's engine build. They're listed in PROGRESS.md under "Notes for later milestones". Treat them as part of the spec.
 
 ## Workflow
+- When asked for a plan first, stop after presenting it and wait for approval before writing code.
 - Work one milestone at a time. At the end of each, stop and report what works, what doesn't, how to try it, and which decisions are needed. Wait for approval before starting the next milestone.
 - If part of the spec proves infeasible or a bad idea, say so and propose an alternative. Never work around it silently.
 - Commit after each meaningful step with clear messages. Push to `origin` (branch `trunk`) at the end of each milestone.

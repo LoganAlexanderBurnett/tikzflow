@@ -184,8 +184,9 @@ describe("structure", () => {
     expect(breakdown(parser.parse(text), text).errorNodes).toBe(0);
   });
 
-  it("has no parse errors on the corpus except the deliberately broken file", () => {
+  it("has no parse errors on the corpus except the files with deliberate errors", () => {
     const withErrors = corpusNames().filter((n) => parse(n).stats.errorNodes > 0);
-    expect(withErrors).toEqual(["self-broken.tex"]);
+    // self-hybrid-surrogate.tex is a real figure whose own code errors are kept on purpose.
+    expect(withErrors).toEqual(["self-broken.tex", "self-hybrid-surrogate.tex"]);
   });
 });

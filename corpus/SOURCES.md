@@ -39,7 +39,7 @@ Every file here is licensed by its author under the CC BY-SA license shown. Each
   - pictures inside `\resizebox`
 
 ## Self-written
-These were written for this project and are licensed like the rest of the repository (GPL-3.0-or-later).
+These were written for this project, or contributed by its owner, and are licensed like the rest of the repository (GPL-3.0-or-later).
 
 | File | What it covers |
 |---|---|
@@ -51,3 +51,4 @@ These were written for this project and are licensed like the rest of the reposi
 | `self-figure-multi.tex` | Two pictures in `figure` environments, one inside `\resizebox`. Also `\newcommand` macros with and without arguments, `\definecolor`, and both scope forms. |
 | `self-tikzstyle-paths.tex` | `\tikzstyle` (with and without braces), `below of=`, `edge`, `to[bend]`, `out`/`in`, `.. controls ..`, `pos=`, `sloped` and `swap`. |
 | `self-tikzit.tex` | TikZiT-style output: absolute coordinates, numeric node names and `pgfonlayer`. |
+| `self-hybrid-surrogate.tex` | Contributed by the project owner: a real 27-node research figure (a `figure*` snippet with no preamble, CRLF line endings), saved as it was when tested with M1. Its own code errors are kept on purpose as a realistic case:<ul><li>references to undefined nodes (`model`, `prevkinleft`, `pkin`, `outkin`);</li><li>a label given as `\mbox{...}` instead of braces;</li><li>stray text and repeated nodes inside the picture;</li><li>leftover junk after `\end{figure*}`.</li></ul> |

@@ -74,16 +74,39 @@ Report the results and a recommendation on which engine to use. If WASM TeX isn'
   - Single edits must produce minimal diffs, checked against golden files. Only the bytes the edit is about may change.
 
 ### Milestone 2: Creating from scratch and editing edges
+Milestone 2 is split in two, each ending with its own report and approval checkpoint.
+
+#### Milestone 2a: Creating and editing nodes and styles
+Fixes from testing Milestone 1, done first:
+- Locked nodes get a plain-language explanation. For an unresolved reference, it says LaTeX would fail too. It offers one-click fixes: "Pin at current position" (writes absolute coordinates) or "Attach to another node".
+- The syntax-error count in the summary is clickable and jumps to each error's line.
+- The summary lists undefined node references, including those inside `\draw` paths.
+- `\coordinate` markers show their name on hover. Unused coordinates are visibly distinguished.
+- Nodes with options the native preview can't draw get a subtle visual marker.
+- Repeated nudges update an existing `xshift`/`yshift` rather than adding more. A nudge that lands exactly on a clean relation drops the shift entirely.
+
+New features:
 - A shape palette with process, decision, terminal, I/O, connector, and document shapes. Each inserts a styled node, and the needed style is added to `\tikzset` if it's missing.
 - Keyboard-driven creation: Tab adds a connected child, Enter adds a sibling, and typing edits the label.
+- Double-click a node to edit its label in place.
+- Resize nodes by dragging corners or sides.
+  - This writes `minimum width`/`minimum height`, or `text width` when the drag should rewrap the text.
+  - Sizes snap to round values (such as whole millimetres) and to the sizes of other nodes. Values like `86.0000007pt` are never emitted.
+- A properties panel for the selected node or nodes: fill colour, outline colour, text colour, font (size, bold, italic, and family: `\rmfamily`, `\sffamily`, `\ttfamily`), and alignment (left, centre, right, justify).
+  - Every change asks whether it applies to this node only or to its style (for example "all State nodes"). "All" edits the `\tikzset` style cleanly instead of copying options onto each node.
+  - The colour picker offers the document's existing `\definecolor` names first, then common xcolor mixes (`blue!20` and so on), then a custom colour. A custom colour can be named and added as a `\definecolor` rather than written as raw RGB.
+  - Justify needs a text width. The panel either sets one or explains why the option is disabled.
+- Multi-select (Shift-click) applies a change to all selected nodes at once.
+- Style panel: editing a style updates every node that uses it. The panel detects repeated inline options and offers to factor them into a named style.
+- Library management: `\usetikzlibrary` lines are added or removed automatically.
+
+#### Milestone 2b: Editing edges
 - Edges attach to anchors and stay attached when nodes move.
 - Right-click context menu on an edge: Add vertex here, Remove vertex, Straighten, Make orthogonal, Make curved, Change start/end anchor, and Add label here.
 - Ghost handles at segment midpoints. Dragging one creates a vertex, and double-clicking a vertex removes it.
 - Orthogonal mode: dragging a segment slides it perpendicular to itself and emits `|-` / `-|` chains.
 - Curved mode: emits `bend left/right`, `to[out=,in=]`, or `.. controls ..` with draggable control points.
 - Edge labels slide along the path and store `pos=`. Decision nodes get yes/no branch labels automatically.
-- Style panel: editing a style updates every node that uses it. The panel detects repeated inline options and offers to factor them into a named style.
-- Library management: `\usetikzlibrary` lines are added or removed automatically.
 
 ### Milestone 3: Accurate preview and export
 - Integrate the WASM TeX engine. The quick SVG preview shows instantly, and the compiled output replaces it when ready.
@@ -98,6 +121,7 @@ Report the results and a recommendation on which engine to use. If WASM TeX isn'
 - Auto-layout with elk.js using a layered algorithm. Results are written back as relative positioning, not coordinates.
 - Swimlanes and groups using `fit` and the `backgrounds` layer.
 - Import from Mermaid flowcharts and Graphviz DOT.
+- Make chain nodes (`on chain`) draggable by converting them to explicit positioning.
 - Accessibility: grayscale and colorblind preview modes, and contrast warnings for text on fills.
 
 ### Milestone 5: Polish and launch prep
@@ -137,3 +161,8 @@ Start with Milestone 0. Before writing code, give me a brief plan for the spike 
   - Added the pgf version, library-loading, license, and timebox requirements to Milestone 0.
   - Added the Cloudflare Pages file-count constraint.
   - Recorded the limits of parsing TeX with a fixed grammar.
+- **2026-10-07, after the Milestone 1 review** (approved by the project owner; reasons in DECISIONS.md D31–D33):
+  - Split Milestone 2 into 2a (nodes and styles) and 2b (edges), each with its own checkpoint. Library management and the style panel moved to 2a.
+  - Added to the start of 2a: fixes from testing Milestone 1 (locked-node explanations and one-click fixes, clickable syntax errors, undefined references in the summary, coordinate markers, a marker for undrawable options, and refined nudge shifts).
+  - Added to 2a: resizing nodes, a properties panel with node-or-style scope and a colour picker, in-place label editing, and multi-select.
+  - Added to Milestone 4: dragging chain nodes by converting them to explicit positioning.
