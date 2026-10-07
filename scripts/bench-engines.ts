@@ -6,7 +6,7 @@
 // Usage: node scripts/bench-engines.ts [engine ...] [--trials=3] [--runs=6] [--browser=msedge|chromium|firefox]
 // Results: spike/engines/results/<engine>.json and a summary on stdout.
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { brotliCompressSync, constants } from "node:zlib";
 import { chromium, firefox, type Browser } from "@playwright/test";
@@ -35,6 +35,25 @@ interface Trial extends BenchResult {
   wallMs: number;
 }
 
+// Brotli at quality 11 takes minutes on the 100 MB busytex bundle, so results
+// are cached by path, size and modification time.
+const cachePath = join(root, "vendor", ".brotli-cache.json");
+const brotliCache: Record<string, number> = existsSync(cachePath) ? JSON.parse(readFileSync(cachePath, "utf8")) : {};
+
+function fileStat(url: string): FileStat {
+  const path = join(root, decodeURIComponent(url));
+  const { size, mtimeMs } = statSync(path);
+  const key = `${url}:${size}:${mtimeMs}`;
+  if (brotliCache[key] === undefined) {
+    const body = readFileSync(path);
+    brotliCache[key] = brotliCompressSync(body, {
+      params: { [constants.BROTLI_PARAM_QUALITY]: 11, [constants.BROTLI_PARAM_SIZE_HINT]: body.length },
+    }).length;
+    writeFileSync(cachePath, JSON.stringify(brotliCache, null, 1));
+  }
+  return { url, bytes: size, brotliBytes: brotliCache[key]! };
+}
+
 const median = (xs: number[]) => {
   const s = [...xs].sort((a, b) => a - b);
   return s.length ? s[Math.floor(s.length / 2)]! : NaN;
@@ -48,13 +67,13 @@ async function launch(): Promise<Browser> {
 
 async function trial(browser: Browser, base: string, engine: string): Promise<Trial> {
   const context = await browser.newContext();
-  // Only collect bodies here. Compressing them inside the handler would block
-  // this Node process, which also runs the Vite server, and stall the engine.
-  const bodies = new Map<string, Promise<Buffer | null>>();
+  // Only record URLs here; sizes come from disk afterwards. Playwright can't
+  // return bodies of large worker fetches, and compressing inside the handler
+  // would block this process, which also runs the Vite server.
+  const fetched = new Set<string>();
   context.on("response", (res) => {
     const url = new URL(res.url());
-    if (!url.pathname.startsWith("/vendor/") || res.status() !== 200) return;
-    if (!bodies.has(url.pathname)) bodies.set(url.pathname, res.body().catch(() => null));
+    if (url.pathname.startsWith("/vendor/") && res.status() === 200) fetched.add(url.pathname);
   });
   const page = await context.newPage();
   const t0 = Date.now();
@@ -62,14 +81,19 @@ async function trial(browser: Browser, base: string, engine: string): Promise<Tr
   await page.waitForFunction(() => window.__bench !== undefined, null, { timeout: 600_000 });
   const result = (await page.evaluate(() => window.__bench))!;
   const wallMs = Date.now() - t0;
-  const files: FileStat[] = [];
-  for (const [url, pending] of bodies) {
-    const body = await pending;
-    if (!body) continue;
-    const brotliBytes = brotliCompressSync(body, { params: { [constants.BROTLI_PARAM_QUALITY]: 11 } }).length;
-    files.push({ url, bytes: body.length, brotliBytes });
+  // Save the compiled output next to the results for visual comparison.
+  const output = await page.evaluate(() => {
+    const o = window.__output;
+    if (o?.kind === "svg") return { ext: "svg", data: o.svg };
+    if (o?.kind === "pdf") return { ext: "pdf", data: btoa(String.fromCharCode(...o.pdf)) };
+    return null;
+  });
+  if (output) {
+    const bytes = output.ext === "pdf" ? Buffer.from(output.data, "base64") : output.data;
+    writeFileSync(join(outDir, `${engine}.${output.ext}`), bytes);
   }
   await context.close();
+  const files = [...fetched].map(fileStat);
   return { ...result, files: files.sort((a, b) => b.bytes - a.bytes), wallMs };
 }
 

@@ -21,11 +21,15 @@ export interface BenchResult {
 declare global {
   interface Window {
     __bench?: BenchResult;
+    /** The last compile's raw output, for inspection from devtools or Playwright. */
+    __output?: CompileResult["output"];
   }
 }
 
 const ENGINES: Record<string, () => Promise<Engine>> = {
   tikzjax: async () => new (await import("./tikzjax.ts")).TikzJax(),
+  busytex: async () => new (await import("./busytex.ts")).Busytex(),
+  swiftlatex: async () => new (await import("./swiftlatex.ts")).SwiftLatex(),
 };
 
 const params = new URLSearchParams(location.search);
@@ -55,6 +59,7 @@ async function run(engine: Engine): Promise<BenchResult> {
   result.ok = last?.ok ?? false;
   result.probe = last?.probe ?? null;
   result.log = last?.log ?? "";
+  if (last) window.__output = last.output;
   if (last?.output.kind === "svg") {
     result.outputKind = "svg";
     result.outputBytes = last.output.svg.length;

@@ -39,4 +39,8 @@ A free, static, fully client-side web app for creating and editing TikZ flowchar
   - `npm run grammar`: regenerates the parser. It runs automatically before dev, test, build and typecheck.
   - `npm run grammar:inspect`: prints coverage and error details for each fixture.
   - `node spike/grammar/bench.ts`: runs the parse benchmark. Node 24 runs `.ts` files directly.
+  - `npm run fetch-engines`: downloads the engines and CTAN packages listed in `scripts/engine-manifest.ts` into the gitignored `vendor/` folder, recording sizes and hashes in `vendor/LOCK.json`.
+  - `node scripts/pack-texmf.ts`: builds `vendor/packs/tikz-flat.json`, which busytex needs.
+  - `npm run bench-engines -- tikzjax busytex`: runs the Playwright engine benchmark in Edge. Results go to `spike/engines/results/`.
+  - Engine bench page: `/spike/engines/bench.html?engine=tikzjax|busytex|swiftlatex`. Output viewer: `/spike/engines/view.html?files=busytex.pdf,tikzjax.svg`.
 - Layout: `spike/` holds throwaway Milestone 0 code. The generated `spike/grammar/parser*.ts` files are gitignored.

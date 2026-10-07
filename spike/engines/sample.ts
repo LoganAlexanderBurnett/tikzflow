@@ -44,6 +44,7 @@ export const PICTURE = String.raw`\begin{tikzpicture}[node distance=8mm and 12mm
 /** A full standalone document, for engines that run a whole LaTeX file. */
 export function standaloneDocument(classOptions = "tikz,border=2pt"): string {
   return String.raw`\documentclass[${classOptions}]{standalone}
+\usepackage{lmodern}
 \usepackage{amsmath}
 \usetikzlibrary{${LIBRARIES.join(",")}}
 \begin{document}

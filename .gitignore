@@ -12,3 +12,8 @@ spike/grammar/parser.terms.ts
 
 # Engine binaries and TeX packages (DECISIONS.md D8). Fetch with `npm run fetch-engines`.
 vendor/
+
+# Bench outputs (regenerate with `npm run bench-engines`)
+spike/engines/results/*.pdf
+spike/engines/results/*.svg
+spike/engines/results/*.png

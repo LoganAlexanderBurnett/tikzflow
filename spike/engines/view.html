@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Output Viewer</title>
+    <style>
+      body { margin: 0; padding: 16px; background: #fff; color: #1d1d1f; font: 14px/1.5 system-ui, sans-serif; }
+      .row { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+      figure { margin: 0; }
+      figcaption { font-weight: 600; margin-bottom: 4px; }
+      canvas, img { border: 1px solid #d9d9de; max-width: 100%; }
+    </style>
+  </head>
+  <body>
+    <div class="row" id="row"></div>
+    <script type="module">
+      // Spike-only viewer: renders bench outputs side by side at the same scale.
+      // Usage: /spike/engines/view.html?files=busytex.pdf,tikzjax.svg&scale=3
+      import * as pdfjs from "pdfjs-dist";
+      pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.mjs", import.meta.url).href;
+      const params = new URLSearchParams(location.search);
+      const scale = Number(params.get("scale") ?? 3);
+      const row = document.getElementById("row");
+      for (const file of (params.get("files") ?? "").split(",").filter(Boolean)) {
+        const url = `/spike/engines/results/${file}`;
+        const fig = document.createElement("figure");
+        fig.innerHTML = `<figcaption>${file}</figcaption>`;
+        row.append(fig);
+        if (file.endsWith(".pdf")) {
+          const pdf = await pdfjs.getDocument({ url }).promise;
+          const page = await pdf.getPage(1);
+          const viewport = page.getViewport({ scale });
+          const canvas = document.createElement("canvas");
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          fig.append(canvas);
+          await page.render({ canvas, viewport }).promise;
+        } else {
+          // Inline, so the SVG's <text> can use TikZJax's web fonts.
+          if (!document.querySelector("link[data-tikzjax]")) {
+            document.head.insertAdjacentHTML("beforeend",
+              '<link rel="stylesheet" data-tikzjax href="/vendor/tikzjax/package/dist/fonts.css">');
+          }
+          const holder = document.createElement("div");
+          holder.innerHTML = await (await fetch(url)).text();
+          const svg = holder.querySelector("svg");
+          for (const dim of ["width", "height"]) {
+            const pt = Number.parseFloat(svg.getAttribute(dim) ?? "0");
+            svg.setAttribute(dim, `${pt * scale}pt`);
+          }
+          svg.style.border = "1px solid #d9d9de";
+          fig.append(holder);
+        }
+      }
+      document.body.dataset.ready = "1";
+    </script>
+  </body>
+</html>

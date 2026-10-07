@@ -77,4 +77,16 @@ export const DOWNLOADS: Download[] = [
   ctan("tools", 0.05, "LPPL-1.3c"),
   ctan("iftex", 0.01, "LPPL-1.3c"),
   ctan("etoolbox", 0.01, "LPPL-1.3c"),
+  // Needed to build a LaTeX format from scratch (SwiftLaTeX ships none).
+  ctan("latexconfig", 0.01, "TeX Live core; no catalogue license entry"),
+  ctan("tex-ini-files", 0.01, "Public domain"),
+  ctan("hyphen-base", 0.02, "TeX Live core; no catalogue license entry"),
+  ctan("unicode-data", 0.31, "LPPL-1.3c + other-free"),
+  ctan("cm", 0.23, "Knuth"),
+  ctan("amsfonts", 3.46, "OFL-1.1"),
+  ctan("firstaid", 0.01, "LPPL-1.3c"),
+  ctan("etex", 0.01, "Knuth"),
+  ctan("knuth-lib", 0.03, "Knuth"),
+  ctan("babel", 0.24, "LPPL-1.3"),
+  ctan("latex-fonts", 0.02, "LPPL-1.2"),
 ];

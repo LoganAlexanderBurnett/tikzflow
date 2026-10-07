@@ -1,0 +1,101 @@
+{
+  "engine": "busytex",
+  "browser": "msedge 154.0.4258.53",
+  "date": "2026-10-07T04:34:52.612Z",
+  "ok": true,
+  "probe": {
+    "pgf": "3.1.12",
+    "libraries": {
+      "positioning": true,
+      "shapes.geometric": true,
+      "arrows.meta": true,
+      "fit": true,
+      "backgrounds": true,
+      "calc": true,
+      "matrix": true
+    }
+  },
+  "loadMsMedian": 2974.875,
+  "coldCompileMsMedian": 488.585000038147,
+  "warmCompileMsMedian": 378.46499967575073,
+  "download": {
+    "files": 7,
+    "bytes": 141698944,
+    "brotliBytes": 65798244,
+    "largestFile": {
+      "url": "/vendor/busytex/texlive-basic.data",
+      "bytes": 104576512,
+      "brotliBytes": 56731178
+    }
+  },
+  "outputKind": "pdf",
+  "outputBytes": 63597,
+  "trials": [
+    {
+      "engine": "busytex",
+      "ok": true,
+      "loadMs": 2974.875,
+      "compileMs": [
+        488.585000038147,
+        399.3949999809265,
+        399.2350001335144,
+        378.46499967575073,
+        376.06500005722046,
+        369.3949999809265
+      ],
+      "outputKind": "pdf",
+      "outputBytes": 63597,
+      "probe": {
+        "pgf": "3.1.12",
+        "libraries": {
+          "positioning": true,
+          "shapes.geometric": true,
+          "arrows.meta": true,
+          "fit": true,
+          "backgrounds": true,
+          "calc": true,
+          "matrix": true
+        }
+      },
+      "files": [
+        {
+          "url": "/vendor/busytex/texlive-basic.data",
+          "bytes": 104576512,
+          "brotliBytes": 56731178
+        },
+        {
+          "url": "/vendor/busytex/busytex.wasm",
+          "bytes": 30363063,
+          "brotliBytes": 8144589
+        },
+        {
+          "url": "/vendor/packs/tikz-flat.json",
+          "bytes": 4363650,
+          "brotliBytes": 537628
+        },
+        {
+          "url": "/vendor/busytex/texlive-basic.js",
+          "bytes": 2068492,
+          "brotliBytes": 315780
+        },
+        {
+          "url": "/vendor/busytex/busytex.js",
+          "bytes": 295606,
+          "brotliBytes": 62296
+        },
+        {
+          "url": "/vendor/busytex/busytex_pipeline.js",
+          "bytes": 30380,
+          "brotliBytes": 6355
+        },
+        {
+          "url": "/vendor/busytex/busytex_worker.js",
+          "bytes": 1241,
+          "brotliBytes": 418
+        }
+      ],
+      "wallMs": 5586,
+      "logTail": "y))\n(./tikzlibrarypositioning.code.tex) (./tikzlibraryshapes.geometric.code.tex\n(./pgflibraryshapes.geometric.code.tex)) (./pgflibraryarrows.meta.code.tex)\n(./tikzlibraryfit.code.tex) (./tikzlibrarybackgrounds.code.tex)\n(./tikzlibrarycalc.code.tex) (./tikzlibrarymatrix.code.tex)\n(/texlive/texmf-dist/tex/latex/lm/ot1lmr.fd)\n(/texlive/texmf-dist/tex/latex/l3backend/l3backend-pdftex.def)\nNo file main.aux.\n(/texlive/texmf-dist/tex/context/base/mkii/supp-pdf.mkii\n[Loading MPS to PDF converter (version 2006.09.02).]\n)\nTIKZFLOW-PROBE: pgf=3.1.12; positioning=yes; shapes.geometric=yes; arrows.meta=\nyes; fit=yes; backgrounds=yes; calc=yes; matrix=yes\n(/texlive/texmf-dist/tex/latex/lm/omllmm.fd)\n(/texlive/texmf-dist/tex/latex/lm/omslmsy.fd)\n(/texlive/texmf-dist/tex/latex/lm/omxlmex.fd)\nUnderfull \\hbox (badness 3407) in paragraph at lines 25--25\n[][]\\OT1/lmr/m/n/5 pgf=3.1.12; po-si-tion-ing=yes; shapes.geometric=yes; \n\nUnderfull \\hbox (badness 1715) in paragraph at lines 25--25\n\\OT1/lmr/m/n/5 ar-rows.meta=yes; fit=yes; back-grounds=yes; calc=yes; \n[1\nNon-PDF special ignored!\n<special> papersize=209.83524pt,185.76926pt\n{/texlive/texmf-dist/texmf-var/fonts/map/pdftex/updmap/pdftex.map}{/texlive/tex\nmf-dist/fonts/enc/dvips/lm/lm-rm.enc}{/texlive/texmf-dist/fonts/enc/dvips/lm/lm\n-mathit.enc}{/texlive/texmf-dist/fonts/enc/dvips/lm/lm-mathsy.enc}] (./main.aux\n) )\n(see the transcript file for additional information)</texlive/texmf-dist/fonts/\ntype1/public/lm/lmmi10.pfb></texlive/texmf-dist/fonts/type1/public/lm/lmr10.pfb\n></texlive/texmf-dist/fonts/type1/public/lm/lmr5.pfb></texlive/texmf-dist/fonts\n/type1/public/lm/lmsy10.pfb>\nOutput written on main.pdf (1 page, 63597 bytes).\nTranscript written on main.log.\n==\nSTDERR:\nprogram exited (with status: 0), but keepRuntimeAlive() is set (counter=0) due to an async operation, so halting execution but not exiting the runtime or preventing further async execution (you can use emscripten_force_exit, if you want to force a true shutdown)\n======"
+    }
+  ]
+}
