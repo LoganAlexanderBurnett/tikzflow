@@ -39,6 +39,7 @@ import {
   overrides,
   PALETTE_DRAG,
   palette,
+  revealRequest,
   pinNode,
   previewLayout,
   selectFromCanvas,
@@ -423,6 +424,21 @@ export function Canvas() {
     if (!sized.current && s.w === 800 && s.h === 600) return;
     sized.current = true;
     fit();
+  });
+
+  // Pan (never zoom) just far enough that a node being created, and the label box
+  // that opens over it, are in view.
+  useSignalEffect(() => {
+    const r = revealRequest.value;
+    if (!r) return;
+    const v = view.peek();
+    const { w, h } = size.peek();
+    const px = (n: number) => n / v.scale;
+    const need = { x0: r.center.x - r.hw - px(24), x1: r.center.x + r.hw + px(24), y0: r.center.y - r.hh - px(110), y1: r.center.y + r.hh + px(24) };
+    const fit1 = (lo: number, hi: number, c: number, span: number) => (hi - lo > span ? (lo + hi) / 2 : Math.min(Math.max(c, hi - span / 2), lo + span / 2));
+    const cx = fit1(need.x0, need.x1, v.cx, px(w));
+    const cy = fit1(need.y0, need.y1, v.cy, px(h));
+    if (cx !== v.cx || cy !== v.cy) view.value = { ...v, cx, cy };
   });
 
   const macros = useComputed(() => {

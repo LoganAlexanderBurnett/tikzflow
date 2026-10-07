@@ -145,6 +145,15 @@ describe("a child (Tab)", () => {
     const r = create(text, "process", "Fresh", { kind: "child", of: first.id });
     const made = r.layout.nodes.find((n) => n.name === r.name)!;
     expect(made.lock).toBeUndefined();
+    // It sits next to the node it was added to, not next to a later node of the same name.
+    const parent = r.layout.nodes.find((n) => n.id === first.id)!;
+    const gap = Math.hypot(made.shape.center.x - parent.shape.center.x, made.shape.center.y - parent.shape.center.y);
+    expect(gap).toBeLessThan(parent.shape.hw + made.shape.hw + parent.shape.hh + made.shape.hh + 60);
+    // The node went right after the parent, before the next node that has its name.
+    const again = l.nodes.find((n) => n.name === dup && l.nodes.indexOf(n) > l.nodes.indexOf(first))!;
+    const ins = r.changes.find((c) => c.insert.includes(`(${r.name})`) && c.insert.includes("\\node"))!;
+    expect(ins.from).toBeGreaterThanOrEqual(first.statement.to);
+    expect(ins.from).toBeLessThanOrEqual(again.statement.from);
   });
 });
 

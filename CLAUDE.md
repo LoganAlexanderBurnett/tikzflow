@@ -59,7 +59,7 @@ A free, static, fully client-side web app for creating and editing TikZ flowchar
   - `src/model/`: tree → syntax (with source ranges), the document model, and the summary.
   - `src/tikz/`: the TikZ interpreter: units, colours, keys and styles, coordinates, shapes, and layout.
   - `src/text/`: label typesetting.
-  - `src/edit/`: text changes, snapping, the move planner and emitter, and libraries.
+  - `src/edit/`: text changes (and merging two edits into one), snapping, the move planner and emitter, resizing and matching sizes, node creation and the palette, style edits and factoring, label edits, the properties edits, and libraries.
   - `src/ui/`: Preact components, the CodeMirror setup, and the store.
   - `test/`: Vitest tests, `test/e2e/` Playwright tests, and `test/fixtures/golden/`.
   - `spike/`: Milestone 0 engine code, plus the fidelity harness and probes. It is still used by `npm run fidelity`.

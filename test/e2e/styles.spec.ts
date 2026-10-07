@@ -144,3 +144,24 @@ test("Match height follows the scope: with a style chosen, the style takes the h
   expect(Math.abs((await h("c")) - target)).toBeLessThan(2.5);
   await expect(page.getByTestId("status")).toContainText("in the box style");
 });
+
+test("taking the last diamond out of a style removes the shapes library it no longer needs", async ({ page }) => {
+  const text = [
+    "\\usetikzlibrary{shapes.geometric}",
+    "\\tikzset{choice/.style={draw, diamond}}",
+    "\\begin{tikzpicture}",
+    "  \\node[choice] (a) at (0,0) {A};",
+    "\\end{tikzpicture}",
+    "",
+  ].join("\n");
+  await setCode(page, text);
+  await page.getByTestId("style-choice").getByRole("button", { name: "Edit" }).click();
+  await page.getByLabel("Options of the choice style").fill("draw");
+  await page.getByRole("button", { name: /Apply to 1 node/ }).click();
+  const after = await code(page);
+  expect(after).not.toContain("usetikzlibrary");
+  expect(after).toContain("choice/.style={draw}");
+  await expect(page.getByTestId("status")).toContainText("Removed the unused shapes.geometric library");
+  await page.keyboard.press("Control+z");
+  expect(await code(page)).toBe(text);
+});

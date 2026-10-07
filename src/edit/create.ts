@@ -320,7 +320,8 @@ export function planCreate(text: string, picIndex: number, req: CreateRequest): 
     const first = [...setup, ...ins];
     const made = check(text, picIndex, first, name);
     if (!made) return { ok: false, reason: "The new node couldn't be written." };
-    if (!at) return finish(text, picIndex, first, name, "at the origin", notes);
+    // The first node of a picture goes at its origin, wherever the view happens to be.
+    if (!at || empty) return finish(text, picIndex, first, name, "at the origin", notes);
     const snapped = snapNode(made.layout, made.node, placement.center, placement.threshold).center;
     const move = planMove(made.text, picIndex, made.node.id, snapped);
     if (!move) return { ok: false, reason: "That position couldn't be written." };

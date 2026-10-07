@@ -93,6 +93,8 @@ New features:
 - Resize nodes by dragging corners or sides.
   - This writes `minimum width`/`minimum height`, or `text width` when the drag should rewrap the text.
   - Sizes snap to round values (such as whole millimetres) and to the sizes of other nodes. Values like `86.0000007pt` are never emitted.
+  - The edge or corner opposite the handle stays where it is, as in PowerPoint or Figma. Where the node's anchor already holds it, only the size is written; otherwise the position is updated in the same edit, relationally where possible. Ctrl (Cmd on a Mac) resizes from the centre.
+  - Resizing is one node at a time. With several nodes selected, "Match width" and "Match height" copy the first selected node's size to the others, following the node-or-style scope.
 - A properties panel for the selected node or nodes: fill colour, outline colour, text colour, font (size, bold, italic, and family: `\rmfamily`, `\sffamily`, `\ttfamily`), and alignment (left, centre, right, justify).
   - Every change asks whether it applies to this node only or to its style (for example "all State nodes"). "All" edits the `\tikzset` style cleanly instead of copying options onto each node.
   - The colour picker offers the document's existing `\definecolor` names first, then common xcolor mixes (`blue!20` and so on), then a custom colour. A custom colour can be named and added as a `\definecolor` rather than written as raw RGB.
@@ -171,3 +173,6 @@ Start with Milestone 0. Before writing code, give me a brief plan for the spike 
 - **2026-10-07, approving the Milestone 2a plan** (approved by the project owner; reasons in DECISIONS.md D34):
   - Added to 2a: the document's own node styles appear as palette entries; generated node names are unique, with a fallback for labels without usable words.
   - Added to Milestone 4: dragging a multi-selection as a group.
+- **2026-10-07, after Milestone 2a steps 4–5** (approved by the project owner; reasons in DECISIONS.md D40 and D42):
+  - Resizing keeps the opposite edge fixed, and Ctrl resizes from the centre.
+  - Resizing several nodes together is replaced by "Match width" and "Match height" in the properties panel.

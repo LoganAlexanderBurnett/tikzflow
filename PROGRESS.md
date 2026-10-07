@@ -8,7 +8,50 @@ Milestone 0 is done and was approved on 2026-10-07:
 - **Engine:** TikZJax, with our own build in Milestone 3 (D13, D15).
 - **Preview fonts:** always Computer Modern (D16).
 
-**Now:** Milestone 2a (nodes and styles) is in progress. Steps 1–5 of 8 are done; step 6 (palette and keyboard creation) is next. The plan was approved on 2026-10-07, with the owner's answers in D34. Milestone 2 was split into 2a and 2b, each with its own checkpoint (D32). The full list is in SPEC.md, "Milestone 2a". Also read the "Notes for later milestones" below.
+**Now:** Milestone 2a (nodes and styles) is done and waiting for your review: all 8 steps, report below. Milestone 2b (edges) is next and hasn't been started. The 2a plan was approved on 2026-10-07, with the owner's answers in D34. Milestone 2 was split into 2a and 2b, each with its own checkpoint (D32). The full list is in SPEC.md, "Milestone 2a". Also read the "Notes for later milestones" below.
+
+## Milestone 2a report (2026-10-07)
+### How to try it
+- `npm install && npm run dev`, open http://localhost:5173. The sample opens with the palette above the canvas ("Add: Process, Decision, Terminal, I/O, Connector, Document") and a "Styles" section at the bottom of the properties panel.
+- **Build from nothing:** replace the code with an empty picture, click **Terminal**, type "Start", press Enter. Press **Tab** and type "Read input", Tab again and type "Valid?", Enter. You get three connected nodes, and the `terminal` style and its libraries are added to the preamble. Esc at any point leaves the code untouched.
+- **Enter** on a selected node adds a sibling, wired from the node that leads to it. Click a palette shape with a node selected to add that shape after it; **drag** a shape onto the canvas to drop it with snapping.
+- **Resize** a node by a handle: the opposite edge stays put. Hold **Ctrl** to resize from the centre.
+- **Shift-click** several nodes, then **Match width** or **Match height** in the panel.
+- In **Styles**: Edit a style's options (every node using it follows), or factor out options that several nodes repeat (paste a few identical `\node[draw, fill=blue!10, rounded corners]` lines to see it).
+- Open `corpus/self-hybrid-surrogate.tex`: the palette's "This figure" row shows its own `state`, `control` and `kin` styles.
+
+### What works
+- **Palette (D41).** The six standard shapes (process, decision, terminal, I/O, connector, document) use your styles of the same name or add them to `\tikzset` with their libraries. The figure's own node styles follow. A node is written as `\node[process, below=of stop] (archive) {Archive};` with `\draw[->] (stop) -- (archive);`, in the arrow style the picture uses most.
+- **Keyboard creation.** Tab: a connected child on the flow's side, trying other sides when taken. Enter: a sibling with an edge copied from its sibling's. Tab inside the label box applies it and adds the next. Nothing is written until the label is applied, so names mean something and Escape is clean.
+- **Resizing (D40).** The dragged edge follows the pointer, the opposite edge stays, in one undo step; Ctrl resizes from the centre.
+- **Style panel and factoring (D42).** Edit a style as text, with the same minimal diff and refusal rules as labels. Factoring is offered for options at least two nodes repeat (six items in all), named from the fill or shape, and refused with the node named if it would change how anything looks.
+- **Match width / Match height (D42),** following the node-or-style scope. Unnamed nodes show their label in the panel title.
+- **Libraries (D43):** added by every creating edit, and removed after a style edit when the last use goes (conservative rule, D34).
+- **Fixes along the way:** the view no longer refits after every edit (it did, since M1, and resizing made it visible), `below=of a` keeps its plain form when only a shift is added, and the view pans to a node being created.
+
+### Tests
+- **Vitest:** 566 tests in 12 files, about 10 s. New this round: `test/resize-hold.test.ts` (15), `test/create.test.ts` (19), `test/style-panel.test.ts` (19). Golden minimal-diff files unchanged.
+- **Playwright:** 51 tests in Edge, about 32 s. New: resize (3), `create.spec.ts` (9), `styles.spec.ts` (8), `scratch.spec.ts` (1: a flowchart built from an empty picture).
+- `npm run typecheck` and `npm run build` pass; `npm run layout:bench` is unchanged (parse 7.4 ms, layout 7.1 ms, drop 29 ms).
+- I checked the layout of the palette, panel and label box in screenshots from Playwright's Edge. I didn't re-run `npm run fidelity`: the interpreter didn't change.
+
+### Known limits
+- **A parent needs a name** to place a node relative to it. An unnamed node, or a locked one, gets a refusal with the reason. Naming it for you would be a small addition.
+- **A palette click with nothing selected** drops the node at the middle of the view (snapped), and the first node of an empty picture goes at the origin. Click-with-selection and Tab are the connected paths.
+- **Held edge precision (D40):** up to 0.5 mm off when the node's position is relational, because shifts are whole millimetres.
+- **Style editing is text.** There's no structured key list, and no rename, for styles or nodes. Deleting nodes isn't in 2a.
+- **Factoring** only looks at node options, and suggests at most six sets.
+- **Palette dragging** uses HTML5 drag and drop. It's tested in Edge only, and there is no live preview while dragging from the palette; the node appears at the drop with its label box open.
+- **Building-block styles** (like `base`) aren't palette entries; the styles nodes use through them are.
+- Firefox is still untested (see "Any time" below).
+
+### Decisions for you
+1. **Resizing precision (D40).** Is "within 0.5 mm when the position is relational" acceptable, or should a held edge win over round numbers (shifts in tenths of a millimetre)?
+2. **Enter in the label box applies; Tab applies and adds the next one** (D41). Should Enter add a sibling instead, as in mind-map tools? I kept Enter as "apply" so that the box behaves like the label editor.
+3. **A palette click with nothing selected** puts the node at the view's centre. Would you rather it continue after the last node?
+4. **Factoring threshold (D42):** two nodes with three shared options, or three with two. Too eager or too shy?
+5. **Style editing as text** (D42). OK for 2a, or do you want a key-by-key editor?
+6. **Naming an unnamed parent** automatically when Tab is pressed on it: yes or no?
 
 ## M2a plan and status
 | Step | Content | Status |
@@ -18,9 +61,9 @@ Milestone 0 is done and was approved on 2026-10-07:
 | 3 | Properties panel with style scope, colour picker, multi-select (D37) | Done |
 | 4 | Resizing (D38) | Done |
 | 5 | In-place label editing (D39) | Done |
-| 6 | Palette (standard shapes and the document's own styles) and keyboard creation | Next |
-| 7 | Style panel and factoring repeated options | Not started |
-| 8 | End-to-end tests, docs, report, push | Not started |
+| 6 | Palette (standard shapes and the document's own styles) and keyboard creation (D41) | Done |
+| 7 | Style panel, factoring repeated options, Match width/height (D42) | Done |
+| 8 | End-to-end tests, docs, report, push (D43) | Done |
 
 ## M2a steps 4–5, and feedback on steps 2–3 (2026-10-07)
 ### How to try it
@@ -129,7 +172,7 @@ Milestone 0 is done and was approved on 2026-10-07:
 |---|---|
 | M0: Technical spike | Done, approved 2026-10-07 |
 | M1: Core loop | Done, approved 2026-10-07 |
-| M2a: Creating and editing nodes and styles | In progress |
+| M2a: Creating and editing nodes and styles | Done, waiting for review |
 | M2b: Editing edges | Not started |
 | M3: Accurate preview and export | Not started |
 | M4: Layout and import | Not started |

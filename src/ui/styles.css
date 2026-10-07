@@ -802,6 +802,10 @@ button:disabled {
   color: var(--muted);
   font-size: 12px;
   white-space: nowrap;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Style panel */

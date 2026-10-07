@@ -548,3 +548,13 @@ New features:
 - Editing the text of a style keeps whatever the author wrote (macros, comments, odd keys) and still updates every node, which is the point of a style. A structured editor for style bodies would be a second place that has to understand every key.
 - The layout check makes factoring safe without a model of TikZ's option precedence: if the picture looks the same, the edit was safe.
 - Matching with the same code as resizing keeps one place that decides how a size is written.
+
+## D43: Milestone 2a wrap-up details (2026-10-07)
+**Decision:**
+- **Libraries follow style edits.** Applying a style body goes through `withLibraries` (D34), so taking the last `diamond` out of a style removes `shapes.geometric` when nothing else in the document mentions it, and the status bar says so. One undo restores both.
+- **The first node of an empty picture goes at its origin,** wherever the view is, and the view then fits to it.
+- **The view pans to a node being created** (`revealRequest`): never zoom, only as far as needed that the node and the label box that opens over it are visible, since a child added at the bottom of a tall figure otherwise appears off screen.
+- **Match width and Match height are not pinned to a centre or an edge.** Nodes grow around their anchors, so a column of stacked nodes stays stacked. The drag in D40 holds an edge because the user's hand is on that edge.
+- **Not in 2a:** deleting nodes, renaming a style or a node, naming an unnamed parent for Tab, and structured (non-text) editing of a style's options. The properties panel's scope toggle already covers the common style edits.
+
+**Why:** These are the loose ends the end-to-end scenario (an empty picture built with the palette and the keyboard, `test/e2e/scratch.spec.ts`) turned up, and the places where the spec's "added or removed automatically" for libraries had to cover the new edits.

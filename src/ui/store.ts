@@ -455,6 +455,10 @@ export const activeEntry = computed<PaletteEntry | null>(() => {
   return pic && l && list.length ? defaultEntry(list, doc.value, pic, l) : null;
 });
 
+/** Asks the canvas to pan, if it has to, until this node (and the label box over it) is in view. */
+export const revealRequest = signal<{ center: Point; hw: number; hh: number; seq: number } | null>(null);
+let revealSeq = 0;
+
 /** Where the canvas is centred, set by the canvas. */
 export const viewCentre: { get: () => Point } = { get: () => ({ x: 0, y: 0 }) };
 
@@ -470,6 +474,8 @@ export function startCreate(entry: PaletteEntry, placement: Placement): boolean 
     return false;
   }
   previewLayout.value = r.layout;
+  const made = r.layout.nodes.find((n) => n.id === r.id);
+  if (made) revealRequest.value = { center: made.shape.center, hw: made.shape.hw, hh: made.shape.hh, seq: ++revealSeq };
   labelEdit.value = { session: ++sessions, id: r.id, original: entry.placeholder, draft: entry.placeholder, creating: { entry, placement } };
   status.value = `New ${entry.label.toLowerCase()} ${r.written}. Type its label, then press Enter. Esc cancels, Tab adds the next one.`;
   return true;
@@ -485,8 +491,11 @@ function commitCreate(e: LabelEdit, creating: NonNullable<LabelEdit["creating"]>
   }
   labelEdit.value = null;
   previewLayout.value = null;
+  const wasEmpty = !baseLayout.value?.nodes.some((n) => n.kind === "statement");
   applyEdit(r.changes, "input.create");
   selectFromCanvas({ kind: "node", id: r.id });
+  // The first node of an empty picture may be off screen: bring the view to it.
+  if (wasEmpty) fitRequests.value++;
   status.value = `Added ${r.name}: ${r.written}.${r.notes.map((n) => ` Also ${n}.`).join("")}`;
   return true;
 }
@@ -545,8 +554,10 @@ export function applyStyleBody(name: string, draft: string): boolean {
     status.value = "Nothing to change: the style already reads that way.";
     return false;
   }
-  applyEdit(r.changes, "input.style");
-  status.value = `Changed the ${name} style. ${r.users === 1 ? "1 node uses" : `${r.users} nodes use`} it.`;
+  // Taking the last shape of a library out of a style may leave the library unused (D34).
+  const lib = withLibraries(text.value, currentPicture.value, r.changes);
+  applyEdit(lib.changes, "input.style");
+  status.value = `Changed the ${name} style. ${r.users === 1 ? "1 node uses" : `${r.users} nodes use`} it.${libraryNote(lib.added, lib.removed, lib.notes)}`;
   return true;
 }
 
