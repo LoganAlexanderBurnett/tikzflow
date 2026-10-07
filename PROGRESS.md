@@ -8,7 +8,7 @@ Milestone 0 is done and was approved on 2026-10-07:
 - **Engine:** TikZJax, with our own build in Milestone 3 (D13, D15).
 - **Preview fonts:** always Computer Modern (D16).
 
-**Now:** Milestone 2a (nodes and styles) is in progress. The plan was approved on 2026-10-07, with the owner's answers in D34. Milestone 2 was split into 2a and 2b, each with its own checkpoint (D32). The full list is in SPEC.md, "Milestone 2a". Also read the "Notes for later milestones" below.
+**Now:** Milestone 2a (nodes and styles) is in progress. Steps 1–3 of 8 are done; step 4 (resizing) is next. The plan was approved on 2026-10-07, with the owner's answers in D34. Milestone 2 was split into 2a and 2b, each with its own checkpoint (D32). The full list is in SPEC.md, "Milestone 2a". Also read the "Notes for later milestones" below.
 
 ## M2a plan and status
 | Step | Content | Status |
@@ -21,6 +21,53 @@ Milestone 0 is done and was approved on 2026-10-07:
 | 6 | Palette (standard shapes and the document's own styles) and keyboard creation | Not started |
 | 7 | Style panel and factoring repeated options | Not started |
 | 8 | End-to-end tests, docs, report, push | Not started |
+
+## M2a steps 1–3 (2026-10-07)
+### How to try it
+- `npm run dev`, open http://localhost:5173, and click a node: the panel on the right shows its properties.
+- Open `corpus/self-hybrid-surrogate.tex` (the owner's research figure) for the M1 fixes:
+  - the syntax errors and undefined names in the summary bar;
+  - the locked node `#2` (in Details, under "Locked nodes");
+  - the coordinates `v1`–`v6`.
+
+### What works
+**Step 1, shared editing core (D35).** Option and style edits, statement insertion, library management, node names, and Shift-click multi-selection. No UI of its own beyond multi-select; steps 3–7 build on it.
+
+**Step 2, fixes from testing M1 (D36).**
+- **Nudges.** A repeated nudge updates the shift it wrote (`xshift=5mm` → `xshift=1cm`) instead of adding another. A drop that lines up exactly drops the shift.
+- **Locked nodes.** Selecting one shows a plain-language explanation in the panel.
+  - An undefined or later-defined reference says LaTeX would stop too, with TeX's own message, and suggests a close name.
+  - **Pin at current position** writes plain coordinates.
+  - **Attach to** swaps the name for an earlier node, keeping anchors and shifts.
+- **Syntax errors.** The count in the summary bar is a button that steps through them, scrolling the code to each. Details lists them by line.
+- **Undefined references.** "4 undefined names" lists `model`, `prevkinleft`, `pkin` and `outkin` in the research figure, including the ones inside `\draw` paths. Each name jumps to its uses in the code.
+- **Coordinates.** Markers show their name on hover. Unused ones (`v1`–`v3` in the research figure) are hollow and labelled "unused".
+- **Undrawable options.** A small amber dot marks nodes with options or shapes the preview can't draw; its tooltip lists them.
+
+**Step 3, properties panel (D37).**
+- Fill, outline and text colour; font size, bold, italic and family; alignment.
+- **Scope.** "This node" by default, or "All state nodes (14)" to edit the style in place. Nodes that set the key themselves keep their own value, and the status bar says how many.
+- **Colour picker.** The document's `\definecolor` names first, then xcolor mixes, base colours, None, and a custom colour that can be added as a named `\definecolor` in the document's colour model.
+- **Multi-select.** Shift-click several nodes and every change applies to all of them, as one undo step.
+- **Justify** sets a text width on a node that has none. For a style without one it's disabled, and says why.
+- **Interpreter fix.** A later `font=` replaces an earlier one, confirmed against pdfTeX with a new probe.
+
+### Tests
+- **Vitest:** 449 tests in 7 files, about 10 s. New: `test/fixes.test.ts` (22) and `test/properties.test.ts` (22), plus nudge tests in `test/move.test.ts`. The golden minimal-diff files didn't change.
+- **Playwright:** 18 tests in Edge. New: `test/e2e/fixes.spec.ts` (5) and `test/e2e/properties.spec.ts` (5).
+- **Fidelity:** `npm run fidelity` gives 204 of 300 nodes within 1 pt of pdfTeX, including the 29 probe nodes. The font fix changed no corpus node.
+- `npm run typecheck` and `npm run build` pass.
+
+### Known limits (steps 1–3)
+- **Pin and attach.**
+  - "Pin at current position" pins where the node is drawn. For an unresolved reference that's usually near the picture's origin, so the node then needs dragging into place.
+  - "Attach to" only offers nodes defined earlier in the code, as TikZ requires.
+- **Undefined references** are reported conservatively. Names that a `\foreach`, a `\matrix`, a pic, `append after command` or `remember picture` might create are never reported, so some real typos in such pictures go unlisted.
+- **Properties panel.**
+  - It reads styles from the preamble, the picture's options and top-level `\tikzset`. Styles set inside a `scope` aren't followed, and the `color=` shorthand isn't shown as a fill or outline source.
+  - There is no "Default" choice to remove a node's own colour and fall back to its style. Pick the style's value instead, or edit the code.
+  - `node font` isn't edited. A `\fontsize{…}{…}` size is kept, and shown as "Custom", until a named size is chosen.
+- **The panel is always shown** and takes 280 px from the canvas. It can't be collapsed yet.
 
 ## Milestones
 | Milestone | Status |
