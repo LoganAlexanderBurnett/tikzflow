@@ -15,6 +15,7 @@
     "pretest": "npm run grammar",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
     "grammar:inspect": "node scripts/grammar-inspect.ts",
     "grammar:bench": "node scripts/grammar-bench.ts",
     "corpus:report": "node scripts/corpus-report.ts",
