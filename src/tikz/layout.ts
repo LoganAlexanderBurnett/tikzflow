@@ -46,6 +46,8 @@ export interface LaidOutNode {
   position: { kind: PositionKind; refs: string[]; anchor: string };
   /** The frame the node's own coordinates are written in. */
   frame: Matrix;
+  /** Lengths of the x and y unit vectors: what a plain number in a coordinate means. */
+  units: { x: number; y: number };
   nodeDistance: { v: number; h: number };
   onGrid: boolean;
   /** Why the node can't be dragged, or undefined if it can. */
@@ -54,6 +56,8 @@ export interface LaidOutNode {
   unrendered: string[];
   /** Rotation of the label in degrees (sloped path labels). */
   rotate?: number;
+  /** -1 for the background layer. */
+  layer: number;
 }
 
 export interface Tip {
@@ -86,6 +90,7 @@ export interface LaidOutPath {
   issues: string[];
   unknownKeys: string[];
   unrendered: string[];
+  layer: number;
 }
 
 export interface OpaqueLayout {
@@ -499,10 +504,12 @@ function layoutNode(
     extras: [],
     position: { kind: posKind, refs: [...new Set(refs)], anchor },
     frame: st.matrix,
+    units: { x: Math.hypot(...st.xUnit), y: Math.hypot(...st.yUnit) },
     nodeDistance: { ...st.nodeDistance },
     onGrid: st.onGrid,
     unknownKeys: st.unknown,
     unrendered: [...st.unrendered, ...(text?.issues ?? []).map((i) => `label: ${i}`)],
+    layer: st.layer,
   };
   if (name) node.name = name;
   if (text) node.text = text;
@@ -614,10 +621,12 @@ function labelNode(spec: string, owner: LaidOutNode, scope: Scope, ctx: Ctx): La
     extras: [],
     position: { kind: "path", refs: [], anchor: "center" },
     frame: st.matrix,
+    units: { x: Math.hypot(...st.xUnit), y: Math.hypot(...st.yUnit) },
     nodeDistance: st.nodeDistance,
     onGrid: false,
     unknownKeys: st.unknown,
     unrendered: [],
+    layer: owner.layer,
   };
 }
 
@@ -1126,6 +1135,7 @@ function emitPath(id: string, syn: PathSyntax, range: Range, build: PathBuild, s
     issues: build.issues,
     unknownKeys: st.unknown,
     unrendered: st.unrendered,
+    layer: st.layer,
   };
   if (st.draw && stroke) path.stroke = stroke;
   const fill = st.fillColor === "none" ? undefined : (st.fillColor ?? st.color);

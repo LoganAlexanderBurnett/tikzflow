@@ -176,7 +176,6 @@ const IGNORED = new Set([
   "inner frame sep",
   "framed",
   "show background rectangle",
-  "on background layer",
   "behind path",
   "in front of path",
   "font size",
@@ -811,6 +810,9 @@ export function applyKey(s: State, kv: KeyValue, ctx: KeyContext, depth = 0): vo
     case "at":
       if (value) s.at = value;
       else unknown();
+      return;
+    case "on background layer":
+      s.layer = -1;
       return;
     case "local bounding box":
       if (value) s.localBoundingBox = value;

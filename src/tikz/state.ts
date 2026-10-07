@@ -126,6 +126,8 @@ export interface State {
   sloped: boolean;
   shading?: Shading;
   shadow: boolean;
+  /** -1 on the background layer, 0 on the main one. */
+  layer: number;
 
   // Node keys. They are inherited too (a scope can set "inner sep").
   shape: string;
@@ -196,6 +198,7 @@ export function initialState(): State {
     swap: false,
     sloped: false,
     shadow: false,
+    layer: 0,
     shape: "rectangle",
     innerXSep: 3.33333,
     innerYSep: 3.33333,

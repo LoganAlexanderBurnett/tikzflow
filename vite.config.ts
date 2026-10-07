@@ -184,6 +184,7 @@ function swiftlatexTexlive(): Plugin {
 
 export default defineConfig({
   plugins: [rawVendor(), swiftlatexTexlive()],
+  oxc: { jsx: { runtime: "automatic", importSource: "preact" } },
   server: {
     watch: { ignored: ["**/vendor/**"] },
     // Cross-origin isolation, so engines can use SharedArrayBuffer if they need it.

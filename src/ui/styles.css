@@ -1,0 +1,326 @@
+:root {
+  --bg: #f7f7f8;
+  --panel: #ffffff;
+  --fg: #1d1d1f;
+  --muted: #6b6b70;
+  --line: #dcdce0;
+  --accent: #2563eb;
+  --accent-soft: rgba(37, 99, 235, 0.14);
+  --lock: #b45309;
+  --canvas-bg: #ffffff;
+  --guide: #e11d74;
+  --opaque: rgba(217, 119, 6, 0.13);
+  --hl-keyword: #7c3aed;
+  --hl-definition: #b91c1c;
+  --hl-module: #0f766e;
+  --hl-macro: #1d4ed8;
+  --hl-comment: #6b7280;
+  --hl-key: #0e7490;
+  --hl-value: #9a3412;
+  --hl-name: #15803d;
+  --hl-coord: #a16207;
+  --hl-operator: #be185d;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #18181b;
+    --panel: #1f1f23;
+    --fg: #ececf0;
+    --muted: #a0a0a8;
+    --line: #34343a;
+    --accent: #60a5fa;
+    --accent-soft: rgba(96, 165, 250, 0.2);
+    --lock: #f59e0b;
+    --opaque: rgba(245, 158, 11, 0.14);
+    --hl-keyword: #c4b5fd;
+    --hl-definition: #fca5a5;
+    --hl-module: #5eead4;
+    --hl-macro: #93c5fd;
+    --hl-comment: #9ca3af;
+    --hl-key: #67e8f9;
+    --hl-value: #fdba74;
+    --hl-name: #86efac;
+    --hl-coord: #fde68a;
+    --hl-operator: #f9a8d4;
+    color-scheme: dark;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.tf-app {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+}
+
+.tf-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.tf-toolbar .brand {
+  font-weight: 700;
+  margin-right: 8px;
+}
+
+.tf-toolbar .sep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--line);
+  margin: 0 4px;
+}
+
+.tf-toolbar .file {
+  margin-left: auto;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+button,
+select {
+  font: inherit;
+  color: inherit;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 9px;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+button.link {
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.tf-main {
+  display: grid;
+  min-height: 0;
+}
+
+.tf-code {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.tf-code .cm-editor {
+  height: 100%;
+  font-size: 13px;
+}
+
+.tf-code .cm-scroller {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+
+.cm-tf-selected {
+  background: var(--accent-soft);
+  border-radius: 2px;
+}
+
+.cm-tf-opaque {
+  background: var(--opaque);
+}
+
+.tf-splitter {
+  cursor: col-resize;
+  background: var(--line);
+}
+
+.tf-splitter:hover {
+  background: var(--accent);
+}
+
+.tf-canvas-pane {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.tf-canvas {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: block;
+  background: var(--canvas-bg);
+  outline: none;
+  touch-action: none;
+  user-select: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  /* The preview shows the diagram as it prints: on white. */
+  .tf-canvas {
+    --canvas-bg: #ffffff;
+  }
+}
+
+.tf-summary {
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  max-height: 45vh;
+  overflow: auto;
+}
+
+.tf-summary .headline {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  gap: 12px;
+  border: none;
+  border-radius: 0;
+  padding: 7px 12px;
+  text-align: left;
+  font-weight: 600;
+}
+
+.tf-summary .headline .more {
+  font-weight: 400;
+  color: var(--accent);
+}
+
+.tf-summary .details {
+  padding: 0 12px 10px;
+}
+
+.tf-summary h3 {
+  font-size: 12px;
+  margin: 10px 0 4px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.tf-summary p,
+.tf-summary ul {
+  margin: 4px 0;
+}
+
+.tf-summary .keys {
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+.tf-status {
+  padding: 5px 12px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  background: var(--panel);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Canvas drawing */
+
+.tf-node {
+  cursor: grab;
+}
+
+.tf-node.locked {
+  cursor: not-allowed;
+}
+
+.tf-node path {
+  pointer-events: all;
+}
+
+.tf-coordinate {
+  fill: none;
+  stroke: #9ca3af;
+  pointer-events: all;
+}
+
+.tf-path-hit {
+  fill: none;
+  stroke: transparent;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.tf-path-halo {
+  fill: none;
+  stroke: var(--accent-soft);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tf-label-box {
+  overflow: visible;
+  pointer-events: none;
+}
+
+.tf-label {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  color: #000;
+}
+
+.tf-line {
+  position: absolute;
+  line-height: 1;
+  white-space: pre;
+}
+
+.tf-label .katex {
+  font-size: 1em;
+  line-height: 1;
+}
+
+.tf-unknown {
+  color: #b45309;
+}
+
+.tf-selection {
+  fill: none;
+  stroke: var(--accent);
+  pointer-events: none;
+}
+
+.tf-selection.locked {
+  stroke: var(--lock);
+}
+
+.tf-guide {
+  stroke: var(--guide);
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.tf-gap {
+  stroke: var(--guide);
+  pointer-events: none;
+}

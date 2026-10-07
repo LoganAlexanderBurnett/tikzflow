@@ -15,7 +15,9 @@
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact"
   },
   "include": ["spike", "src", "test", "scripts", "*.ts"]
 }

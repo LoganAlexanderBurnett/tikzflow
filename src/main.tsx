@@ -1,0 +1,28 @@
+import "katex/dist/katex.min.css";
+import "./ui/styles.css";
+import { render } from "preact";
+import { App } from "./ui/app.tsx";
+import { calibrateBaselines } from "./ui/labelHtml.ts";
+import { decode } from "./source/encoding.ts";
+import * as store from "./ui/store.ts";
+
+const { fitRequests } = store;
+
+render(<App />, document.getElementById("app")!);
+
+// A handle for end-to-end tests and debugging, in development builds only.
+if (import.meta.env.DEV) {
+  (window as unknown as { tikzflow: object }).tikzflow = { store, decode };
+}
+
+// Labels use KaTeX's Computer Modern fonts. Measure baselines once they load,
+// then redraw.
+const faces = ["KaTeX_Main", "KaTeX_Math", "KaTeX_SansSerif", "KaTeX_Typewriter"];
+void Promise.all([
+  ...faces.map((f) => document.fonts.load(`10px ${f}`)),
+  document.fonts.load("bold 10px KaTeX_Main"),
+  document.fonts.load("italic 10px KaTeX_Main"),
+]).then(() => {
+  calibrateBaselines();
+  fitRequests.value++;
+});
