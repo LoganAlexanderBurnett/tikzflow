@@ -74,7 +74,7 @@ export interface PathSyntax extends Range {
 export type BodyItem =
   | { kind: "node"; node: NodeSyntax; trailing?: PathSyntax }
   | { kind: "path"; path: PathSyntax }
-  | { kind: "styles"; range: Range; defs: StyleDef[]; settings: OptionList[] }
+  | { kind: "styles"; range: Range; defs: StyleDef[]; settings: OptionList[]; list?: OptionList }
   | { kind: "library"; range: Range; names: string[]; list?: OptionList }
   | { kind: "scope-begin"; range: Range; options?: OptionList }
   | { kind: "scope-end"; range: Range }
@@ -113,7 +113,7 @@ export interface DocumentSyntax {
   pictures: PictureSyntax[];
   /** Definitions outside pictures, in document order. */
   preamble: Array<
-    | { kind: "styles"; range: Range; defs: StyleDef[]; settings: OptionList[] }
+    | { kind: "styles"; range: Range; defs: StyleDef[]; settings: OptionList[]; list?: OptionList }
     | { kind: "library"; range: Range; names: string[]; list?: OptionList }
     | { kind: "definition"; range: Range; def: Definition }
   >;
@@ -258,7 +258,7 @@ function pathItems(nodes: SyntaxNode[], text: string): PathItemSyntax[] {
 }
 
 /** Parses "name/.style={...}" and friends out of a \tikzset option list. */
-function styleDefs(list: OptionList, text: string): { defs: StyleDef[]; settings: OptionItem[] } {
+export function styleDefs(list: OptionList, text: string): { defs: StyleDef[]; settings: OptionItem[] } {
   const defs: StyleDef[] = [];
   const settings: OptionItem[] = [];
   for (const item of list.items) {
@@ -293,7 +293,7 @@ function tikzsetItem(node: SyntaxNode, text: string): BodyItem & { kind: "styles
   const list = optionList(block, text);
   const { defs, settings } = styleDefs(list, text);
   const settingsList: OptionList[] = settings.length ? [{ ...list, items: settings }] : [];
-  return { kind: "styles", range, defs, settings: settingsList };
+  return { kind: "styles", range, defs, settings: settingsList, list };
 }
 
 function tikzstyleItem(node: SyntaxNode, text: string): BodyItem & { kind: "styles" } {

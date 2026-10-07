@@ -87,7 +87,7 @@ describe.each(corpusNames())("%s", (name) => {
     expect(d.from).toBeGreaterThanOrEqual(move.node.statement.from);
     expect(d.to).toBeLessThanOrEqual(move.node.statement.to);
     if (result!.library) {
-      expect(result!.library.insert).toMatch(/^(, ?| )?positioning,?$|^\\usetikzlibrary\{positioning\}\r?\n$/);
+      expect(result!.library.insert).toMatch(/^(,\s*| )?positioning,?$|^\r?\n\\usetikzlibrary\{positioning\}$/);
       expect(result!.library.to).toBe(result!.library.from);
     }
 

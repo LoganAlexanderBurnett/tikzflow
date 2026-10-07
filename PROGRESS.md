@@ -13,8 +13,8 @@ Milestone 0 is done and was approved on 2026-10-07:
 ## M2a plan and status
 | Step | Content | Status |
 |---|---|---|
-| 1 | Shared editing core: option and style edits, statement insertion, library management, multi-selection model, node naming | In progress |
-| 2 | M1 fixes: nudge shifts, locked-node explanations and fixes, clickable errors, undefined references, coordinate markers, undrawable-option marker | Not started |
+| 1 | Shared editing core: option and style edits, statement insertion, library management, multi-selection model, node naming (D35) | Done |
+| 2 | M1 fixes: nudge shifts, locked-node explanations and fixes, clickable errors, undefined references, coordinate markers, undrawable-option marker | Next |
 | 3 | Properties panel with style scope, colour picker, multi-select | Not started |
 | 4 | Resizing | Not started |
 | 5 | In-place label editing | Not started |

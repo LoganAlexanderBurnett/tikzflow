@@ -92,17 +92,97 @@ function mergeAdjacent(changes: Change[]): Change[] {
 export function appendItem(text: string, list: OptionList, itemText: string): Change {
   const last = list.items[list.items.length - 1];
   if (!last) return { from: list.from + 1, to: list.to - 1, insert: itemText };
-  // Reuse the separator the list already uses, if it is on one line.
-  let sep = ", ";
+  return { from: last.to, to: last.to, insert: separatorOf(text, list) + itemText };
+}
+
+/**
+ * The separator a list uses between items: the text from its first comma to
+ * the next item. A one-item list laid out one item per line ("{\n  a\n}")
+ * gets a comma plus the first item's indentation.
+ */
+function separatorOf(text: string, list: OptionList): string {
   const firstComma = list.commas[0];
   if (firstComma !== undefined) {
     const nextItem = list.items.find((i) => i.from > firstComma);
     if (nextItem) {
       const s = text.slice(firstComma, nextItem.from);
-      if (!s.includes("%")) sep = s;
+      if (!s.includes("%")) return s;
     }
   }
-  return { from: last.to, to: last.to, insert: sep + itemText };
+  const first = list.items[0];
+  if (first) {
+    const before = text.slice(list.from + 1, first.from);
+    const nl = before.lastIndexOf("\n");
+    if (nl >= 0 && /^[ \t]*$/.test(before.slice(nl + 1))) {
+      const breakAt = before[nl - 1] === "\r" ? nl - 1 : nl;
+      return `,${before.slice(breakAt)}`;
+    }
+  }
+  return ", ";
+}
+
+/**
+ * "key" or "key=value". Values that contain top-level commas, "=" or square
+ * brackets get braces so they stay one item.
+ */
+export function formatOption(key: string, value?: string): string {
+  if (value === undefined) return key;
+  let depth = 0;
+  let needsBraces = /^\s|\s$/.test(value);
+  for (let i = 0; i < value.length && !needsBraces; i++) {
+    const ch = value[i];
+    if (ch === "\\") i++;
+    else if (ch === "{") depth++;
+    else if (ch === "}") depth--;
+    else if (depth === 0 && (ch === "," || ch === "=" || ch === "[" || ch === "]")) needsBraces = true;
+  }
+  return `${key}=${needsBraces ? `{${value}}` : value}`;
+}
+
+/** Something with option lists that edits can set keys in: a node, a style body, a picture. */
+export interface OptionTarget {
+  lists: readonly OptionList[];
+  /** The change that adds a first list holding `itemText`, for targets that may have none. */
+  addList?: (itemText: string) => Change;
+  /** Style bodies keep their braces when emptied: "name/.style={}". */
+  keepEmpty?: boolean;
+}
+
+export function nodeTarget(syn: NodeSyntax): OptionTarget {
+  return { lists: syn.options, addList: (t) => addOptionList(syn, t) };
+}
+
+/** Items of `target` that `match` accepts, with their lists, in source order. */
+export function findItems(target: OptionTarget, match: (item: OptionItem) => boolean): Array<{ list: OptionList; item: OptionItem }> {
+  return target.lists.flatMap((list) => list.items.filter(match).map((item) => ({ list, item })));
+}
+
+/**
+ * Sets an option: the last item `match` accepts is replaced by `itemText`
+ * (later keys win in TikZ, so that's the one in effect); with none, `itemText`
+ * is appended to the last list. `itemText` null removes every matching item.
+ * Returns null when the edit can't be made safely: the item uses a style
+ * argument (#1), or there's no list to add to.
+ */
+export function setOption(text: string, target: OptionTarget, match: (item: OptionItem) => boolean, itemText: string | null): Change[] | null {
+  const found = findItems(target, match);
+  if (found.some((f) => text.slice(f.item.from, f.item.to).includes("#"))) return null;
+  if (itemText === null) {
+    const changes: Change[] = [];
+    for (const list of target.lists) {
+      const items = found.filter((f) => f.list === list).map((f) => f.item);
+      if (!items.length) continue;
+      if (target.keepEmpty && items.length === list.items.length) {
+        changes.push({ from: list.items[0]!.from, to: list.items[list.items.length - 1]!.to, insert: "" });
+      } else changes.push(...removeItems(text, list, items));
+    }
+    return changes;
+  }
+  const last = found[found.length - 1];
+  if (last) return [{ from: last.item.from, to: last.item.to, insert: itemText }];
+  const list = target.lists[target.lists.length - 1];
+  if (list) return [appendItem(text, list, itemText)];
+  return target.addList ? [target.addList(itemText)] : null;
 }
 
 /** Inserts "[itemText]" right after the node keyword. */

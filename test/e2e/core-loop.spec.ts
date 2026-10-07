@@ -85,6 +85,31 @@ test("clicking a shape highlights its code; moving the cursor selects the shape"
   expect(Math.abs(sel!.x + sel!.width / 2 - (rec.x + rec.width / 2))).toBeLessThan(3);
 });
 
+test("shift-click adds nodes to the selection and takes them out again", async ({ page }) => {
+  const centre = async (id: string) => {
+    const b = await nodeBox(page, id);
+    return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  };
+  const read = await centre("read");
+  const rec = await centre("rec");
+  const stop = await centre("stop");
+  await page.mouse.click(read.x, read.y);
+  await page.keyboard.down("Shift");
+  await page.mouse.click(rec.x, rec.y);
+  await page.mouse.click(stop.x, stop.y);
+  await expect(page.locator(".tf-selection")).toHaveCount(3);
+  // Every selected statement is highlighted in the code.
+  await expect(page.locator(".cm-tf-selected", { hasText: "(read)" })).toHaveCount(1);
+  await expect(page.locator(".cm-tf-selected", { hasText: "(stop)" })).toHaveCount(1);
+  await page.mouse.click(rec.x, rec.y);
+  await page.keyboard.up("Shift");
+  await expect(page.locator(".tf-selection")).toHaveCount(2);
+  await expect(page.locator(".cm-tf-selected", { hasText: "(rec)" })).toHaveCount(0);
+  // A plain click selects one node again.
+  await page.mouse.click(rec.x, rec.y);
+  await expect(page.locator(".tf-selection")).toHaveCount(1);
+});
+
 test("typing in the code pane updates the canvas", async ({ page }) => {
   await page.locator(".cm-line", { hasText: "{Stop}" }).first().click();
   await page.keyboard.press("End");

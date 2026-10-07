@@ -14,7 +14,15 @@ import type { LaidOutNode, LaidOutPath, PictureLayout } from "../tikz/layout.ts"
 import type { Point } from "../tikz/shapes.ts";
 import { fromCanvas, setHighlight, setOpaque } from "./editor.ts";
 
-export type Selection = { kind: "node"; id: string } | { kind: "path"; id: string } | null;
+/** What the pointer or the cursor is on. */
+export type Hit = { kind: "node"; id: string } | { kind: "path"; id: string };
+/** The selection: one or more nodes (the last one is the primary), or one path. */
+export type Selection = { kind: "nodes"; ids: readonly string[] } | { kind: "path"; id: string } | null;
+
+export function selectionOf(hit: Hit | null): Selection {
+  if (!hit) return null;
+  return hit.kind === "node" ? { kind: "nodes", ids: [hit.id] } : hit;
+}
 
 export const text = signal("");
 export const pictureIndex = signal(0);
@@ -76,15 +84,14 @@ function syncOpaque() {
 export function onEditorCursor(pos: number): void {
   const l = baseLayout.value;
   if (!l) return;
-  const found = objectAt(l, pos);
-  selection.value = found;
+  selection.value = selectionOf(objectAt(l, pos));
   highlightSelection();
 }
 
 /** The smallest node or path whose source contains `pos`. */
-export function objectAt(l: PictureLayout, pos: number): Selection {
-  let best: { sel: Selection; size: number } | null = null;
-  const consider = (sel: Selection, r: Range) => {
+export function objectAt(l: PictureLayout, pos: number): Hit | null {
+  let best: { sel: Hit; size: number } | null = null;
+  const consider = (sel: Hit, r: Range) => {
     if (pos < r.from || pos > r.to) return;
     const size = r.to - r.from;
     if (!best || size < best.size) best = { sel, size };
@@ -96,38 +103,53 @@ export function objectAt(l: PictureLayout, pos: number): Selection {
     const p = l.paths.find((x) => x.syntax.from === n.statement.from);
     if (p) consider({ kind: "path", id: p.id }, { from: n.syntax.from, to: n.syntax.to });
   }
-  return (best as { sel: Selection } | null)?.sel ?? null;
+  return (best as { sel: Hit } | null)?.sel ?? null;
 }
 
-export function selectedNode(): LaidOutNode | null {
-  const s = selection.value;
-  if (s?.kind !== "node") return null;
-  return baseLayout.value?.nodes.find((n) => n.id === s.id) ?? null;
-}
+/** Ids of the selected nodes, primary last. */
+export const selectedIds = computed<readonly string[]>(() => (selection.value?.kind === "nodes" ? selection.value.ids : []));
 
-function rangeOf(sel: Selection, l: PictureLayout): Range | null {
-  if (!sel) return null;
-  if (sel.kind === "node") return l.nodes.find((n) => n.id === sel.id)?.statement ?? null;
+/** The selected nodes as laid out, primary last. */
+export const selectedNodes = computed<LaidOutNode[]>(() => {
+  const l = baseLayout.value;
+  if (!l) return [];
+  return selectedIds.value.flatMap((id) => l.nodes.find((n) => n.id === id) ?? []);
+});
+
+/** The code of the selected objects, primary last. */
+function rangesOf(sel: Selection, l: PictureLayout): Range[] {
+  if (!sel) return [];
+  if (sel.kind === "nodes") return sel.ids.flatMap((id) => l.nodes.find((n) => n.id === id)?.statement ?? []);
   const p: LaidOutPath | undefined = l.paths.find((x) => x.id === sel.id);
-  return p?.range ?? null;
+  return p ? [p.range] : [];
 }
 
 /** Highlights the selected object's code. */
 export function highlightSelection(): void {
   const l = baseLayout.value;
   if (!view || !l) return;
-  const r = rangeOf(selection.value, l);
-  view.dispatch({ effects: [setHighlight.of(r ? [r] : []), fromCanvas.of(null)] });
+  view.dispatch({ effects: [setHighlight.of(rangesOf(selection.value, l)), fromCanvas.of(null)] });
 }
 
-/** Selects an object from the canvas: highlights its code and scrolls to it. */
-export function selectFromCanvas(sel: Selection): void {
+/**
+ * Selects an object from the canvas: highlights its code and scrolls to it.
+ * With `add`, a node is added to the selected nodes, or taken out if it was
+ * already in (Shift-click).
+ */
+export function selectFromCanvas(hit: Hit | null, add = false): void {
+  const cur = selection.value;
+  let sel = selectionOf(hit);
+  if (add && hit?.kind === "node" && cur?.kind === "nodes") {
+    const ids = cur.ids.includes(hit.id) ? cur.ids.filter((id) => id !== hit.id) : [...cur.ids, hit.id];
+    sel = ids.length ? { kind: "nodes", ids } : null;
+  }
   selection.value = sel;
   const l = baseLayout.value;
   if (!view || !l) return;
-  const r = rangeOf(sel, l);
+  const ranges = rangesOf(sel, l);
+  const r = ranges[ranges.length - 1];
   view.dispatch({
-    effects: [setHighlight.of(r ? [r] : []), fromCanvas.of(null)],
+    effects: [setHighlight.of(ranges), fromCanvas.of(null)],
     ...(r ? { selection: EditorSelection.cursor(r.from), scrollIntoView: true } : {}),
   });
 }

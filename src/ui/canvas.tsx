@@ -24,6 +24,7 @@ import {
   layout,
   overrides,
   selectFromCanvas,
+  selectedIds,
   selection,
   status,
   text,
@@ -292,6 +293,11 @@ export function Canvas() {
     if (e.button === 0 && nodeEl) {
       const id = nodeEl.getAttribute("data-node")!;
       const n = baseLayout.value?.nodes.find((x) => x.id === id);
+      // Shift-click adds the node to the selection (or takes it out); it doesn't start a drag.
+      if (e.shiftKey) {
+        selectFromCanvas({ kind: "node", id }, true);
+        return;
+      }
       selectFromCanvas({ kind: "node", id });
       if (n && !n.locked) {
         const p = toModel(e);
@@ -402,7 +408,8 @@ export function Canvas() {
     for (const n of l.nodes) if (n.shading) gradients.push(<Gradient id={gradId(n.id)} shading={n.shading} />);
     for (const p of l.paths) if (p.shading) gradients.push(<Gradient id={gradId(p.id)} shading={p.shading} />);
   }
-  const selectedNode = sel?.kind === "node" ? l?.nodes.find((n) => n.id === sel.id) : undefined;
+  const selIds = selectedIds.value;
+  const selected = l ? selIds.flatMap((id) => l.nodes.find((n) => n.id === id) ?? []) : [];
 
   return (
     <svg
@@ -421,7 +428,7 @@ export function Canvas() {
         it.kind === "node" ? (
           <g key={it.n.id}>
             <g transform="scale(1 -1)">
-              <NodeShape n={it.n} scale={v.scale} selected={sel?.kind === "node" && sel.id === it.n.id} />
+              <NodeShape n={it.n} scale={v.scale} selected={selIds.includes(it.n.id)} />
             </g>
             <NodeLabel n={it.n} macros={macros.value} />
             {it.n.extras.map((x) => (
@@ -445,17 +452,17 @@ export function Canvas() {
         </g>
       ))}
       <g transform="scale(1 -1)" class="tf-overlay">
-        {selectedNode && (
+        {selected.map((n) => (
           <rect
-            x={f(selectedNode.shape.center.x - selectedNode.shape.hw - 3 / v.scale)}
-            y={f(selectedNode.shape.center.y - selectedNode.shape.hh - 3 / v.scale)}
-            width={f(2 * selectedNode.shape.hw + 6 / v.scale)}
-            height={f(2 * selectedNode.shape.hh + 6 / v.scale)}
-            class={`tf-selection${selectedNode.locked ? " locked" : ""}`}
+            x={f(n.shape.center.x - n.shape.hw - 3 / v.scale)}
+            y={f(n.shape.center.y - n.shape.hh - 3 / v.scale)}
+            width={f(2 * n.shape.hw + 6 / v.scale)}
+            height={f(2 * n.shape.hh + 6 / v.scale)}
+            class={`tf-selection${n.locked ? " locked" : ""}`}
             stroke-width={1.5 / v.scale}
             stroke-dasharray={`${4 / v.scale} ${3 / v.scale}`}
           />
-        )}
+        ))}
         {g.lines.map((gl) =>
           gl.axis === "v" ? (
             <line x1={gl.at} x2={gl.at} y1={gl.from} y2={gl.to} class="tf-guide" stroke-width={1 / v.scale} />

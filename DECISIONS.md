@@ -360,3 +360,37 @@ New features:
 **Generated node names** are unique within the picture. They come from the label's words. Labels that are pure math or have no usable words fall back to the node's style or shape plus a number (e.g. `decision2`).
 
 **Why:** The owner's answers. Defaulting to "This node" makes the narrower edit the default, and the count shows how far "All" reaches before it's chosen. The library rule can't break a document that uses a library inside code the editor can't see into (`\foreach` bodies, macros).
+
+## D35: The shared editing core (2026-10-07)
+**Decision:** Every 2a edit is built from these helpers in `src/edit/`.
+- **Option edits** (`optionEdits.ts`, `setOption`):
+  - Setting a key replaces its *last* occurrence, which is the one TikZ applies. With no occurrence, the key is appended to the last list in that list's separator style. A list laid out one item per line gets the new item on its own line.
+  - An item that uses a style argument (`#1`) is never edited; the edit is refused.
+  - Values containing top-level `,`, `=` or brackets are braced.
+- **Style edits** (`styles.ts`):
+  - **Where styles are defined.** A picture's styles come from three kinds of site, in reading order: the preamble before it, its own options, and `\tikzset`/`\tikzstyle` at the top level of its body. Definitions inside scopes aren't edit targets.
+  - **Which definition is edited.** A style's current definition is its last `.style` plus any `.append style` after it, and edits go to that chain.
+  - **Emptied styles** keep their braces: `name/.style={}`.
+- **New styles** go to the site holding the most definitions; on a tie, the one closest to the picture. A `\tikzstyle` file gets `\tikzstyle` lines in its own spacing and brace form. Otherwise:
+  - a document gets a new `\tikzset` after its last `\usetikzlibrary` (or `\usepackage{tikz}`, or `\documentclass`);
+  - a bare picture gets the style in its own options.
+- **Libraries** (`libraries.ts`):
+  - **Adding.** Edits name the libraries they need, and `ensureLibraries` adds them all in one change.
+  - **New lines.** Inserted lines now start with the line ending (`\n\usetikzlibrary{…}` at the end of the anchor line) rather than ending with it. The resulting text is the same.
+  - **Removal** follows D34. Usage patterns exist for positioning, the shapes libraries, arrows.meta, fit, backgrounds and calc. The patterns are deliberately generous: a false match only keeps a library loaded.
+  - **Whole lines.** A `\usetikzlibrary` whose list would become empty is deleted with its line.
+- **Inserting statements** (`insert.ts`):
+  - **Placement.** New nodes go after the picture's last top-level node and new edges after its last top-level path. They are never inside a scope or layer, whose options would apply to them. If every path comes before the new node, its edge goes right after the node.
+  - **Format.** Each statement goes on its own line with the anchor line's indentation and the file's line ending.
+  - **Syntax errors.** Nothing goes right after a statement containing a syntax error, because an unclosed brace there would swallow the new code (found by the corpus sweep on `self-broken.tex`). If the node a new one must follow is broken, the insertion is refused.
+- **Node names** (`names.ts`):
+  - **Words.** Up to three words from the label, with TeX markup, math and accents stripped and small words such as "the" dropped. A name never starts with a digit.
+  - **Naming style.** Names follow the document's style (camelCase, snake_case or kebab-case, by majority), defaulting to camelCase, which the corpus uses most.
+  - **Taken names.** A name counts as taken if it's laid out, inside a block kept as-is, a bounding box, or written as `(name)` or `name=` anywhere in the picture.
+- **Selection** is one or more nodes (the last clicked is the primary), or one path. Shift-click toggles a node in or out. Every selected statement is highlighted in the code.
+
+**Why:**
+- These are the primitives that the properties panel, the palette, keyboard creation, resizing and the style panel all share. Each changes only the bytes it is about.
+- A sweep in `test/edit-core.test.ts` defines a style, inserts a node using it and connects it, on every corpus picture with a named node (27 pictures). Nothing else moves, and the parse doesn't get worse.
+
+**Note for step 6:** a picture can reuse a node name (`se-102785-foreach-scope.tex` defines `a` twice). A new node placed after the second definition refers to the second one. Creation must insert right after the parent when its name is reused later, and verify by layout.
