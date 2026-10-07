@@ -86,8 +86,9 @@ Fixes from testing Milestone 1, done first:
 - Repeated nudges update an existing `xshift`/`yshift` rather than adding more. A nudge that lands exactly on a clean relation drops the shift entirely.
 
 New features:
-- A shape palette with process, decision, terminal, I/O, connector, and document shapes. Each inserts a styled node, and the needed style is added to `\tikzset` if it's missing.
+- A shape palette with process, decision, terminal, I/O, connector, and document shapes. Each inserts a styled node, and the needed style is added to `\tikzset` if it's missing. The document's own node styles also appear as palette entries, so extending an existing figure keeps its look.
 - Keyboard-driven creation: Tab adds a connected child, Enter adds a sibling, and typing edits the label.
+- Generated node names are unique. Labels that are pure math or have no usable words get a sensible fallback name.
 - Double-click a node to edit its label in place.
 - Resize nodes by dragging corners or sides.
   - This writes `minimum width`/`minimum height`, or `text width` when the drag should rewrap the text.
@@ -122,6 +123,7 @@ New features:
 - Swimlanes and groups using `fit` and the `backgrounds` layer.
 - Import from Mermaid flowcharts and Graphviz DOT.
 - Make chain nodes (`on chain`) draggable by converting them to explicit positioning.
+- Drag a multi-selection as a group.
 - Accessibility: grayscale and colorblind preview modes, and contrast warnings for text on fills.
 
 ### Milestone 5: Polish and launch prep
@@ -166,3 +168,6 @@ Start with Milestone 0. Before writing code, give me a brief plan for the spike 
   - Added to the start of 2a: fixes from testing Milestone 1 (locked-node explanations and one-click fixes, clickable syntax errors, undefined references in the summary, coordinate markers, a marker for undrawable options, and refined nudge shifts).
   - Added to 2a: resizing nodes, a properties panel with node-or-style scope and a colour picker, in-place label editing, and multi-select.
   - Added to Milestone 4: dragging chain nodes by converting them to explicit positioning.
+- **2026-10-07, approving the Milestone 2a plan** (approved by the project owner; reasons in DECISIONS.md D34):
+  - Added to 2a: the document's own node styles appear as palette entries; generated node names are unique, with a fallback for labels without usable words.
+  - Added to Milestone 4: dragging a multi-selection as a group.

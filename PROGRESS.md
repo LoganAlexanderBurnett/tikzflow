@@ -8,14 +8,26 @@ Milestone 0 is done and was approved on 2026-10-07:
 - **Engine:** TikZJax, with our own build in Milestone 3 (D13, D15).
 - **Preview fonts:** always Computer Modern (D16).
 
-**Next:** Milestone 2a (nodes and styles). It hasn't been started. Milestone 2 was split into 2a and 2b, each with its own checkpoint (D32). 2a starts with the fixes from the owner's M1 testing (D33). The full list is in SPEC.md, "Milestone 2a". Also read the "Notes for later milestones" below.
+**Now:** Milestone 2a (nodes and styles) is in progress. The plan was approved on 2026-10-07, with the owner's answers in D34. Milestone 2 was split into 2a and 2b, each with its own checkpoint (D32). The full list is in SPEC.md, "Milestone 2a". Also read the "Notes for later milestones" below.
+
+## M2a plan and status
+| Step | Content | Status |
+|---|---|---|
+| 1 | Shared editing core: option and style edits, statement insertion, library management, multi-selection model, node naming | In progress |
+| 2 | M1 fixes: nudge shifts, locked-node explanations and fixes, clickable errors, undefined references, coordinate markers, undrawable-option marker | Not started |
+| 3 | Properties panel with style scope, colour picker, multi-select | Not started |
+| 4 | Resizing | Not started |
+| 5 | In-place label editing | Not started |
+| 6 | Palette (standard shapes and the document's own styles) and keyboard creation | Not started |
+| 7 | Style panel and factoring repeated options | Not started |
+| 8 | End-to-end tests, docs, report, push | Not started |
 
 ## Milestones
 | Milestone | Status |
 |---|---|
 | M0: Technical spike | Done, approved 2026-10-07 |
 | M1: Core loop | Done, approved 2026-10-07 |
-| M2a: Creating and editing nodes and styles | Not started (next) |
+| M2a: Creating and editing nodes and styles | In progress |
 | M2b: Editing edges | Not started |
 | M3: Accurate preview and export | Not started |
 | M4: Layout and import | Not started |

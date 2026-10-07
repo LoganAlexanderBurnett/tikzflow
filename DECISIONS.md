@@ -346,3 +346,17 @@ New features:
 - A locked node that merely says "unknown node" leaves the user stuck. Saying that LaTeX would fail too shows the problem is in the code, not in the editor, and the one-click fixes resolve it without hand-editing.
 - Errors and undefined references are what a user pasting real code needs to find first.
 - The panel's style scope and named colours keep generated code hand-written in style (SPEC.md, "Human-quality output"), instead of scattering inline options and raw RGB values.
+
+## D34: Milestone 2a plan, as approved (2026-10-07)
+**Decision:** The owner approved the 2a plan (eight steps: shared editing core, M1 fixes, properties panel with multi-select, resizing, label editing, creation, style panel, wrap-up). Answers to its assumptions:
+1. **Style scope** is a toggle at the top of the properties panel. It defaults to "This node", and the other option shows a count, e.g. "All state nodes (6)".
+2. **New styles go where the document already keeps its styles.** Otherwise they go in a `\tikzset` in the preamble, or in the picture's own options for a bare picture.
+3. **Palette shapes:** terminal = `rounded rectangle` (shapes.misc), decision = `diamond` and I/O = `trapezium` (shapes.geometric), connector = small `circle`, document = `tape` (shapes.symbols). The document's own node styles (e.g. `state`, `control`, `kin` in `self-hybrid-surrogate.tex`) are palette entries too, so extending a figure keeps its look.
+4. **Tab-created edges** are `\draw[->] (a) -- (b);`, or use the arrow style the picture already uses most. This is the only edge writing in 2a.
+5. **Group moves** of a multi-selection are not in 2a. They are in Milestone 4.
+
+**Library removal** follows a conservative rule. A library is removed only when an edit by the editor removed its last use, *and* no key or shape from that library appears anywhere in the document text, including blocks kept as-is. Libraries the editor has no usage table for are never removed.
+
+**Generated node names** are unique within the picture. They come from the label's words. Labels that are pure math or have no usable words fall back to the node's style or shape plus a number (e.g. `decision2`).
+
+**Why:** The owner's answers. Defaulting to "This node" makes the narrower edit the default, and the count shows how far "All" reaches before it's chosen. The library rule can't break a document that uses a library inside code the editor can't see into (`\foreach` bodies, macros).
