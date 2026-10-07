@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Engine Bench</title>
+    <style>
+      :root { --bg: #fff; --fg: #1d1d1f; --muted: #6b6b70; --line: #d9d9de; --ok: #1a7f37; --bad: #c62828; }
+      @media (prefers-color-scheme: dark) {
+        :root { --bg: #18181b; --fg: #ececf0; --muted: #a0a0a8; --line: #3a3a40; --ok: #4ac26b; --bad: #ff6b6b; }
+      }
+      body { margin: 0; padding: 16px; background: var(--bg); color: var(--fg); font: 14px/1.5 system-ui, sans-serif; }
+      h1 { font-size: 18px; margin: 0 0 8px; }
+      nav a { margin-right: 12px; color: inherit; }
+      #status { margin: 12px 0; font-variant-numeric: tabular-nums; white-space: pre-wrap; }
+      .ok { color: var(--ok); } .bad { color: var(--bad); }
+      #output { border: 1px solid var(--line); border-radius: 6px; padding: 12px; background: #fff; overflow: auto; max-width: 100%; }
+      #output svg, #output iframe { max-width: 100%; }
+      pre { white-space: pre-wrap; color: var(--muted); font-size: 12px; max-height: 40vh; overflow: auto; }
+    </style>
+  </head>
+  <body>
+    <h1>WASM TeX engine bench</h1>
+    <nav>
+      <a href="?engine=tikzjax">TikZJax</a>
+      <a href="?engine=busytex">busytex</a>
+      <a href="?engine=swiftlatex">SwiftLaTeX</a>
+    </nav>
+    <div id="status">Pick an engine.</div>
+    <div id="output"></div>
+    <pre id="log"></pre>
+    <script type="module" src="./bench.ts"></script>
+  </body>
+</html>

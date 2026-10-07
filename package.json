@@ -15,7 +15,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "grammar:inspect": "node spike/grammar/inspect.ts",
-    "fetch-engines": "node scripts/fetch-engines.ts"
+    "fetch-engines": "node scripts/fetch-engines.ts",
+    "bench-engines": "node scripts/bench-engines.ts"
   },
   "dependencies": {
     "@lezer/common": "^1.5.3",
@@ -23,6 +24,7 @@
   },
   "devDependencies": {
     "@lezer/generator": "^1.8.1",
+    "@playwright/test": "^1.63.0",
     "@types/node": "^26.6.4",
     "fflate": "^0.8.3",
     "tar": "^7.5.22",

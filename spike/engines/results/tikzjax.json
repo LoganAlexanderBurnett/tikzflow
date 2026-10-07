@@ -1,0 +1,398 @@
+{
+  "engine": "tikzjax",
+  "browser": "msedge 154.0.4258.53",
+  "date": "2026-10-07T04:26:29.276Z",
+  "ok": true,
+  "probe": {
+    "pgf": "3.1.10",
+    "libraries": {
+      "positioning": true,
+      "shapes.geometric": true,
+      "arrows.meta": true,
+      "fit": true,
+      "backgrounds": true,
+      "calc": true,
+      "matrix": true
+    }
+  },
+  "loadMsMedian": 793.9900002479553,
+  "coldCompileMsMedian": 485.25,
+  "warmCompileMsMedian": 415.69000005722046,
+  "download": {
+    "files": 18,
+    "bytes": 6743690,
+    "brotliBytes": 4019971,
+    "largestFile": {
+      "url": "/vendor/tikzjax/package/dist/core.dump.gz",
+      "bytes": 6011773,
+      "brotliBytes": 3739252
+    }
+  },
+  "outputKind": "svg",
+  "outputBytes": 12195,
+  "trials": [
+    {
+      "engine": "tikzjax",
+      "ok": true,
+      "loadMs": 790.4150004386902,
+      "compileMs": [
+        485.25,
+        403.81500005722046,
+        415.69000005722046,
+        420.5699996948242,
+        422.0050001144409,
+        416.73999977111816
+      ],
+      "outputKind": "svg",
+      "outputBytes": 12195,
+      "probe": {
+        "pgf": "3.1.10",
+        "libraries": {
+          "positioning": true,
+          "shapes.geometric": true,
+          "arrows.meta": true,
+          "fit": true,
+          "backgrounds": true,
+          "calc": true,
+          "matrix": true
+        }
+      },
+      "files": [
+        {
+          "url": "/vendor/tikzjax/package/dist/core.dump.gz",
+          "bytes": 6011773,
+          "brotliBytes": 3739252
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/run-tex.js",
+          "bytes": 530998,
+          "brotliBytes": 92674
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex.wasm.gz",
+          "bytes": 123081,
+          "brotliBytes": 122307
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/amsmath.sty.gz",
+          "bytes": 19318,
+          "brotliBytes": 19322
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/pgflibraryshapes.geometric.code.tex.gz",
+          "bytes": 17807,
+          "brotliBytes": 17811
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/fonts.css",
+          "bytes": 12758,
+          "brotliBytes": 602
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/pgflibraryarrows.meta.code.tex.gz",
+          "bytes": 7681,
+          "brotliBytes": 7685
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/l3backend-dvips.def.gz",
+          "bytes": 6189,
+          "brotliBytes": 6193
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/tikzlibrarycalc.code.tex.gz",
+          "bytes": 3937,
+          "brotliBytes": 3941
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/amsgen.sty.gz",
+          "bytes": 1762,
+          "brotliBytes": 1766
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/amsopn.sty.gz",
+          "bytes": 1465,
+          "brotliBytes": 1469
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/tikzlibrarymatrix.code.tex.gz",
+          "bytes": 1292,
+          "brotliBytes": 1296
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/tikzlibrarypositioning.code.tex.gz",
+          "bytes": 1168,
+          "brotliBytes": 1172
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/amstext.sty.gz",
+          "bytes": 1071,
+          "brotliBytes": 1075
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/tikzlibraryfit.code.tex.gz",
+          "bytes": 1068,
+          "brotliBytes": 1072
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/tikzlibrarybackgrounds.code.tex.gz",
+          "bytes": 1044,
+          "brotliBytes": 1048
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/amsbsy.sty.gz",
+          "bytes": 1033,
+          "brotliBytes": 1037
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/tikzlibraryshapes.geometric.code.tex.gz",
+          "bytes": 245,
+          "brotliBytes": 249
+        }
+      ],
+      "wallMs": 3518,
+      "logTail": ""
+    },
+    {
+      "engine": "tikzjax",
+      "ok": true,
+      "loadMs": 816.6199998855591,
+      "compileMs": [
+        470.0050001144409,
+        416.1399998664856,
+        393.1699995994568,
+        415.9900002479553,
+        420.2449998855591,
+        405.039999961853
+      ],
+      "outputKind": "svg",
+      "outputBytes": 12195,
+      "probe": {
+        "pgf": "3.1.10",
+        "libraries": {
+          "positioning": true,
+          "shapes.geometric": true,
+          "arrows.meta": true,
+          "fit": true,
+          "backgrounds": true,
+          "calc": true,
+          "matrix": true
+        }
+      },
+      "files": [
+        {
+          "url": "/vendor/tikzjax/package/dist/core.dump.gz",
+          "bytes": 6011773,
+          "brotliBytes": 3739252
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/run-tex.js",
+          "bytes": 530998,
+          "brotliBytes": 92674
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex.wasm.gz",
+          "bytes": 123081,
+          "brotliBytes": 122307
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/amsmath.sty.gz",
+          "bytes": 19318,
+          "brotliBytes": 19322
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/pgflibraryshapes.geometric.code.tex.gz",
+          "bytes": 17807,
+          "brotliBytes": 17811
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/fonts.css",
+          "bytes": 12758,
+          "brotliBytes": 602
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/pgflibraryarrows.meta.code.tex.gz",
+          "bytes": 7681,
+          "brotliBytes": 7685
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/l3backend-dvips.def.gz",
+          "bytes": 6189,
+          "brotliBytes": 6193
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/tikzlibrarycalc.code.tex.gz",
+          "bytes": 3937,
+          "brotliBytes": 3941
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/amsgen.sty.gz",
+          "bytes": 1762,
+          "brotliBytes": 1766
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/amsopn.sty.gz",
+          "bytes": 1465,
+          "brotliBytes": 1469
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/tikzlibrarymatrix.code.tex.gz",
+          "bytes": 1292,
+          "brotliBytes": 1296
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/tikzlibrarypositioning.code.tex.gz",
+          "bytes": 1168,
+          "brotliBytes": 1172
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/amstext.sty.gz",
+          "bytes": 1071,
+          "brotliBytes": 1075
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/tikzlibraryfit.code.tex.gz",
+          "bytes": 1068,
+          "brotliBytes": 1072
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/tikzlibrarybackgrounds.code.tex.gz",
+          "bytes": 1044,
+          "brotliBytes": 1048
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/amsbsy.sty.gz",
+          "bytes": 1033,
+          "brotliBytes": 1037
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/tikzlibraryshapes.geometric.code.tex.gz",
+          "bytes": 245,
+          "brotliBytes": 249
+        }
+      ],
+      "wallMs": 3400,
+      "logTail": ""
+    },
+    {
+      "engine": "tikzjax",
+      "ok": true,
+      "loadMs": 793.9900002479553,
+      "compileMs": [
+        490.20499992370605,
+        414.414999961853,
+        424.42000007629395,
+        406.12999963760376,
+        408.03000020980835,
+        414.4049997329712
+      ],
+      "outputKind": "svg",
+      "outputBytes": 12195,
+      "probe": {
+        "pgf": "3.1.10",
+        "libraries": {
+          "positioning": true,
+          "shapes.geometric": true,
+          "arrows.meta": true,
+          "fit": true,
+          "backgrounds": true,
+          "calc": true,
+          "matrix": true
+        }
+      },
+      "files": [
+        {
+          "url": "/vendor/tikzjax/package/dist/core.dump.gz",
+          "bytes": 6011773,
+          "brotliBytes": 3739252
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/run-tex.js",
+          "bytes": 530998,
+          "brotliBytes": 92674
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex.wasm.gz",
+          "bytes": 123081,
+          "brotliBytes": 122307
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/amsmath.sty.gz",
+          "bytes": 19318,
+          "brotliBytes": 19322
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/pgflibraryshapes.geometric.code.tex.gz",
+          "bytes": 17807,
+          "brotliBytes": 17811
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/fonts.css",
+          "bytes": 12758,
+          "brotliBytes": 602
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/pgflibraryarrows.meta.code.tex.gz",
+          "bytes": 7681,
+          "brotliBytes": 7685
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/l3backend-dvips.def.gz",
+          "bytes": 6189,
+          "brotliBytes": 6193
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/tikzlibrarycalc.code.tex.gz",
+          "bytes": 3937,
+          "brotliBytes": 3941
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/amsgen.sty.gz",
+          "bytes": 1762,
+          "brotliBytes": 1766
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/amsopn.sty.gz",
+          "bytes": 1465,
+          "brotliBytes": 1469
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/tikzlibrarymatrix.code.tex.gz",
+          "bytes": 1292,
+          "brotliBytes": 1296
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/tikzlibrarypositioning.code.tex.gz",
+          "bytes": 1168,
+          "brotliBytes": 1172
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/amstext.sty.gz",
+          "bytes": 1071,
+          "brotliBytes": 1075
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/tikzlibraryfit.code.tex.gz",
+          "bytes": 1068,
+          "brotliBytes": 1072
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/tikzlibrarybackgrounds.code.tex.gz",
+          "bytes": 1044,
+          "brotliBytes": 1048
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/amsbsy.sty.gz",
+          "bytes": 1033,
+          "brotliBytes": 1037
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/tex_files/tikzlibraryshapes.geometric.code.tex.gz",
+          "bytes": 245,
+          "brotliBytes": 249
+        }
+      ],
+      "wallMs": 3410,
+      "logTail": ""
+    }
+  ]
+}
