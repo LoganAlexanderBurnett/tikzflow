@@ -12,10 +12,16 @@ export type LibraryResult =
   /** A bare picture: the libraries live in a preamble the editor can't see. */
   | { ok: false; reason: string };
 
+/** Libraries that load others: chains and tikz-ext's positioning-plus load positioning. */
+const IMPLIES: Record<string, string[]> = {
+  chains: ["positioning"],
+  "ext.positioning-plus": ["positioning"],
+};
+
 export function libraryLoaded(doc: DocumentModel, pic: PictureSyntax, library: string): boolean {
   for (const item of doc.syntax.preamble) {
     if (item.range.from >= pic.from) break;
-    if (item.kind === "library" && item.names.includes(library)) return true;
+    if (item.kind === "library" && item.names.some((n) => n === library || IMPLIES[n]?.includes(library))) return true;
   }
   return pic.items.some((i) => i.kind === "library" && i.names.includes(library));
 }

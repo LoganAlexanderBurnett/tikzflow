@@ -7,7 +7,7 @@ import { type CoordEnv, type CoordResult, evalCoordText, type NameEntry } from "
 import { applyKeys, applyStyle, defaultTipLength, defaultTipWidth, KNOWN_SHAPES, parseNodeDistance, StyleTable } from "./keys.ts";
 import { type KeyValue, parseOptionString } from "./options.ts";
 import { anchorOffset, anchorPoint, borderToward, makeShape, type NodeShape, outline, type Point, shapeBounds } from "./shapes.ts";
-import { applyLinear, applyMatrix, type ArrowTip, initialState, itemCopy, type Matrix, multiply, scopeCopy, type Shading, type State } from "./state.ts";
+import { applyLinear, applyMatrix, type ArrowTip, initialState, itemCopy, type Matrix, multiply, scopeCopy, type Shading, type SizeTable, type State } from "./state.ts";
 import { CM, evalQuantity } from "./units.ts";
 
 export interface LayoutEnv {
@@ -16,6 +16,8 @@ export interface LayoutEnv {
   macros: ReadonlyMap<string, Macro>;
   /** Non-style keys from \tikzset in the preamble, applied to every picture. */
   settings: KeyValue[];
+  /** The document class's font: size table and family. */
+  font?: { sizes: SizeTable; family: "rm" | "sf" };
 }
 
 /** How a node's position is written, for the editor. */
@@ -24,6 +26,8 @@ export type PositionKind = "default" | "at" | "positioning" | "old-positioning" 
 export interface LaidOutNode {
   id: string;
   name?: string;
+  /** The name was made up (chain nodes), not written in the source. */
+  implicitName?: boolean;
   kind: NodeSyntax["kind"];
   syntax: NodeSyntax;
   /** The statement the node belongs to (for selection and highlighting). */
@@ -128,6 +132,7 @@ interface Ctx {
   overrides: ReadonlyMap<string, Point>;
   out: PictureLayout;
   labelEnv: LabelEnv;
+  chains: Map<string, ChainState>;
 }
 
 const POSITIONING_ANCHOR: Record<string, string> = {
@@ -212,14 +217,21 @@ export function layoutPicture(pic: PictureSyntax, env: LayoutEnv, overrides: Rea
     unnamed: 0,
     overrides,
     out,
-    labelEnv: { macros: env.macros, color: (e) => env.colors.parse(e) },
+    labelEnv: { macros: env.macros, color: (e) => env.colors.parse(e), ...(env.font ? { sizes: env.font.sizes } : {}) },
+    chains: new Map(),
   };
   const root = initialState();
+  if (env.font) {
+    root.sizes = env.font.sizes;
+    const [size, baselineskip] = env.font.sizes["\\normalsize"]!;
+    root.font = { ...root.font, size, baselineskip, family: env.font.family };
+  }
   const rootStyles = env.styles.child();
   const kc = keyCtx(ctx, rootStyles);
   applyKeys(root, env.settings, kc);
   applyStyle(root, "every picture", kc);
   if (pic.options) applyKeys(root, keysOf(pic.options), kc);
+  startChain(root, ctx);
   foldShift(root);
   const scopes: Scope[] = [{ state: root, styles: rootStyles }];
 
@@ -232,6 +244,7 @@ export function layoutPicture(pic: PictureSyntax, env: LayoutEnv, overrides: Rea
         const skc = keyCtx(ctx, styles);
         applyStyle(st, "every scope", skc);
         if (item.options) applyKeys(st, keysOf(item.options), skc);
+        if (st.chain !== scope.state.chain) startChain(st, ctx);
         foldShift(st);
         const inner: Scope = { state: st, styles };
         if (st.localBoundingBox) inner.box = { name: st.localBoundingBox, nodes: out.nodes.length, paths: out.paths.length };
@@ -262,10 +275,26 @@ export function layoutPicture(pic: PictureSyntax, env: LayoutEnv, overrides: Rea
         break;
       case "library":
         break;
-      case "opaque":
+      case "opaque": {
+        // "\chainin (n3);" makes an existing node the chain's current one.
+        const chainin = item.reason === "command" ? /^\\chainin\s*\(([^)]+)\)\s*(?:\[([^\]]*)\])?\s*;?\s*$/.exec(item.text) : null;
+        const chainName = scope.state.chain?.name ?? "chain";
+        const chain = ctx.chains.get(chainName) ?? { dir: scope.state.chain?.dir ?? "right", count: 0 };
+        const entry = chainin && ctx.names.get(chainin[1]!.trim());
+        if (chainin && entry?.nodeId) {
+          const node = out.nodes.find((n) => n.id === entry.nodeId);
+          const prev = chain.last;
+          chain.last = { id: entry.nodeId, name: chainin[1]!.trim() };
+          ctx.chains.set(chainName, chain);
+          const opts = parseOptionString(chainin[2] ?? "");
+          const join = opts.find((o) => o.key === "join");
+          if (node && join && prev) addJoin(prev.name, node, join.value ?? true, scope, ctx);
+          break;
+        }
         out.opaque.push({ range: item.range, reason: item.reason, names: item.names });
         for (const n of item.names) out.opaqueNames.add(n);
         break;
+      }
       case "node": {
         const node = layoutNode(item.node, scope, ctx, item.node.kind === "coordinate" ? "coordinate" : "statement", undefined, item.node);
         if (node && item.trailing) {
@@ -281,6 +310,15 @@ export function layoutPicture(pic: PictureSyntax, env: LayoutEnv, overrides: Rea
   }
   out.bounds = computeBounds(out);
   return out;
+}
+
+/** "start chain" in these options begins a chain; "continue chain" changes its direction. */
+function startChain(st: State, ctx: Ctx) {
+  if (!st.chain) return;
+  const existing = ctx.chains.get(st.chain.name);
+  if (st.chain.start || !existing) ctx.chains.set(st.chain.name, { dir: st.chain.dir, count: 0 });
+  else existing.dir = st.chain.dir;
+  st.chain = { ...st.chain, start: false };
 }
 
 /** Makes a scope's bounding box available as a rectangular node. */
@@ -350,7 +388,26 @@ function layoutNode(
     }
   }
   if (kind === "coordinate") st.shape = "coordinate";
-  const name = syn.name?.text ?? st.name;
+
+  // chains: a node on a chain goes next to the chain's last node, and gets a
+  // name like "chain-3" if it has none.
+  let chain: ChainState | undefined;
+  let chainName = "";
+  if (st.onChain) {
+    chainName = typeof st.onChain === "string" ? st.onChain : (st.chain?.name ?? "chain");
+    chain = ctx.chains.get(chainName);
+    if (!chain) {
+      chain = { dir: st.chain?.dir ?? "right", count: 0 };
+      ctx.chains.set(chainName, chain);
+    }
+    const placedByChain = !st.placement && st.at === undefined && !syn.at && chain.last;
+    if (placedByChain) {
+      const when = st.chainAt ?? { onGrid: st.onGrid, distance: st.nodeDistance };
+      st.placement = { kind: "relative", dir: chain.dir, of: chain.last!.name, onGrid: when.onGrid, distance: when.distance };
+      st.anchor = positioningAnchor(chain.dir);
+    }
+  }
+  const name = syn.name?.text ?? st.name ?? (chain ? `${chainName}-${chain.count + 1}` : undefined);
   const id = nextId(ctx, name);
 
   // Text.
@@ -420,6 +477,16 @@ function layoutNode(
     else locked.push(r.reason);
   }
   const placement = st.placement;
+  // The positioning library reads "on grid" and "node distance" when its key
+  // runs, so "[below=of a, on grid]" is not on grid. (The old "below of="
+  // syntax reads them at the end.) Checked against TeX: DECISIONS.md D23.
+  const relative = placement?.kind === "relative" && placement.of !== undefined ? placement : undefined;
+  const grid = relative?.onGrid ?? st.onGrid;
+  // For the editor: what a positioning key in the place of the node's own
+  // placement key would see.
+  const snap = relative ?? (placement?.kind === "old" ? placement : undefined);
+  const placementGrid = snap?.onGrid ?? st.onGrid;
+  const placementDistance = snap?.distance ?? st.nodeDistance;
   if (placement) {
     if (placement.kind === "relative" && placement.dir === "unmodelled") {
       posKind = "unknown";
@@ -448,9 +515,10 @@ function layoutNode(
       }
       if (placement.of !== undefined) {
         posKind = "positioning";
+        // Grid and node distance as they were when the key ran (see placementGrid).
         if (placement.shift === undefined) {
-          shiftV = st.nodeDistance.v;
-          shiftH = st.nodeDistance.h;
+          shiftV = (placement.distance ?? st.nodeDistance).v;
+          shiftH = (placement.distance ?? st.nodeDistance).h;
         }
         const target = evalLoose(placement.of, ctx, st);
         refs.push(...target.refs);
@@ -458,9 +526,9 @@ function layoutNode(
           let base = target.point;
           if (target.node) {
             // A bare node name: measure from its border, or its centre on grid.
-            base = st.onGrid ? target.node.shape.center : (anchorPoint(target.node.shape, OPPOSITE[positioningAnchor(placement.dir)] ?? "center") ?? base);
+            base = grid ? target.node.shape.center : (anchorPoint(target.node.shape, OPPOSITE[positioningAnchor(placement.dir)] ?? "center") ?? base);
           }
-          if (st.onGrid && anchor === positioningAnchor(placement.dir)) anchor = "center";
+          if (grid && anchor === positioningAnchor(placement.dir)) anchor = "center";
           const [dx, dy] = applyLinear(st.matrix, ux * shiftH, uy * shiftV);
           at = { x: base.x + dx, y: base.y + dy };
         } else locked.push(target.reason);
@@ -509,13 +577,14 @@ function layoutNode(
     position: { kind: posKind, refs: [...new Set(refs)], anchor },
     frame: st.matrix,
     units: { x: Math.hypot(...st.xUnit), y: Math.hypot(...st.yUnit) },
-    nodeDistance: { ...st.nodeDistance },
-    onGrid: st.onGrid,
+    nodeDistance: { ...placementDistance },
+    onGrid: placementGrid,
     unknownKeys: st.unknown,
     unrendered: [...st.unrendered, ...(text?.issues ?? []).map((i) => `label: ${i}`)],
     layer: st.layer,
   };
   if (name) node.name = name;
+  if (name && !syn.name && !st.name) node.implicitName = true;
   if (text) node.text = text;
   if (st.draw && strokeColor) node.stroke = strokeColor;
   if (st.fill && fillColor && !st.shading) node.fill = fillColor;
@@ -537,7 +606,40 @@ function layoutNode(
   if (name) ctx.names.set(name, { shape, nodeId: id });
   if (kind === "path") ctx.out.pathNodes.push(node);
   else ctx.out.nodes.push(node);
+
+  if (chain && name) {
+    const prev = chain.last;
+    chain.count++;
+    chain.last = { id, name };
+    if (st.onChain) node.locked ??= "its position is set by a chain";
+    if (st.join && prev) addJoin(prev.name, node, st.join, scope, ctx);
+  }
   return node;
+}
+
+interface ChainState {
+  dir: string;
+  count: number;
+  last?: { id: string; name: string };
+}
+
+/** The edge "join" draws from the previous node on a chain to this one. */
+function addJoin(prevName: string, node: LaidOutNode, spec: string | true, scope: Scope, ctx: Ctx): void {
+  const prev = ctx.names.get(prevName);
+  if (!prev) return;
+  const st = itemCopy(scope.state);
+  const kc = keyCtx(ctx, scope.styles.child());
+  st.draw = true;
+  applyStyle(st, "every join", kc);
+  // "join=by arrow" uses a style; "join=with x" joins from another node.
+  const by = typeof spec === "string" ? /^by\s+(.+)$/.exec(spec.trim()) : null;
+  if (by) applyKeys(st, parseOptionString(by[1]!), kc);
+  const from: PathPoint = { point: prev.shape.center, node: prev };
+  const to: PathPoint = { point: node.shape.center, node: { shape: node.shape, nodeId: node.id } };
+  const seg: Segment = { kind: "line", from: clip(from, to.point), to: clip(to, from.point) };
+  const syn: PathSyntax = { from: node.statement.from, to: node.statement.to, command: "join", keyword: node.statement, items: [] };
+  const ids = [prev.nodeId, node.id].filter((x): x is string => !!x);
+  emitPath(`join@${node.id}`, syn, node.statement, { segments: [seg], subpathStarts: [0], extra: [], connects: ids, edges: ids.length === 2 ? [[ids[0]!, ids[1]!]] : [], issues: [] }, st, ctx);
 }
 
 /** Bounding box of "fit=(a) (b) (c)". */

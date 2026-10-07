@@ -8,6 +8,7 @@ import { ColorTable } from "../tikz/colors.ts";
 import { builtinStyles } from "../tikz/keys.ts";
 import { type LayoutEnv, layoutPicture, type PictureLayout } from "../tikz/layout.ts";
 import type { KeyValue } from "../tikz/options.ts";
+import { fontSizes, type SizeTable } from "../tikz/state.ts";
 import type { Point } from "../tikz/shapes.ts";
 import { type DocumentSyntax, documentSyntax, type PictureSyntax } from "./syntax.ts";
 
@@ -53,7 +54,17 @@ export function pictureEnv(doc: DocumentModel, pic: PictureSyntax): LayoutEnv {
       }
     }
   }
-  return { styles, colors, macros, settings };
+  return { styles, colors, macros, settings, font: classFont(doc.text.slice(0, pic.from)) };
+}
+
+/** The base font a \documentclass line implies: its size option, and sans serif for beamer. */
+export function classFont(before: string): { sizes: SizeTable; family: "rm" | "sf" } {
+  const m = /\\documentclass\s*(?:\[([^\]]*)\])?\s*\{([^}]*)\}/.exec(before);
+  const options = m?.[1] ?? "";
+  const cls = (m?.[2] ?? "").trim();
+  const size = /\b(10|11|12)pt\b/.exec(options)?.[1];
+  const beamer = cls === "beamer";
+  return { sizes: fontSizes(size ? +size : beamer ? 11 : 10), family: beamer ? "sf" : "rm" };
 }
 
 export function layoutDocumentPicture(doc: DocumentModel, index: number, overrides?: ReadonlyMap<string, Point>): PictureLayout | null {

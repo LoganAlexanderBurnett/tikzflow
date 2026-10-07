@@ -83,7 +83,7 @@ export function referenceCandidates(layout: PictureLayout, node: LaidOutNode): L
   const latest = new Map<string, LaidOutNode>();
   for (const n of layout.nodes.slice(0, index)) if (n.name) latest.set(n.name, n);
   return [...latest.values()].filter(
-    (n) => n.kind === "statement" && n.name && SIMPLE_NAME.test(n.name) && !deps.has(n.id) && n.name !== node.name,
+    (n) => n.kind === "statement" && n.name && !n.implicitName && SIMPLE_NAME.test(n.name) && !deps.has(n.id) && n.name !== node.name,
   );
 }
 

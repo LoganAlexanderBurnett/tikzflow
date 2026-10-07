@@ -15,19 +15,26 @@ export interface FontSpec {
 
 export const NORMAL_FONT: FontSpec = { size: 10, baselineskip: 12, family: "rm", bold: false, italic: false, smallcaps: false };
 
-/** LaTeX's size commands for a 10pt document class: [size, baselineskip]. */
-export const FONT_SIZES: Record<string, [number, number]> = {
-  "\\tiny": [5, 6],
-  "\\scriptsize": [7, 8],
-  "\\footnotesize": [8, 9.5],
-  "\\small": [9, 11],
-  "\\normalsize": [10, 12],
-  "\\large": [12, 14],
-  "\\Large": [14.4, 18],
-  "\\LARGE": [17.28, 22],
-  "\\huge": [20.74, 25],
-  "\\Huge": [24.88, 30],
+/** LaTeX's size commands: [size, baselineskip] in pt. */
+export type SizeTable = Readonly<Record<string, readonly [number, number]>>;
+
+const SIZE_NAMES = ["\\tiny", "\\scriptsize", "\\footnotesize", "\\small", "\\normalsize", "\\large", "\\Large", "\\LARGE", "\\huge", "\\Huge"];
+
+// The standard classes' size{10,11,12}.clo files.
+const CLASS_SIZES: Record<number, Array<[number, number]>> = {
+  10: [[5, 6], [7, 8], [8, 9.5], [9, 11], [10, 12], [12, 14], [14.4, 18], [17.28, 22], [20.74, 25], [24.88, 30]],
+  11: [[6, 7], [8, 9.5], [9, 11], [10, 12], [10.95, 13.6], [12, 14], [14.4, 18], [17.28, 22], [20.74, 25], [24.88, 30]],
+  12: [[6, 7], [8, 9.5], [10, 12], [10.95, 13.6], [12, 14.5], [14.4, 18], [17.28, 22], [20.74, 25], [24.88, 30], [24.88, 30]],
 };
+
+/** The size commands of a 10pt, 11pt or 12pt document class. */
+export function fontSizes(classSize: number): SizeTable {
+  const rows = CLASS_SIZES[classSize] ?? CLASS_SIZES[10]!;
+  return Object.fromEntries(SIZE_NAMES.map((n, i) => [n, rows[i]!]));
+}
+
+/** LaTeX's size commands for a 10pt document class. */
+export const FONT_SIZES: SizeTable = fontSizes(10);
 
 export type Matrix = [number, number, number, number, number, number];
 
@@ -76,9 +83,24 @@ export interface ArrowTip {
 
 export type Placement =
   /** positioning library: "below=of a", "below=1cm of a", "below=2pt", "below". */
-  | { kind: "relative"; dir: string; shift?: string; of?: string }
+  | {
+      kind: "relative";
+      dir: string;
+      shift?: string;
+      of?: string;
+      /** "on grid" and "node distance" as they were when the key ran: later ones don't apply. */
+      onGrid?: boolean;
+      distance?: { v: number; h: number };
+    }
   /** pre-positioning syntax: "below of=a". */
-  | { kind: "old"; dir: string; of: string };
+  | {
+      kind: "old";
+      dir: string;
+      of: string;
+      /** What a positioning key in the same place would see; the old syntax itself reads them at the end. */
+      onGrid?: boolean;
+      distance?: { v: number; h: number };
+    };
 
 export interface Shading {
   /** Colours from one side to the other. */
@@ -90,6 +112,8 @@ export interface Shading {
 
 /** Everything a key can change. Scopes copy it; nodes and paths start from a copy. */
 export interface State {
+  /** Font sizes of the document class. */
+  sizes: SizeTable;
   // Graphic state, inherited by scopes and nested paths.
   color: RGB;
   drawColor?: RGB | "none";
@@ -160,6 +184,14 @@ export interface State {
   fit?: string;
   /** Scopes: "local bounding box=name". */
   localBoundingBox?: string;
+  /** chains: the chain new "on chain" nodes join, set by "start chain". */
+  chain?: { name: string; dir: string; start: boolean };
+  /** "on chain" (true) or "on chain=name". */
+  onChain?: string | true;
+  /** "on grid" and "node distance" when "on chain" ran, which places the node. */
+  chainAt?: { onGrid: boolean; distance: { v: number; h: number } };
+  /** "join" (true) or "join=by style" / "join=with node". */
+  join?: string | true;
   labels: string[];
   /** Path nodes: position along the segment. */
   pos?: number;
@@ -177,6 +209,7 @@ export const DEFAULT_TIP: ArrowTip = { kind: "to", open: false, count: 1, revers
 
 export function initialState(): State {
   return {
+    sizes: FONT_SIZES,
     color: [0, 0, 0],
     lineWidth: 0.4,
     dash: null,
@@ -250,6 +283,9 @@ export function itemCopy(s: State): State {
   delete c.at;
   delete c.placement;
   delete c.fit;
+  delete c.onChain;
+  delete c.chainAt;
+  delete c.join;
   delete c.pos;
   delete c.bend;
   delete c.out;

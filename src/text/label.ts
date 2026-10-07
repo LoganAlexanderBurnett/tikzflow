@@ -16,6 +16,8 @@ export interface LabelEnv {
   macros: ReadonlyMap<string, Macro>;
   /** Resolves a colour name for \color and \textcolor. */
   color: (expr: string) => RGB | null;
+  /** Size commands of the document class; 10pt if missing. */
+  sizes?: Readonly<Record<string, readonly [number, number]>>;
 }
 
 export interface TextStyle {
@@ -619,8 +621,22 @@ function read(src: string, style: TextStyle, env: LabelEnv, out: Item[], issues:
       st = { ...st, ...DECLARATIONS[cs]! };
       continue;
     }
-    if (cs in SIZE_DECLARATIONS) {
-      st = { ...st, size: SIZE_DECLARATIONS[cs]! };
+    const size = env.sizes?.[cs]?.[0] ?? SIZE_DECLARATIONS[cs];
+    if (size !== undefined) {
+      st = { ...st, size };
+      continue;
+    }
+    if (cs === "\\ref" || cs === "\\eqref" || cs === "\\pageref" || cs === "\\autoref" || cs === "\\cref") {
+      // Unresolved references, as LaTeX shows them.
+      readGroup(r);
+      pushText(cs === "\\eqref" ? "(??)" : "??");
+      continue;
+    }
+    if (cs === "\\cite" || cs === "\\citep" || cs === "\\citet") {
+      readOptional(r);
+      readOptional(r);
+      readGroup(r);
+      pushText("[?]");
       continue;
     }
     if (cs === "\\color") {

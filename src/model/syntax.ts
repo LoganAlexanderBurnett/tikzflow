@@ -78,7 +78,7 @@ export type BodyItem =
   | { kind: "library"; range: Range; names: string[]; list?: OptionList }
   | { kind: "scope-begin"; range: Range; options?: OptionList }
   | { kind: "scope-end"; range: Range }
-  | { kind: "opaque"; range: Range; reason: OpaqueReason; names: string[] }
+  | { kind: "opaque"; range: Range; reason: OpaqueReason; names: string[]; text: string }
   | { kind: "definition"; range: Range; def: Definition };
 
 /** Why a block is kept as-is. "environment" is a \begin/\end marker (pgfonlayer, ...) whose content is still modelled. */
@@ -394,9 +394,10 @@ function bodyItems(parent: SyntaxNode, text: string, out: BodyItem[], skip?: Syn
     const prev = out[out.length - 1];
     if (prev && prev.kind === "opaque" && prev.reason === reason && reason === "command" && /^\s*$/.test(text.slice(prev.range.to, range.from))) {
       prev.range = { from: prev.range.from, to: range.to };
+      prev.text = text.slice(prev.range.from, prev.range.to);
       return;
     }
-    out.push({ kind: "opaque", range, reason, names });
+    out.push({ kind: "opaque", range, reason, names, text: text.slice(range.from, range.to) });
   };
   for (; i < kids.length; i++) {
     const c = kids[i]!;

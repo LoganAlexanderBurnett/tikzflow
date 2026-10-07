@@ -3,7 +3,7 @@
 // state.unknown, never guessed at.
 import type { ColorTable } from "./colors.ts";
 import { indexTopLevel, type KeyValue, parseOptionString, stripBraces } from "./options.ts";
-import { type ArrowTip, FONT_SIZES, multiply, type State } from "./state.ts";
+import { type ArrowTip, multiply, type State } from "./state.ts";
 import { CM, evalLength, evalNumber, evalQuantity, type FontUnits } from "./units.ts";
 
 export interface StyleEntry {
@@ -233,13 +233,11 @@ const UNRENDERED = new Set([
   "path picture",
   "pattern",
   "pattern color",
-  "start chain",
   "chain default direction",
-  "every join",
 ]);
 
 /** Keys that mean the node's position depends on something the editor doesn't model. */
-export const UNMODELLED_PLACEMENT = new Set(["on chain", "join", "continue chain", "start branch", "below delimiter", "matrix anchor"]);
+export const UNMODELLED_PLACEMENT = new Set(["start branch", "below delimiter", "matrix anchor"]);
 
 function fontUnits(s: State): FontUnits {
   return { em: s.font.size, ex: s.font.size * 0.430554 };
@@ -270,8 +268,8 @@ export function applyFont(s: State, value: string, ctx: KeyContext): boolean {
     const m = tokens[i]!;
     const cs = m[1] ? `\\${m[1]}` : null;
     if (!cs) continue; // braces and stray characters (e.g. arguments handled below)
-    if (cs in FONT_SIZES) {
-      const [size, skip] = FONT_SIZES[cs]!;
+    if (cs in s.sizes) {
+      const [size, skip] = s.sizes[cs]!;
       s.font = { ...s.font, size, baselineskip: skip };
     } else if (cs === "\\bfseries" || cs === "\\bf") s.font = { ...s.font, bold: true };
     else if (cs === "\\mdseries") s.font = { ...s.font, bold: false };
@@ -536,9 +534,28 @@ export function applyKey(s: State, kv: KeyValue, ctx: KeyContext, depth = 0): vo
     s.unrendered.push(key);
     return;
   }
-  if (UNMODELLED_PLACEMENT.has(key) || key.startsWith("on chain") || key.startsWith("start chain")) {
+  // chains library: "start chain=name going below", "on chain", "join".
+  if (key === "start chain" || key === "continue chain") {
+    const v = value ?? "";
+    const going = /(?:^|\s)going\s+(.+)$/.exec(v);
+    const name = v.replace(/(?:^|\s)going\s+.+$/, "").trim();
+    const dir = going ? going[1]!.trim() : key === "continue chain" ? (s.chain?.dir ?? "right") : "right";
+    if (/placed/.test(v)) s.unrendered.push(`${key}=${v}`);
+    s.chain = { name: name || (key === "continue chain" ? (s.chain?.name ?? "chain") : "chain"), dir, start: key === "start chain" };
+    return;
+  }
+  if (key === "on chain") {
+    s.onChain = value ? value.replace(/\s+going\s+.+$/, "").trim() || true : true;
+    s.chainAt = { onGrid: s.onGrid, distance: { ...s.nodeDistance } };
+    return;
+  }
+  if (key === "join") {
+    s.join = value ?? true;
+    return;
+  }
+  if (UNMODELLED_PLACEMENT.has(key)) {
     s.unrendered.push(key);
-    if (key.startsWith("on chain") || key === "matrix anchor") s.placement = { kind: "relative", dir: "unmodelled", of: key };
+    if (key === "matrix anchor") s.placement = { kind: "relative", dir: "unmodelled", of: key };
     return;
   }
 
@@ -926,13 +943,14 @@ export function applyKey(s: State, kv: KeyValue, ctx: KeyContext, depth = 0): vo
     if (of >= 0) {
       const shift = value.slice(0, of).trim();
       const target = value.slice(of + 3).trim();
-      s.placement = shift ? { kind: "relative", dir: key, shift, of: target } : { kind: "relative", dir: key, of: target };
+      const at = { onGrid: s.onGrid, distance: { ...s.nodeDistance } };
+      s.placement = shift ? { kind: "relative", dir: key, shift, of: target, ...at } : { kind: "relative", dir: key, of: target, ...at };
     } else s.placement = { kind: "relative", dir: key, shift: value };
     return;
   }
   const old = /^(above|below|left|right|above left|above right|below left|below right) of$/.exec(key);
   if (old && value) {
-    s.placement = { kind: "old", dir: old[1]!, of: value };
+    s.placement = { kind: "old", dir: old[1]!, of: value, onGrid: s.onGrid, distance: { ...s.nodeDistance } };
     return;
   }
 

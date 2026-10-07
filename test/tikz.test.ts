@@ -158,6 +158,27 @@ describe("positioning", () => {
     expect(b.x).toBeCloseTo(a.x, 3);
     expect(a.y - b.y).toBeCloseTo(CM, 3);
   });
+  it("on grid and node distance only count if they come before the positioning key", () => {
+    // Checked against pdfTeX: a later "on grid" or "node distance" doesn't change below=of.
+    const l = layout(
+      pic(
+        [
+          "\\node (a) at (0,0) {A};\\node[below=of a, on grid] (b) {B};",
+          "\\node (a2) at (3,0) {A};\\node[on grid, below=of a2] (c) {C};",
+          "\\node (a3) at (6,0) {A};\\node[below=of a3, node distance=25mm] (d) {D};",
+          "\\node (a4) at (9,0) {A};\\node[node distance=25mm, below=of a4] (e) {E};",
+          "\\node (a5) at (12,0) {A};\\node[below of=a5, node distance=25mm] (f) {F};",
+        ].join("\n"),
+        "[every node/.style={draw, minimum height=12mm}]",
+      ),
+    );
+    const gap = (top: string, bottom: string) => anchor(node(l, top), "south").y - anchor(node(l, bottom), "north").y;
+    expect(gap("a", "b")).toBeCloseTo(CM, 3);
+    expect(node(l, "a2").shape.center.y - node(l, "c").shape.center.y).toBeCloseTo(CM, 3);
+    expect(gap("a3", "d")).toBeCloseTo(CM, 3);
+    expect(gap("a4", "e")).toBeCloseTo(2.5 * CM, 3);
+    expect(node(l, "a5").shape.center.y - node(l, "f").shape.center.y).toBeCloseTo(2.5 * CM, 3);
+  });
   it("old below of= measures centre to centre", () => {
     const l = layout(pic("\\node (a) {A};\n\\node[below of=a] (b) {B};", "[node distance=2cm]"));
     expect(node(l, "a").shape.center.y - node(l, "b").shape.center.y).toBeCloseTo(2 * CM, 3);
@@ -234,6 +255,32 @@ describe("paths", () => {
       ["a", "b"],
       ["a", "c"],
     ]);
+  });
+});
+
+describe("chains", () => {
+  it("places nodes on a chain next to each other and joins them", () => {
+    const l = layout(pic("\\node[on chain, join] (a) {A};\n\\node[on chain, join] (b) {B};\n\\node[on chain, join] {C};", "[start chain=going below, node distance=5mm]"));
+    const a = node(l, "a");
+    const b = node(l, "b");
+    const c = node(l, "chain-3");
+    expect(anchor(a, "south").y - anchor(b, "north").y).toBeCloseTo(5 * 2.845274, 3);
+    expect(anchor(b, "south").y - anchor(c, "north").y).toBeCloseTo(5 * 2.845274, 3);
+    expect(l.paths.flatMap((p) => p.edges)).toEqual([
+      ["a", "b"],
+      ["b", "chain-3"],
+    ]);
+    expect(b.locked).toMatch(/chain/);
+  });
+  it("continues from a node pulled in with \\chainin", () => {
+    const l = layout(pic("\\node (x) at (3,0) {X};\n\\begin{scope}[start chain=going right]\\chainin (x);\\node[on chain, join] (y) {Y};\\end{scope}"));
+    expect(anchor(node(l, "y"), "west").x - anchor(node(l, "x"), "east").x).toBeCloseTo(CM, 3);
+    expect(l.paths.flatMap((p) => p.edges)).toEqual([["x", "y"]]);
+    expect(l.opaque).toEqual([]);
+  });
+  it("never offers implicit chain names as reference targets", () => {
+    const l = layout(pic("\\node[on chain] {A};\n\\node (b) at (3,0) {B};", "[start chain]"));
+    expect(node(l, "chain-1").implicitName).toBe(true);
   });
 });
 
