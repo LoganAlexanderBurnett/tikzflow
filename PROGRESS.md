@@ -1,12 +1,12 @@
 # Progress
 
 ## Current status
-**Milestone 0 (technical spike): complete, awaiting review (2026-10-07).** The engine recommendation (DECISIONS.md D13) and the license direction need the owner's decision before Milestone 1 starts.
+**Milestone 0 (technical spike): complete, including the follow-up checks the owner asked for (2026-10-07).** The license is GPL-3.0-or-later (D14). TikZJax is provisionally approved; the follow-up results are below and in D13 and D15. Waiting for the owner's review before Milestone 1.
 
 ## Milestones
 | Milestone | Status |
 |---|---|
-| M0: Technical spike | Done, awaiting review |
+| M0: Technical spike | Done, follow-up checks done, awaiting review |
 | M1: Core loop | Not started |
 | M2: Creating from scratch and editing edges | Not started |
 | M3: Accurate preview and export | Not started |
@@ -66,6 +66,94 @@ Stopped there, as agreed.
   - render the PDF with pdf.js, which means bundling a PDF renderer and getting canvas, not SVG.
 - Writing our own DVI-to-SVG converter (roughly a few thousand lines) would remove the GPL-3.0 `dvi2html` dependency.
 
+## M0 follow-up checks (2026-10-07)
+The owner chose GPL-3.0 (D14) and approved TikZJax provisionally, pending two timeboxed checks. Both are done.
+
+### Check 1: rendering, TikZJax vs busytex
+Ran `npm run compare-engines` on 13 self-written diagrams in `spike/engines/diagrams/`, covering:
+- fills and xcolor mixes;
+- dash patterns, line caps and joins, double lines;
+- opacity;
+- 14 arrows.meta tips;
+- fit on the background layer;
+- clipping;
+- rounded and chamfered corners;
+- 12 node shapes;
+- a full flowchart;
+- text and math;
+- transforms;
+- curves, shadings, and a picture nested in a node.
+
+busytex's PDF is the reference. Each composite PNG (reference | TikZJax | diffs) is saved to `spike/engines/results/compare/` (gitignored), and the summary to `compare.json`. All 13 diagrams compile in both engines.
+
+**Every difference found:**
+1. **`\matrix` cell borders missing** (the M0 defect). *Root cause:* `pgfsys-ximera.def` wraps every TeX box in `<g stroke="none">`, so glyphs aren't outlined. Matrix cells are drawn inside such boxes and never reset the stroke, so they inherit `none`. *Workaround:* `fixBoxStroke()` in `spike/engines/tikzjax.ts` brings the matrix diagram from 64% mismatch down to 0.5%.
+2. **Pictures nested in node text (`\node{\tikz ...}`) lose every stroke.** *Root cause:* inside a box, the driver emits colour changes as text colour (fill plus `stroke="none"`), including the nested picture's initial colour. *Workaround:* the same post-process restores the strokes, but not their colour, which was never emitted, so they come out black. *Real fix:* patch the driver.
+3. **Everything is uniformly 0.375% too large.** *Root cause:* the SVG's coordinates are TeX points (1/72.27 in), but its `width` and `height` are labelled CSS `pt` (1/72 in). *Fix:* scale the SVG by 72/72.27 when placing it. The comparison does this; the overlay must too.
+4. **Hairlines: a renderer difference, not an engine one.** TikZJax does emit `ultra thin` (0.1 pt) lines. PDF viewers draw any line at least one device pixel wide, while browsers draw true width, so it's nearly invisible at normal zoom. The preview should enforce a minimum visible stroke width.
+5. **Sub-pixel differences, not visible at normal zoom:**
+   - two filled rectangles offset by up to 0.33 pt;
+   - glyph edges and positions within about 0.3 pt (BaKoMa TrueType in the browser vs Type 1 in pdf.js);
+   - pdf.js draws strokes slightly heavier.
+
+**Matched:**
+- fills, xcolor mixes and the even-odd rule;
+- dash patterns, including dash phase;
+- caps, joins and double lines;
+- opacity (fill, draw and text);
+- every arrows.meta tip tested: Stealth, Latex, `Triangle[open]`, Circle, Bar, Kite with fill, `Square[open]`, reversed, `sep`, bent, round, custom sizes and colours;
+- fit on the background layer;
+- clipping, including nested clips;
+- rounded and chamfered corners;
+- all 12 node shapes;
+- the flowchart;
+- display math, font sizes and weights, text-width wrapping;
+- rotate, scale, slant and `transform shape`;
+- `to[bend]`, `out`/`in`, `.. controls ..`, arcs and ellipses;
+- linear and ball shadings.
+
+After the unit fix and stroke fix, the residual mismatch is 0–2.6% of ink pixels. Text-heavy and dash-heavy diagrams reach 6%, all of it rasterisation noise.
+
+### Check 2: runtime packages and user preamble
+Test page: `/spike/engines/packages.html`.
+
+**How loading works:** TikZJax looks for files missing from its format at `tex_files/<name>.gz`, next to its worker. The dev server serves CTAN files there, gzipped on the fly. TikZJax's uncompressed fallback (`fetch(name)`) is broken: it stores the response as a string and crashes. So production must ship extra packages as `tex_files/<name>.gz`.
+
+| Case | Result |
+|---|---|
+| amssymb (bundled, not in the format) | ✅ |
+| bm, from CTAN at compile time | ✅ |
+| mathtools 2026, with calc and mhsetup | ✅ |
+| siunitx 2026, with translations, pdftexcmds, infwarerr, ltxcmds | ❌ `! Undefined control sequence` inside siunitx: it needs a newer expl3 than the format's |
+| User preamble (`\usepackage`, `\newcommand`, `\definecolor`, `\tikzset`), as structured fields | ✅ |
+| The same preamble as raw lines | ✅ |
+| Nonexistent package | ⚠️ "succeeds": TikZJax hands TeX an empty file, so the error surfaces later or never |
+| Undefined macro | ❌ fatal: error-stop mode makes TeX stop with no output |
+| Undefined macro with `\scrollmode` in the preamble | ✅ output, and the error is in the log with its line number |
+| `lmodern` | ❌ "Could not find font rm-lmr10" |
+
+In both preamble forms, the custom colour `#1F77B4` comes through as stroke and `brand!15` as fill.
+
+**What the format contains:** e-TeX with a format dumped 2025-01-02, holding LaTeX 2023-11-01, expl3 2024-01-22, pgf 3.1.10 and xcolor 3.01.
+
+**Log channel:** with `showConsole`, TikZJax posts each line of TeX's terminal output to the page as a string message. The adapter now collects them into `CompileResult.log`. Streaming the log has no measurable cost.
+
+**What full user-preamble support would take:**
+1. **Build our own format** from a pinned TeX Live snapshot, and host packages from the same snapshot. That removes version skew of the siunitx kind and moves us to pgf 3.1.12. The driver fixes above need this rebuild anyway.
+2. **Patch the file loader** so a missing file is reported as missing, not handed over as an empty file.
+3. **Inject `\scrollmode`** and parse errors from the log. Map their line numbers back through TikZJax's generated `input.tex` (preamble lines plus `\begin{document}`).
+4. **Fonts.** Only Computer Modern and the AMS fonts have web fonts. Each extra font family needs TFMs plus web fonts converted per encoding. Proposal: the preview always uses Computer Modern; `.tex` export keeps the user's font packages.
+5. **Curate the hosted packages.** With no backend, nothing can be fetched from CTAN at runtime, so we host a curated set of common packages. A few hundred gzipped files is well within the Pages file limit.
+
+**Driver source:** `pgfsys-ximera.def` isn't in the TikZJax, web2js or ximeraLatex repositories (ximeraLatex is LPPL-1.3c). Fallback: start from pgf's own `pgfsys-dvisvgm.def` (LPPL, ships with pgf 3.1.12) and adapt `dvi2html` to it.
+
+### Firefox spot check: not run
+Playwright's Firefox 155, and an older Firefox 137 build, both fail to start on this machine. Windows reports "side-by-side configuration is incorrect: dependent assembly mozglue could not be found", although `mozglue.dll` is present. Edge runs fine. The cause looks environmental: the sandbox the agent's commands run in, or a system policy. To try it from your own terminal: `npx playwright install firefox`, then `npm run bench-engines -- tikzjax busytex --browser=firefox`. Non-Edge results get a browser suffix in their file names, so they don't overwrite the Edge ones.
+
+### Timings after the follow-up (Edge, fresh context)
+- **TikZJax:** load 0.81 s, cold compile 0.47 s, warm 0.41 s, with log streaming on.
+- **busytex:** unchanged.
+
 ## Notes for later milestones
 - **M3 PDF export (owner direction, 2026-10-07):** `.tex` export is the primary output. For quick PDF exports, prefer converting the preview SVG to PDF in the browser. Don't ship busytex for this. Decide the details in Milestone 3.
 
@@ -80,8 +168,8 @@ Stopped there, as agreed.
 - **Old `\tikzstyle` syntax** is treated as document text.
 
 **Engines and hosting**
-- **TikZJax's matrix-cell borders don't render.** See the fidelity check above.
+- **TikZJax rendering defects.** Missing `\matrix` cell borders, lost strokes in nested pictures, and the 72.27/72 scale error are root-caused, with workarounds; see the M0 follow-up checks.
 - **TikZJax refetches files on every compile.** It clears its virtual file system after each compile, so production needs good HTTP caching or a patched loader.
 - **`.gz` assets get decompressed early.** Static servers may send `.gz` files with `Content-Encoding: gzip`, so the browser inflates them before the engine does. Vite's dev server did this. Cloudflare Pages behaviour needs checking in Milestone 3, or the assets should be renamed or recompressed with Brotli.
 - **Cross-origin isolation needs headers on workers.** With COOP/COEP set, every worker script must also send COEP. In production that means a `_headers` file.
-- **Firefox not yet tested.** It needs Playwright's Firefox build, a separate download of about 100 MB.
+- **Firefox not yet tested.** Playwright's Firefox won't start on this machine; see the M0 follow-up checks.

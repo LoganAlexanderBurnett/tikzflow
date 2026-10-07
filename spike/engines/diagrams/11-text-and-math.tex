@@ -1,0 +1,12 @@
+% libraries: positioning
+% Text: math, font sizes and weights, multi-line labels, text width.
+\begin{tikzpicture}[every node/.style={draw}]
+  \node (a) {$\displaystyle\int_0^1 x^2\,dx = \frac{1}{3}$};
+  \node[right=of a] (b) {$\sum_{i=1}^{n} \alpha_i \beta^{i}$};
+  \node[below=of a, font=\bfseries] (c) {Bold label};
+  \node[right=of c, font=\itshape\small] (d) {small italic};
+  \node[below=of c, align=center] (e) {first line\\second line};
+  \node[right=of e, text width=3cm] (f) {A longer label that wraps inside a fixed text width.};
+  \node[below=of e, font=\Large] {Large};
+  \node[below=of f, font=\ttfamily\tiny] {tiny monospace};
+\end{tikzpicture}

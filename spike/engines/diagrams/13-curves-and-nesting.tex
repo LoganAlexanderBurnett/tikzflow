@@ -1,0 +1,12 @@
+% libraries: shadings
+% Curves, arcs, a shading, and a picture nested inside a node.
+\begin{tikzpicture}
+  \draw (0,0) to[bend left=30] (2,0);
+  \draw (0,-0.5) to[out=60, in=120] (2,-0.5);
+  \draw (0,-1.2) .. controls (0.5,0) and (1.5,-2.4) .. (2,-1.2);
+  \draw (3,0) arc[start angle=0, end angle=270, radius=0.6];
+  \draw (5,-0.5) ellipse (0.9 and 0.5);
+  \shade[left color=blue!50, right color=red!50] (0,-2.2) rectangle (2.5,-1.8);
+  \shade[ball color=green!60] (4,-2) circle (0.4);
+  \node[draw] at (6.5,-1.5) {\tikz \draw[red, thick] (0,0) -- (0.5,0.3) -- (1,0);};
+\end{tikzpicture}

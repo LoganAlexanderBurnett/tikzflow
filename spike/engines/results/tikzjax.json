@@ -1,7 +1,7 @@
 {
   "engine": "tikzjax",
   "browser": "msedge 154.0.4258.53",
-  "date": "2026-10-07T04:30:08.597Z",
+  "date": "2026-10-07T05:09:54.016Z",
   "ok": true,
   "probe": {
     "pgf": "3.1.10",
@@ -15,13 +15,13 @@
       "matrix": true
     }
   },
-  "loadMsMedian": 792.5699996948242,
-  "coldCompileMsMedian": 466.86499977111816,
-  "warmCompileMsMedian": 409.46999979019165,
+  "loadMsMedian": 807.1799998283386,
+  "coldCompileMsMedian": 474.4249997138977,
+  "warmCompileMsMedian": 408.6300001144409,
   "download": {
-    "files": 18,
-    "bytes": 6743690,
-    "brotliBytes": 4019971,
+    "files": 22,
+    "bytes": 6789946,
+    "brotliBytes": 4066240,
     "largestFile": {
       "url": "/vendor/tikzjax/package/dist/core.dump.gz",
       "bytes": 6011773,
@@ -34,14 +34,14 @@
     {
       "engine": "tikzjax",
       "ok": true,
-      "loadMs": 792.1849999427795,
+      "loadMs": 836.335000038147,
       "compileMs": [
-        471.61499977111816,
-        409.46999979019165,
-        406.414999961853,
-        421.5550003051758,
-        398.6599998474121,
-        481.7949995994568
+        659.3300004005432,
+        406.92000007629395,
+        399.8450002670288,
+        402.3049998283386,
+        419.45499992370605,
+        408.6300001144409
       ],
       "outputKind": "svg",
       "outputBytes": 12195,
@@ -84,9 +84,29 @@
           "brotliBytes": 17811
         },
         {
+          "url": "/vendor/tikzjax/package/dist/fonts/cmmi10.woff2",
+          "bytes": 13452,
+          "brotliBytes": 13456
+        },
+        {
           "url": "/vendor/tikzjax/package/dist/fonts.css",
           "bytes": 12758,
           "brotliBytes": 602
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/fonts/cmsy10.woff2",
+          "bytes": 11204,
+          "brotliBytes": 11208
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/fonts/cmr5.woff2",
+          "bytes": 10804,
+          "brotliBytes": 10805
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/fonts/cmr10.woff2",
+          "bytes": 10796,
+          "brotliBytes": 10800
         },
         {
           "url": "/vendor/tikzjax/package/dist/tex_files/pgflibraryarrows.meta.code.tex.gz",
@@ -149,20 +169,20 @@
           "brotliBytes": 249
         }
       ],
-      "wallMs": 3467,
-      "logTail": ""
+      "wallMs": 3736,
+      "logTail": "This is e-TeX, Version 3.141592653-2.6 (preloaded format=latex 2025.1.2)\n**entering extended mode\n(input.tex\nLaTeX2e <2023-11-01> patch level 1\nL3 programming layer <2024-01-22>\n(\"amsmath.sty\"\nFor additional information on amsmath, use the `?' option.\n(\"amstext.sty\" (\"amsgen.sty\")) (\"amsbsy.sty\") (\"amsopn.sty\"))\n(tikzlibrarypositioning.code.tex) (tikzlibraryshapes.geometric.code.tex\n(pgflibraryshapes.geometric.code.tex)) (pgflibraryarrows.meta.code.tex)\n(tikzlibraryfit.code.tex) (tikzlibrarybackgrounds.code.tex)\n(tikzlibrarycalc.code.tex) (tikzlibrarymatrix.code.tex) (\"l3backend-dvips.def\")\n (TeXinputs:\"input.aux\")\nTIKZFLOW-PROBE: pgf=3.1.10; positioning=yes; shapes.geometric=yes; arrows.meta=\nyes; fit=yes; backgrounds=yes; calc=yes; matrix=yes\nUnderfull \\hbox (badness 3407) in paragraph at lines 21--21\n[][]\\OT1/cmr/m/n/5 pgf=3.1.10; po-si-tion-ing=yes; shapes.geometric=yes; \nUnderfull \\hbox (badness 1715) in paragraph at lines 21--21\n\\OT1/cmr/m/n/5 ar-rows.meta=yes; fit=yes; back-grounds=yes; calc=yes; \n[1] (input.aux) )\n(see the transcript file for additional information)\nOutput written on input.dvi (1 page, 9696 bytes).\nTranscript written on input.log."
     },
     {
       "engine": "tikzjax",
       "ok": true,
-      "loadMs": 792.5699996948242,
+      "loadMs": 793.3100004196167,
       "compileMs": [
-        459.8849997520447,
-        414.7550001144409,
-        392.94999980926514,
-        426.2449998855591,
-        419.98999977111816,
-        403.5050001144409
+        427.5700001716614,
+        394.7699999809265,
+        406.6300001144409,
+        431.789999961853,
+        418.31500005722046,
+        416.8650002479553
       ],
       "outputKind": "svg",
       "outputBytes": 12195,
@@ -205,9 +225,29 @@
           "brotliBytes": 17811
         },
         {
+          "url": "/vendor/tikzjax/package/dist/fonts/cmmi10.woff2",
+          "bytes": 13452,
+          "brotliBytes": 13456
+        },
+        {
           "url": "/vendor/tikzjax/package/dist/fonts.css",
           "bytes": 12758,
           "brotliBytes": 602
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/fonts/cmsy10.woff2",
+          "bytes": 11204,
+          "brotliBytes": 11208
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/fonts/cmr5.woff2",
+          "bytes": 10804,
+          "brotliBytes": 10805
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/fonts/cmr10.woff2",
+          "bytes": 10796,
+          "brotliBytes": 10800
         },
         {
           "url": "/vendor/tikzjax/package/dist/tex_files/pgflibraryarrows.meta.code.tex.gz",
@@ -270,20 +310,20 @@
           "brotliBytes": 249
         }
       ],
-      "wallMs": 3377,
-      "logTail": ""
+      "wallMs": 3358,
+      "logTail": "This is e-TeX, Version 3.141592653-2.6 (preloaded format=latex 2025.1.2)\n**entering extended mode\n(input.tex\nLaTeX2e <2023-11-01> patch level 1\nL3 programming layer <2024-01-22>\n(\"amsmath.sty\"\nFor additional information on amsmath, use the `?' option.\n(\"amstext.sty\" (\"amsgen.sty\")) (\"amsbsy.sty\") (\"amsopn.sty\"))\n(tikzlibrarypositioning.code.tex) (tikzlibraryshapes.geometric.code.tex\n(pgflibraryshapes.geometric.code.tex)) (pgflibraryarrows.meta.code.tex)\n(tikzlibraryfit.code.tex) (tikzlibrarybackgrounds.code.tex)\n(tikzlibrarycalc.code.tex) (tikzlibrarymatrix.code.tex) (\"l3backend-dvips.def\")\n (TeXinputs:\"input.aux\")\nTIKZFLOW-PROBE: pgf=3.1.10; positioning=yes; shapes.geometric=yes; arrows.meta=\nyes; fit=yes; backgrounds=yes; calc=yes; matrix=yes\nUnderfull \\hbox (badness 3407) in paragraph at lines 21--21\n[][]\\OT1/cmr/m/n/5 pgf=3.1.10; po-si-tion-ing=yes; shapes.geometric=yes; \nUnderfull \\hbox (badness 1715) in paragraph at lines 21--21\n\\OT1/cmr/m/n/5 ar-rows.meta=yes; fit=yes; back-grounds=yes; calc=yes; \n[1] (input.aux) )\n(see the transcript file for additional information)\nOutput written on input.dvi (1 page, 9696 bytes).\nTranscript written on input.log."
     },
     {
       "engine": "tikzjax",
       "ok": true,
-      "loadMs": 811.75,
+      "loadMs": 807.1799998283386,
       "compileMs": [
-        466.86499977111816,
-        429.1100001335144,
-        426.0199999809265,
-        399.2050004005432,
-        404.57999992370605,
-        396.50499963760376
+        474.4249997138977,
+        414.039999961853,
+        402.59999990463257,
+        409.75,
+        412.3650002479553,
+        406.31500005722046
       ],
       "outputKind": "svg",
       "outputBytes": 12195,
@@ -326,9 +366,29 @@
           "brotliBytes": 17811
         },
         {
+          "url": "/vendor/tikzjax/package/dist/fonts/cmmi10.woff2",
+          "bytes": 13452,
+          "brotliBytes": 13456
+        },
+        {
           "url": "/vendor/tikzjax/package/dist/fonts.css",
           "bytes": 12758,
           "brotliBytes": 602
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/fonts/cmsy10.woff2",
+          "bytes": 11204,
+          "brotliBytes": 11208
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/fonts/cmr5.woff2",
+          "bytes": 10804,
+          "brotliBytes": 10805
+        },
+        {
+          "url": "/vendor/tikzjax/package/dist/fonts/cmr10.woff2",
+          "bytes": 10796,
+          "brotliBytes": 10800
         },
         {
           "url": "/vendor/tikzjax/package/dist/tex_files/pgflibraryarrows.meta.code.tex.gz",
@@ -391,8 +451,8 @@
           "brotliBytes": 249
         }
       ],
-      "wallMs": 3403,
-      "logTail": ""
+      "wallMs": 3394,
+      "logTail": "This is e-TeX, Version 3.141592653-2.6 (preloaded format=latex 2025.1.2)\n**entering extended mode\n(input.tex\nLaTeX2e <2023-11-01> patch level 1\nL3 programming layer <2024-01-22>\n(\"amsmath.sty\"\nFor additional information on amsmath, use the `?' option.\n(\"amstext.sty\" (\"amsgen.sty\")) (\"amsbsy.sty\") (\"amsopn.sty\"))\n(tikzlibrarypositioning.code.tex) (tikzlibraryshapes.geometric.code.tex\n(pgflibraryshapes.geometric.code.tex)) (pgflibraryarrows.meta.code.tex)\n(tikzlibraryfit.code.tex) (tikzlibrarybackgrounds.code.tex)\n(tikzlibrarycalc.code.tex) (tikzlibrarymatrix.code.tex) (\"l3backend-dvips.def\")\n (TeXinputs:\"input.aux\")\nTIKZFLOW-PROBE: pgf=3.1.10; positioning=yes; shapes.geometric=yes; arrows.meta=\nyes; fit=yes; backgrounds=yes; calc=yes; matrix=yes\nUnderfull \\hbox (badness 3407) in paragraph at lines 21--21\n[][]\\OT1/cmr/m/n/5 pgf=3.1.10; po-si-tion-ing=yes; shapes.geometric=yes; \nUnderfull \\hbox (badness 1715) in paragraph at lines 21--21\n\\OT1/cmr/m/n/5 ar-rows.meta=yes; fit=yes; back-grounds=yes; calc=yes; \n[1] (input.aux) )\n(see the transcript file for additional information)\nOutput written on input.dvi (1 page, 9696 bytes).\nTranscript written on input.log."
     }
   ]
 }

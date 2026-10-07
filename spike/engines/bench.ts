@@ -27,7 +27,12 @@ declare global {
 }
 
 const ENGINES: Record<string, () => Promise<Engine>> = {
-  tikzjax: async () => new (await import("./tikzjax.ts")).TikzJax(),
+  tikzjax: async () => {
+    const engine = new (await import("./tikzjax.ts")).TikzJax();
+    // ?console=0 turns off TikZJax's log streaming, to measure its cost.
+    if (new URLSearchParams(location.search).get("console") === "0") engine.showConsole = false;
+    return engine;
+  },
   busytex: async () => new (await import("./busytex.ts")).Busytex(),
   swiftlatex: async () => new (await import("./swiftlatex.ts")).SwiftLatex(),
 };

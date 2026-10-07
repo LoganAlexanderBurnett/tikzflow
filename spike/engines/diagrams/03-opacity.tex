@@ -1,0 +1,11 @@
+% libraries:
+% Fill, draw, and text opacity; overlapping transparent shapes.
+\begin{tikzpicture}
+  \fill[red, opacity=0.5] (0,0) circle (1);
+  \fill[green, opacity=0.5] (1,0) circle (1);
+  \fill[blue, opacity=0.5] (0.5,0.85) circle (1);
+  \draw[line width=4pt, draw opacity=0.3] (3,-1) -- (5,1);
+  \filldraw[fill=orange, fill opacity=0.3, draw=black] (3.5,-1) rectangle (5.5,0.3);
+  \node[fill=blue!40, fill opacity=0.4, text opacity=1, draw] at (4.5,1.2) {text opacity 1};
+  \node[text opacity=0.4] at (1,-1.5) {faded text};
+\end{tikzpicture}

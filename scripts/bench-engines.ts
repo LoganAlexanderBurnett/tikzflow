@@ -20,9 +20,14 @@ const engines = args.filter((a) => !a.startsWith("--"));
 const trials = Number(opt("trials", "3"));
 const runs = Number(opt("runs", "6"));
 const browserName = opt("browser", "msedge");
+/** Extra query string for the bench page, e.g. --query=console=0 */
+const query = opt("query", "");
+const outTag = opt("tag", "");
 
 const root = join(import.meta.dirname, "..");
 const outDir = join(root, "spike", "engines", "results");
+// Edge results keep the plain names; other browsers get a suffix so they never overwrite them.
+const suffix = (browserName === "msedge" ? "" : `.${browserName}`) + (outTag ? `.${outTag}` : "");
 
 interface FileStat {
   url: string;
@@ -77,7 +82,7 @@ async function trial(browser: Browser, base: string, engine: string): Promise<Tr
   });
   const page = await context.newPage();
   const t0 = Date.now();
-  await page.goto(`${base}/spike/engines/bench.html?engine=${engine}&runs=${runs}`);
+  await page.goto(`${base}/spike/engines/bench.html?engine=${engine}&runs=${runs}${query ? `&${query}` : ""}`);
   await page.waitForFunction(() => window.__bench !== undefined, null, { timeout: 600_000 });
   const result = (await page.evaluate(() => window.__bench))!;
   const wallMs = Date.now() - t0;
@@ -90,7 +95,7 @@ async function trial(browser: Browser, base: string, engine: string): Promise<Tr
   });
   if (output) {
     const bytes = output.ext === "pdf" ? Buffer.from(output.data, "base64") : output.data;
-    writeFileSync(join(outDir, `${engine}.${output.ext}`), bytes);
+    writeFileSync(join(outDir, `${engine}${suffix}.${output.ext}`), bytes);
   }
   await context.close();
   const files = [...fetched].map(fileStat);
@@ -138,7 +143,7 @@ try {
       outputBytes: first.outputBytes,
       trials: results.map(({ log, ...r }) => ({ ...r, logTail: log.slice(-2000) })),
     };
-    writeFileSync(join(outDir, `${engine}.json`), JSON.stringify(summary, null, 2) + "\n");
+    writeFileSync(join(outDir, `${engine}${suffix}.json`), JSON.stringify(summary, null, 2) + "\n");
     const mb = (n: number) => (n / 1048576).toFixed(2);
     console.log(
       `${engine}: ${summary.ok ? "OK" : "FAILED"} · pgf ${summary.probe?.pgf ?? "?"} · ` +

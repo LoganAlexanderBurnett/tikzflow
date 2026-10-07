@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Engine Compare</title>
+    <style>
+      body { margin: 0; padding: 16px; background: #fff; color: #1d1d1f; font: 14px/1.5 system-ui, sans-serif; }
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      p { margin: 0 0 12px; color: #555; }
+      figure { margin: 0 0 20px; }
+      figcaption { font-weight: 600; margin-bottom: 4px; }
+      canvas { max-width: 100%; height: auto; }
+      .k { padding: 0 6px; border-radius: 3px; color: #fff; }
+    </style>
+  </head>
+  <body>
+    <h1>busytex vs TikZJax rendering</h1>
+    <p>
+      Diff colours: <span class="k" style="background:#e61e1e">missing in TikZJax</span>
+      <span class="k" style="background:#1e50e6">extra in TikZJax</span>
+      <span class="k" style="background:#f09600">colour differs</span>
+    </p>
+    <div id="status"></div>
+    <div id="list"></div>
+    <script type="module" src="./compare.ts"></script>
+  </body>
+</html>

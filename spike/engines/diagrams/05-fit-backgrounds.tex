@@ -1,0 +1,16 @@
+% libraries: positioning, fit, backgrounds
+% Groups drawn behind nodes with fit on the background layer.
+\begin{tikzpicture}[node distance=6mm and 10mm, box/.style={draw, fill=white, minimum width=16mm}]
+  \node[box] (a) {Load};
+  \node[box, right=of a] (b) {Parse};
+  \node[box, below=of b] (c) {Check};
+  \node[box, right=of b] (d) {Emit};
+  \draw[->] (a) -- (b);
+  \draw[->] (b) -- (c);
+  \draw[->] (b) -- (d);
+  \begin{scope}[on background layer]
+    \node[fill=blue!10, draw=blue!50, rounded corners, inner sep=3mm, fit=(b) (c),
+          label={[blue!60]above:core}] {};
+    \node[fill=yellow!20, dashed, draw, fit=(d), inner sep=2mm] {};
+  \end{scope}
+\end{tikzpicture}

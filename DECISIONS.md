@@ -66,7 +66,13 @@ The byte-identical load/save check stays only as a cheap regression guard.
 1. Find the root cause of the missing `\matrix` cell borders, and compare TikZJax with busytex on at least 10 diagrams, with busytex as the reference.
 2. Confirm that TikZJax can load packages outside its format at compile time and can handle a user preamble with `\usepackage`, `\newcommand` and `\definecolor`.
 
-The license question is settled by D14. Results of the checks go into PROGRESS.md.
+The license question is settled by D14.
+
+**Checks done (2026-10-07; details in PROGRESS.md):**
+1. Both matrix defects are root-caused, along with a second, related one (nested pictures) and a 72.27/72 scale error. All have workarounds now and proper fixes listed in D15. On 13 diagrams, nothing else differs from busytex beyond sub-pixel rasterisation.
+2. Packages outside the format do load at compile time, and user preambles work. Modern expl3 packages need a newer kernel than TikZJax's 2023/2024 format, and font packages aren't supported. Both are addressed in D15.
+
+The recommendation stands, on condition that we build our own variant (D15).
 
 **Proposal:**
 - Use a **TikZJax-style pipeline** for the accurate preview: TeX compiled to WASM with a pre-dumped LaTeX + TikZ format, a DVI-to-SVG step, and SVG overlaid on the canvas.
@@ -86,3 +92,14 @@ The license question is settled by D14. Results of the checks go into PROGRESS.m
 **Decision:** The owner chose GPL-3.0, option (a) in the M0 report. `LICENSE` holds the official GNU text, and `package.json` declares `GPL-3.0-or-later`. This supersedes D7.
 **Why:** The recommended preview pipeline uses the TikZJax fork (GPL-3.0+) and `dvi2html` (GPL-3.0), so a GPL-3.0 project can use them as they are. "Or later" matches the TikZJax fork and is the FSF's recommended form. It stays compatible with the GPL-3.0 dependencies, because the combined work is distributed under GPL-3.0. Switching to GPL-3.0-only would be a one-line change if the owner prefers it.
 **Consequences:** Every bundled component must be GPL-3.0-compatible, which the Milestone 5 license audit will check. LPPL, OFL, GUST, MIT, Apache-2.0 and public-domain components can all be combined with GPL-3.0 code. Pure GPL-2.0-only code could not, so any busytex binaries would need checking before they ship.
+
+## D15: Requirements for our own TikZJax build (PROPOSED for Milestone 3, 2026-10-07)
+**Proposal:** Don't ship the `@drgrice1/tikzjax` package as it is. Build our own variant of the pipeline: its `tex.wasm`, our own format, and a patched worker and driver. It needs to:
+1. **Build the format** from a pinned TeX Live snapshot: current LaTeX kernel, expl3 and pgf 3.1.12. Host the extra packages from the same snapshot as `tex_files/<name>.gz`, so they match the kernel.
+2. **Fix the driver's box handling.** Inside TeX boxes, colour changes must set the stroke as well, and `stroke="none"` must apply only to glyphs. That fixes `\matrix` cell borders and pictures nested in node text. The `pgfsys-ximera.def` source hasn't been found yet, so the fallback is to adapt pgf's own `pgfsys-dvisvgm.def`.
+3. **Fix the file loader.** Report missing files as missing, not as empty files. Accept uncompressed fetches as bytes, not strings.
+4. **Always stream the log** through the `showConsole` messages, and inject `\scrollmode` so errors give partial output plus line-mapped messages.
+5. **Emit SVG sizes in bp,** or have the overlay scale by 72/72.27.
+6. **Keep the fixed font set** (Computer Modern and AMS) for the preview. User font packages are kept in `.tex` export only.
+
+**Why:** These come straight from the M0 follow-up checks in PROGRESS.md. Until this is done, `fixBoxStroke()` and the 72/72.27 scaling are spike-only workarounds.

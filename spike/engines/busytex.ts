@@ -3,8 +3,8 @@
 // xkeyval and xcolor files busytex lacks, from vendor/packs/tikz-flat.json
 // (see scripts/pack-texmf.ts). Output is PDF; busytex has no dvisvgm.
 
-import type { CompileResult, Engine } from "./engine.ts";
-import { readProbe, standaloneDocument } from "./sample.ts";
+import type { CompileResult, Engine, Job } from "./engine.ts";
+import { readProbe, SAMPLE_JOB, standaloneDocument } from "./sample.ts";
 
 const ROOT = "/vendor/busytex";
 
@@ -54,11 +54,11 @@ export class Busytex implements Engine {
     this.#pack = pack.map(({ name, text }) => ({ path: name, contents: text }));
   }
 
-  async compile(): Promise<CompileResult> {
+  async compile(job: Job = SAMPLE_JOB): Promise<CompileResult> {
     const done = this.#next();
     this.#prints = [];
     this.#worker!.postMessage({
-      files: [{ path: "main.tex", contents: standaloneDocument() }, ...this.#pack],
+      files: [{ path: "main.tex", contents: standaloneDocument(job) }, ...this.#pack],
       main_tex_path: "main.tex",
       bibtex: false,
       verbose: "silent",

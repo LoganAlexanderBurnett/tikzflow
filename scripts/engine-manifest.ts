@@ -89,4 +89,11 @@ export const DOWNLOADS: Download[] = [
   ctan("knuth-lib", 0.03, "Knuth"),
   ctan("babel", 0.24, "LPPL-1.3"),
   ctan("latex-fonts", 0.02, "LPPL-1.2"),
+  // Runtime-package test for TikZJax (M0 follow-up).
+  ctan("mathtools", 0.02, "LPPL-1.3c"),
+  ctan("siunitx", 0.07, "LPPL-1.3c"),
+  ctan("translations", 0.01, "LPPL-1.3c"),
+  ctan("pdftexcmds", 0.01, "LPPL-1.3c"),
+  ctan("infwarerr", 0.01, "LPPL-1.3"),
+  ctan("ltxcmds", 0.01, "LPPL-1.3c"),
 ];

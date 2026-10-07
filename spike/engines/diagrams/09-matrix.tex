@@ -1,0 +1,13 @@
+% libraries: matrix, positioning
+% Matrices: matrix of nodes with per-cell borders, explicit cell nodes, a framed matrix.
+\begin{tikzpicture}
+  \matrix[matrix of nodes, nodes={draw, minimum size=7mm}, column sep=1mm, row sep=1mm] (m) {
+    a & b & c \\
+    d & |[fill=red!20]| e & f \\
+  };
+  \matrix[draw, rounded corners, column sep=4mm, right=1cm of m] (n) {
+    \node[draw, circle] {1}; & \node[draw=blue] {2}; \\
+    \node[fill=green!30] {3}; & \node[draw, dashed] {4}; \\
+  };
+  \draw[->] (m-1-3) -- (n);
+\end{tikzpicture}

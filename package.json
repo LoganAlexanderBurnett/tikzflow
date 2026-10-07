@@ -17,7 +17,8 @@
     "test:watch": "vitest",
     "grammar:inspect": "node spike/grammar/inspect.ts",
     "fetch-engines": "node scripts/fetch-engines.ts",
-    "bench-engines": "node scripts/bench-engines.ts"
+    "bench-engines": "node scripts/bench-engines.ts",
+    "compare-engines": "node scripts/compare-engines.ts"
   },
   "dependencies": {
     "@lezer/common": "^1.5.3",

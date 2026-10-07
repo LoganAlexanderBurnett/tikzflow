@@ -1,5 +1,6 @@
 import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { extname, join, normalize, sep } from "node:path";
+import { gzipSync } from "node:zlib";
 import type { Plugin } from "vite";
 import { defineConfig } from "vitest/config";
 
@@ -12,18 +13,78 @@ const TYPES: Record<string, string> = {
   ".json": "application/json",
 };
 
+/** File name → path for everything in the CTAN tree (vendor/texmf), first match wins. */
+let texmfIndexCache: Map<string, string> | null = null;
+let texmfIndexBuiltAt = 0;
+function texmfLookup(name: string): string | undefined {
+  const build = () => {
+    const map = new Map<string, string>();
+    const texmf = join(vendorRoot, "texmf");
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir)) {
+        const path = join(dir, entry);
+        if (statSync(path).isDirectory()) walk(path);
+        else if (!map.has(entry)) map.set(entry, path);
+      }
+    };
+    for (const sub of ["tex", "fonts", "dvips"]) if (existsSync(join(texmf, sub))) walk(join(texmf, sub));
+    return map;
+  };
+  if (!texmfIndexCache) {
+    texmfIndexCache = build();
+    texmfIndexBuiltAt = Date.now();
+  }
+  // Re-index on a miss in case packages were fetched since, but at most every
+  // 10 s: engines probe for many files that don't exist, and a full walk on
+  // each miss added ~150 ms to every TikZJax compile.
+  if (!texmfIndexCache.has(name) && Date.now() - texmfIndexBuiltAt > 10_000) {
+    texmfIndexCache = build();
+    texmfIndexBuiltAt = Date.now();
+  }
+  return texmfIndexCache.get(name);
+}
+
+const TIKZJAX_DIST = `${sep}tikzjax${sep}package${sep}dist${sep}`;
+
 /**
  * Serves vendor/ (engine binaries, TeX files) byte-for-byte. Vite's static
  * server marks *.gz files as Content-Encoding: gzip, which makes the browser
  * inflate them before the engines' own decompressors see them.
+ *
+ * TikZJax asks for TeX files it doesn't bundle by bare name next to its worker
+ * (after tex_files/<name>.gz misses). Those are served from the CTAN tree, to
+ * test loading packages at compile time. In production they would be extra
+ * files hosted alongside the engine.
  */
 function rawVendor(): Plugin {
   return {
     name: "tikzflow-raw-vendor",
     configureServer(server) {
       server.middlewares.use("/vendor", (req, res, next) => {
-        const path = normalize(join(vendorRoot, decodeURIComponent((req.url ?? "/").split("?")[0]!)));
+        let path = normalize(join(vendorRoot, decodeURIComponent((req.url ?? "/").split("?")[0]!)));
         if (!path.startsWith(vendorRoot + sep)) return next();
+        const rel = path.slice(vendorRoot.length);
+        // TikZJax only loads extra files correctly from tex_files/<name>.gz: its
+        // uncompressed fallback stores the response as a string and crashes.
+        // So serve CTAN files there, gzipped on the fly.
+        const texFiles = `${TIKZJAX_DIST}tex_files${sep}`;
+        if (!existsSync(path) && rel.startsWith(texFiles) && rel.endsWith(".gz")) {
+          const name = rel.slice(texFiles.length, -3);
+          const fromCtan = name.includes(sep) ? undefined : texmfLookup(name);
+          if (fromCtan) {
+            server.config.logger.info(`[vendor] tikzjax runtime file from CTAN: ${name}`);
+            const body = gzipSync(readFileSync(fromCtan));
+            res.writeHead(200, {
+              "Content-Type": "application/octet-stream",
+              "Content-Length": body.length,
+              "Cache-Control": "no-cache",
+              "Cross-Origin-Embedder-Policy": "require-corp",
+              "Cross-Origin-Resource-Policy": "same-origin",
+            });
+            res.end(body);
+            return;
+          }
+        }
         if (!existsSync(path) || !statSync(path).isFile()) {
           // A real 404, not Vite's index.html fallback: engines probe for
           // optional files and must see them as missing.
@@ -59,19 +120,6 @@ const KPSE_SUFFIX: Record<string, string> = {
 function swiftlatexTexlive(): Plugin {
   const texmf = join(vendorRoot, "texmf");
   const fmtDir = join(vendorRoot, "swiftlatex-fmt");
-  let index: Map<string, string> | null = null;
-  const buildIndex = () => {
-    const map = new Map<string, string>();
-    const walk = (dir: string) => {
-      for (const entry of readdirSync(dir)) {
-        const path = join(dir, entry);
-        if (statSync(path).isDirectory()) walk(path);
-        else if (!map.has(entry)) map.set(entry, path);
-      }
-    };
-    for (const sub of ["tex", "fonts", "dvips"]) if (existsSync(join(texmf, sub))) walk(join(texmf, sub));
-    return map;
-  };
   const pdftexMap = () =>
     ["lm/lm.map", "amsfonts/cm.map", "amsfonts/cmextra.map", "amsfonts/symbols.map", "amsfonts/euler.map", "amsfonts/latxfont.map"]
       .map((m) => join(texmf, "fonts", "map", "dvips", m))
@@ -111,10 +159,7 @@ function swiftlatexTexlive(): Plugin {
           const p = join(fmtDir, name);
           body = existsSync(p) ? readFileSync(p) : null;
         } else {
-          index ??= buildIndex();
-          // Re-index once on a miss, in case packages were fetched since.
-          if (!index.has(name)) index = buildIndex();
-          const p = index.get(name);
+          const p = texmfLookup(name);
           body = p ? readFileSync(p) : null;
         }
         if (!body) {

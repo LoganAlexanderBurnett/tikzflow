@@ -4,8 +4,8 @@
 // instead of SwiftLaTeX's own server. SwiftLaTeX ships no format, so the first
 // load builds swiftlatexpdftex.fmt from pdflatex.ini and stores it.
 
-import type { CompileResult, Engine } from "./engine.ts";
-import { readProbe, standaloneDocument } from "./sample.ts";
+import type { CompileResult, Engine, Job } from "./engine.ts";
+import { readProbe, SAMPLE_JOB, standaloneDocument } from "./sample.ts";
 
 const WORKER = "/vendor/swiftlatex/swiftlatexpdftex.js";
 const ENDPOINT = "/swiftlatex-texlive/";
@@ -57,9 +57,9 @@ export class SwiftLatex implements Engine {
     }
   }
 
-  async compile(): Promise<CompileResult> {
+  async compile(job: Job = SAMPLE_JOB): Promise<CompileResult> {
     const done = this.#reply((r) => r.cmd === "compile");
-    this.#worker!.postMessage({ cmd: "writefile", url: "main.tex", src: standaloneDocument() });
+    this.#worker!.postMessage({ cmd: "writefile", url: "main.tex", src: standaloneDocument(job) });
     this.#worker!.postMessage({ cmd: "setmainfile", url: "main.tex" });
     this.#worker!.postMessage({ cmd: "compilelatex" });
     const r = await done;

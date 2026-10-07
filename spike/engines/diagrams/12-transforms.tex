@@ -1,0 +1,12 @@
+% libraries:
+% Rotation, scaling, shifts, and transform shape on nodes.
+\begin{tikzpicture}
+  \draw[rotate=30] (0,0) rectangle (2,1);
+  \draw[xshift=3cm, scale=0.5] (0,0) rectangle (2,1) node[midway] {half};
+  \draw[xshift=5cm, xslant=0.5] (0,0) rectangle (2,1);
+  \node[draw, rotate=45] at (1,-1.5) {rotated};
+  \begin{scope}[xshift=4cm, yshift=-1.5cm, rotate=-20, transform shape]
+    \node[draw, fill=yellow!20] {transform shape};
+  \end{scope}
+  \draw[->, yscale=-1] (6.5,0.8) -- (7.5,1.5);
+\end{tikzpicture}

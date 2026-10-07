@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TikZJax Packages</title>
+    <style>
+      :root { --bg: #fff; --fg: #1d1d1f; --line: #d9d9de; }
+      @media (prefers-color-scheme: dark) { :root { --bg: #18181b; --fg: #ececf0; --line: #3a3a40; } }
+      body { margin: 0; padding: 16px; background: var(--bg); color: var(--fg); font: 14px/1.5 system-ui, sans-serif; }
+      h1 { font-size: 18px; margin: 0 0 12px; }
+      .wrap { overflow-x: auto; }
+      table { border-collapse: collapse; }
+      th, td { border: 1px solid var(--line); padding: 4px 8px; text-align: left; vertical-align: top; white-space: pre-wrap; font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <h1>TikZJax: runtime packages and user preamble</h1>
+    <div class="wrap">
+      <table>
+        <thead><tr><th>Case</th><th>Expected</th><th>Result</th><th>Time</th><th>Rendered text</th><th>Colours</th><th>TeX errors</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <script type="module" src="./packages.ts"></script>
+  </body>
+</html>

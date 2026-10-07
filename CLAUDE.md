@@ -43,4 +43,7 @@ A free, static, fully client-side web app for creating and editing TikZ flowchar
   - `node scripts/pack-texmf.ts`: builds `vendor/packs/tikz-flat.json`, which busytex needs.
   - `npm run bench-engines -- tikzjax busytex`: runs the Playwright engine benchmark in Edge. Results go to `spike/engines/results/`.
   - Engine bench page: `/spike/engines/bench.html?engine=tikzjax|busytex|swiftlatex`. Output viewer: `/spike/engines/view.html?files=busytex.pdf,tikzjax.svg`.
+  - `npm run compare-engines`: compares TikZJax with busytex on `spike/engines/diagrams/*.tex`. It writes composite PNGs and `compare.json` to `spike/engines/results/compare/`.
+  - `/spike/engines/packages.html`: the TikZJax runtime-package and user-preamble checks.
+- Playwright's Firefox doesn't start on this machine (see PROGRESS.md), so use Edge (`msedge` channel) for browser automation.
 - Layout: `spike/` holds throwaway Milestone 0 code. The generated `spike/grammar/parser*.ts` files are gitignored.

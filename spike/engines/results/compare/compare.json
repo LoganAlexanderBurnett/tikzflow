@@ -1,0 +1,565 @@
+{
+  "browser": "msedge 154.0.4258.53",
+  "date": "2026-10-07T05:00:58.233Z",
+  "results": [
+    {
+      "name": "01-fills",
+      "busytexOk": true,
+      "tikzjaxOk": true,
+      "raw": {
+        "refSizePt": [
+          241,
+          68.7
+        ],
+        "testSizePt": [
+          241,
+          68.7
+        ],
+        "offsetPt": [
+          0.3,
+          0.3
+        ],
+        "inkPixels": 68278,
+        "missing": 635,
+        "extra": 419,
+        "color": 74,
+        "mismatchPct": 1.7
+      },
+      "fixed": {
+        "refSizePt": [
+          241,
+          68.7
+        ],
+        "testSizePt": [
+          241,
+          68.7
+        ],
+        "offsetPt": [
+          0.3,
+          0.3
+        ],
+        "inkPixels": 68278,
+        "missing": 635,
+        "extra": 419,
+        "color": 74,
+        "mismatchPct": 1.7
+      }
+    },
+    {
+      "name": "02-line-styles",
+      "busytexOk": true,
+      "tikzjaxOk": true,
+      "raw": {
+        "refSizePt": [
+          229.3,
+          91.7
+        ],
+        "testSizePt": [
+          229.3,
+          91.7
+        ],
+        "offsetPt": [
+          0.3,
+          0.3
+        ],
+        "inkPixels": 27094,
+        "missing": 1239,
+        "extra": 421,
+        "color": 0,
+        "mismatchPct": 6.1
+      },
+      "fixed": {
+        "refSizePt": [
+          229.3,
+          91.7
+        ],
+        "testSizePt": [
+          229.3,
+          91.7
+        ],
+        "offsetPt": [
+          0.3,
+          0.3
+        ],
+        "inkPixels": 27094,
+        "missing": 1239,
+        "extra": 421,
+        "color": 0,
+        "mismatchPct": 6.1
+      }
+    },
+    {
+      "name": "03-opacity",
+      "busytexOk": true,
+      "tikzjaxOk": true,
+      "raw": {
+        "refSizePt": [
+          190,
+          98.7
+        ],
+        "testSizePt": [
+          190,
+          98.7
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 82565,
+        "missing": 0,
+        "extra": 26,
+        "color": 0,
+        "mismatchPct": 0
+      },
+      "fixed": {
+        "refSizePt": [
+          190,
+          98.7
+        ],
+        "testSizePt": [
+          190,
+          98.7
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 82565,
+        "missing": 0,
+        "extra": 26,
+        "color": 0,
+        "mismatchPct": 0
+      }
+    },
+    {
+      "name": "04-arrow-tips",
+      "busytexOk": true,
+      "tikzjaxOk": true,
+      "raw": {
+        "refSizePt": [
+          227,
+          69.7
+        ],
+        "testSizePt": [
+          227,
+          69.7
+        ],
+        "offsetPt": [
+          0,
+          0.3
+        ],
+        "inkPixels": 18334,
+        "missing": 577,
+        "extra": 960,
+        "color": 28,
+        "mismatchPct": 8.5
+      },
+      "fixed": {
+        "refSizePt": [
+          227,
+          69.7
+        ],
+        "testSizePt": [
+          227,
+          69.7
+        ],
+        "offsetPt": [
+          0,
+          0.3
+        ],
+        "inkPixels": 18334,
+        "missing": 577,
+        "extra": 960,
+        "color": 28,
+        "mismatchPct": 8.5
+      }
+    },
+    {
+      "name": "05-fit-backgrounds",
+      "busytexOk": true,
+      "tikzjaxOk": true,
+      "raw": {
+        "refSizePt": [
+          200,
+          70.3
+        ],
+        "testSizePt": [
+          200,
+          71
+        ],
+        "offsetPt": [
+          0.3,
+          -0.3
+        ],
+        "inkPixels": 45316,
+        "missing": 194,
+        "extra": 56,
+        "color": 0,
+        "mismatchPct": 0.6
+      },
+      "fixed": {
+        "refSizePt": [
+          200,
+          70.3
+        ],
+        "testSizePt": [
+          200,
+          71
+        ],
+        "offsetPt": [
+          0.3,
+          -0.3
+        ],
+        "inkPixels": 45316,
+        "missing": 194,
+        "extra": 56,
+        "color": 0,
+        "mismatchPct": 0.6
+      }
+    },
+    {
+      "name": "06-clipping",
+      "busytexOk": true,
+      "tikzjaxOk": true,
+      "raw": {
+        "refSizePt": [
+          232.7,
+          56.7
+        ],
+        "testSizePt": [
+          232.7,
+          57
+        ],
+        "offsetPt": [
+          0.3,
+          0
+        ],
+        "inkPixels": 53530,
+        "missing": 65,
+        "extra": 79,
+        "color": 4,
+        "mismatchPct": 0.3
+      },
+      "fixed": {
+        "refSizePt": [
+          232.7,
+          56.7
+        ],
+        "testSizePt": [
+          232.7,
+          57
+        ],
+        "offsetPt": [
+          0.3,
+          0
+        ],
+        "inkPixels": 53530,
+        "missing": 65,
+        "extra": 79,
+        "color": 4,
+        "mismatchPct": 0.3
+      }
+    },
+    {
+      "name": "07-rounded-corners",
+      "busytexOk": true,
+      "tikzjaxOk": true,
+      "raw": {
+        "refSizePt": [
+          227.3,
+          122.7
+        ],
+        "testSizePt": [
+          227.3,
+          122.7
+        ],
+        "offsetPt": [
+          0.3,
+          0.3
+        ],
+        "inkPixels": 74391,
+        "missing": 694,
+        "extra": 323,
+        "color": 0,
+        "mismatchPct": 1.4
+      },
+      "fixed": {
+        "refSizePt": [
+          227.3,
+          122.7
+        ],
+        "testSizePt": [
+          227.3,
+          122.7
+        ],
+        "offsetPt": [
+          0.3,
+          0.3
+        ],
+        "inkPixels": 74391,
+        "missing": 694,
+        "extra": 323,
+        "color": 0,
+        "mismatchPct": 1.4
+      }
+    },
+    {
+      "name": "08-node-shapes",
+      "busytexOk": true,
+      "tikzjaxOk": true,
+      "raw": {
+        "refSizePt": [
+          229.7,
+          143
+        ],
+        "testSizePt": [
+          229.7,
+          142.7
+        ],
+        "offsetPt": [
+          0.3,
+          0
+        ],
+        "inkPixels": 96276,
+        "missing": 166,
+        "extra": 127,
+        "color": 0,
+        "mismatchPct": 0.3
+      },
+      "fixed": {
+        "refSizePt": [
+          229.7,
+          143
+        ],
+        "testSizePt": [
+          229.7,
+          142.7
+        ],
+        "offsetPt": [
+          0.3,
+          0
+        ],
+        "inkPixels": 96276,
+        "missing": 166,
+        "extra": 127,
+        "color": 0,
+        "mismatchPct": 0.3
+      }
+    },
+    {
+      "name": "09-matrix",
+      "busytexOk": true,
+      "tikzjaxOk": true,
+      "raw": {
+        "refSizePt": [
+          146.7,
+          46
+        ],
+        "testSizePt": [
+          139.3,
+          42.3
+        ],
+        "offsetPt": [
+          1.7,
+          2
+        ],
+        "inkPixels": 24937,
+        "missing": 11065,
+        "extra": 4861,
+        "color": 351,
+        "mismatchPct": 65.3
+      },
+      "fixed": {
+        "refSizePt": [
+          146.7,
+          46
+        ],
+        "testSizePt": [
+          147,
+          46.3
+        ],
+        "offsetPt": [
+          0,
+          -0.3
+        ],
+        "inkPixels": 20359,
+        "missing": 65,
+        "extra": 44,
+        "color": 0,
+        "mismatchPct": 0.5
+      }
+    },
+    {
+      "name": "10-flowchart",
+      "busytexOk": true,
+      "tikzjaxOk": true,
+      "raw": {
+        "refSizePt": [
+          171,
+          195
+        ],
+        "testSizePt": [
+          171,
+          195
+        ],
+        "offsetPt": [
+          0.3,
+          0
+        ],
+        "inkPixels": 88509,
+        "missing": 1044,
+        "extra": 166,
+        "color": 0,
+        "mismatchPct": 1.4
+      },
+      "fixed": {
+        "refSizePt": [
+          171,
+          195
+        ],
+        "testSizePt": [
+          171,
+          195
+        ],
+        "offsetPt": [
+          0.3,
+          0
+        ],
+        "inkPixels": 88509,
+        "missing": 1044,
+        "extra": 166,
+        "color": 0,
+        "mismatchPct": 1.4
+      }
+    },
+    {
+      "name": "11-text-and-math",
+      "busytexOk": true,
+      "tikzjaxOk": true,
+      "raw": {
+        "refSizePt": [
+          181.3,
+          176.3
+        ],
+        "testSizePt": [
+          181.3,
+          176.3
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 47761,
+        "missing": 1782,
+        "extra": 1238,
+        "color": 0,
+        "mismatchPct": 6.3
+      },
+      "fixed": {
+        "refSizePt": [
+          181.3,
+          176.3
+        ],
+        "testSizePt": [
+          181.3,
+          176.3
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 47771,
+        "missing": 1782,
+        "extra": 1289,
+        "color": 0,
+        "mismatchPct": 6.4
+      }
+    },
+    {
+      "name": "12-transforms",
+      "busytexOk": true,
+      "tikzjaxOk": true,
+      "raw": {
+        "refSizePt": [
+          227.3,
+          116.3
+        ],
+        "testSizePt": [
+          227.3,
+          116.3
+        ],
+        "offsetPt": [
+          0.3,
+          0.3
+        ],
+        "inkPixels": 23928,
+        "missing": 31,
+        "extra": 50,
+        "color": 0,
+        "mismatchPct": 0.3
+      },
+      "fixed": {
+        "refSizePt": [
+          227.3,
+          116.3
+        ],
+        "testSizePt": [
+          227.3,
+          116.3
+        ],
+        "offsetPt": [
+          0.3,
+          0.3
+        ],
+        "inkPixels": 23928,
+        "missing": 31,
+        "extra": 50,
+        "color": 0,
+        "mismatchPct": 0.3
+      }
+    },
+    {
+      "name": "13-curves-and-nesting",
+      "busytexOk": true,
+      "tikzjaxOk": true,
+      "raw": {
+        "refSizePt": [
+          202.7,
+          85.3
+        ],
+        "testSizePt": [
+          202.7,
+          85.3
+        ],
+        "offsetPt": [
+          0.3,
+          0
+        ],
+        "inkPixels": 21436,
+        "missing": 556,
+        "extra": 0,
+        "color": 0,
+        "mismatchPct": 2.6
+      },
+      "fixed": {
+        "refSizePt": [
+          202.7,
+          85.3
+        ],
+        "testSizePt": [
+          202.7,
+          85.3
+        ],
+        "offsetPt": [
+          0.3,
+          0
+        ],
+        "inkPixels": 21473,
+        "missing": 61,
+        "extra": 346,
+        "color": 142,
+        "mismatchPct": 2.6
+      }
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+% libraries: shapes.misc
+% Rounded corners on paths and nodes, varied radii, and sharp overrides.
+\begin{tikzpicture}
+  \draw[rounded corners] (0,0) -- (0,1.5) -- (2,1.5) -- (2,0) -- cycle;
+  \draw[rounded corners=8pt, thick, blue] (3,0) -- (3,1.5) -- (5,0) -- (5,1.5);
+  \draw[rounded corners=4pt] (6,0) -- (6,1.5) -- (7,1.5) [sharp corners] -- (7,0) -- (8,0);
+  \node[draw, rounded corners=6pt, minimum width=2cm] at (1,-1) {rounded};
+  \node[draw, rounded rectangle] at (4,-1) {rounded rectangle};
+  \node[draw, chamfered rectangle] at (7,-1) {chamfered};
+  \draw[rounded corners=10pt, fill=green!15] (0,-2) rectangle (8,-2.8);
+\end{tikzpicture}

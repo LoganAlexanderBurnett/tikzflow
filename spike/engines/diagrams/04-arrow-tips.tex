@@ -1,0 +1,18 @@
+% libraries: arrows.meta, bending
+% arrows.meta tips: kinds, sizes, open/filled, colours, reversed, bent.
+\begin{tikzpicture}[line width=0.7pt]
+  \draw[-{Stealth}] (0,0) -- (2,0);
+  \draw[-{Latex}] (0,-0.5) -- (2,-0.5);
+  \draw[-{Triangle[open]}] (0,-1) -- (2,-1);
+  \draw[-{Circle}] (0,-1.5) -- (2,-1.5);
+  \draw[-{Bar}] (0,-2) -- (2,-2);
+  \draw[{Stealth}-{Stealth}] (3,0) -- (5,0);
+  \draw[-{Stealth[length=4mm, width=3mm]}] (3,-0.5) -- (5,-0.5);
+  \draw[-{Latex[red]}] (3,-1) -- (5,-1);
+  \draw[-{Kite[open, fill=yellow]}] (3,-1.5) -- (5,-1.5);
+  \draw[-{Square[open]}] (3,-2) -- (5,-2);
+  \draw[-{Stealth[reversed]}] (6,0) -- (8,0);
+  \draw[-{>[sep=2pt]>}] (6,-0.5) -- (8,-0.5);
+  \draw[-{Stealth[bend]}] (6,-1) to[bend left=40] (8,-2);
+  \draw[->, >={Latex[round]}] (6,-2.3) -- (8,-2.3);
+\end{tikzpicture}

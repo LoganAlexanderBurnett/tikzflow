@@ -1,0 +1,16 @@
+% libraries: shapes.geometric, shapes.misc, shapes.symbols, shapes.multipart
+% Node shapes used in flowcharts and beyond.
+\begin{tikzpicture}[every node/.style={draw, fill=gray!10, minimum size=10mm, font=\small}]
+  \node[rectangle] at (0,0) {rect};
+  \node[circle] at (2,0) {circ};
+  \node[ellipse] at (4,0) {ellipse};
+  \node[diamond, aspect=1.6] at (6.3,0) {diam};
+  \node[trapezium, trapezium left angle=70, trapezium right angle=110] at (0.3,-2) {I/O};
+  \node[regular polygon, regular polygon sides=6] at (2.6,-2) {hex};
+  \node[star, star points=5, minimum size=12mm] at (4.4,-2) {};
+  \node[cylinder, shape border rotate=90, aspect=0.25] at (6.3,-2) {db};
+  \node[cross out] at (0,-4) {x};
+  \node[tape] at (2,-4) {tape};
+  \node[rectangle split, rectangle split parts=2] at (4,-4) {top \nodepart{two} bottom};
+  \node[signal, signal to=east] at (6.3,-4) {signal};
+\end{tikzpicture}

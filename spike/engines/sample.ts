@@ -1,3 +1,5 @@
+import type { Job } from "./engine.ts";
+
 // The sample flowchart every engine compiles. It uses each library from the
 // spec, so a compile only succeeds if they all load. The probe also reports
 // the pgf version and each library's loaded flag, both in the log (\typeout)
@@ -41,15 +43,24 @@ export const PICTURE = String.raw`\begin{tikzpicture}[node distance=8mm and 12mm
 \end{tikzpicture}
 `;
 
+/** The default job: the probe plus the sample picture, in Latin Modern. */
+export const SAMPLE_JOB: Job = { body: PROBE + PICTURE, libraries: LIBRARIES, lmodern: true };
+
 /** A full standalone document, for engines that run a whole LaTeX file. */
-export function standaloneDocument(classOptions = "tikz,border=2pt"): string {
-  return String.raw`\documentclass[${classOptions}]{standalone}
-\usepackage{lmodern}
-\usepackage{amsmath}
-\usetikzlibrary{${LIBRARIES.join(",")}}
-\begin{document}
-${PROBE}${PICTURE}\end{document}
-`;
+export function standaloneDocument(job: Job = SAMPLE_JOB, classOptions = "tikz,border=2pt"): string {
+  const packages = Object.entries({ amsmath: "", ...job.packages })
+    .map(([name, opts]) => `\\usepackage${opts ? `[${opts}]` : ""}{${name}}\n`)
+    .join("");
+  return [
+    `\\documentclass[${job.classOptions ?? classOptions}]{standalone}\n`,
+    job.lmodern ? "\\usepackage{lmodern}\n" : "",
+    packages,
+    job.libraries.length ? `\\usetikzlibrary{${job.libraries.join(",")}}\n` : "",
+    job.preamble ? `${job.preamble}\n` : "",
+    "\\begin{document}\n",
+    job.body,
+    "\\end{document}\n",
+  ].join("");
 }
 
 export interface Probe {

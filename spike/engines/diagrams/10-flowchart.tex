@@ -1,0 +1,22 @@
+% libraries: positioning, shapes.geometric, arrows.meta
+% A realistic flowchart with named styles and orthogonal routing.
+\begin{tikzpicture}[
+    node distance=7mm and 12mm,
+    base/.style={draw, minimum width=24mm, minimum height=8mm, align=center},
+    process/.style={base, fill=blue!8},
+    decision/.style={base, diamond, aspect=2.2, fill=orange!15, inner sep=1pt},
+    terminal/.style={base, rounded corners=4mm, fill=green!12},
+    >={Stealth[length=2.2mm]}]
+  \node[terminal] (s) {Start};
+  \node[process, below=of s] (r) {Read input};
+  \node[decision, below=of r] (d) {Valid?};
+  \node[process, right=of d] (e) {Report error};
+  \node[process, below=of d] (p) {Process};
+  \node[terminal, below=of p] (t) {Stop};
+  \draw[->] (s) -- (r);
+  \draw[->] (r) -- (d);
+  \draw[->] (d) -- node[above] {no} (e);
+  \draw[->] (d) -- node[left] {yes} (p);
+  \draw[->] (p) -- (t);
+  \draw[->] (e) |- (r);
+\end{tikzpicture}

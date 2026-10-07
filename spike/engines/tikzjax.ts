@@ -1,8 +1,8 @@
 // TikZJax adapter. Drives the package's own worker (run-tex.js) by speaking
 // the threads.js message protocol directly, so no extra dependency is needed.
 
-import type { CompileResult, Engine } from "./engine.ts";
-import { LIBRARIES, PICTURE, PROBE, type Probe } from "./sample.ts";
+import type { CompileResult, Engine, Job } from "./engine.ts";
+import { LIBRARIES, SAMPLE_JOB, type Probe } from "./sample.ts";
 
 const ROOT = "/vendor/tikzjax/package/dist";
 
@@ -15,6 +15,13 @@ type Reply =
 
 export class TikzJax implements Engine {
   name = "tikzjax";
+  /**
+   * Ask TikZJax for TeX's terminal output. The worker posts each line as a
+   * plain string message; it becomes CompileResult.log. Without it, TeX errors
+   * are invisible: a missing package still "succeeds".
+   */
+  showConsole = true;
+  #consoleLines: string[] = [];
   #worker: Worker | null = null;
   #ready: Promise<void> | null = null;
   #uid = 0;
@@ -26,7 +33,11 @@ export class TikzJax implements Engine {
     this.#worker = worker;
     this.#ready = new Promise((resolve, reject) => {
       worker.onerror = (e) => reject(new Error(e.message));
-      worker.onmessage = ({ data }: MessageEvent<Reply>) => {
+      worker.onmessage = ({ data }: MessageEvent<Reply | string>) => {
+        if (typeof data === "string") {
+          this.#consoleLines.push(data);
+          return;
+        }
         switch (data.type) {
           case "init":
             resolve();
@@ -69,18 +80,43 @@ export class TikzJax implements Engine {
     await this.#call("load", new URL(ROOT, location.href).href);
   }
 
-  async compile(): Promise<CompileResult> {
-    const dataset = {
-      tikzLibraries: LIBRARIES.join(","),
-      texPackages: JSON.stringify({ amsmath: "" }),
+  async compile(job: Job = SAMPLE_JOB): Promise<CompileResult> {
+    // TikZJax builds the preamble itself from these fields (see run-tex.js).
+    // It has no Latin Modern, so job.lmodern is ignored.
+    const dataset: Record<string, string> = {
+      tikzLibraries: job.libraries.join(","),
+      texPackages: JSON.stringify({ amsmath: "", ...job.packages }),
     };
+    if (job.preamble) dataset.addToPreamble = job.preamble;
+    if (this.showConsole) dataset.showConsole = "true";
+    this.#consoleLines = [];
     try {
-      const svg = String(await this.#call("texify", PROBE + PICTURE, dataset));
-      return { ok: svg.includes("<svg"), output: { kind: "svg", svg }, log: "", probe: probeFromSvg(svg) };
+      const svg = String(await this.#call("texify", job.body, dataset));
+      const log = this.#consoleLines.join("\n");
+      return { ok: svg.includes("<svg"), output: { kind: "svg", svg }, log, probe: probeFromSvg(svg) };
     } catch (e) {
-      return { ok: false, output: { kind: "none" }, log: String(e), probe: null };
+      return { ok: false, output: { kind: "none" }, log: [...this.#consoleLines, String(e)].join("\n"), probe: null };
     }
   }
+}
+
+/**
+ * Works around TikZJax's missing strokes inside TeX boxes.
+ *
+ * pgfsys-ximera.def treats everything inside a TeX box as text. It wraps each
+ * box in <g stroke="none"> so glyphs aren't outlined, and inside a box it
+ * emits colour changes as text colour (fill + stroke="none"). Two things break:
+ * - \matrix cells: their borders inherit stroke="none" from the box wrapper.
+ * - Pictures nested in node text (\node{\tikz ...}): every stroke becomes "none".
+ *
+ * Removing stroke="none" from all groups and putting it on <text> restores the
+ * strokes. That's safe because fill-only paths carry their own stroke="none".
+ * It can't restore a nested picture's stroke *colour*, which was never emitted,
+ * so those strokes come out black. The proper fix is in the driver, when we
+ * build our own format (PROGRESS.md, M0 follow-up).
+ */
+export function fixBoxStroke(svg: string): string {
+  return svg.replace(/<g stroke="none"/g, "<g").replace(/<text /g, '<text stroke="none" ');
 }
 
 /**
