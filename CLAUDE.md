@@ -34,17 +34,32 @@ A free, static, fully client-side web app for creating and editing TikZ flowchar
 ## Repo
 - Remote: `origin` → https://github.com/LoganAlexanderBurnett/tikzflow (default branch `trunk`).
 - Commands:
-  - `npm run dev`: starts the Vite dev server, currently the grammar playground.
-  - `npm test`: runs Vitest.
-  - `npm run typecheck`: runs strict `tsc`.
+  - `npm run dev`: starts the Vite dev server with the app at http://localhost:5173. The grammar playground is at `/src/debug/grammar.html`.
+  - `npm test`: runs Vitest. This includes the corpus round-trip tests, the interpreter and move tests, and the golden minimal-diff tests.
+  - `npm run test:e2e`: runs the Playwright end-to-end tests in Edge. It starts its own dev server on port 5174.
+  - `npm run typecheck`: runs strict `tsc`. `npm run build` type-checks and builds to `dist/`.
   - `npm run grammar`: regenerates the parser. It runs automatically before dev, test, build and typecheck.
-  - `npm run grammar:inspect`: prints coverage and error details for each fixture.
-  - `node spike/grammar/bench.ts`: runs the parse benchmark. Node 24 runs `.ts` files directly.
+  - `npm run grammar:inspect`: prints byte coverage and parse errors for each corpus file.
+  - `npm run grammar:bench`: runs the parse benchmark.
+  - `npm run corpus:report [-- <filter>] [-- -v]`: lays out every corpus picture and prints the "what I understood" summary. `-v` adds locked nodes and node geometry.
+  - `npm run layout:bench`: times the model, layout, snapping and a move on a 200-node picture.
+  - `UPDATE_GOLDEN=1 npx vitest run test/golden.test.ts`: regenerates `test/fixtures/golden/`. Review the result with `npm run golden:review` before committing.
+  - `npm run fidelity [-- --only=<file>] [-- --verbose]`: compiles the corpus and `spike/engines/probes/*.tex` with pdfTeX (busytex) and compares node anchors with the native layout. It writes `spike/engines/results/fidelity.json`. It needs `npm run fetch-engines` and `node scripts/pack-texmf.ts` first. When unsure how TikZ behaves, add a probe here rather than guessing (D23).
+  - `npm run gen:font-metrics`: regenerates `src/text/fontMetrics.ts` from KaTeX. Run it after upgrading KaTeX.
   - `npm run fetch-engines`: downloads the engines and CTAN packages listed in `scripts/engine-manifest.ts` into the gitignored `vendor/` folder, recording sizes and hashes in `vendor/LOCK.json`.
   - `node scripts/pack-texmf.ts`: builds `vendor/packs/tikz-flat.json`, which busytex needs.
   - `npm run bench-engines -- tikzjax busytex`: runs the Playwright engine benchmark in Edge. Results go to `spike/engines/results/`.
   - Engine bench page: `/spike/engines/bench.html?engine=tikzjax|busytex|swiftlatex`. Output viewer: `/spike/engines/view.html?files=busytex.pdf,tikzjax.svg`.
   - `npm run compare-engines`: compares TikZJax with busytex on `spike/engines/diagrams/*.tex`. It writes composite PNGs and `compare.json` to `spike/engines/results/compare/`.
   - `/spike/engines/packages.html`: the TikZJax runtime-package and user-preamble checks.
-- Playwright's Firefox doesn't start on this machine (see PROGRESS.md), so use Edge (`msedge` channel) for browser automation.
-- Layout: `spike/` holds throwaway Milestone 0 code. The generated `spike/grammar/parser*.ts` files are gitignored.
+- Playwright's Firefox doesn't start on this machine (see PROGRESS.md), so use Edge (`msedge` channel) for browser automation. In development builds, `window.tikzflow` exposes the store for tests and debugging.
+- Layout:
+  - `src/parser/`: the Lezer grammar, analysis helpers, and structure helpers. The generated `parser*.ts` files are gitignored.
+  - `src/model/`: tree → syntax (with source ranges), the document model, and the summary.
+  - `src/tikz/`: the TikZ interpreter: units, colours, keys and styles, coordinates, shapes, and layout.
+  - `src/text/`: label typesetting.
+  - `src/edit/`: text changes, snapping, the move planner and emitter, and libraries.
+  - `src/ui/`: Preact components, the CodeMirror setup, and the store.
+  - `test/`: Vitest tests, `test/e2e/` Playwright tests, and `test/fixtures/golden/`.
+  - `spike/`: Milestone 0 engine code, plus the fidelity harness and probes. It is still used by `npm run fidelity`.
+- Shell quoting: backslashes in `node -e` and heredocs get mangled in this environment. Write files containing TeX or regexes with the editor tools, not shell one-liners.

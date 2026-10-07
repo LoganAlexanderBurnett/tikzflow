@@ -1,26 +1,148 @@
 # Progress
 
 ## Current status
-**Milestone 0 (technical spike): done and approved (2026-10-07).**
+**Milestone 1 (core loop): done, awaiting the owner's review (2026-10-07).** It is pushed to `trunk`. The report is in the M1 section below. Decisions needed are under "M1: decisions for the owner".
+
+Milestone 0 is done and was approved on 2026-10-07:
 - **License:** GPL-3.0-or-later (D14).
 - **Engine:** TikZJax, with our own build in Milestone 3 (D13, D15).
 - **Preview fonts:** always Computer Modern (D16).
 
-**Next:** Milestone 1 (core loop). The owner will start it in a new session; it hasn't been started yet. Start by reading SPEC.md's Milestone 1 section, plus the "Notes for later milestones" below so nothing in Milestone 1 conflicts with them.
+**Next:** Milestone 2, once the owner approves M1. Read the "Notes for later milestones" below first.
 
 ## Milestones
 | Milestone | Status |
 |---|---|
 | M0: Technical spike | Done, approved 2026-10-07 |
-| M1: Core loop | Not started (next, in a new session) |
+| M1: Core loop | Done 2026-10-07, awaiting review |
 | M2: Creating from scratch and editing edges | Not started |
 | M3: Accurate preview and export | Not started |
 | M4: Layout and import | Not started |
 | M5: Polish and launch prep | Not started |
 
+## M1: Core loop (2026-10-07)
+### How to try it
+- Run `npm install`, then `npm run dev`, and open http://localhost:5173.
+- The app opens on a sample flowchart. You can:
+  - paste your own code into the code pane;
+  - use **Open…** or drop a `.tex` file on the window (try the files in `corpus/`);
+  - drag nodes;
+  - press Ctrl+Z or Ctrl+Y in either pane.
+- **Download** saves the code in the file's own encoding.
+- **Details** in the summary bar lists:
+  - what was kept as-is;
+  - locked nodes and why;
+  - options the preview ignores.
+
+### What works
+**Split view.** CodeMirror with TikZ highlighting on the left, the SVG canvas on the right, with a draggable splitter. The canvas pans (drag the background) and zooms (wheel). **Fit** frames the picture.
+
+**Open and paste.**
+- A full document stays whole in the code pane (D27).
+- The model reads from the preamble:
+  - `\tikzset` and `\tikzstyle` styles, with arguments and defaults;
+  - `\usetikzlibrary`;
+  - `\definecolor` and `\colorlet`;
+  - simple `\newcommand` and `\def` macros, used in labels and in KaTeX.
+- The document class's font size is honoured.
+- With several pictures, a picker chooses one.
+- Files load and save byte-identically:
+  - UTF-8 with or without a BOM;
+  - UTF-16;
+  - any other 8-bit encoding, read as ISO-8859-1 (D29).
+
+**"What I understood" summary.** For example: "20 nodes and 23 edges editable; 1 block kept as-is". Details list the locked nodes with reasons, ignored options, things drawn approximately, and missing shape libraries.
+
+**Native rendering.** `src/tikz/` is a small TikZ interpreter covering:
+- **Styles:** pgfkeys-style keys and scoped styles; `every node`, `every path` and `every edge`.
+- **Colours:** xcolor expressions.
+- **Shapes:** rectangle, rounded corners, circle, ellipse, diamond, trapezium, rounded rectangle, cylinder, tape. Their anchors and borders follow PGF's definitions.
+- **Placement:**
+  - positioning, new and old syntax, including `on grid`;
+  - `|-` and `-|`;
+  - calc's `$(a)!t!(b)$` and sums;
+  - `fit`, `label=`, local bounding boxes;
+  - the chains library (`on chain`, `join`, `\chainin`).
+- **Transforms:** `scale`, `x`/`y`, shifts, rotations and `transform shape`.
+- **Path operations:** `--`, `|-`, `-|`, `to[bend/out/in]`, `.. controls ..`, `edge`, `cycle`, `rectangle`, `circle`, `arc`.
+- **Path decoration:** nodes on paths (`pos`, `midway`, `auto`, `swap`, `sloped`); arrows.meta and old-style arrow tips with shortening; dashes, opacity, shadings and drop shadows; the background layer.
+- **Labels** are typeset with Computer Modern metrics and KaTeX (D22): line breaking at `text width`, `align`, `\\`, font commands, accents, `\textbf` and friends, `\ref` shown as `??`.
+
+**Fidelity against pdfTeX** (`npm run fidelity`, D23). Of 271 corpus nodes in the 22 pictures pdfTeX compiles:
+- 200 centres are within 1 pt and 247 within 3 pt;
+- 218 sizes are within 1 pt.
+
+The check turned up seven TeX behaviours the interpreter had wrong. Probes pin each one down.
+
+**Dragging.**
+- Snapping to centre lines and to the node distance, with guides.
+- Alt drags without snapping.
+- Dependent nodes and edges follow live.
+- On drop, the emitter writes the most relational form that reproduces the position, then verifies it by laying out the patched text (D24). Typical results:
+  - `\node[process, below=of a]`
+  - `right=1.5cm of a`
+  - `at (a |- b)`
+  - `below=1.3cm of d9, xshift=5mm` for a nudge
+  - coordinates kept as numbers in TikZiT-style files
+- Only the node's own placement items and `at` clause change. The `positioning` library is added if the document lacks it (D28).
+- The status bar says what was written. If the drop lined up with a node defined later in the code, it explains that such a node can't be referenced.
+
+**Selection sync.** Clicking a shape highlights its statement in the code and scrolls to it. Moving the cursor selects the shape, or the path for a cursor in an edge or its label.
+
+**Undo and redo across both panes** through CodeMirror's history. Each drag is one undo step (D25).
+
+**Locked nodes.** Locked nodes show why when clicked and refuse to move (D26). Blocks kept as-is are shaded in the code pane.
+
+### Tests
+**Vitest: 317 tests, `npm test`, about 9 s.**
+- **Every corpus file** (25 files: 17 TeX.SE answers and 8 self-written):
+  - byte-identical load and save;
+  - byte coverage;
+  - incremental and full parses agree (D17);
+  - coverage holds under random mutation.
+- **Interpreter geometry:** 61 tests against known TikZ behaviour.
+- **Move planner:** 13 tests.
+- **Golden minimal-diff tests:** 55 scripted moves across the corpus (D30).
+
+**Playwright: 7 end-to-end tests in Edge, `npm run test:e2e`.** They cover:
+- dragging writes positioning code;
+- undo and redo from the canvas;
+- selection sync both ways;
+- typing updates the canvas;
+- open a Latin-1 file and download it byte for byte;
+- locked nodes don't move.
+
+**Builds.** `npm run typecheck` and `npm run build` pass. The build is 2.0 MB in 62 files; the largest is the 790 kB app bundle (253 kB gzipped).
+
+### Performance
+Measured with `npm run layout:bench` on a generated 200-node, 250-edge picture:
+- parse and extract: 11 ms;
+- layout: 7 ms;
+- snapping: about 1 ms;
+- planning and verifying a drop: 38 ms.
+
+In Edge, a drag frame at that size takes about 30–40 ms, roughly 25–30 fps. Most of it is style recalculation for 450 HTML labels and re-rendering. The M5 target is smooth dragging at 200 nodes. Likely steps:
+- plain labels as SVG text;
+- incremental layout of only the moved node's dependents.
+
+### What doesn't work yet, or only approximately
+- **Blocks kept as-is aren't drawn:** `\foreach` bodies, `\matrix` cells, `pic`, `\graph`, paths using `let`, `plot` or decorations. Edges that refer to nodes inside them are left out (and listed). The accurate preview (M3) will draw them.
+- **Chain nodes are placed but locked.** Moving one would mean taking it off its chain.
+- **Labels** don't hyphenate and don't break paragraphs with TeX's total-fit algorithm. Narrow `text width` nodes can end up one line taller or shorter than in TeX. Inline math doesn't break after relations. `\rotatebox` text is drawn unrotated.
+- **Shapes drawn as rectangles:** `single arrow`, `rectangle split` (parts become lines), `star`, `regular polygon`, `signal`, `cloud` and custom `\pgfdeclareshape` shapes.
+- **Relations only refer to earlier nodes,** as TikZ requires. A drop lined up with a later node is written relative to earlier ones, rounded to 1 mm, with a note in the status bar.
+- **Not in M1:** editing edges and labels (M2), and creating nodes (M2).
+- **TeX.SE files that pdfTeX itself rejects.** Six corpus pictures fail in the fidelity check: tikz-ext libraries, a custom shape, a pasted bare picture with CJK text, TikZiT styles defined elsewhere, a deliberately broken file, and `self-document.tex`, whose `rounded rectangle` needs `shapes.misc`. The summary now warns about that last case.
+
+### M1: decisions for the owner
+1. **Emitter order (D24).** A perpendicular coordinate (`at (a |- b)`) ranks above a relation with an arbitrary written distance when a node lines up with two nodes. A nudged node keeps its previous relation plus `xshift`/`yshift`. Is this ordering what you want?
+2. **Locking (D26).** Unknown cosmetic options (`drop shadow`, decorations) don't lock a node; only placement it can't model does. SPEC.md says unknown options become locked blocks; this reads that as "the option is kept as-is", not "the node is frozen". Agree?
+3. **Library management pulled forward (D28).** Moves add `positioning` to `\usetikzlibrary` when it's missing, because otherwise the written code wouldn't compile. Full library management stays in M2. OK?
+4. **Chains (D23, D26).** I added the chains library, placed but locked, because it is common in TeX.SE flowcharts and stacked everything at the origin without it. Keep it in scope?
+
 ## M0 Track A: Lezer grammar (2026-10-07)
-- The grammar is in `spike/grammar/tikz.grammar`. It generates with no conflicts.
-- Three self-written samples are in `spike/grammar/fixtures/`: a full document, a bare picture with CRLF line endings and tabs, and a messy file with three deliberate errors. For all three, the tree's leaves cover every byte exactly once and joining them reproduces the input.
+- The grammar was in `spike/grammar/tikz.grammar` (moved to `src/parser/` in M1). It generates with no conflicts.
+- Three self-written samples were in `spike/grammar/fixtures/` (now `corpus/self-document.tex`, `self-bare-crlf.tex` and `self-broken.tex`): a full document, a bare picture with CRLF line endings and tabs, and a messy file with three deliberate errors. For all three, the tree's leaves cover every byte exactly once and joining them reproduces the input.
 - Share of TikZ bytes that is modelled structure, opaque, and error:
 
   | Sample | Modelled | Opaque | Error |
@@ -179,14 +301,22 @@ These come from the M0 review. The full reasoning is in DECISIONS.md D15 and D16
   The extra Firefox 137 build downloaded during M0 was removed on 2026-10-07. Playwright's current Firefox 155 build is still installed.
 
 ## Known issues and limitations
-**Grammar spike**
-- **Opaque `\foreach` and brace scopes.** `\foreach` bodies and `{ ... }` scope groups inside a picture are opaque. `\begin{scope}...\end{scope}` works, because those are just markers.
-- **Picture options aren't separate.** `\begin{tikzpicture}[...]` options come out as a leading Opaque item.
+**Grammar** (`src/parser/tikz.grammar`; D19 lists what M1 added)
+- **Fixed in M1:**
+  - picture options are a separate node;
+  - brace scopes are parsed;
+  - `\tikzstyle` is modelled;
+  - `;` is allowed inside braced option values;
+  - `-|` works without spaces;
+  - pictures inside `\resizebox` are found.
+- **`\foreach` and `\matrix` are always opaque,** by design.
 - **Spaced environment names.** `\begin {tikzpicture}` (with a space) isn't recognised as a picture.
-- **`;` inside option values.** A `;` inside an option value, such as `pic code={...;}`, gives an error node, though its bytes are still covered.
+- **`;` inside `[...]`.** A `;` inside square-bracket options (outside braces) is an error node, so that an unclosed `[` stops at its statement. Its bytes are still covered.
 - **Unclosed `[` or `{`.** Text runs to the next point where they can close. This matches TeX and loses no bytes.
-- **Positions are UTF-16 code units.** File load and save must keep the encoding as-is, including any BOM.
-- **Old `\tikzstyle` syntax** is treated as document text.
+- **Error recovery.** Bytes that no token matches during recovery belong to the error node itself (D18). Incremental parses can settle differently from full ones inside errors, which is why the model always uses a full parse (D17).
+- **Positions are UTF-16 code units.** File load and save keep the encoding as-is, including any BOM (D29).
+
+**Native preview and editing:** see "What doesn't work yet" in the M1 section.
 
 **Engines and hosting**
 - **TikZJax rendering defects.** Missing `\matrix` cell borders, lost strokes in nested pictures, and the 72.27/72 scale error are root-caused, with workarounds; see the M0 follow-up checks.
