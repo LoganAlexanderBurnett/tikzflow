@@ -6,6 +6,7 @@ A free, static, fully client-side web app for creating and editing TikZ flowchar
 1. Read [PROGRESS.md](PROGRESS.md) for the current milestone, its status, and known issues.
 2. Read [DECISIONS.md](DECISIONS.md) before changing architecture, stack, or conventions.
 3. [SPEC.md](SPEC.md) holds the full requirements. Change it only when the owner approves. Then log the change in its "Spec revisions" section and the reasons in DECISIONS.md.
+4. The owner has added requirements for later milestones that aren't in SPEC.md, notably Milestone 3's engine build. They're listed in PROGRESS.md under "Notes for later milestones". Treat them as part of the spec.
 
 ## Workflow
 - Work one milestone at a time. At the end of each, stop and report what works, what doesn't, how to try it, and which decisions are needed. Wait for approval before starting the next milestone.

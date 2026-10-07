@@ -61,8 +61,10 @@ The byte-identical load/save check stays only as a cheap regression guard.
 **Decision:** A Vite middleware serves `vendor/` raw. It never sets `Content-Encoding`, returns real 404s, and sends COEP/CORP headers on every response. The page itself is served with COOP/COEP.
 **Why:** Vite's static server marked `.gz` files as gzip-encoded, so the browser inflated them before the engines' own decompressors saw them. Its `index.html` fallback also answered missing files with HTTP 200, so engines stored HTML as TeX files. Workers in a cross-origin-isolated page need COEP on their script responses. Production hosting must follow the same three rules.
 
-## D13: Engine recommendation (PROVISIONALLY APPROVED 2026-10-07, pending two checks)
-**Status:** The owner approved this on 2026-10-07, on condition of two timeboxed checks:
+## D13: Engine recommendation (APPROVED 2026-10-07)
+**Status:** Approved by the owner after the follow-up checks: TikZJax, with our own build in Milestone 3 (see D15). The history below is kept for context.
+
+The first approval was provisional, on condition of two timeboxed checks:
 1. Find the root cause of the missing `\matrix` cell borders, and compare TikZJax with busytex on at least 10 diagrams, with busytex as the reference.
 2. Confirm that TikZJax can load packages outside its format at compile time and can handle a user preamble with `\usepackage`, `\newcommand` and `\definecolor`.
 
@@ -84,22 +86,46 @@ The recommendation stands, on condition that we build our own variant (D15).
 - busytex is faithful, but it needs 63 MB Brotli, its files are over the 25 MB limit, and it outputs only PDF.
 - SwiftLaTeX failed within the timebox, is AGPL-3.0, has been inactive since 2022, and needs custom response headers.
 
-**Open questions for the owner:**
-- **License direction.** Using the fork and `dvi2html` as-is means GPL-3.0. A permissive license would mean replacing them with our own DVI-to-SVG converter and building our own format dump. That would also let us move to pgf 3.1.12.
-- **Matrix-cell borders.** The defect needs a root cause in either case.
+**Questions raised in the M0 report (both resolved):**
+- **License direction:** GPL-3.0-or-later (D14).
+- **Matrix-cell borders:** root-caused in the follow-up checks (PROGRESS.md); the proper fix is in D15.
 
 ## D14: The project license is GPL-3.0-or-later (2026-10-07)
 **Decision:** The owner chose GPL-3.0, option (a) in the M0 report. `LICENSE` holds the official GNU text, and `package.json` declares `GPL-3.0-or-later`. This supersedes D7.
-**Why:** The recommended preview pipeline uses the TikZJax fork (GPL-3.0+) and `dvi2html` (GPL-3.0), so a GPL-3.0 project can use them as they are. "Or later" matches the TikZJax fork and is the FSF's recommended form. It stays compatible with the GPL-3.0 dependencies, because the combined work is distributed under GPL-3.0. Switching to GPL-3.0-only would be a one-line change if the owner prefers it.
+**Why:** The recommended preview pipeline uses the TikZJax fork (GPL-3.0+) and `dvi2html` (GPL-3.0), so a GPL-3.0 project can use them as they are. "Or later" matches the TikZJax fork and is the FSF's recommended form. It stays compatible with the GPL-3.0 dependencies, because the combined work is distributed under GPL-3.0. The owner confirmed the "or later" form on 2026-10-07.
 **Consequences:** Every bundled component must be GPL-3.0-compatible, which the Milestone 5 license audit will check. LPPL, OFL, GUST, MIT, Apache-2.0 and public-domain components can all be combined with GPL-3.0 code. Pure GPL-2.0-only code could not, so any busytex binaries would need checking before they ship.
 
-## D15: Requirements for our own TikZJax build (PROPOSED for Milestone 3, 2026-10-07)
-**Proposal:** Don't ship the `@drgrice1/tikzjax` package as it is. Build our own variant of the pipeline: its `tex.wasm`, our own format, and a patched worker and driver. It needs to:
-1. **Build the format** from a pinned TeX Live snapshot: current LaTeX kernel, expl3 and pgf 3.1.12. Host the extra packages from the same snapshot as `tex_files/<name>.gz`, so they match the kernel.
-2. **Fix the driver's box handling.** Inside TeX boxes, colour changes must set the stroke as well, and `stroke="none"` must apply only to glyphs. That fixes `\matrix` cell borders and pictures nested in node text. The `pgfsys-ximera.def` source hasn't been found yet, so the fallback is to adapt pgf's own `pgfsys-dvisvgm.def`.
-3. **Fix the file loader.** Report missing files as missing, not as empty files. Accept uncompressed fetches as bytes, not strings.
-4. **Always stream the log** through the `showConsole` messages, and inject `\scrollmode` so errors give partial output plus line-mapped messages.
-5. **Emit SVG sizes in bp,** or have the overlay scale by 72/72.27.
-6. **Keep the fixed font set** (Computer Modern and AMS) for the preview. User font packages are kept in `.tex` export only.
+## D15: Requirements for our own TikZJax build (APPROVED for Milestone 3, 2026-10-07)
+**Decision:** Don't ship the `@drgrice1/tikzjax` package as it is. Build our own variant of the pipeline: its `tex.wasm`, our own format, and a patched worker and driver. The owner approved this with amendments (marked **owner**). The build must:
+1. **Run in GitHub Actions on Linux, not locally on Windows** (**owner**). The engine and format are built in CI and published as build artifacts.
+2. **Build the format** from a pinned TeX Live snapshot: current LaTeX kernel, expl3 and pgf 3.1.12. Host the extra packages from the same snapshot as `tex_files/<name>.gz`, so they match the kernel.
+3. **Replace `pgfsys-ximera.def` entirely** (**owner**). Its origin and license are unknown, so it must not ship. Use a driver whose license we know, based on pgf's own `pgfsys-dvisvgm.def` (LPPL). In that driver:
+   - Inside TeX boxes, colour changes must set the stroke as well.
+   - `stroke="none"` must apply only to glyphs.
 
-**Why:** These come straight from the M0 follow-up checks in PROGRESS.md. Until this is done, `fixBoxStroke()` and the 72/72.27 scaling are spike-only workarounds.
+   That fixes `\matrix` cell borders and pictures nested in node text. `dvi2html` must be adapted to the new driver's specials where they differ.
+4. **Fix the file loader.**
+   - Report missing files as missing, not as empty files.
+   - Show a visible warning in the UI when a package isn't available (**owner**).
+   - Accept uncompressed fetches as bytes, not strings.
+5. **Always stream the log** through the `showConsole` messages, and use `\scrollmode` by default (**owner**), so errors give partial output plus line-mapped messages.
+6. **Emit SVG sizes in bp,** or have the overlay scale by 72/72.27.
+7. **Keep the fixed font set** (Computer Modern and AMS) for the preview. See D16.
+
+**First Milestone 3 task (owner):** confirm the CI toolchain is feasible before anything else. That means building `tex.wasm` (web2js) and dumping a format from a pinned TeX Live snapshot with the new driver, on a Linux GitHub Actions runner.
+
+**Why:**
+- The requirements come straight from the M0 follow-up checks in PROGRESS.md.
+- Building on Linux CI avoids Windows toolchain problems and makes the engine reproducible.
+- A driver of unknown origin can't ship in a GPL project whose bundled components must all be license-audited (Milestone 5).
+
+Until this is done, `fixBoxStroke()` and the 72/72.27 scaling are spike-only workarounds.
+
+## D16: The preview always uses Computer Modern (APPROVED 2026-10-07)
+**Decision:**
+- The accurate preview always typesets in Computer Modern (plus the AMS fonts).
+- `.tex` export keeps the user's preamble, including any font packages, unchanged.
+- When the preamble loads a font package, the UI shows a small notice that text widths in the preview may differ from the user's document (Milestone 3).
+
+**Why:** The TikZJax pipeline renders text with web fonts that need matching TeX metrics and per-encoding glyph maps. Supporting arbitrary font packages would mean converting each font family. Computer Modern keeps the preview fast and small, and the notice stops users from trusting text widths the preview can't promise.
+

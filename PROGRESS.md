@@ -1,13 +1,18 @@
 # Progress
 
 ## Current status
-**Milestone 0 (technical spike): complete, including the follow-up checks the owner asked for (2026-10-07).** The license is GPL-3.0-or-later (D14). TikZJax is provisionally approved; the follow-up results are below and in D13 and D15. Waiting for the owner's review before Milestone 1.
+**Milestone 0 (technical spike): done and approved (2026-10-07).**
+- **License:** GPL-3.0-or-later (D14).
+- **Engine:** TikZJax, with our own build in Milestone 3 (D13, D15).
+- **Preview fonts:** always Computer Modern (D16).
+
+**Next:** Milestone 1 (core loop). The owner will start it in a new session; it hasn't been started yet. Start by reading SPEC.md's Milestone 1 section, plus the "Notes for later milestones" below so nothing in Milestone 1 conflicts with them.
 
 ## Milestones
 | Milestone | Status |
 |---|---|
-| M0: Technical spike | Done, follow-up checks done, awaiting review |
-| M1: Core loop | Not started |
+| M0: Technical spike | Done, approved 2026-10-07 |
+| M1: Core loop | Not started (next, in a new session) |
 | M2: Creating from scratch and editing edges | Not started |
 | M3: Accurate preview and export | Not started |
 | M4: Layout and import | Not started |
@@ -155,7 +160,23 @@ Playwright's Firefox 155, and an older Firefox 137 build, both fail to start on 
 - **busytex:** unchanged.
 
 ## Notes for later milestones
-- **M3 PDF export (owner direction, 2026-10-07):** `.tex` export is the primary output. For quick PDF exports, prefer converting the preview SVG to PDF in the browser. Don't ship busytex for this. Decide the details in Milestone 3.
+### Milestone 3: owner requirements on top of SPEC.md (2026-10-07)
+These come from the M0 review. The full reasoning is in DECISIONS.md D15 and D16.
+1. **First task: confirm the CI toolchain is feasible.** Build TikZJax's `tex.wasm` (web2js) and dump our own format from a pinned TeX Live snapshot in **GitHub Actions on Linux**, not locally on Windows. Do this before any other Milestone 3 work.
+2. **Our own engine build** (D15): current LaTeX kernel, expl3 and pgf 3.1.12, with matching extra packages hosted as `tex_files/<name>.gz`.
+3. **Replace `pgfsys-ximera.def`** (unknown origin and license) with a driver based on pgf's `pgfsys-dvisvgm.def` (LPPL). Fix box handling so that `\matrix` cell borders and pictures nested in node text keep their strokes and colours. Adapt `dvi2html` as needed.
+4. **Use `\scrollmode` by default**, stream the TeX log, and map error lines back to the user's source.
+5. **Missing packages:** show a visible warning when a package isn't available, rather than letting TikZJax load an empty file silently.
+6. **Font notice:** the preview always uses Computer Modern (D16). When the preamble loads a font package, show a small notice that text widths in the preview may differ from the user's document. `.tex` export keeps the user's packages.
+7. **Units and hairlines:** place the SVG with the 72/72.27 correction (or emit bp), and enforce a minimum visible stroke width in the preview.
+8. **PDF export:** `.tex` export is the primary output. For quick PDF exports, prefer converting the preview SVG to PDF in the browser. Don't ship busytex for this. Decide the details in Milestone 3.
+
+### Any time
+- **Firefox spot check:** the owner will run it themselves:
+  - `npx playwright install firefox`
+  - `npm run bench-engines -- tikzjax busytex --browser=firefox`
+
+  The extra Firefox 137 build downloaded during M0 was removed on 2026-10-07. Playwright's current Firefox 155 build is still installed.
 
 ## Known issues and limitations
 **Grammar spike**
@@ -172,4 +193,4 @@ Playwright's Firefox 155, and an older Firefox 137 build, both fail to start on 
 - **TikZJax refetches files on every compile.** It clears its virtual file system after each compile, so production needs good HTTP caching or a patched loader.
 - **`.gz` assets get decompressed early.** Static servers may send `.gz` files with `Content-Encoding: gzip`, so the browser inflates them before the engine does. Vite's dev server did this. Cloudflare Pages behaviour needs checking in Milestone 3, or the assets should be renamed or recompressed with Brotli.
 - **Cross-origin isolation needs headers on workers.** With COOP/COEP set, every worker script must also send COEP. In production that means a `_headers` file.
-- **Firefox not yet tested.** Playwright's Firefox won't start on this machine; see the M0 follow-up checks.
+- **Firefox not yet tested.** Playwright's Firefox won't start in the agent's environment. The owner will run the check (see "Notes for later milestones").
