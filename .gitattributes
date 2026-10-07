@@ -1,0 +1,5 @@
+* text=auto eol=lf
+
+# Round-trip test inputs must stay byte-exact (see DECISIONS.md D1).
+corpus/** -text
+test/fixtures/** -text
