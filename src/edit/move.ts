@@ -173,7 +173,9 @@ export function candidateSpecs(layout: PictureLayout, node: LaidOutNode, c: Poin
       const overlap = vertical ? t.shape.hw + node.shape.hw : t.shape.hh + node.shape.hh;
       if (Math.abs(cross) >= overlap) continue;
       const shift = vertical ? { x: cross / sx, y: 0 } : { x: 0, y: cross / sy };
-      const spec: PositionSpec = vertical ? { ...base, v: local, shift } : { ...base, h: local, shift };
+      // A gap that is the node distance stays "below=of a"; only the shift is added.
+      const atDistance = Math.abs(local - nodeDist) <= ROUND_TOLERANCE;
+      const spec: PositionSpec = atDistance ? { ...base, shift } : vertical ? { ...base, v: local, shift } : { ...base, h: local, shift };
       if (isPrev && dir === prev!.dir && alongShift) nudged.push(alongShift);
       else if (isPrev && dir === prev!.dir) kept.push(spec);
       else if (!onlyPrev && Math.abs(cross) <= NEARBY) shifted.push(spec);

@@ -7,14 +7,14 @@ import { memo } from "preact/compat";
 import { useCallback, useEffect, useMemo, useRef } from "preact/hooks";
 import { planMove, positioningText, referenceCandidates } from "../edit/move.ts";
 import type { Scope } from "../edit/properties.ts";
-import { planResize, type ResizeOutcome, resizeBlocker, type SizeWant } from "../edit/resize.ts";
+import { type Hold, planResize, type ResizeOutcome, resizeBlocker, type SizeWant } from "../edit/resize.ts";
 import { type GapMark, snapNode } from "../edit/snap.ts";
 import { pictureEnv } from "../model/document.ts";
 import { undrawable } from "../model/explain.ts";
 import { type RGB, cssColor } from "../tikz/colors.ts";
 import { defaultTipLength, defaultTipWidth } from "../tikz/keys.ts";
 import type { LaidOutNode, LaidOutPath, PictureLayout, Tip } from "../tikz/layout.ts";
-import { anchorOffset, outline, type Point } from "../tikz/shapes.ts";
+import { outline, type Point } from "../tikz/shapes.ts";
 import { PT_PER_UNIT } from "../tikz/units.ts";
 import type { Shading } from "../tikz/state.ts";
 import { katexMacros, labelHtml } from "./labelHtml.ts";
@@ -358,8 +358,6 @@ interface ResizeDrag {
   pointer: Point;
   w0: number;
   h0: number;
-  /** Where the node's anchor sits across its width and height, 0 to 1 from west and south. */
-  anchor: Point;
   moved: boolean;
   key: string;
   last: Extract<ResizeOutcome, { ok: true }> | null;
@@ -368,13 +366,6 @@ interface ResizeDrag {
 }
 
 const MM_PT = PT_PER_UNIT.mm!;
-
-/**
- * How far a size change moves the edge being dragged, as a share of the
- * change: a node grows around its anchor, so an edge far from the anchor
- * moves most. Edges at the anchor itself can't move, so use half.
- */
-const edgeShare = (share: number) => (share < 0.25 ? 0.5 : share);
 
 export function Canvas() {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -400,7 +391,9 @@ export function Canvas() {
   }, []);
 
   const fit = () => {
-    const l = baseLayout.value;
+    // peek: fitting happens in an effect, and an edit that changes the layout
+    // must not refit (and so rescale) the view under the user.
+    const l = baseLayout.peek();
     if (!l) return;
     const b = l.bounds;
     const bw = Math.max(20, b.maxX - b.minX);
@@ -447,7 +440,6 @@ export function Canvas() {
       const n = baseLayout.value?.nodes.find((x) => x.id === id);
       const scope = activeScope.value;
       if (handle && n && scope && selectedIds.value.length === 1) {
-        const off = anchorOffset(n.shape, n.position.anchor) ?? { x: 0, y: 0 };
         drag.current = {
           kind: "resize",
           id: n.id,
@@ -456,7 +448,6 @@ export function Canvas() {
           pointer: toModel(e),
           w0: 2 * n.shape.hw,
           h0: 2 * n.shape.hh,
-          anchor: { x: n.shape.hw ? 0.5 + off.x / (2 * n.shape.hw) : 0.5, y: n.shape.hh ? 0.5 + off.y / (2 * n.shape.hh) : 0.5 },
           moved: false,
           key: "",
           last: null,
@@ -503,11 +494,15 @@ export function Canvas() {
     const l = baseLayout.value;
     if (!l) return;
     const { fx, fy } = d.handle;
-    const shareW = fx ? edgeShare(fx > 0 ? 1 - d.anchor.x : d.anchor.x) : 1;
-    const shareH = fy ? edgeShare(fy > 0 ? 1 - d.anchor.y : d.anchor.y) : 1;
+    // The edge opposite the handle stays put, as in PowerPoint or Figma. With
+    // Ctrl (Cmd on a Mac) the centre stays and both edges move, so the size
+    // changes twice as fast as the pointer. Alt is taken: it turns snapping off.
+    const symmetric = e.ctrlKey || e.metaKey;
+    const share = symmetric ? 0.5 : 1;
+    const hold: Hold = { x: symmetric ? 0 : ((-fx) as -1 | 0 | 1), y: symmetric ? 0 : ((-fy) as -1 | 0 | 1) };
     const want: SizeWant = {};
-    if (fx) want.w = Math.max(1, d.w0 + (fx > 0 ? dx : -dx) / shareW);
-    if (fy) want.h = Math.max(1, d.h0 + (fy > 0 ? dy : -dy) / shareH);
+    if (fx) want.w = Math.max(1, d.w0 + (fx > 0 ? dx : -dx) / share);
+    if (fy) want.h = Math.max(1, d.h0 + (fy > 0 ? dy : -dy) / share);
     // Snap to the width or height of another node (Alt drags without).
     const snapped: { w?: LaidOutNode; h?: LaidOutNode } = {};
     if (!e.altKey) {
@@ -522,14 +517,14 @@ export function Canvas() {
         return best?.node;
       };
       if (want.w !== undefined) {
-        const m = nearest(want.w, shareW, (n) => 2 * n.shape.hw);
+        const m = nearest(want.w, share, (n) => 2 * n.shape.hw);
         if (m) {
           want.w = 2 * m.shape.hw;
           snapped.w = m;
         }
       }
       if (want.h !== undefined) {
-        const m = nearest(want.h, shareH, (n) => 2 * n.shape.hh);
+        const m = nearest(want.h, share, (n) => 2 * n.shape.hh);
         if (m) {
           want.h = 2 * m.shape.hh;
           snapped.h = m;
@@ -537,10 +532,10 @@ export function Canvas() {
       }
     }
     // Sizes are written in whole millimetres, so only re-plan when that changes.
-    const key = `${Math.round((want.w ?? 0) / MM_PT)}|${Math.round((want.h ?? 0) / MM_PT)}|${snapped.w?.id ?? ""}|${snapped.h?.id ?? ""}`;
+    const key = `${Math.round((want.w ?? 0) / MM_PT)}|${Math.round((want.h ?? 0) / MM_PT)}|${snapped.w?.id ?? ""}|${snapped.h?.id ?? ""}|${symmetric}`;
     if (key === d.key) return;
     d.key = key;
-    const out = planResize(doc.value, currentPicture.value, l, d.id, want, d.scope);
+    const out = planResize(doc.value, currentPicture.value, l, d.id, want, d.scope, hold);
     if (!out.ok) {
       status.value = out.reason;
       return;
@@ -613,7 +608,7 @@ export function Canvas() {
       if (!d.moved || !d.last) return;
       const name = (n: LaidOutNode) => n.name ?? n.id;
       const same = [d.match.w && `width as ${name(d.match.w)}`, d.match.h && `height as ${name(d.match.h)}`].filter(Boolean);
-      applyResize(d.last.changes, d.last.written, d.scope, d.last.notes, same.length ? ` Same ${same.join(" and ")}.` : "");
+      applyResize(d.last.changes, d.last.written, d.scope, d.last.notes, d.last.position, same.length ? ` Same ${same.join(" and ")}.` : "");
       return;
     }
     if (!d.moved) return;
@@ -789,7 +784,9 @@ export function Canvas() {
                 class="tf-handle"
                 style={{ cursor: h.cursor }}
                 stroke-width={f(1 / v.scale)}
-              />
+              >
+                <title>Drag to resize. Ctrl resizes from the centre, Alt turns snapping off.</title>
+              </rect>
             );
           })}
         {g.lines.map((gl) =>

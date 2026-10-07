@@ -43,7 +43,7 @@ Milestone 0 is done and was approved on 2026-10-07:
 - **What gets written:** whole-millimetre `minimum width` and `minimum height` (never `86.0000007pt`), updated in place on a second drag.
   - A drag that should rewrap the text writes `text width`, never below the widest word. That is a node that already has a `text width`, or a label that can break at a space, made narrower than its text.
   - Circles get `minimum size`.
-- **A node grows around its anchor,** as in TeX, and the dragged edge follows the pointer. The node's position is never edited to hold the other edge.
+- **The opposite edge stays put** (D40, which replaced the "grows around its anchor" rule): the dragged edge follows the pointer and the node is repositioned in the same edit if its anchor doesn't already hold the other side. Ctrl (Cmd) resizes from the centre. See "Resizing holds the opposite edge" below.
 - **Live preview:** dependent nodes and edges follow while dragging. The edit is one undo step.
 - **Snapping** to whole millimetres and to other nodes' widths and heights, with dimension marks. Alt drags without snapping to nodes.
 - **Scope.** The drag follows the panel's choice, "This node" or the style. The scope now lives in the store so the canvas can read it.
@@ -56,6 +56,11 @@ Milestone 0 is done and was approved on 2026-10-07:
 
 **Also fixed:** the canvas never had keyboard focus, because SVG `tabIndex` is case-sensitive in Preact. It's `tabindex` now.
 
+### Resizing holds the opposite edge (D40, 2026-10-07)
+- Drag the south-east corner and the north-west corner stays where it is; drag a side and the opposite side stays. **Ctrl** (Cmd on a Mac) resizes from the centre instead. Alt still turns snapping off.
+- If the node's anchor already holds that edge (`below=of a` holds the top), only the size is written. Otherwise the move planner repositions it in the same edit: `below=of small` becomes `below=of small, xshift=4mm`. One undo step.
+- Also fixed: the view refitted after every edit that changed the picture's size (an M1 bug that resizing made visible).
+
 ### Tests
 - **Vitest:** 513 tests in 9 files, about 10 s. New: `test/resize.test.ts` (23) and `test/label.test.ts` (39). The latter includes a sweep that appends a character to every closed label in the corpus and checks it is exactly one inserted character. There are also two drag-to-pin tests in `test/fixes.test.ts`. The golden minimal-diff files didn't change.
 - **Playwright:** 30 tests in Edge. New: `test/e2e/resize.spec.ts` (5), `test/e2e/label.spec.ts` (5), one drag-to-pin test in `fixes.spec.ts` and one panel-collapse test in `properties.spec.ts`.
@@ -64,7 +69,8 @@ Milestone 0 is done and was approved on 2026-10-07:
 
 ### Known limits (steps 4–5)
 - **Resizing is one node at a time.** A multi-selection shows no handles. Resizing several nodes together needs a rule for nodes of different shapes; say if you want it.
-- **Handles act on the size, not the position.** For a node placed with an anchor, the edge at the anchor can't move, so its handle uses half the pointer movement.
+- **The held edge can be up to 0.5 mm off** for a node placed relative to another, because shifts are written in whole millimetres (D40). Plain coordinates hold to 0.1 mm.
+- **Locked nodes** can't be repositioned, so they still grow around their anchor, with a note.
 - **Diamonds and ellipses** only take minimums (no rewrap), because their width isn't text width plus padding.
 - **Matched sizes are approximate.** Snapping to another node's width writes a whole-millimetre value, so a node whose width comes from its text matches to within 0.5 mm.
 - **Label editing shows no live preview** while typing, because the box covers the node. The canvas updates when the label is applied.

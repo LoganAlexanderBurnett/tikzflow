@@ -489,3 +489,18 @@ New features:
 **Why:**
 - Labels often hold macros, math and font commands. Editing the TeX keeps all of them and keeps the diff to the characters typed, which is the project's rule.
 - The parse check turns "the user typed something odd" into a refusal rather than a broken statement, in the same spirit as checking moves by laying the result out.
+
+## D40: Resizing holds the opposite edge (2026-10-07)
+**Decision:** This supersedes D38's rule that "a node grows around its anchor" and that its position is never edited. The owner asked for PowerPoint/Figma behaviour:
+- **The edge or corner opposite the handle stays where it is,** and the dragged edge follows the pointer one for one. With Ctrl (Cmd on a Mac) the centre stays and both edges move. Alt is already "no snapping", and Shift is kept for Shift-click multi-select and a possible proportional resize later.
+- **Where the anchor already holds that edge, only the size is written.** A node placed with `below=of a` (anchor north) dragged by its south side gets `minimum height` and nothing else.
+- **Otherwise the node is repositioned in the same edit** (`holdEdge` in `src/edit/resize.ts`). The size is written first and the picture laid out again, because the drawn size is rounded to whole millimetres. The move planner (`planMove`, D24) is then asked for the centre that puts the held edge back, so the position stays relational where it can: `below=of small` becomes `below=of small, xshift=4mm`, and a node at `at (2,1)` gets new coordinates. Its relation is kept as written when the gap is the node distance; the planner now leaves out the distance in that case instead of spelling it out (`below=8mm of small`).
+- **One undo step.** The two edits are merged into one set of changes against the original text (`composeChanges`, using CodeMirror's `ChangeSet`), so one Ctrl+Z undoes size and position together.
+- **A size-only fallback, with a note,** when the node's position is locked (an undefined reference, say) or the planner can't improve on it: the node then grows around its anchor as before and the status bar says the opposite edge moves.
+- **Scope.** Under "All process nodes" the style gets the size and every node using it changes; the dragged node alone is repositioned to hold its edge. The other nodes grow around their own anchors.
+- **Precision.** Shifts are written in whole millimetres like every emitted distance, so with a relational position the held edge can be up to 0.5 mm off. Plain coordinates are written to 0.01 of their unit (0.1 mm for centimetres). Circles hold on the dragged axis and stay centred on the other.
+- **Snapping to other nodes' sizes** is now one for one with the pointer (it used a share of the pointer movement before).
+
+**Also fixed:** the canvas refitted the view after every edit that changed the picture's bounds, because the fit effect read the layout and so subscribed to it. A resize that made the picture larger rescaled the view under the pointer. `fit` now reads the layout without subscribing, so only a fit request or a change of canvas size refits. This was in M1.
+
+**Why:** Growing around the anchor made the node's far edge move when it was centred, which is not what a drag on a corner means. Using the move planner keeps the output looking hand-written, and merging the edits keeps one drag one undo step.

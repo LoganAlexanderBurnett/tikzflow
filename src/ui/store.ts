@@ -306,13 +306,21 @@ export function applyProperty(scope: Scope, edit: PropEdit, extra: Change[] = []
 }
 
 /** Applies a finished resize drag as one undoable step, and says what was written. */
-export function applyResize(changes: Change[], written: readonly string[], scope: Scope, notes: readonly string[], extra = ""): void {
+export function applyResize(
+  changes: Change[],
+  written: readonly string[],
+  scope: Scope,
+  notes: readonly string[],
+  position?: string,
+  extra = "",
+): void {
   resizePreview.value = null;
   guides.value = { lines: [], gaps: [] };
   if (!changes.length) return;
   applyEdit(changes, "input.resize");
   const where = scope.kind === "style" ? ` in the ${scope.name} style` : "";
-  status.value = `Wrote ${written.join(", ")}${where}.${extra}${notes.map((n) => ` Note: ${n}.`).join("")}`;
+  const held = position ? ` Moved the node to keep the opposite edge in place: ${position}.` : "";
+  status.value = `Wrote ${written.join(", ")}${where}.${held}${extra}${notes.map((n) => ` Note: ${n}.`).join("")}`;
 }
 
 /**

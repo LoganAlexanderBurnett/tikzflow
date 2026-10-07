@@ -1,5 +1,6 @@
 // Text changes: the only way visual edits touch the source. Each change
 // replaces one range; a set of changes never overlaps.
+import { ChangeSet } from "@codemirror/state";
 
 export interface Change {
   from: number;
@@ -18,6 +19,20 @@ export function applyChanges(text: string, changes: readonly Change[]): string {
     pos = c.to;
   }
   return out + text.slice(pos);
+}
+
+/**
+ * Two edits in a row as one: `first` applies to `base`, `second` to the text
+ * that results. The returned changes apply to `base` and give the same text,
+ * so both can be undone together.
+ */
+export function composeChanges(base: string, first: readonly Change[], second: readonly Change[]): Change[] {
+  const afterFirst = applyChanges(base, first);
+  const a = ChangeSet.of(first.map((c) => ({ from: c.from, to: c.to, insert: c.insert })), base.length);
+  const b = ChangeSet.of(second.map((c) => ({ from: c.from, to: c.to, insert: c.insert })), afterFirst.length);
+  const out: Change[] = [];
+  a.compose(b).iterChanges((from, to, _fromB, _toB, inserted) => out.push({ from, to, insert: inserted.toString() }));
+  return out;
 }
 
 /** The smallest range [from, to) of `before` that differs from `after`, and its replacement. */

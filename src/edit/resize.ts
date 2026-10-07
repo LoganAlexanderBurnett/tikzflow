@@ -5,8 +5,8 @@
 import { analyzeDocument, type DocumentModel, layoutDocumentPicture } from "../model/document.ts";
 import type { LaidOutNode, PictureLayout } from "../tikz/layout.ts";
 import { PT_PER_UNIT } from "../tikz/units.ts";
-import { applyChanges, type Change } from "./changes.ts";
-import { formatDistance } from "./move.ts";
+import { applyChanges, type Change, composeChanges } from "./changes.ts";
+import { formatDistance, type MoveResult, planMove, positioningText } from "./move.ts";
 import { formatOption, nodeTarget } from "./optionEdits.ts";
 import { setOptions, styleUsers, type Scope } from "./properties.ts";
 import { styleSites, styleTarget } from "./styles.ts";
@@ -24,6 +24,16 @@ export interface SizeWant {
   h?: number;
 }
 
+/**
+ * Which part of the node stays where it is while it is resized. On each axis,
+ * -1 keeps the west (or south) edge, 1 the east (or north) edge, and 0 the
+ * centre. Left out, the node grows around its anchor, as TeX draws it.
+ */
+export interface Hold {
+  x: -1 | 0 | 1;
+  y: -1 | 0 | 1;
+}
+
 export type ResizeOutcome =
   | {
       ok: true;
@@ -33,6 +43,8 @@ export type ResizeOutcome =
       layout: PictureLayout;
       /** The items written, e.g. "minimum width=3cm". */
       written: string[];
+      /** What was written to keep the fixed edge in place, e.g. "xshift=1mm", if the node had to move. */
+      position?: string;
       /** The drawn size after the change, in canvas pt. */
       size: { w: number; h: number };
       notes: string[];
@@ -125,13 +137,65 @@ function plan(node: LaidOutNode, want: SizeWant): { items: Item[]; target: { w: 
   return { items, target: { w: tw, h: th } };
 }
 
+/** How a position the move planner wrote reads in the status bar. */
+function describePosition(move: MoveResult): string {
+  const s = move.spec;
+  if (s.kind === "positioning") return positioningText(s);
+  if (s.kind === "perp") return `at (${s.xFrom} |- ${s.yFrom})`;
+  if (s.kind === "shift") return [`xshift=${formatDistance(s.shift.x)}`, `yshift=${formatDistance(s.shift.y)}`].filter((t) => !/=0pt$/.test(t)).join(", ");
+  return "new coordinates";
+}
+
+/**
+ * After the size is written, puts the edge `hold` names back where it was.
+ * Where the node's anchor already holds it, nothing more is written. Otherwise
+ * the move planner repositions the node, so the position stays relational
+ * where it can, and the two edits are merged into one. If the node can't be
+ * moved, the size stands and a note says so.
+ */
+function holdEdge(doc: DocumentModel, picIndex: number, node: LaidOutNode, result: Extract<ResizeOutcome, { ok: true }>, hold: Hold): void {
+  const after = result.layout.nodes.find((n) => n.id === node.id);
+  if (!after) return;
+  const c0 = node.shape.center;
+  const c1 = after.shape.center;
+  const wanted = {
+    x: hold.x === 0 ? c0.x : c0.x + hold.x * (node.shape.hw - after.shape.hw),
+    y: hold.y === 0 ? c0.y : c0.y + hold.y * (node.shape.hh - after.shape.hh),
+  };
+  const off = Math.hypot(wanted.x - c1.x, wanted.y - c1.y);
+  if (off <= 0.05) return;
+  if (node.lock) {
+    result.notes.push("the node's position is locked, so it grows from its anchor and the opposite edge moves");
+    return;
+  }
+  const move = planMove(result.text, picIndex, node.id, wanted);
+  if (!move || Math.hypot(move.center.x - wanted.x, move.center.y - wanted.y) >= off - 0.05) {
+    result.notes.push("its position couldn't be written to hold the opposite edge, so that edge moves");
+    return;
+  }
+  result.changes = composeChanges(doc.text, result.changes, move.changes);
+  result.text = move.text;
+  result.layout = layoutDocumentPicture(analyzeDocument(move.text), picIndex) ?? result.layout;
+  result.position = describePosition(move);
+  if (move.library) result.notes.push("loaded the positioning library");
+  result.notes.push(...move.notes);
+}
+
 /**
  * The changes that give node `nodeId` the drawn size `want`, for the node
  * itself or for a style it uses (`scope`). `layout` is the picture as `doc`
  * lays it out. The sizes written are whole millimetres; the drawn size can
  * differ from `want` by what that rounding and the text allow.
  */
-export function planResize(doc: DocumentModel, picIndex: number, layout: PictureLayout, nodeId: string, want: SizeWant, scope: Scope): ResizeOutcome {
+export function planResize(
+  doc: DocumentModel,
+  picIndex: number,
+  layout: PictureLayout,
+  nodeId: string,
+  want: SizeWant,
+  scope: Scope,
+  hold?: Hold,
+): ResizeOutcome {
   const pic = doc.syntax.pictures[picIndex];
   const node = layout.nodes.find((n) => n.id === nodeId);
   if (!pic || !node) return { ok: false, reason: "There is no such node." };
@@ -185,6 +249,7 @@ export function planResize(doc: DocumentModel, picIndex: number, layout: Picture
           : "The size didn't change: something else in the code sets it, such as a later minimum size. Change it in the code.",
     };
   }
+  if (hold) holdEdge(doc, picIndex, node, result, hold);
   if (scope.kind === "style") {
     const keys = new Set(items.map((i) => i.key));
     const users = styleUsers(sites, layout, scope.name);

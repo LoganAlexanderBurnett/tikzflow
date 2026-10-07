@@ -49,7 +49,8 @@ test("dragging the east handle writes a round minimum width on that node, and un
   const w0 = (await page.locator('g[data-node="rec"] path').first().boundingBox())!.width;
   await dragHandle(page, "e", 70, 0);
   const after = await code(page);
-  expect(line(after, "(rec)")).toMatch(/\\node\[process, below=of small, minimum width=\d+(\.\d)?(mm|cm)\] \(rec\)/);
+  // The west edge is held, so the node gets a shift to stay put; the relation stays as written.
+  expect(line(after, "(rec)")).toMatch(/\\node\[process, below=of small, xshift=\d+mm, minimum width=\d+(\.\d)?(mm|cm)\] \(rec\)/);
   expect(after.split("\n").filter((l) => !l.includes("(rec)"))).toEqual(before.split("\n").filter((l) => !l.includes("(rec)")));
   const w1 = (await page.locator('g[data-node="rec"] path').first().boundingBox())!.width;
   expect(w1).toBeGreaterThan(w0 + 60);
@@ -76,7 +77,8 @@ test("with a style chosen, the drag changes the style and every node using it", 
   await dragHandle(page, "e", 60, 0);
   const after = await code(page);
   expect(line(after, "process/.style")).toMatch(/process\/\.style\s*=\s*\{base, fill=blue!8, minimum width=\d+(\.\d)?(mm|cm)\}/);
-  expect(line(after, "(rec)")).toContain("\\node[process, below=of small]");
+  // The dragged node holds its west edge, so it gets a shift; the relation stays.
+  expect(line(after, "(rec)")).toMatch(/\\node\[process, below=of small, xshift=\d+mm\]/);
   await expect(page.getByTestId("status")).toContainText("in the process style");
   // Both process nodes grew.
   const widths = await Promise.all(["base", "rec"].map(async (id) => (await page.locator(`g[data-node="${id}"] path`).first().boundingBox())!.width));
@@ -88,6 +90,56 @@ test("a drag that lines up with another node's width says so", async ({ page }) 
   await select(page, "stop");
   await dragHandle(page, "e", 80, 0);
   const wide = (await page.locator('g[data-node="stop"] path').first().boundingBox())!.width;
-  await dragHandle(page, "e", -(wide - (await page.locator('g[data-node="start"] path').first().boundingBox())!.width) / 2 + 1, 0);
+  await dragHandle(page, "e", -(wide - (await page.locator('g[data-node="start"] path').first().boundingBox())!.width) + 1, 0);
   await expect(page.getByTestId("status")).toContainText("Same width as start");
+});
+
+const edges = async (page: Page, id: string) => {
+  const b = (await page.locator(`g[data-node="${id}"] path`).first().boundingBox())!;
+  return { l: b.x, r: b.x + b.width, t: b.y, b: b.y + b.height };
+};
+
+test("the edge opposite the handle stays where it is, and the dragged edge follows the pointer", async ({ page }) => {
+  await select(page, "rec");
+  const e0 = await edges(page, "rec");
+  await dragHandle(page, "se", 60, 24);
+  const e1 = await edges(page, "rec");
+  // The north-west corner is held; the south-east corner moved by what the pointer moved (to the millimetre).
+  // A shift is written in whole millimetres, so the held edge is within 0.5 mm (about 3.3 px here).
+  expect(Math.abs(e1.l - e0.l)).toBeLessThan(4.5);
+  expect(Math.abs(e1.t - e0.t)).toBeLessThan(1.5);
+  expect(Math.abs(e1.r - e0.r - 60)).toBeLessThan(6);
+  expect(Math.abs(e1.b - e0.b - 24)).toBeLessThan(6);
+  await expect(page.getByTestId("status")).toContainText("to keep the opposite edge in place");
+  // One undo step undoes the size and the position together.
+  const before = await code(page);
+  await page.keyboard.press("Control+z");
+  expect(await code(page)).not.toBe(before);
+  const back = await edges(page, "rec");
+  expect(Math.abs(back.r - e0.r)).toBeLessThan(1.5);
+  expect(Math.abs(back.l - e0.l)).toBeLessThan(1.5);
+});
+
+test("a side whose edge the anchor already holds only changes the size", async ({ page }) => {
+  // "rec" is placed below=of small, so its top edge sits at the anchor: dragging the south side holds it.
+  await select(page, "rec");
+  const before = await code(page);
+  await dragHandle(page, "s", 0, 30);
+  const after = await code(page);
+  expect(line(after, "(rec)")).toMatch(/\\node\[process, below=of small, minimum height=\d+(\.\d)?(mm|cm)\] \(rec\)/);
+  expect(line(after, "(rec)")).not.toContain("shift");
+  expect(after.split("\n").filter((l) => !l.includes("(rec)"))).toEqual(before.split("\n").filter((l) => !l.includes("(rec)")));
+});
+
+test("holding Ctrl resizes from the centre", async ({ page }) => {
+  await select(page, "stop");
+  const e0 = await edges(page, "stop");
+  await page.keyboard.down("Control");
+  await dragHandle(page, "e", 30, 0);
+  await page.keyboard.up("Control");
+  const e1 = await edges(page, "stop");
+  expect((e1.l + e1.r) / 2).toBeCloseTo((e0.l + e0.r) / 2, 0);
+  // The pointer moved the east edge 30 px, so the width grew by about twice that.
+  expect(Math.abs(e1.r - e0.r - 30)).toBeLessThan(6);
+  expect(Math.abs(e0.l - e1.l - 30)).toBeLessThan(6);
 });
