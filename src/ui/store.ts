@@ -8,9 +8,11 @@ import type { Change } from "../edit/changes.ts";
 import { defaultEntry, type PaletteEntry, paletteEntries, planCreate, type Placement } from "../edit/create.ts";
 import { draftOf, labelBlocker, labelProblem, planLabelEdit } from "../edit/label.ts";
 import { withLibraries } from "../edit/libraries.ts";
-import { planAttach, planPin } from "../edit/move.ts";
+import { formatDistance, planAttach, planPin } from "../edit/move.ts";
 import { type PropEdit, propertyChanges, type Scope, sharedStyles } from "../edit/properties.ts";
+import { planMatch } from "../edit/resize.ts";
 import type { GapMark, Guide } from "../edit/snap.ts";
+import { planFactor, planStyleEdit, type Repeat } from "../edit/styleedit.ts";
 import { analyzeDocument, layoutDocumentPicture } from "../model/document.ts";
 import type { Range } from "../model/syntax.ts";
 import { unusedCoordinates } from "../model/references.ts";
@@ -515,4 +517,67 @@ export function addFromPalette(entry: PaletteEntry): boolean {
 export function dropFromPalette(entry: PaletteEntry, center: Point, threshold: number): boolean {
   activeEntryId.value = entry.id;
   return startCreate(entry, { kind: "at", center, threshold });
+}
+
+// ---------------------------------------------------------------- styles and sizes
+
+/** Selects these nodes, highlighting their code and scrolling to the first. */
+export function selectNodes(ids: readonly string[]): void {
+  const l = baseLayout.value;
+  selection.value = ids.length ? { kind: "nodes", ids } : null;
+  if (!view || !l) return;
+  const ranges = rangesOf(selection.value, l);
+  const r = ranges[0];
+  view.dispatch({
+    effects: [setHighlight.of(ranges), fromCanvas.of(null)],
+    ...(r ? { selection: EditorSelection.cursor(r.from), scrollIntoView: true } : {}),
+  });
+}
+
+/** Gives style `name` the body `draft`, so every node using it changes. Returns false if it was refused. */
+export function applyStyleBody(name: string, draft: string): boolean {
+  const r = planStyleEdit(text.value, currentPicture.value, name, draft);
+  if (!r.ok) {
+    status.value = r.reason;
+    return false;
+  }
+  if (!r.changes.length) {
+    status.value = "Nothing to change: the style already reads that way.";
+    return false;
+  }
+  applyEdit(r.changes, "input.style");
+  status.value = `Changed the ${name} style. ${r.users === 1 ? "1 node uses" : `${r.users} nodes use`} it.`;
+  return true;
+}
+
+/** Moves options several nodes repeat into a new style called `name`. Returns false if it was refused. */
+export function factorOptions(repeat: Pick<Repeat, "items" | "nodes">, name: string): boolean {
+  const r = planFactor(text.value, currentPicture.value, repeat, name);
+  if (!r.ok) {
+    status.value = r.reason;
+    return false;
+  }
+  applyEdit(r.changes, "input.factor");
+  status.value = `Added the ${name} style (${repeat.items.join(", ")}) and used it in ${r.nodes} nodes. They look exactly as before.`;
+  return true;
+}
+
+/** "Match width" and "Match height": the other selected nodes get the first selected node's size. */
+export function matchSize(axis: "w" | "h"): boolean {
+  const l = baseLayout.value;
+  const scope = activeScope.value;
+  if (!l || !scope) return false;
+  const ids = selectedNodes.value.filter((n) => n.kind === "statement").map((n) => n.id);
+  const r = planMatch(doc.value, currentPicture.value, l, ids, axis, scope);
+  if (!r.ok) {
+    status.value = r.reason;
+    return false;
+  }
+  applyEdit(r.changes, "input.match");
+  const what = axis === "w" ? "width" : "height";
+  const first = l.nodes.find((n) => n.id === ids[0]);
+  const where = scope.kind === "style" ? ` in the ${scope.name} style, so every node using it matches` : "";
+  const count = scope.kind === "style" ? "" : ` for ${r.changed.length === 1 ? "1 node" : `${r.changed.length} nodes`}`;
+  status.value = `Matched the ${what} to ${first?.name ?? "the first node"} (${formatDistance(r.size)})${count}${where}.${r.notes.map((n) => ` Note: ${n}.`).join("")}`;
+  return true;
 }

@@ -258,3 +258,67 @@ export function planResize(
   }
   return result;
 }
+
+export type MatchOutcome =
+  | {
+      ok: true;
+      changes: Change[];
+      text: string;
+      layout: PictureLayout;
+      /** Nodes that were changed. */
+      changed: string[];
+      /** The size matched to, in canvas pt. */
+      size: number;
+      notes: string[];
+    }
+  | { ok: false; reason: string };
+
+/**
+ * Gives every node in `ids` after the first the first one's width or height
+ * ("Match width", "Match height"). With a style scope the style takes the size,
+ * so every node using it changes; otherwise each node gets its own size items.
+ * Nodes grow around their anchors, as TeX draws them, so stacks stay stacked.
+ */
+export function planMatch(doc: DocumentModel, picIndex: number, layout: PictureLayout, ids: readonly string[], axis: "w" | "h", scope: Scope): MatchOutcome {
+  const first = layout.nodes.find((n) => n.id === ids[0]);
+  const others = ids.slice(1).flatMap((id) => layout.nodes.find((n) => n.id === id) ?? []);
+  if (!first || !others.length) return { ok: false, reason: "Select two or more nodes; the first one selected is the one the others are matched to." };
+  const size = axis === "w" ? 2 * first.shape.hw : 2 * first.shape.hh;
+  const want: SizeWant = axis === "w" ? { w: size } : { h: size };
+  const what = axis === "w" ? "width" : "height";
+  const current = (n: LaidOutNode) => (axis === "w" ? 2 * n.shape.hw : 2 * n.shape.hh);
+  const notes: string[] = [];
+
+  if (scope.kind === "style") {
+    const r = planResize(doc, picIndex, layout, others[0]!.id, want, scope);
+    if (!r.ok) return r;
+    return { ok: true, changes: r.changes, text: r.text, layout: r.layout, changed: [others[0]!.id], size, notes: r.notes };
+  }
+  const changes: Change[] = [];
+  const changed: string[] = [];
+  for (const n of others) {
+    if (Math.abs(current(n) - size) < 0.01) continue;
+    if (resizeBlocker(n)) {
+      notes.push(`${n.name ?? n.id} can't be resized here (${resizeBlocker(n)!.replace(/\.$/, "")})`);
+      continue;
+    }
+    const r = planResize(doc, picIndex, layout, n.id, want, { kind: "nodes", ids: [n.id] });
+    if (!r.ok) {
+      notes.push(`${n.name ?? n.id}: ${r.reason.replace(/\.$/, "")}`);
+      continue;
+    }
+    if (!r.changes.length) continue;
+    changes.push(...r.changes);
+    changed.push(n.id);
+  }
+  if (!changes.length) return { ok: false, reason: notes.length ? `Couldn't match the ${what}: ${notes.join("; ")}.` : `They already have the same ${what}.` };
+  let text: string;
+  try {
+    text = applyChanges(doc.text, changes);
+  } catch {
+    return { ok: false, reason: "Those edits would overlap; change the sizes in the code instead." };
+  }
+  const after = layoutDocumentPicture(analyzeDocument(text), picIndex);
+  if (!after) return { ok: false, reason: "That size couldn't be written." };
+  return { ok: true, changes, text, layout: after, changed, size, notes };
+}

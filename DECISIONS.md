@@ -528,3 +528,23 @@ New features:
 - Writing only when the label is applied gives names that mean something, instead of renaming a placeholder name afterwards, and makes Escape clean.
 - Reusing the move planner for drops keeps one place where positions are chosen and verified. Checking each placement by layout is the same safety net as for moves.
 - Keeping the document's own styles in the palette is what lets someone extend an existing figure in its own look (D34).
+
+## D42: The style panel, factoring repeated options, and Match width/height (2026-10-07)
+**Decision:**
+- **Style panel** (`src/edit/styleedit.ts`, `src/ui/stylepanel.tsx`). A "Styles" section at the bottom of the properties panel lists every style the picture defines (TikZ's `every …` styles left out) with how many nodes use it, directly or through another style.
+  - **Select** selects those nodes. **Edit** opens the body, the text between the definition's braces (or `\tikzstyle`'s brackets), as written.
+  - **Applying** replaces only the characters that differ, like a label edit (D39). The text is refused if it has unbalanced braces, a `%` that would comment out the closing brace, a trailing backslash or (for a bracket body) a stray `]`. The patched code is parsed again, and the style names, node count and number of syntax errors must be as before.
+  - **Not editable here:** a style with an argument (`#1`) and forms the editor doesn't understand. Each says why. Later `.append style` definitions stay as written, and the panel says so.
+- **Repeated options** (`findRepeats`). Sets of two or more options that at least two nodes write out in full, with at least six items in all (three nodes with two options, two nodes with three), and no larger set shared by as many nodes. Only appearance counts: placement, names, labels, `fit`, `rotate`, document styles and the like are left out. The best six are offered.
+  - **Factoring** (`planFactor`) defines the style (D35: where the document keeps its styles) with the items in the first node's order. In each node the first repeated item gives its place to the style name and the others are removed, comments and other items staying where they are.
+  - **Checked by layout.** Every node of the patched picture must look exactly as before: shape, position, size, colours, line, text. If an option between the repeated ones would override one, nothing is written and the status bar names the node. That case is `[rounded corners, fill=red, fill=blue!10, draw]`, where moving `fill=blue!10` to the front would let `fill=red` win.
+  - **Names** are suggested from the fill colour (`blueBox`) or the shape (`diamondNode`), and refused if they are taken, malformed, or a TikZ key or shape (a style called `diamond` would shadow the shape).
+- **Match width and Match height** (`planMatch` in `src/edit/resize.ts`). With two or more nodes selected, the properties panel offers both. They give the other nodes the first one selected's width or height.
+  - **"This node" scope:** each other node gets its own `minimum width` or `text width` through `planResize`, in whole millimetres, as in D38. Nodes already that size are left alone; nodes that can't be resized (a `fit` node, say) are skipped with a note. They grow around their anchors, as TeX draws them, so a stack stays a stack. Dragging a handle holds the opposite edge (D40); matching doesn't.
+  - **Style scope:** the style takes the size, so every node using it matches (nodes that set their own size keep it, and the status bar says so).
+  - One undo step either way.
+
+**Why:**
+- Editing the text of a style keeps whatever the author wrote (macros, comments, odd keys) and still updates every node, which is the point of a style. A structured editor for style bodies would be a second place that has to understand every key.
+- The layout check makes factoring safe without a model of TikZ's option precedence: if the picture looks the same, the edit was safe.
+- Matching with the same code as resizing keeps one place that decides how a size is written.

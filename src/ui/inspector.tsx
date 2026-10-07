@@ -24,7 +24,8 @@ import { pictureEnv } from "../model/document.ts";
 import { explainLock } from "../model/explain.ts";
 import { cssColor, type RGB } from "../tikz/colors.ts";
 import type { LaidOutNode, PictureLayout } from "../tikz/layout.ts";
-import { applyProperty, attachNode, baseLayout, currentPicture, doc, pinNode, scopeStyle, selectedNodes, selection } from "./store.ts";
+import { StylePanel } from "./stylepanel.tsx";
+import { applyProperty, attachNode, baseLayout, currentPicture, doc, matchSize, pinNode, scopeStyle, selectedNodes, selection } from "./store.ts";
 
 function LockCard({ layout, node }: { layout: PictureLayout; node: LaidOutNode }) {
   const candidates = attachCandidates(layout, node).map((n) => n.name!);
@@ -244,6 +245,29 @@ function Properties({ layout, nodes }: { layout: PictureLayout; nodes: LaidOutNo
         })}
       </div>
 
+      {nodes.length > 1 && (
+        <div class="tf-prop">
+          <span class="tf-prop-label">Size</span>
+          <div class="tf-match">
+            <button
+              data-testid="match-width"
+              onClick={() => matchSize("w")}
+              title={`Give the other nodes the width of ${nodeTitle(nodes[0]!)}, the first one you selected${style ? `. The ${style} style takes it, so every node using it matches` : ""}`}
+            >
+              Match width
+            </button>
+            <button
+              data-testid="match-height"
+              onClick={() => matchSize("h")}
+              title={`Give the other nodes the height of ${nodeTitle(nodes[0]!)}, the first one you selected${style ? `. The ${style} style takes it, so every node using it matches` : ""}`}
+            >
+              Match height
+            </button>
+          </div>
+          <span class="tf-note">To {nodeTitle(nodes[0]!)}, the first node selected.</span>
+        </div>
+      )}
+
       {COLOR_ROWS.map((row) => {
         const r = resolve(row.key);
         const rgbs = nodes.map(row.rgb);
@@ -432,6 +456,7 @@ export function Inspector() {
           )}
         </>
       )}
+      <StylePanel />
     </aside>
   );
 }

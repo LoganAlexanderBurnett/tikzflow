@@ -803,3 +803,106 @@ button:disabled {
   font-size: 12px;
   white-space: nowrap;
 }
+
+/* Style panel */
+
+.tf-styles {
+  border-top: 1px solid var(--line);
+  margin-top: 12px;
+  padding-top: 8px;
+}
+
+.tf-styles-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  border: none;
+  background: none;
+  padding: 2px 0;
+  font-weight: 600;
+  text-align: left;
+}
+
+.tf-styles-toggle:hover:not(:disabled) {
+  color: var(--accent);
+}
+
+.tf-badge {
+  margin-left: auto;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.tf-styles h4 {
+  margin: 12px 0 2px;
+  font-size: 12px;
+}
+
+.tf-style-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+}
+
+.tf-style,
+.tf-repeat {
+  padding: 5px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.tf-style-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.tf-style-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.tf-style-count {
+  color: var(--muted);
+  font-size: 11px;
+  margin-right: auto;
+}
+
+.tf-styles-toggle .tf-style-count {
+  margin-right: 0;
+}
+
+.tf-style-edit textarea {
+  width: 100%;
+  margin-top: 5px;
+  font: 12px/1.4 ui-monospace, "Cascadia Code", Consolas, monospace;
+  background: var(--panel);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 6px;
+  resize: vertical;
+}
+
+.tf-style-edit textarea[aria-invalid="true"],
+.tf-repeat input[aria-invalid="true"] {
+  border-color: #dc2626;
+}
+
+.tf-repeat p {
+  margin: 0 0 4px;
+}
+
+.tf-repeat code {
+  font: 12px ui-monospace, "Cascadia Code", Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
+.tf-match {
+  display: flex;
+  gap: 6px;
+}
