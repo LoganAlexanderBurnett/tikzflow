@@ -1,0 +1,70 @@
+\documentclass[tikz]{standalone}
+% How TikZ picks the anchor of an auto label (M2b follow-up, D57): straight lines at assorted angles, mostly near the axes,
+% each with one label halfway, on the left of the direction of travel and, in the second half of the sweep, swapped.
+\tikzset{every node/.style={draw, minimum width=1cm, minimum height=6mm}}
+\begin{tikzpicture}
+  \draw (0,0) -- node[auto, name=la0] {x} +(0:2cm);
+  \draw (3,0) -- node[auto, swap, name=ls0] {x} +(0:2cm);
+  \draw (6,0) -- node[auto, name=la30] {x} +(30:2cm);
+  \draw (9,0) -- node[auto, swap, name=ls30] {x} +(30:2cm);
+  \draw (12,0) -- node[auto, name=la60] {x} +(60:2cm);
+  \draw (15,0) -- node[auto, swap, name=ls60] {x} +(60:2cm);
+  \draw (18,0) -- node[auto, name=la90] {x} +(90:2cm);
+  \draw (21,0) -- node[auto, swap, name=ls90] {x} +(90:2cm);
+  \draw (24,0) -- node[auto, name=la120] {x} +(120:2cm);
+  \draw (27,0) -- node[auto, swap, name=ls120] {x} +(120:2cm);
+  \draw (30,0) -- node[auto, name=la150] {x} +(150:2cm);
+  \draw (33,0) -- node[auto, swap, name=ls150] {x} +(150:2cm);
+  \draw (0,-6) -- node[auto, name=la180] {x} +(180:2cm);
+  \draw (3,-6) -- node[auto, swap, name=ls180] {x} +(180:2cm);
+  \draw (6,-6) -- node[auto, name=la210] {x} +(210:2cm);
+  \draw (9,-6) -- node[auto, swap, name=ls210] {x} +(210:2cm);
+  \draw (12,-6) -- node[auto, name=la240] {x} +(240:2cm);
+  \draw (15,-6) -- node[auto, swap, name=ls240] {x} +(240:2cm);
+  \draw (18,-6) -- node[auto, name=la270] {x} +(270:2cm);
+  \draw (21,-6) -- node[auto, swap, name=ls270] {x} +(270:2cm);
+  \draw (24,-6) -- node[auto, name=la300] {x} +(300:2cm);
+  \draw (27,-6) -- node[auto, swap, name=ls300] {x} +(300:2cm);
+  \draw (30,-6) -- node[auto, name=la330] {x} +(330:2cm);
+  \draw (33,-6) -- node[auto, swap, name=ls330] {x} +(330:2cm);
+  \draw (0,-12) -- node[auto, name=la0p3] {x} +(0.3:2cm);
+  \draw (3,-12) -- node[auto, swap, name=ls0p3] {x} +(0.3:2cm);
+  \draw (6,-12) -- node[auto, name=la0p5] {x} +(0.5:2cm);
+  \draw (9,-12) -- node[auto, swap, name=ls0p5] {x} +(0.5:2cm);
+  \draw (12,-12) -- node[auto, name=la1] {x} +(1:2cm);
+  \draw (15,-12) -- node[auto, swap, name=ls1] {x} +(1:2cm);
+  \draw (18,-12) -- node[auto, name=la2] {x} +(2:2cm);
+  \draw (21,-12) -- node[auto, swap, name=ls2] {x} +(2:2cm);
+  \draw (24,-12) -- node[auto, name=la3] {x} +(3:2cm);
+  \draw (27,-12) -- node[auto, swap, name=ls3] {x} +(3:2cm);
+  \draw (30,-12) -- node[auto, name=la5] {x} +(5:2cm);
+  \draw (33,-12) -- node[auto, swap, name=ls5] {x} +(5:2cm);
+  \draw (0,-18) -- node[auto, name=la85] {x} +(85:2cm);
+  \draw (3,-18) -- node[auto, swap, name=ls85] {x} +(85:2cm);
+  \draw (6,-18) -- node[auto, name=la87] {x} +(87:2cm);
+  \draw (9,-18) -- node[auto, swap, name=ls87] {x} +(87:2cm);
+  \draw (12,-18) -- node[auto, name=la89] {x} +(89:2cm);
+  \draw (15,-18) -- node[auto, swap, name=ls89] {x} +(89:2cm);
+  \draw (18,-18) -- node[auto, name=la89p5] {x} +(89.5:2cm);
+  \draw (21,-18) -- node[auto, swap, name=ls89p5] {x} +(89.5:2cm);
+  \draw (24,-18) -- node[auto, name=la91] {x} +(91:2cm);
+  \draw (27,-18) -- node[auto, swap, name=ls91] {x} +(91:2cm);
+  \draw (30,-18) -- node[auto, name=la93] {x} +(93:2cm);
+  \draw (33,-18) -- node[auto, swap, name=ls93] {x} +(93:2cm);
+  \draw (0,-24) -- node[auto, name=la177] {x} +(177:2cm);
+  \draw (3,-24) -- node[auto, swap, name=ls177] {x} +(177:2cm);
+  \draw (6,-24) -- node[auto, name=la179] {x} +(179:2cm);
+  \draw (9,-24) -- node[auto, swap, name=ls179] {x} +(179:2cm);
+  \draw (12,-24) -- node[auto, name=la181] {x} +(181:2cm);
+  \draw (15,-24) -- node[auto, swap, name=ls181] {x} +(181:2cm);
+  \draw (18,-24) -- node[auto, name=la183] {x} +(183:2cm);
+  \draw (21,-24) -- node[auto, swap, name=ls183] {x} +(183:2cm);
+  \draw (24,-24) -- node[auto, name=la269] {x} +(269:2cm);
+  \draw (27,-24) -- node[auto, swap, name=ls269] {x} +(269:2cm);
+  \draw (30,-24) -- node[auto, name=la271] {x} +(271:2cm);
+  \draw (33,-24) -- node[auto, swap, name=ls271] {x} +(271:2cm);
+  \draw (0,-30) -- node[auto, name=la359] {x} +(359:2cm);
+  \draw (3,-30) -- node[auto, swap, name=ls359] {x} +(359:2cm);
+  \draw (6,-30) -- node[auto, name=la357] {x} +(357:2cm);
+  \draw (9,-30) -- node[auto, swap, name=ls357] {x} +(357:2cm);
+\end{tikzpicture}

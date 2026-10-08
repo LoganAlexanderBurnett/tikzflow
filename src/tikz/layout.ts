@@ -461,7 +461,10 @@ function coordEnv(ctx: Ctx, st: State): CoordEnv {
 
 /** Evaluates a coordinate written in node options ("at=(...)"), without parentheses or with. */
 /** Shapes the native preview draws as they are; others are drawn as rectangles. */
-const DRAWN_SHAPES = new Set(["rectangle", "coordinate", "circle", "ellipse", "diamond", "trapezium", "rounded rectangle", "cylinder", "tape", "document"]);
+/** How small a component of an `auto` label's normal must be for TikZ to treat the line as level or upright. */
+const AUTO_AXIS_EPS = 0.05;
+
+const DRAWN_SHAPES =new Set(["rectangle", "coordinate", "circle", "ellipse", "diamond", "trapezium", "rounded rectangle", "cylinder", "tape", "document"]);
 
 /**
  * Whether `name` may be defined inside a block kept as-is: one of its names,
@@ -1160,11 +1163,12 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint, 
       if (probe.autoLabels && !explicit && seg && pn.syn.kind !== "coordinate") {
         const right = (probe.autoLabels === "right") !== probe.swap;
         const normal = where.angle + (right ? -Math.PI / 2 : Math.PI / 2);
-        // The anchor faces back towards the path.
-        const anchors = ["west", "south west", "south", "south east", "east", "north east", "north", "north west"];
-        const deg = ((((normal * 180) / Math.PI) % 360) + 360) % 360;
-        const idx = Math.round(deg / 45) % 8;
-        const anchorItem = { from: 0, to: 0, key: "anchor", keyRange: { from: 0, to: 0 }, value: anchors[idx]! };
+        // The anchor faces back towards the path. TikZ takes the corner (`south east`) unless the
+        // line is level or upright to within about 3°, where it takes the side (probe p7).
+        const side = (v: number, lo: string, hi: string) => (Math.abs(v) < AUTO_AXIS_EPS ? "" : v < 0 ? lo : hi);
+        const ns = side(-Math.sin(normal), "south", "north");
+        const ew = side(-Math.cos(normal), "west", "east");
+        const anchorItem = { from: 0, to: 0, key: "anchor", keyRange: { from: 0, to: 0 }, value: [ns, ew].filter(Boolean).join(" ") };
         synEff = { ...pn.syn, options: [...pn.syn.options, { from: 0, to: 0, items: [anchorItem], commas: [] }] };
       }
       // Path coordinates ("coordinate (m)") are named points, kept with the nodes.

@@ -6,6 +6,7 @@
 
 import { analyzeDocument, layoutDocumentPicture, librariesBefore } from "../../src/model/document.ts";
 import { decode } from "../../src/source/encoding.ts";
+import type { PictureLayout } from "../../src/tikz/layout.ts";
 import { anchorPoint } from "../../src/tikz/shapes.ts";
 import { Busytex } from "./busytex.ts";
 import type { Job } from "./engine.ts";
@@ -50,11 +51,16 @@ const COMPASS = ["north", "south", "east", "west"] as const;
 /** Libraries assumed for pictures pasted without their preamble. */
 const BARE_LIBRARIES = ["positioning", "shapes.geometric", "shapes.misc", "arrows.meta", "calc", "fit", "backgrounds", "matrix", "chains"];
 
+/** Every node TeX can be asked about by name: statement nodes and the labels written inside paths. */
+function namedNodes(layout: PictureLayout) {
+  return [...layout.nodes, ...layout.pathNodes].filter((n) => n.name && !n.implicitName && SIMPLE.test(n.name));
+}
+
 function jobFor(text: string, picIndex: number): { job: Job; names: string[] } {
   const doc = analyzeDocument(text);
   const pic = doc.syntax.pictures[picIndex]!;
   const layout = layoutDocumentPicture(doc, picIndex)!;
-  const names = [...new Set(layout.nodes.filter((n) => n.name && SIMPLE.test(n.name)).map((n) => n.name!))];
+  const names = [...new Set(namedNodes(layout).map((n) => n.name!))];
   const probes = names
     .map(
       (n) =>
@@ -116,7 +122,7 @@ async function run() {
       const missing: string[] = [];
       for (const name of built.names) {
         const t = tex.get(name);
-        const n = [...layout.nodes].reverse().find((x) => x.name === name)!;
+        const n = namedNodes(layout).reverse().find((x) => x.name === name)!;
         if (!t) {
           missing.push(name);
           continue;
