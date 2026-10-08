@@ -15,7 +15,7 @@ import { findItems, formatOption, nodeTarget, removeItems, setOption } from "./o
 
 export type LabelAdded = { ok: true; changes: Change[]; text: string; layout: PictureLayout; edgeId: string; labelId: string; written: string } | { ok: false; reason: string };
 export type LabelSlid = { ok: true; changes: Change[]; text: string; layout: PictureLayout; pos: number; written: string } | { ok: false; reason: string };
-export type LabelFlipped = { ok: true; changes: Change[]; text: string; layout: PictureLayout; edgeId: string; labelId: string; written: string } | { ok: false; reason: string };
+export type LabelFlipped = { ok: true; changes: Change[]; text: string; layout: PictureLayout; edgeId: string; labelId: string; written: string; /** The label was on the line and is beside it now, rather than turned over. */ placed?: true } | { ok: false; reason: string };
 
 const near = (a: Point, b: Point, eps = 0.05) => Math.hypot(a.x - b.x, a.y - b.y) <= eps;
 
@@ -373,7 +373,6 @@ export function flipBlocker(layout: PictureLayout, labelId: string): string | nu
   if (edge.lock) return `This edge can't be edited: ${edge.lock.message}.`;
   const g = labelGeometry(edge, label);
   if (!g) return "This label isn't placed along a segment of its edge.";
-  if (Math.hypot(g.offset.x, g.offset.y) < 1) return "This label sits on the line itself, so it has no side to flip.";
   return null;
 }
 
@@ -381,7 +380,9 @@ export function flipBlocker(layout: PictureLayout, labelId: string): string | nu
  * Puts a label on the other side of its edge. A label written with `auto`
  * gets `swap` added, or removed if it had one; one written `above` or `left`
  * gets the opposite key (a label the line cuts through gets `auto` instead,
- * on the side its key didn't point to). The result must be the label's mirror
+ * on the side its key didn't point to). A label with no side key at all sits
+ * on the line: it gets `auto` (or `auto, swap`), the side TikZ uses for a
+ * level or upright line (D64). Otherwise the result must be the label's mirror
  * image about its point on the edge, or nothing is written (D57).
  */
 export function planFlipLabel(text: string, picIndex: number, labelId: string): LabelFlipped {
@@ -398,6 +399,7 @@ export function planFlipLabel(text: string, picIndex: number, labelId: string): 
   let changes: Change[] | null;
   let written: string;
   let toAuto = false;
+  let placed = false;
   if (sides.length) {
     if (sides.some((x) => x.item.value !== undefined && /(^|\s)of(\s|$)/.test(x.item.value))) return { ok: false, reason: "This label is placed relative to a node, so it can't be flipped here. Change it in the code." };
     if (g.overlap > OVERLAP && sides.every((x) => x.item.value === undefined)) {
@@ -411,6 +413,13 @@ export function planFlipLabel(text: string, picIndex: number, labelId: string): 
       changes = sides.map((x, i) => ({ from: x.item.from, to: x.item.to, insert: flipped[i]! }));
       written = sides.map((x, i) => `${text.slice(x.item.from, x.item.to)} → ${flipped[i]}`).join(", ");
     }
+  } else if (Math.hypot(g.offset.x, g.offset.y) < 1) {
+    // No side key, and nothing beside the line: the label sits on it, with no side to flip. `auto` puts it beside it (D64).
+    const keys = autoSide(g.angle, { x: 0, y: 0 });
+    changes = setOption(text, target, () => false, keys);
+    written = `added ${keys}`;
+    toAuto = true;
+    placed = true;
   } else {
     // `auto` (on the label, its path or a style): `swap` turns it over.
     const has = findItems(target, (i) => i.key === "swap").length > 0;
@@ -430,7 +439,7 @@ export function planFlipLabel(text: string, picIndex: number, labelId: string): 
   if (toAuto ? g2.overlap > OVERLAP : !near(g2.offset, { x: -g.offset.x, y: -g.offset.y }, 0.5)) {
     return { ok: false, reason: "This label has no side to flip: it isn't written beside the line with auto, above, below, left or right." };
   }
-  return { ok: true, changes, text: next, layout: layout2, edgeId: edge.id, labelId: moved.id, written };
+  return { ok: true, changes, text: next, layout: layout2, edgeId: edge.id, labelId: moved.id, written, ...(placed ? { placed: true as const } : {}) };
 }
 
 // ---------------------------------------------------------------- Yes/No on decisions

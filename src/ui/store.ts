@@ -527,7 +527,7 @@ export function flipLabel(labelId: string): boolean {
     return false;
   }
   pickedLabel.value = { edgeId: r.edgeId, labelId: r.labelId };
-  applyEdgeEdit(r.changes, "input.edge.label.flip", `Flipped the label to the other side of the edge: ${r.written}`, r.edgeId);
+  applyEdgeEdit(r.changes, "input.edge.label.flip", r.placed ? `The label sat on the line; it is beside it now: ${r.written}` : `Flipped the label to the other side of the edge: ${r.written}`, r.edgeId);
   return true;
 }
 

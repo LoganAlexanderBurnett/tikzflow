@@ -861,3 +861,11 @@ Items 4–7 are scheduled as small steps early in Milestone 3, right after the e
 - One existing test expectation changed: Straighten of `(a) -- ++(1,0) |- node[right] {no} (b)` now gives `node[auto]`, since `right` would sit on the new shallow line. One corpus golden file stayed the same after the sloped guard.
 
 **Why:** The owner's answer. Without it a form change could leave a label cutting through its own line, which the owner found by testing in M2b (D57).
+
+## D64: Flip label side on a label with no side key (M3 step 5, 2026-10-08)
+**Decision:** `planFlipLabel` and `flipBlocker` in `src/edit/labels.ts` (D58 item 7; changes D57 item 3).
+- A label with no side key of its own and nothing beside the line (`node[pos=0.3] {x}`, or `node {x}`) sits on the line, so there is no side to flip. Flip label side no longer refuses it: it writes `auto`, or `auto, swap` where `auto` would put the label on the wrong side of a leftward line (the choice of D57's `autoSide` with no side to go by: above a level line, right of an upright one). `auto` is appended to the label's options, or a list `[auto]` is added.
+- The result must put the label beside the line (no more than 1.5 pt of overlap) or nothing is written. The status bar says "The label sat on the line; it is beside it now: added auto", so the first click is told apart from a flip. A second click is an ordinary flip (`swap`).
+- Still refused, with the reason: labels placed relative to a node (`above=of c`), labels of locked edges, and labels the layout can't place along a segment.
+
+**Why:** The owner's answer (D58 item 7): the edit the user evidently wants, instead of a refusal. A label on the line is the case where a person most needs it beside the line.
