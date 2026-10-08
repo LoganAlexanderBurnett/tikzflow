@@ -392,3 +392,40 @@ test("dragging a handle near one end of a bend turns only that end (out and in)"
   expect(after.replace(/out=-?\d+/, "out=N")).toBe(before.replace(/out=-?\d+/, "out=N"));
   expect(after).not.toBe(before);
 });
+
+// ---------------------------------------------------------------- D53 item 4: "edge" operations
+
+test("Make orthogonal turns an edge operation into -- and selects the edge again", async ({ page }) => {
+  await setCode(page, `${TWO}\\path[->] (a) edge node[above] {x} (b);\n\\end{tikzpicture}\n`);
+  await expect(page.locator("path[data-edge]")).toHaveCount(1);
+  const id = await selectEdge(page, 0);
+  const p = await onEdge(page, id, 0.5);
+  await page.mouse.click(p.x, p.y, { button: "right" });
+  await expect(page.getByTestId("menu-orthogonal")).not.toHaveAttribute("aria-disabled", "true");
+  await page.getByTestId("menu-orthogonal").click();
+  expect(await code(page)).toMatch(/\\draw\[->\] \(a\) (-\||\|-) node\[above\] \{x\} \(b\);/);
+  await expect(page.getByTestId("status")).toContainText('converted the "edge" operation');
+  await expect(page.getByTestId("edge-mode")).toContainText("Orthogonal");
+  // One undo puts the edge operation back.
+  await page.keyboard.press("Control+z");
+  expect(await code(page)).toContain("\\path[->] (a) edge node[above] {x} (b);");
+});
+
+test("dragging a ghost handle on an edge operation adds a corner", async ({ page }) => {
+  await setCode(page, `${TWO}\\draw[->] (a) edge (b);\n\\end{tikzpicture}\n`);
+  const id = await selectEdge(page, 0);
+  const g = page.getByTestId("ghost-handle");
+  await expect(g).toHaveCount(1);
+  const box = (await g.boundingBox())!;
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 20, y - 40, { steps: 6 });
+  await page.mouse.up();
+  const c = await code(page);
+  expect(c).toMatch(/\\draw\[->\] \(a\) -- .+ -- \(b\);/);
+  expect(c).not.toContain("edge (b)");
+  await expect(page.getByTestId("edge-mode")).toContainText("through points");
+  expect(id).toBeTruthy();
+});

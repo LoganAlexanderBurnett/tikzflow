@@ -70,8 +70,8 @@ describe("adding a corner", () => {
     expect(drawLine(r2.text)).toBe("\\draw (a) -- ++(1cm,1cm) -- ++(1cm,-1cm);");
   });
 
-  it("refuses curves, orthogonal pieces and edge operations", () => {
-    for (const body of ["\\draw (a) to[bend left] (b);", "\\draw (a) |- (b);", "\\draw (a) edge (b);"]) {
+  it("refuses curves and orthogonal pieces (edge operations convert, see edgeop.test.ts)", () => {
+    for (const body of ["\\draw (a) to[bend left] (b);", "\\draw (a) |- (b);"]) {
       const text = pic(body);
       const e = firstEdge(text);
       expect(planAddVertex(text, 0, e.id, e.segs[0]!, { x: 10, y: 10 })).toMatchObject({ ok: false });

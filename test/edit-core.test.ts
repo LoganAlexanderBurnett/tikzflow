@@ -1,7 +1,7 @@
 // The shared editing core of Milestone 2a: option and style edits, library
 // management, statement insertion, and node names.
 import { afterAll, describe, expect, it } from "vitest";
-import { applyChanges, type Change } from "../src/edit/changes.ts";
+import { applyChanges, type Change, composeChanges } from "../src/edit/changes.ts";
 import { insertStatements, nodeAnchor, pathAnchor } from "../src/edit/insert.ts";
 import { ensureLibraries, withLibraries } from "../src/edit/libraries.ts";
 import { baseName, labelWords, nameStyle, newNodeName, takenNames } from "../src/edit/names.ts";
@@ -407,5 +407,30 @@ describe.each(corpusNames())("create in %s", (name) => {
     expect(added.stroke).toEqual([1, 0, 0]);
     expect(Math.abs(added.shape.center.x - parent.shape.center.x)).toBeLessThan(1e-6);
     expect(l.paths.some((p) => p.edges.some(([a, b]) => a === parent.id && b === child))).toBe(true);
+  });
+});
+
+describe("composeChanges", () => {
+  const both = (base: string, first: Change[], second: Change[]) => {
+    const afterFirst = applyChanges(base, first);
+    const composed = composeChanges(base, first, second);
+    expect(applyChanges(base, composed)).toBe(applyChanges(afterFirst, second));
+    return composed;
+  };
+
+  it("keeps changes that don't touch apart", () => {
+    const out = both("abcdefghij", [{ from: 1, to: 2, insert: "XXX" }], [{ from: 8, to: 9, insert: "" }]);
+    expect(out).toHaveLength(2);
+  });
+
+  it("merges a second change inside or next to the first one's text", () => {
+    both("abcdefghij", [{ from: 2, to: 4, insert: "12345" }], [{ from: 3, to: 5, insert: "-" }]);
+    both("abcdefghij", [{ from: 2, to: 4, insert: "123" }], [{ from: 5, to: 5, insert: "!" }]);
+    both("abcdefghij", [{ from: 2, to: 4, insert: "" }], [{ from: 2, to: 3, insert: "Q" }]);
+    both("abcdefghij", [{ from: 2, to: 4, insert: "1" }, { from: 6, to: 6, insert: "2" }], [{ from: 2, to: 8, insert: "all" }]);
+  });
+
+  it("handles CRLF line breaks in inserted text", () => {
+    both("a\r\nb\r\nc", [{ from: 3, to: 3, insert: "x\r\ny\r\n" }], [{ from: 0, to: 1, insert: "A\r\n" }, { from: 5, to: 6, insert: "Y" }]);
   });
 });

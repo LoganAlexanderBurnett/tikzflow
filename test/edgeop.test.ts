@@ -19,7 +19,7 @@ const lines = (text: string) => text.split("\n").slice(4, -2);
 
 function ok<T extends { ok: boolean }>(r: T, text: string) {
   if (!r.ok) throw new Error((r as unknown as { reason: string }).reason);
-  const done = r as unknown as { changes: Parameters<typeof applyChanges>[1]; text: string; notes?: string[] };
+  const done = r as unknown as { changes: Parameters<typeof applyChanges>[1]; text: string; notes?: string[]; moved?: boolean };
   expect(applyChanges(text, done.changes)).toBe(done.text);
   return done;
 }

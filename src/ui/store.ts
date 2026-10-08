@@ -730,7 +730,7 @@ export function addVertex(edgeId: string, seg: number, p: Point): boolean {
     status.value = r.reason;
     return false;
   }
-  applyEdgeEdit(r.changes, "input.edge.vertex", cornerMessage(r.layout, edgeId, r.stop, "Added"));
+  applyEdgeEdit(r.changes, "input.edge.vertex", `${cornerMessage(r.layout, r.edgeId ?? edgeId, r.stop, "Added")}${r.notes.map((n) => ` Also ${n}.`).join("")}`, r.edgeId);
   return true;
 }
 
@@ -771,7 +771,7 @@ export function makeOrthogonal(edgeId: string): boolean {
     status.value = r.reason;
     return false;
   }
-  applyEdgeEdit(r.changes, "input.edge.orthogonal", `Made the edge orthogonal: ${edgeCode(r.text, r.layout, edgeId)}`);
+  applyEdgeEdit(r.changes, "input.edge.orthogonal", `Made the edge orthogonal: ${edgeCode(r.text, r.layout, r.edgeId ?? edgeId)}${r.notes.map((n) => ` Also ${n}.`).join("")}`, r.edgeId);
   return true;
 }
 

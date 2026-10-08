@@ -2,6 +2,7 @@
 // and splitting a \draw into separate edges. Labels join it in step 7.
 import { useSignal } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
+import { edgeOpBlocker } from "../edit/edgeop.ts";
 import { endBlocker, endStop } from "../edit/edges.ts";
 import { splitBlocker } from "../edit/split.ts";
 import { edgeVertices, isEdgeOperation, nearestLineSegment } from "../edit/vertices.ts";
@@ -186,8 +187,8 @@ function CornerItems({ edge, at, close, hover }: { edge: Edge; at: EdgeMenuAt; c
   const seg = nearestLineSegment(edge, at.at);
   const addWhy =
     locked ??
-    (isEdgeOperation(edge)
-      ? 'This edge is an "edge" operation, which joins its ends directly.'
+    (isEdgeOperation(edge) && edgeOpBlocker(edge)
+      ? edgeOpBlocker(edge)
       : edge.mode === "orthogonal"
         ? "This edge is orthogonal: drag a segment to slide it."
         : !seg
@@ -218,8 +219,8 @@ function FormItems({ edge, close, hover }: { edge: Edge; close: () => void; hove
   const lined = Math.abs(a.x - b.x) < 0.5 || Math.abs(a.y - b.y) < 0.5;
   const orthoWhy =
     locked ??
-    (isEdgeOperation(edge)
-      ? 'This edge is an "edge" operation, which joins its ends directly. Write it with "--" to give it corners.'
+    (isEdgeOperation(edge) && edgeOpBlocker(edge)
+      ? edgeOpBlocker(edge)
       : edge.mode === "orthogonal"
         ? "It is already orthogonal: drag a segment to slide it."
         : lined && edge.mode === "straight"

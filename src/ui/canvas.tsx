@@ -14,6 +14,7 @@ import type { Change } from "../edit/changes.ts";
 import { END_ANCHORS, endBlocker, type EndTarget, planWaypoint, snapWaypoint } from "../edit/edges.ts";
 import { type CurveHandle, curveForm, curveMiddle, curveSegments, planCurve } from "../edit/curves.ts";
 import { orthoPolyline, planSlide, snapSlide } from "../edit/orthogonal.ts";
+import { edgeOpBlocker } from "../edit/edgeop.ts";
 import { edgeVertices, isEdgeOperation, planAddVertex } from "../edit/vertices.ts";
 import { EdgeMenu, type EdgeMenuAt } from "./edgemenu.tsx";
 import { pictureEnv } from "../model/document.ts";
@@ -161,7 +162,7 @@ function EndHandles({ edge, scale }: { edge: Edge; scale: number }) {
  * Orthogonal edges are edited by sliding their segments instead.
  */
 function VertexHandles({ edge, scale }: { edge: Edge; scale: number }) {
-  if (edge.mode === "orthogonal" || isEdgeOperation(edge)) return null;
+  if (edge.mode === "orthogonal" || (isEdgeOperation(edge) && edgeOpBlocker(edge))) return null;
   return (
     <g class="tf-vertex-handles">
       {edge.segs.map((k) => {
@@ -662,7 +663,7 @@ interface VertexDrag {
   neighbours: Point[];
   moved: boolean;
   key: string;
-  last: { changes: Change[]; stop: number; layout: PictureLayout } | null;
+  last: { changes: Change[]; stop: number; layout: PictureLayout; edgeId?: string | undefined; notes: readonly string[] } | null;
 }
 
 /** Sliding a segment of an orthogonal edge across. */
@@ -1086,9 +1087,9 @@ export function Canvas() {
       return;
     }
     const stop = d.stop ?? ("stop" in r ? (r.stop as number) : 0);
-    d.last = { changes: r.changes, stop, layout: r.layout };
+    d.last = { changes: r.changes, stop, layout: r.layout, edgeId: r.edgeId, notes: r.notes };
     previewLayout.value = r.layout;
-    status.value = cornerMessage(r.layout, d.edgeId, stop, d.stop !== null ? "Release to write" : "Release to add");
+    status.value = cornerMessage(r.layout, r.edgeId ?? d.edgeId, stop, d.stop !== null ? "Release to write" : "Release to add");
   };
 
   /** Sliding a segment: snap it to node lines, write the route, and show it. */
@@ -1243,7 +1244,7 @@ export function Canvas() {
       previewLayout.value = null;
       guides.value = { lines: [], gaps: [] };
       if (!d.moved) return;
-      if (d.last) applyEdgeEdit(d.last.changes, "input.edge.vertex", cornerMessage(d.last.layout, d.edgeId, d.last.stop, d.stop !== null ? "Moved" : "Added"));
+      if (d.last) applyEdgeEdit(d.last.changes, "input.edge.vertex", `${cornerMessage(d.last.layout, d.last.edgeId ?? d.edgeId, d.last.stop, d.stop !== null ? "Moved" : "Added")}${d.last.notes.map((n) => ` Also ${n}.`).join("")}`, d.last.edgeId);
       return;
     }
     if (d.kind === "connect") {

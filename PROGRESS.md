@@ -89,7 +89,7 @@ Done in one go, as the owner asked, with a commit after each step. The owner's a
 
 ### Known limits (steps 4–6)
 - **Corners go on straight segments only.** A curved segment is straightened first; orthogonal edges slide their segments instead of showing corners.
-- **`edge` operations** (`(a) edge (b)`) join their ends directly: they can be curved and straightened, but can't get corners or an orthogonal route.
+- **`edge` operations** (`(a) edge (b)`) join their ends directly. Make orthogonal and a new corner convert them to `--` first (D53), in place or in a `\draw` of its own, in the same undo step; the status bar says so. Refused for relative ends, statements other than `\draw`/`\path`, and a `\node ... edge` start.
 - **Rewriting the code between two ends** (Straighten, Make orthogonal, Make curved, sliding) is refused when the path has options in the middle (they apply to all of it) or an `edge` operation there.
 - **Labels on a rewritten edge** go after the piece they are nearest; their `pos=` isn't adjusted yet (step 7).
 - **Make orthogonal** checks only node boxes for crossings, not labels or other edges, and its fallback is two corners through the middle.
