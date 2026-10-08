@@ -1,15 +1,16 @@
 // The context menu for an edge (M2b): corners, the edge's form, its anchors,
-// and splitting a \draw into separate edges. Labels join it in step 7.
+// splitting a \draw into separate edges, and adding a label.
 import { useSignal } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
 import { edgeOpBlocker } from "../edit/edgeop.ts";
+import { addLabelBlocker } from "../edit/labels.ts";
 import { endBlocker, endStop } from "../edit/edges.ts";
 import { splitBlocker } from "../edit/split.ts";
 import { edgeVertices, isEdgeOperation, nearestLineSegment } from "../edit/vertices.ts";
 import { type Edge, pathEdges } from "../model/edges.ts";
 import { anchorPoint, type Point } from "../tikz/shapes.ts";
 import { curveBlocker } from "../edit/curves.ts";
-import { addVertex, baseLayout, makeCurved, makeOrthogonal, moveEnd, removeVertex, splitEdge, straightenEdge } from "./store.ts";
+import { addVertex, startAddLabel, baseLayout, makeCurved, makeOrthogonal, moveEnd, removeVertex, splitEdge, straightenEdge } from "./store.ts";
 
 /** The compass, laid out as it points; the middle is the border ("automatic"). */
 const COMPASS: Array<string | null> = ["north west", "north", "north east", "west", null, "east", "south west", "south", "south east"];
@@ -173,6 +174,7 @@ export function EdgeMenu({ edge, x, y, at, onClose }: { edge: Edge; x: number; y
       {edge.lock && <div class="tf-menu-note">This edge is kept as written; see the panel for why.</div>}
       <CornerItems edge={edge} at={at} close={onClose} hover={() => (open.value = null)} />
       <FormItems edge={edge} close={onClose} hover={() => (open.value = null)} />
+      <ActionItem label="Add label here" why={addLabelBlocker(edge)} testid="menu-add-label" onHover={() => (open.value = null)} run={() => (onClose(), startAddLabel(edge.id, at.at))} />
       <div class="tf-menu-sep" role="separator" />
       <AnchorItem edge={edge} which="from" open={open.value === "from"} onOpen={() => (open.value = "from")} onDone={onClose} />
       <AnchorItem edge={edge} which="to" open={open.value === "to"} onOpen={() => (open.value = "to")} onDone={onClose} />

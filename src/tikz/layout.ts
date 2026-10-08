@@ -66,6 +66,8 @@ export interface LaidOutNode {
   unrendered: string[];
   /** Rotation of the label in degrees (sloped path labels). */
   rotate?: number;
+  /** For a label on a path: where along its segment it sits (0 to 1) and the point on the path it is attached to. */
+  pathPos?: { t: number; point: Point };
   /** -1 for the background layer. */
   layer: number;
   /** What the size is made of, for resizing (D38). */
@@ -928,7 +930,7 @@ function labelNode(spec: string, owner: LaidOutNode, scope: Scope, ctx: Ctx): La
 
 // ---------------------------------------------------------------- paths
 
-interface Segment {
+export interface Segment {
   kind: "line" | "curve" | "hv" | "vh";
   from: Point;
   to: Point;
@@ -944,7 +946,7 @@ interface PathPoint {
   ref?: string;
 }
 
-function segPoint(seg: Segment, t: number): { point: Point; angle: number } {
+export function segPoint(seg: Segment, t: number): { point: Point; angle: number } {
   const lerp = (a: Point, b: Point, u: number) => ({ x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u });
   const ang = (a: Point, b: Point) => Math.atan2(b.y - a.y, b.x - a.x);
   if (seg.kind === "line") return { point: lerp(seg.from, seg.to, t), angle: ang(seg.from, seg.to) };
@@ -1169,6 +1171,7 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint, 
       const placed = layoutNode(synEff, scope, ctx, pn.syn.kind === "coordinate" ? "coordinate" : "path", nodeState, syn, where);
       // It moves with whatever the path goes through.
       if (placed) placed.position.refs = [...new Set([...placed.position.refs, ...pathRefs])];
+      if (placed && seg && pn.syn.kind !== "coordinate") placed.pathPos = { t, point: where.point };
     }
   };
 

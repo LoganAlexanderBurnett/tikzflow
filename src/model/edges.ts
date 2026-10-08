@@ -94,6 +94,18 @@ function lockOf(route: Route): EdgeLock | undefined {
   return undefined;
 }
 
+/** The segment (an index into route.segs) a label on a path belongs to: the last one whose operation starts before it. */
+export function labelSegIndex(path: LaidOutPath, n: LaidOutNode): number {
+  const route = path.route;
+  if (!route) return 0;
+  let best = 0;
+  route.segs.forEach((s, k) => {
+    const opItem = path.syntax.items[s.op];
+    if (opItem && itemFrom(opItem) <= n.syntax.from) best = k;
+  });
+  return best;
+}
+
 /** The edges of one path, in order. */
 export function pathEdges(path: LaidOutPath, layout: PictureLayout): Edge[] {
   const route = path.route;
@@ -116,15 +128,7 @@ export function pathEdges(path: LaidOutPath, layout: PictureLayout): Edge[] {
 
   const isEdgeOp = path.id.includes("/edge");
   const labels = layout.pathNodes.filter((n) => n.statement.from === path.syntax.from && n.statement.to === path.syntax.to && n.syntax.from >= path.range.from && n.syntax.to <= path.range.to);
-  // A label belongs to the last segment whose operation starts before it.
-  const labelSeg = (n: LaidOutNode): number => {
-    let best = 0;
-    route.segs.forEach((s, k) => {
-      const opItem = items[s.op];
-      if (opItem && itemFrom(opItem) <= n.syntax.from) best = k;
-    });
-    return best;
-  };
+  const labelSeg = (n: LaidOutNode): number => labelSegIndex(path, n);
 
   return groups.map((g, k) => {
     const first = route.segs[g[0]!]!;

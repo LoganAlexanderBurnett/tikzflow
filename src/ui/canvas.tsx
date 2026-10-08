@@ -15,6 +15,7 @@ import { END_ANCHORS, endBlocker, type EndTarget, planWaypoint, snapWaypoint } f
 import { type CurveHandle, curveForm, curveMiddle, curveSegments, planCurve } from "../edit/curves.ts";
 import { orthoPolyline, planSlide, snapSlide } from "../edit/orthogonal.ts";
 import { edgeOpBlocker } from "../edit/edgeop.ts";
+import { planSlideLabel, slideBlocker } from "../edit/labels.ts";
 import { edgeVertices, isEdgeOperation, planAddVertex } from "../edit/vertices.ts";
 import { EdgeMenu, type EdgeMenuAt } from "./edgemenu.tsx";
 import { pictureEnv } from "../model/document.ts";
@@ -555,7 +556,7 @@ function LabelEditor({ view, size, onDone }: { view: View; size: { w: number; h:
     [session],
   );
   // A node being created isn't in the code yet; it is in the preview layout.
-  const n = e ? labelledNode(e.creating ? layout.value : baseLayout.value, e.id) : undefined;
+  const n = e ? labelledNode(e.creating || e.adding ? layout.value : baseLayout.value, e.id) : undefined;
   if (!e || !n) return null;
   const problem = labelEditProblem.value;
   const x = (n.shape.center.x - (view.cx - size.w / 2 / view.scale)) * view.scale;
@@ -585,7 +586,7 @@ function LabelEditor({ view, size, onDone }: { view: View; size: { w: number; h:
           } else if (ev.key === "Enter" && !ev.shiftKey && !ev.isComposing) {
             ev.preventDefault();
             if (commitLabelEdit()) onDone();
-          } else if (ev.key === "Tab" && !ev.shiftKey && !ev.ctrlKey && !ev.metaKey && !ev.isComposing) {
+          } else if (ev.key === "Tab" && !e.adding && !ev.shiftKey && !ev.ctrlKey && !ev.metaKey && !ev.isComposing) {
             // Apply this label and go straight on to the next connected node.
             ev.preventDefault();
             if (commitLabelEdit()) {
@@ -680,6 +681,19 @@ interface SlideDrag {
   last: { changes: Change[]; text: string; layout: PictureLayout } | null;
 }
 
+/** Sliding a label along its edge. */
+interface LabelDrag {
+  kind: "label";
+  labelId: string;
+  edgeId: string;
+  moved: boolean;
+  pointer: Point;
+  /** Where the label is attached to the edge when the drag starts. */
+  origin: Point;
+  key: string;
+  last: { changes: Change[]; layout: PictureLayout; pos: number; written: string } | null;
+}
+
 /** Dragging a control point of a curve. */
 interface ControlDrag {
   kind: "control";
@@ -737,6 +751,7 @@ export function Canvas() {
     | EndDrag
     | VertexDrag
     | SlideDrag
+    | LabelDrag
     | ControlDrag
     | ConnectDrag
     | null
@@ -942,6 +957,15 @@ export function Canvas() {
       const edge = edgeOfLabel(shownEdges.value, id);
       const path = baseLayout.value?.paths.find((x) => x.syntax.from === labelledNode(baseLayout.value, id)?.statement.from);
       selectFromCanvas(edge ? { kind: "edge", id: edge.id } : path ? { kind: "path", id: path.id } : null);
+      // Dragging it slides it along its edge.
+      const l = baseLayout.value;
+      if (edge && l && !labelEdit.value && !slideBlocker(l, id)) {
+        const attached = labelledNode(l, id)?.pathPos?.point;
+        if (attached) {
+          drag.current = { kind: "label", labelId: id, edgeId: edge.id, moved: false, pointer: toModel(e), origin: attached, key: "", last: null };
+          svg.setPointerCapture(e.pointerId);
+        }
+      }
       return;
     }
     const edgeEl = target.closest("[data-edge]");
@@ -1119,6 +1143,28 @@ export function Canvas() {
     status.value = `Release to write ${edgeCode(r.text, r.layout, d.edgeId)}`;
   };
 
+  /** Sliding a label: write pos= for where the pointer is nearest on its edge, and show it. Alt turns snapping off. */
+  const labelMove = (d: LabelDrag, e: PointerEvent) => {
+    const pointer = toModel(e);
+    if (!d.moved && Math.hypot(pointer.x - d.pointer.x, pointer.y - d.pointer.y) * view.value.scale < 4) return;
+    d.moved = true;
+    // The point the label is attached to follows the pointer's movement, not the pointer itself.
+    const p = { x: d.origin.x + pointer.x - d.pointer.x, y: d.origin.y + pointer.y - d.pointer.y };
+    const key = `${Math.round(p.x * 2)}|${Math.round(p.y * 2)}|${e.altKey}`;
+    if (key === d.key) return;
+    d.key = key;
+    const r = planSlideLabel(text.value, currentPicture.value, d.labelId, p, !e.altKey);
+    if (!r.ok) {
+      d.last = null;
+      previewLayout.value = null;
+      status.value = r.reason;
+      return;
+    }
+    d.last = r;
+    previewLayout.value = r.layout;
+    status.value = `Release to write ${r.written}`;
+  };
+
   /** Dragging a curve handle: write the curve (bend, out/in, controls) and show it. Alt turns snapping off. */
   const controlMove = (d: ControlDrag, e: PointerEvent) => {
     const p = toModel(e);
@@ -1182,6 +1228,10 @@ export function Canvas() {
       vertexMove(d, e);
       return;
     }
+    if (d.kind === "label") {
+      labelMove(d, e);
+      return;
+    }
     if (d.kind === "slide") {
       slideMove(d, e);
       return;
@@ -1227,6 +1277,12 @@ export function Canvas() {
         previewEnd(d.edgeId, d.which, null);
         if (!d.target) status.value = "The end stays where it was: drop it on a node.";
       }
+      return;
+    }
+    if (d.kind === "label") {
+      previewLayout.value = null;
+      if (d.moved && d.last && d.last.changes.length) applyEdgeEdit(d.last.changes, "input.edge.label", `Slid the label: ${d.last.written}`);
+      else if (d.moved && d.last) status.value = "The label stays where it was.";
       return;
     }
     if (d.kind === "slide") {

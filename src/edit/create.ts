@@ -16,6 +16,7 @@ import { ensureLibraries, libraryLoaded, shapeLibraries } from "./libraries.ts";
 import { formatDistance, type MoveResult, planMove, positioningText, previousRelation } from "./move.ts";
 import { nameForUnnamed, nameNodeChange, nameStyle, newNodeName, takenNames } from "./names.ts";
 import { labelProblem } from "./label.ts";
+import { branchLabel, branchLabelText } from "./labels.ts";
 import { styleUsers } from "./properties.ts";
 import { snapNode } from "./snap.ts";
 import { addStyles, definedStyleNames, nodeStyles, styleSites } from "./styles.ts";
@@ -358,13 +359,16 @@ export function planCreate(text: string, picIndex: number, req: CreateRequest): 
   const from = sibling ? incoming?.from : parent;
   const fromName = sibling ? from && usableName(from) : parentName;
   const head = sibling ? incoming?.head : edgeHead(doc, layout);
-  const edge = fromName && head ? `${head} (${fromName}) -- (${name});` : null;
+  // Branches out of a decision are labelled Yes and No (D45); the label sits on the side the edge leaves by.
+  const branch = from ? branchLabel(text, layout, from) : null;
+  const edgeFor = (dir: Direction): string | null => (fromName && head ? `${head} (${fromName}) -- ${branch ? `${branchLabelText(branch, dir)} ` : ""}(${name});` : null);
+  const edge = edgeFor(flow);
   const perpendicular: Direction = flow === "below" || flow === "above" ? "right" : "below";
   const order: Direction[] = sibling ? [perpendicular, OPPOSITE[perpendicular], flow, OPPOSITE[flow]] : [flow, perpendicular, OPPOSITE[perpendicular], OPPOSITE[flow]];
 
   // The edge refers to its start by name, so that name must mean this node where the edge is written.
-  const tryRelation = (relation: string): { changes: Change[]; node: LaidOutNode; layout: PictureLayout } | { reason: string } => {
-    const ins = insertion(prepared, text, parent, nodeStatement(req.entry, relation, null, name, req.label), edge);
+  const tryRelation = (relation: string, dir: Direction): { changes: Change[]; node: LaidOutNode; layout: PictureLayout } | { reason: string } => {
+    const ins = insertion(prepared, text, parent, nodeStatement(req.entry, relation, null, name, req.label), edgeFor(dir));
     if (!Array.isArray(ins)) return ins;
     const changes = [...setup, ...ins];
     const made = check(text, picIndex, changes, name);
@@ -373,8 +377,8 @@ export function planCreate(text: string, picIndex: number, req: CreateRequest): 
   };
 
   let last: { changes: Change[]; relation: string } | null = null;
-  const consider = (relation: string): boolean | { reason: string } => {
-    const r = tryRelation(relation);
+  const consider = (relation: string, dir: Direction): boolean | { reason: string } => {
+    const r = tryRelation(relation, dir);
     if ("reason" in r) return r;
     last ??= { changes: r.changes, relation };
     if (r.node.lock || collision(r.layout, r.node)) return false;
@@ -385,7 +389,7 @@ export function planCreate(text: string, picIndex: number, req: CreateRequest): 
   let chosen: string | null = null;
   for (const dir of order) {
     const relation = `${dir}=of ${parentName}`;
-    const r = consider(relation);
+    const r = consider(relation, dir);
     if (typeof r === "object") return { ok: false, reason: r.reason };
     if (r) {
       chosen = relation;
@@ -396,18 +400,18 @@ export function planCreate(text: string, picIndex: number, req: CreateRequest): 
   if (!chosen) {
     const dir = sibling ? perpendicular : flow;
     const cross = dir === "below" || dir === "above" ? "xshift" : "yshift";
-    const probe = tryRelation(`${dir}=of ${parentName}`);
+    const probe = tryRelation(`${dir}=of ${parentName}`, dir);
     const step = "reason" in probe ? 0 : probe.node.shape.hw * 2 + 14;
     for (let k = 1; k <= 8 && !chosen; k++) {
       const sign = k % 2 ? 1 : -1;
       const relation = `${dir}=of ${parentName}, ${cross}=${mm(sign * Math.ceil(k / 2) * (cross === "xshift" ? step : (step / 2)))}`;
-      const r = consider(relation);
+      const r = consider(relation, dir);
       if (typeof r === "object") return { ok: false, reason: r.reason };
       if (r) chosen = relation;
     }
   }
   if (!chosen) return { ok: false, reason: "There is no free place next to this node; move something out of the way first." };
-  return finish(text, picIndex, last!.changes, name, `${chosen}${edge ? `, with an edge from ${fromName}` : ""}`, notes);
+  return finish(text, picIndex, last!.changes, name, `${chosen}${edge ? `, with an edge from ${fromName}${branch ? `, labelled ${branch}` : ""}` : ""}`, notes);
 }
 
 /** How the move planner placed a dropped node, in a few words. */

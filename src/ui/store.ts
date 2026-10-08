@@ -11,6 +11,7 @@ import { planMakeCurved } from "../edit/curves.ts";
 import { planMakeOrthogonal } from "../edit/orthogonal.ts";
 import { planSplit } from "../edit/split.ts";
 import { planAddVertex, planRemoveVertex, planStraighten } from "../edit/vertices.ts";
+import { planAddLabel } from "../edit/labels.ts";
 import { draftOf, labelBlocker, labelledNode, labelProblem, planLabelEdit } from "../edit/label.ts";
 import { withLibraries } from "../edit/libraries.ts";
 import { formatDistance, planAttach, planPin } from "../edit/move.ts";
@@ -421,6 +422,8 @@ export interface LabelEdit {
   original: string;
   draft: string;
   creating?: { entry: PaletteEntry; placement: Placement };
+  /** A label being added to an edge: nothing is written until it is applied, like a new node. */
+  adding?: { edgeId: string; at: Point };
 }
 
 export const labelEdit = signal<LabelEdit | null>(null);
@@ -456,7 +459,7 @@ export function setLabelDraft(draft: string): void {
 }
 
 export function cancelLabelEdit(): void {
-  if (labelEdit.value?.creating) previewLayout.value = null;
+  if (labelEdit.value?.creating || labelEdit.value?.adding) previewLayout.value = null;
   labelEdit.value = null;
 }
 
@@ -465,6 +468,7 @@ export function commitLabelEdit(): boolean {
   const e = labelEdit.value;
   if (!e) return true;
   if (e.creating) return commitCreate(e, e.creating);
+  if (e.adding) return commitAddLabel(e, e.adding);
   if (e.draft === e.original) {
     labelEdit.value = null;
     return true;
@@ -478,6 +482,41 @@ export function commitLabelEdit(): boolean {
   const n = labelledNode(baseLayout.value, e.id);
   applyEdit(r.changes, "input.label");
   status.value = n?.kind === "path" ? "Changed the edge label." : `Changed the label of ${n?.name ?? e.id}.`;
+  return true;
+}
+
+/** "Add label here": a label on the edge at `at`, shown with its text ready to type over. Escape leaves the code as it was. */
+export function startAddLabel(edgeId: string, at: Point): boolean {
+  const r = planAddLabel(text.value, currentPicture.value, edgeId, at, ADD_LABEL_PLACEHOLDER);
+  if (!r.ok) {
+    status.value = r.reason;
+    return false;
+  }
+  previewLayout.value = r.layout;
+  selection.value = { kind: "edge", id: edgeId };
+  labelEdit.value = { session: ++sessions, id: r.labelId, original: ADD_LABEL_PLACEHOLDER, draft: ADD_LABEL_PLACEHOLDER, adding: { edgeId, at } };
+  status.value = "New label. Type its text, then press Enter. Esc cancels. Drag it afterwards to slide it along the edge.";
+  return true;
+}
+
+const ADD_LABEL_PLACEHOLDER = "label";
+
+/** Writes the label being added, with the text typed. An empty label adds nothing. */
+function commitAddLabel(e: LabelEdit, adding: NonNullable<LabelEdit["adding"]>): boolean {
+  if (e.draft.trim() === "") {
+    labelEdit.value = null;
+    previewLayout.value = null;
+    status.value = "No label added.";
+    return true;
+  }
+  const r = planAddLabel(text.value, currentPicture.value, adding.edgeId, adding.at, e.draft);
+  if (!r.ok) {
+    status.value = r.reason;
+    return false;
+  }
+  labelEdit.value = null;
+  previewLayout.value = null;
+  applyEdgeEdit(r.changes, "input.edge.label", `Added the label: ${r.written}`, adding.edgeId);
   return true;
 }
 

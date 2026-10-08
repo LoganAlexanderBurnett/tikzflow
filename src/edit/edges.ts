@@ -22,6 +22,7 @@ import { afterTopItem, insertStatements, isTopLevelItem, nodeAnchor, pathAnchor 
 import { lineEnd, lineStart, restOfLineBlank } from "./text.ts";
 import { nameForUnnamed, nameNodeChange, nameStyle, takenNames } from "./names.ts";
 import type { Guide } from "./snap.ts";
+import { branchLabel, branchLabelText } from "./labels.ts";
 import { definedStyleNames, nodeStyles, styleSites } from "./styles.ts";
 
 const MM = PT_PER_UNIT.mm!;
@@ -648,7 +649,13 @@ export function planConnect(
   const bn = nameOf(b);
   if (!an || !bn) return { ok: false, reason: "A node's name can't be referred to in code (it is made up or contains special characters)." };
   const end = (name: string, anchor?: string) => (anchor ? `(${name}.${anchor})` : `(${name})`);
-  const statement = `${head} ${end(an, from.anchor)} -- ${end(bn, to.anchor)};`;
+  // An edge out of a decision is labelled Yes or No (D45), on the side it leaves by.
+  const branch = branchLabel(text, layout, a);
+  const dx = b.shape.center.x - a.shape.center.x;
+  const dy = b.shape.center.y - a.shape.center.y;
+  const dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : dy < 0 ? "below" : "above";
+  const statement = `${head} ${end(an, from.anchor)} -- ${branch ? `${branchLabelText(branch, dir)} ` : ""}${end(bn, to.anchor)};`;
+  if (branch) notes.push(`labelled the branch ${branch}`);
   // After both nodes' statements, and after the last path, as hand-written flowcharts are laid out.
   const after = nodeAnchor(doc, pic, Math.max(a.statement.to, b.statement.to));
   if (!after) return { ok: false, reason: "The code right after the last node has a syntax error, so the edge can't be added safely. Fix that first." };

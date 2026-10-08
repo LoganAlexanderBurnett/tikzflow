@@ -429,3 +429,56 @@ test("dragging a ghost handle on an edge operation adds a corner", async ({ page
   await expect(page.getByTestId("edge-mode")).toContainText("through points");
   expect(id).toBeTruthy();
 });
+
+// ---------------------------------------------------------------- step 7: edge labels
+
+test("Add label here writes a label where the edge was clicked, and Escape writes nothing", async ({ page }) => {
+  await setCode(page, `${TWO}\\draw[->] (a) -- (b);\n\\end{tikzpicture}\n`);
+  const before = await code(page);
+  const id = await selectEdge(page, 0);
+  const p = await onEdge(page, id, 0.25);
+  await page.mouse.click(p.x, p.y, { button: "right" });
+  await page.getByTestId("menu-add-label").click();
+  await expect(page.getByTestId("label-editor")).toBeVisible();
+  // Nothing is written until the label is applied.
+  expect(await code(page)).toBe(before);
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("label-editor")).toHaveCount(0);
+  expect(await code(page)).toBe(before);
+  await page.mouse.click(p.x, p.y, { button: "right" });
+  await page.getByTestId("menu-add-label").click();
+  await page.keyboard.type("go on");
+  await page.keyboard.press("Enter");
+  expect(await code(page)).toMatch(/\\draw\[->\] \(a\) -- node\[pos=0\.2[05]?, (above|below|left|right)\] \{go on\} \(b\);/);
+  await expect(page.getByTestId("edge-label")).toHaveCount(1);
+  // One undo takes it away.
+  await page.keyboard.press("Control+z");
+  expect(await code(page)).toBe(before);
+});
+
+test("dragging a label along its edge writes pos=", async ({ page }) => {
+  await setCode(page, `${TWO}\\draw[->] (a) -- node[above] {yes} (b);\n\\end{tikzpicture}\n`);
+  await expect(page.getByTestId("edge-label")).toHaveCount(1);
+  const id = (await edgeIds(page))[0]!;
+  const start = await onEdge(page, id, 0.5);
+  const end = await onEdge(page, id, 0.8);
+  const box = (await page.getByTestId("edge-label").boundingBox())!;
+  const from = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  // Move by the distance between the two points on the edge.
+  await dragTo(page, from, { x: from.x + (end.x - start.x), y: from.y + (end.y - start.y) });
+  await page.mouse.up();
+  expect(await code(page)).toMatch(/\\draw\[->\] \(a\) -- node\[above, pos=0\.[78]\d?\] \{yes\} \(b\);/);
+  await expect(page.getByTestId("status")).toContainText("Slid the label");
+  await page.keyboard.press("Control+z");
+  expect(await code(page)).toContain("\\draw[->] (a) -- node[above] {yes} (b);");
+});
+
+test("a new node out of a decision gets its Yes label", async ({ page }) => {
+  await setCode(page, "\\begin{tikzpicture}[node distance=8mm]\n\\node[draw, diamond] (d) at (0,0) {Ok?};\n\\end{tikzpicture}\n");
+  await expect(page.getByTestId("summary-headline")).toContainText("1 node");
+  await page.locator("[data-node]").first().click();
+  await page.keyboard.press("Tab");
+  await page.keyboard.type("Do it");
+  await page.keyboard.press("Enter");
+  expect(await code(page)).toMatch(/\\draw\[->\] \(d\) -- node\[near start, (right|above)\] \{Yes\} \(doIt\);/);
+});
