@@ -128,11 +128,11 @@ export function editFont(value: string | undefined, change: { size?: string; bol
 // ---------------------------------------------------------------- reading options
 
 /** The keys a statement or style body sets, in order, as plain key-values. */
-function bodyKeys(def: { body?: { items: OptionItem[] }; bodyText: string }): KeyValue[] {
+export function bodyKeys(def: { body?: { items: OptionItem[] }; bodyText: string }): KeyValue[] {
   return def.body ? def.body.items.map(itemKv) : parseOptionString(def.bodyText);
 }
 
-function itemKv(i: OptionItem): KeyValue {
+export function itemKv(i: OptionItem): KeyValue {
   return i.value === undefined ? { key: i.key } : { key: i.key, value: i.value };
 }
 
@@ -193,7 +193,7 @@ function inherited(sites: readonly StyleSite[], keys: readonly KeyValue[], key: 
 // ---------------------------------------------------------------- styles
 
 /** Whether the keys use style `name`, directly or through other document styles. */
-function usesStyle(sites: readonly StyleSite[], keys: readonly KeyValue[], name: string, depth = 0): boolean {
+export function usesStyle(sites: readonly StyleSite[], keys: readonly KeyValue[], name: string, depth = 0): boolean {
   if (depth > 20) return false;
   for (const kv of keys) {
     const s = kv.key === "style" && kv.value ? kv.value.replace(/^\{|\}$/g, "").trim() : kv.value === undefined ? kv.key : null;

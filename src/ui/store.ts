@@ -12,6 +12,7 @@ import { planMakeOrthogonal } from "../edit/orthogonal.ts";
 import { planSplit } from "../edit/split.ts";
 import { planAddVertex, planRemoveVertex, planStraighten } from "../edit/vertices.ts";
 import { planAddLabel } from "../edit/labels.ts";
+import { type EdgeEdit, type EdgeScope, planEdgeProperty } from "../edit/edgeprops.ts";
 import { draftOf, labelBlocker, labelledNode, labelProblem, planLabelEdit } from "../edit/label.ts";
 import { withLibraries } from "../edit/libraries.ts";
 import { formatDistance, planAttach, planPin } from "../edit/move.ts";
@@ -834,5 +835,24 @@ export function splitEdge(edgeId: string): boolean {
   }
   const index = Number(/:(\d+)$/.exec(edgeId)?.[1] ?? 0);
   applyEdgeEdit(r.changes, "input.edge.split", `Split the \\draw into ${r.edgeIds.length} statements, one per edge. Each end can be moved on its own now.`, r.edgeIds[index]);
+  return true;
+}
+
+/**
+ * Applies an edge-properties edit (arrow, dash, colour, width) to the edge or
+ * to a style it uses, as one undoable step. `extra` holds changes that go with
+ * it, such as a new \definecolor. Returns false if it was refused.
+ */
+export function applyEdgeProperty(edgeId: string, scope: EdgeScope, edit: EdgeEdit, extra: Change[] = [], done = "Changed the edge"): boolean {
+  const r = planEdgeProperty(text.value, currentPicture.value, edgeId, scope, edit, extra);
+  if (!r.ok) {
+    status.value = r.reason;
+    return false;
+  }
+  if (!r.changes.length) {
+    status.value = "Nothing to change: it already looks that way.";
+    return false;
+  }
+  applyEdgeEdit(r.changes, "input.edge.props", `${done}${scope.kind === "style" ? ` through the ${scope.name} style` : ""}.${r.notes.map((n) => ` Note: ${n}.`).join("")}`);
   return true;
 }

@@ -708,6 +708,7 @@ button.link {
   min-width: 0;
 }
 
+.tf-font select.tf-wide,
 .tf-font select.tf-family {
   flex-basis: 100%;
 }

@@ -473,6 +473,43 @@ test("dragging a label along its edge writes pos=", async ({ page }) => {
   expect(await code(page)).toContain("\\draw[->] (a) -- node[above] {yes} (b);");
 });
 
+// ---------------------------------------------------------------- step 8: edge properties
+
+test("the edge panel sets dashes, arrow, tip, colour and width, each as one undo step", async ({ page }) => {
+  const before = await code(page);
+  await selectEdge(page, 4); // rec → stop
+  await expect(page.getByTestId("edge-properties")).toBeVisible();
+  await page.screenshot({ path: "test-results/m2b-edge-properties.png" });
+  await page.getByTestId("edge-dash-dashed").click();
+  expect(await code(page)).toBe(before.replace("\\draw[->] (rec)   -- (stop);", "\\draw[->, dashed] (rec)   -- (stop);"));
+  await page.keyboard.press("Control+z");
+  expect(await code(page)).toBe(before);
+  await page.getByTestId("edge-arrow-both").click();
+  expect(await code(page)).toContain("\\draw[<->] (rec)   -- (stop);");
+  await page.getByTestId("edge-tip").selectOption("Latex");
+  expect(await code(page)).toContain("\\draw[Latex-Latex] (rec)   -- (stop);");
+  await page.getByTestId("edge-arrow-none").click();
+  expect(await code(page)).toContain("\\draw (rec)   -- (stop);");
+  await page.getByTestId("edge-width").selectOption("very thick");
+  expect(await code(page)).toContain("\\draw[very thick] (rec)   -- (stop);");
+  await page.getByTestId("edge-color").click();
+  await page.getByTestId("color-picker").getByRole("button", { name: "red", exact: true }).first().click();
+  expect(await code(page)).toContain("\\draw[very thick, draw=red] (rec)   -- (stop);");
+  await expect(page.getByTestId("edge-selection")).toHaveCount(1);
+});
+
+test("the edge panel can edit the style an edge uses, so every edge using it changes", async ({ page }) => {
+  await setCode(page, `\\begin{tikzpicture}\n\\tikzset{flow/.style={->, thick}}\n\\node[draw] (a) {A};\n\\node[draw] (b) at (4,-2) {B};\n\\node[draw] (c) at (4,-4) {C};\n\\draw[flow] (a) -- (b);\n\\draw[flow] (b) -- (c);\n\\end{tikzpicture}\n`);
+  await expect(page.locator("path[data-edge]")).toHaveCount(2);
+  await selectEdge(page, 0);
+  await page.getByRole("radio", { name: /All flow edges \(2\)/ }).check();
+  await page.getByTestId("edge-dash-dotted").click();
+  expect(await code(page)).toContain("flow/.style={->, thick, dotted}");
+  await expect(page.getByTestId("status")).toContainText("1 other edge uses the flow style");
+  await page.keyboard.press("Control+z");
+  expect(await code(page)).toContain("flow/.style={->, thick}");
+});
+
 test("a new node out of a decision gets its Yes label", async ({ page }) => {
   await setCode(page, "\\begin{tikzpicture}[node distance=8mm]\n\\node[draw, diamond] (d) at (0,0) {Ok?};\n\\end{tikzpicture}\n");
   await expect(page.getByTestId("summary-headline")).toContainText("1 node");
