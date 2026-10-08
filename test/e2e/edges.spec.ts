@@ -570,6 +570,31 @@ test("deleting a node in a fit takes it out of the list; the last member is refu
   await expect(page.getByTestId("status")).toContainText("last node that box fits around");
 });
 
+test("a tip on one edge of a multi-edge \\draw is offered Split and apply, in one undo step", async ({ page }) => {
+  const start = "\\begin{tikzpicture}\n\\node[draw] (a) at (0,0) {A};\n\\node[draw] (b) at (3,0) {B};\n\\node[draw] (c) at (3,-3) {C};\n\\draw[thick] (a) -- (b) -- (c);\n\\end{tikzpicture}\n";
+  await setCode(page, start);
+  await expect(page.getByTestId("summary-headline")).toContainText("3 nodes and 2 edges");
+  await selectEdge(page, 0);
+  await page.getByTestId("edge-arrow-forward").click();
+  // Nothing is written yet: the panel explains and asks.
+  expect(await code(page)).toBe(start);
+  const card = page.getByTestId("edge-split-apply-card");
+  await expect(card).toContainText("several edges");
+  await page.getByTestId("edge-split-cancel").click();
+  await expect(card).toHaveCount(0);
+  expect(await code(page)).toBe(start);
+
+  await page.getByTestId("edge-arrow-forward").click();
+  await page.getByTestId("edge-split-apply").click();
+  expect(await code(page)).toBe("\\begin{tikzpicture}\n\\node[draw] (a) at (0,0) {A};\n\\node[draw] (b) at (3,0) {B};\n\\node[draw] (c) at (3,-3) {C};\n\\draw[thick, ->] (a) -- (b);\n\\draw[thick] (b) -- (c);\n\\end{tikzpicture}\n");
+  await expect(page.getByTestId("status")).toContainText("after splitting the path");
+  // The same edge stays selected, and it is its own path now.
+  await expect(page.getByTestId("edge-title")).toHaveText("a → b");
+  await expect(page.getByTestId("edge-arrow-forward")).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("Control+z");
+  expect(await code(page)).toBe(start);
+});
+
 test("a new node out of a decision gets its Yes label", async ({ page }) => {
   await setCode(page, "\\begin{tikzpicture}[node distance=8mm]\n\\node[draw, diamond] (d) at (0,0) {Ok?};\n\\end{tikzpicture}\n");
   await expect(page.getByTestId("summary-headline")).toContainText("1 node");

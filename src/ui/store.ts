@@ -13,7 +13,7 @@ import { planSplit } from "../edit/split.ts";
 import { planAddVertex, planRemoveVertex, planStraighten } from "../edit/vertices.ts";
 import { planAddLabel, planFlipLabel } from "../edit/labels.ts";
 import { type DeleteTarget, planDelete } from "../edit/delete.ts";
-import { type EdgeEdit, type EdgeScope, planEdgeProperty } from "../edit/edgeprops.ts";
+import { type EdgeEdit, type EdgeScope, planEdgeProperty, planSplitAndApply } from "../edit/edgeprops.ts";
 import { draftOf, labelBlocker, labelledNode, labelProblem, planLabelEdit } from "../edit/label.ts";
 import { withLibraries } from "../edit/libraries.ts";
 import { formatDistance, planAttach, planPin } from "../edit/move.ts";
@@ -883,6 +883,21 @@ export function applyEdgeProperty(edgeId: string, scope: EdgeScope, edit: EdgeEd
     return false;
   }
   applyEdgeEdit(r.changes, "input.edge.props", `${done}${scope.kind === "style" ? ` through the ${scope.name} style` : ""}.${r.notes.map((n) => ` Note: ${n}.`).join("")}`);
+  return true;
+}
+
+/**
+ * "Split and apply" (D58 item 5): an arrow edit for one edge of a `\draw` with
+ * several edges. The path is split and the tip set on this edge's own statement,
+ * as one undoable step. The same edge stays selected.
+ */
+export function splitAndApplyArrow(edgeId: string, edit: EdgeEdit, done = "Changed the arrow of the edge"): boolean {
+  const r = planSplitAndApply(text.value, currentPicture.value, edgeId, edit);
+  if (!r.ok) {
+    status.value = r.reason;
+    return false;
+  }
+  applyEdgeEdit(r.changes, "input.edge.splitapply", `${done}, after splitting the path.${r.notes.map((n) => ` Note: ${n}.`).join("")}`, r.edgeId);
   return true;
 }
 

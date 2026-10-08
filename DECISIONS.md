@@ -839,3 +839,14 @@ Items 4–7 are scheduled as small steps early in Milestone 3, right after the e
 - The status bar says "b left the fit of box, which now fits the nodes that remain".
 
 **Why:** The owner's answer (D58 item 4): the edit the user evidently wants, instead of a refusal. A fit's size follows its members by definition, so a smaller fitted node is the intended result, not a side effect.
+
+## D62: Split and apply for arrow tips (M3 step 3, 2026-10-08)
+**Decision:** `planSplitAndApply` in `src/edit/edgeprops.ts` (D58 item 5), used by the edge panel (`src/ui/edgepanel.tsx`) through `splitAndApplyArrow` in the store.
+- The refusal of D55 stays: arrow tips belong to the whole path, so `planEdgeProperty` still refuses a tip edit on one edge of a `\draw` with several edges, and its message now names the new button.
+- In the panel, the direction buttons and the tip menu stay enabled for such an edge. Choosing one writes nothing: it shows a card ("Arrow tips belong to the whole path, and this path has several edges. Split it into one statement per edge, then change this edge only?") with **Split and apply** and **Cancel**.
+- Split and apply splits the path with `planSplit` (D49, D50: every tip stays where it was, the picture is checked to draw as before), takes the same edge in the new text (the same index in the path), and applies the arrow edit to that edge's own statement. The two steps are combined with `composeChanges` into one set of changes against the original text, so one Ctrl+Z undoes both. The edge stays selected. The status bar says "…after splitting the path".
+- If the split already gives the edge the tip asked for (`\draw[->] (a) -- (b) -- (c)`, asking for `->` on the last edge), only the split is written, and a note says so.
+- If the split is refused (an `edge` operation in the path, tips from a style, a tip key in the middle of the path), nothing is written and the reason says the path was not split.
+- Only arrow edits use it. Dashes, colour and width go to the whole path as before.
+
+**Why:** The owner's answer (D58 item 5). The refusal and its reason stay visible, but the way out is one click in the panel instead of a trip to the menu. Asking before splitting matters: it turns one statement into several.
