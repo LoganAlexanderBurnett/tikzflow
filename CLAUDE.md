@@ -46,7 +46,7 @@ A free, static, fully client-side web app for creating and editing TikZ flowchar
   - `npm run layout:bench`: times the model, layout, snapping and a move on a 200-node picture.
   - `UPDATE_GOLDEN=1 npx vitest run test/golden.test.ts`: regenerates `test/fixtures/golden/`. Review the result with `npm run golden:review` before committing.
   - `UPDATE_GOLDEN=1 npx vitest run test/golden-edges.test.ts`: regenerates `test/fixtures/golden/edges/`, the golden files for edge edits (dashed, label, orthogonal, curved, delete).
-  - `npm run fidelity [-- --only=<file>] [-- --verbose]`: compiles the corpus and `spike/engines/probes/*.tex` with pdfTeX (busytex) and compares node anchors with the native layout. It writes `spike/engines/results/fidelity.json`. It needs `npm run fetch-engines` and `node scripts/pack-texmf.ts` first. When unsure how TikZ behaves, add a probe here rather than guessing (D23).
+  - `npm run fidelity [-- --only=<file>] [-- --verbose]`: compiles the corpus and `spike/engines/probes/*.tex` with pdfTeX (busytex) and compares node anchors, and labels written inside paths, with the native layout. It writes `spike/engines/results/fidelity.json`. It needs `npm run fetch-engines` and `node scripts/pack-texmf.ts` first. When unsure how TikZ behaves, add a probe here rather than guessing (D23).
   - `npm run gen:font-metrics`: regenerates `src/text/fontMetrics.ts` from KaTeX. Run it after upgrading KaTeX.
   - `npm run fetch-engines`: downloads the engines and CTAN packages listed in `scripts/engine-manifest.ts` into the gitignored `vendor/` folder, recording sizes and hashes in `vendor/LOCK.json`.
   - `node scripts/pack-texmf.ts`: builds `vendor/packs/tikz-flat.json`, which busytex needs.

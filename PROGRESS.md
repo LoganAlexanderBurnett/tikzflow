@@ -10,7 +10,34 @@ Milestone 0 is done and was approved on 2026-10-07:
 
 **Milestone 2a (nodes and styles): done and approved (2026-10-07).** The owner tested it by hand; their answers are in DECISIONS.md D44 and "M2a review" below.
 
-**Milestone 2b (edges): all ten steps are done (2026-10-08) and waiting for the owner's review.** The plan was approved on 2026-10-07 (D45). Steps 1–3 were approved (D49) and steps 4–6 were approved with five decisions (D53). Steps 7–10 and the finished decision 4 are reported in "Milestone 2b report" below. Milestone 2 was split into 2a and 2b, each with its own checkpoint (D32). The full list is in SPEC.md, "Milestone 2b". Also read the "Notes for later milestones" below. Nothing of Milestone 3 has been started.
+**Milestone 2b (edges): all ten steps are done (2026-10-08) and waiting for the owner's review. The owner's first test found three problems, fixed in "Fixes after the owner's testing of M2b" below (D57).** The plan was approved on 2026-10-07 (D45). Steps 1–3 were approved (D49) and steps 4–6 were approved with five decisions (D53). Steps 7–10 and the finished decision 4 are reported in "Milestone 2b report" below. Milestone 2 was split into 2a and 2b, each with its own checkpoint (D32). The full list is in SPEC.md, "Milestone 2b". Also read the "Notes for later milestones" below. Nothing of Milestone 3 has been started.
+
+## Fixes after the owner's testing of M2b (2026-10-08)
+Three problems from the owner's hands-on test, each fixed and committed on its own (D57). Nothing of Milestone 3 has been started.
+
+### How to try it
+`npm run dev`, open http://localhost:5173, and:
+- **The menu.** Right-click any edge: the items are always the same ten, in the same order. Hover a greyed one for the reason (try *Add vertex here* on the sample's `base |- stop` edge). The edge's form (Straight, Orthogonal, Curved) has a tick. Make the window short, or right-click the lowest edge: the menu opens upward and its flyouts stay on screen.
+- **Label sides.** Paste `\draw[->] (a) |- (b);` with two nodes, right-click on the level piece, *Add label here*: you get `node[pos=0.8, auto]`, beside the line, and the same on the upright piece. Try `node[pos=0.2, left] {x}` on the upright piece and drag the label onto the level piece: the status bar says `left → auto` and the label stays beside the line. Right-click a label (or click it, then use the panel's **Flip side** button) to put it on the other side: `auto` becomes `auto, swap`.
+
+### What was done
+1. **Edge menu (D57 item 1).** Same items, same order; *Split* is always listed; a reason on every disabled item; the current form ticked instead of offered.
+2. **Menu position (item 2).** Menus and the anchor flyout stay inside the window. While testing it I found that right-clicking an edge on top of a node's connection handle opened nothing; that works now.
+3. **Label sides (items 3 and 4).** New labels, including Yes/No on decisions, are written with `auto` or `auto, swap`; *Flip label side* in the menu and the panel; dragging a side key onto a part of the line that would cut through the label turns it into `auto`.
+4. **Interpreter (checked with pdfTeX).** The native layout placed `auto` labels on tilted and curved segments up to 14 pt off pdfTeX: TikZ takes the corner anchor unless the line is within about 3° of level or upright. Fixed, with probes p6 (the label cases) and p7 (an angle sweep): all 82 labels are within 0.05 pt of pdfTeX.
+5. **A latent bug** surfaced by writing `auto` labels: the layout gave them a synthetic option list at offset 0, so sliding an `auto` label without `pos=` would have written at the start of the file. Fixed, with a test.
+
+### Tests
+- **Vitest:** 871 tests in 23 files. `test/labels.test.ts` grew from 21 to 37: label side on every kind of segment, `auto`/`swap` choice, conversion on slide, flipping, branch labels per direction, and the numbers pdfTeX gives for `auto` labels. 27 of the label goldens in `test/fixtures/golden/edges/` changed, each only in the side key (`right`/`above`/`left`/`below` became `auto`, `auto, swap`).
+- **Playwright:** 93 tests in Edge. New: `test/e2e/menu.spec.ts` (6: same items, reasons, ticked form, inside the window at three sizes, the flyout) and `test/e2e/labelsides.spec.ts` (4: add on both pieces, flip from the menu and the panel, why it can't, drag turns `left` into `auto`). Three older tests expected `above`/`right` and now expect `auto`.
+- **Fidelity:** `npm run fidelity` now compares labels inside paths too: 324 of 414 nodes within 1 pt of pdfTeX (was 235 of 331 without labels). Compared with the previous results, no node got worse, and the 89 nodes it now includes (the labels of probes p6 and p7, and a few named labels in corpus pictures) are all within 1 pt.
+- `npm run typecheck` and `npm run build` pass. `npm run layout:bench` is unchanged (parse 7.8 ms, layout 7.4 ms, drop 29 ms).
+
+### Known limits (new)
+- **A label still slides along its own segment only.** It can't be dragged onto another segment of the edge, so "dragged to a segment" means to another part of the same segment (the pieces of `|-`, a curve).
+- **Making an edge orthogonal, straight or curved keeps the label's keys.** A label written `above` can end up on the line after that; Flip side or a drag fixes it. New `auto` labels follow the line.
+- **A side key with a distance** (`left=2mm`) isn't turned into `auto` by a drag, and a label whose line already cut through it before the drag is left as the author wrote it.
+- **Flip side** needs the label to have a side: a label with no side key and no `auto` sits on the line and is refused with that reason.
 
 ## Milestone 2b report (2026-10-08)
 Steps 7–10 were done in one go, as the owner asked, with a commit after each. The work that was half-finished when the last session stopped (decision 4 of D53) is finished too.
@@ -46,7 +73,7 @@ Steps 7–10 were done in one go, as the owner asked, with a commit after each. 
 - I checked the edge panel, the label box and the result of Delete in screenshots from Playwright's Edge. The app's browser pane still can't take screenshots in this environment.
 
 ### Known limits
-- **Labels.** A label slides along its own segment only: it can't move to another segment of the edge, and dragging doesn't flip it to the other side of the line. Straighten, Make orthogonal and the like keep a label's `pos=` as it is. "Add label here" picks above/below/left/right from how the segment runs and where you clicked. Labels of locked edges can't be added or slid.
+- **Labels.** A label slides along its own segment only: it can't move to another segment of the edge. Straighten, Make orthogonal and the like keep a label's `pos=` as it is. "Add label here" writes `auto` or `auto, swap` from the side of the line you clicked on (D57; it was above/below/left/right in D54). Flipping a label to the other side is in the menu and the panel. Labels of locked edges can't be added or slid.
 - **Yes/No.** Nothing is added for a third branch, for a first branch that is unlabelled, or when the figure's decisions use other wording.
 - **Edge properties.**
   - Arrow tips of one edge in a `\draw` with several edges are refused (Split first), because TikZ gives them to the whole path. Dashes, colour and width go to the whole path and the panel says "This path".
