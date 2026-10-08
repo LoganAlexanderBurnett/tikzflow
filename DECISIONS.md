@@ -798,3 +798,27 @@ Steps 4–6 are done without a checkpoint between them, as the owner asked.
 Items 4–7 are scheduled as small steps early in Milestone 3, right after the engine feasibility check (D15).
 
 **Why:** The owner's answers. Items 4 and 7 replace refusals with the edit the user evidently wants; item 5 keeps the panel honest about the tip belonging to the whole path while saving a trip to the menu; item 6 applies the rule the owner already approved for drags to every edit that changes the line under a label.
+
+## D59: The engine is built in GitHub Actions (M3 step 1, 2026-10-08)
+**Decision:** `.github/workflows/engine.yml`, with scripts in `engine/build/`. The owner approved the plan (pin TL2026 by digest after confirming pgf 3.1.12, publish as a GitHub Release fetched by hash), the CI download list, the artifact download and one prerelease.
+- **Inputs, all pinned:**
+  - TeX Live 2026 scheme-full, `texlive/texlive@sha256:f1c4d2c2…dceb` (linux/amd64 of `latest`, published 2026-10-04). Its first step fails unless pgf is 3.1.12.
+  - `drgrice1/web2js` at `0114ef5` (2025-01-08): the Pascal-to-wasm compiler, with its own copy of `tex.web`, `etex.ch` and change files (`\expanded`, `\strcmp`, `\filesize`, memory sizes).
+  - Node 24.21.0, and actions pinned by commit.
+- **The native `node-kpathsea` addon is replaced** by `engine/build/kpathsea-shim`, which calls the image's `kpsewhich`. No compiler or kpathsea headers needed. It caches only hits, because TeX writes files (the `.aux`) it looked for earlier.
+- **The format:** `latex.ltx`, then `standalone`, `xcolor` with `svgnames` and `tikz`, as TikZJax's. English hyphenation only (`engine/build/texinputs/language.dat`). The driver is pgf's own `pgfsys-dvisvgm.def` (LPPL), so `pgfsys-ximera.def` is never used; ours replaces it in step 6.
+- **Missing files are reported as missing** (D15 item 4, needed already: the 2026 kernel trips over both faults). `engine/build/patch-web2js.cjs` edits web2js before the build, and fails unless every edit applies exactly:
+  - The loader (`library.js`) strips TeX's `TeXinputs:` retry prefix and quotes, and treats every file it can't find as missing. Before, a missing file whose name didn't end in `.tex` came back empty. The kernel quotes names, so every retry did.
+  - `\filesize` (`changes/filesize.ch`) prints nothing for a missing file, as pdfTeX does, and `getfilesize` returns -1 for one. expl3's `\file_if_exist` (behind `\IfFileExists`) reads an empty size as "missing". Before, it printed `0`, so every file existed.
+
+  Together they made `\usetikzlibrary{arrows.meta}` load an empty `tikzlibraryarrows.meta.code.tex` (pgf has none; tikz then tries `pgflibraryarrows.meta.code.tex`) and never define `Stealth`. They also made the format build `\input` empty `.dfu` files.
+- **Checks in CI:** the sample (`spike/engines/sample.ts`) compiles with no TeX error and writes a DVI. The probe gives pgf 3.1.12 and all 7 libraries loaded.
+- **Outputs:** `tex.wasm.gz`, `core.dump.gz`, `tex_files/` (every file the sample read after the format, from the same snapshot) and `manifest.json` (versions, timings, sizes, SHA-256 of each file, the wasm's imports and exports). Each run uploads them as the `engine` artifact (30 days). A tag `engine-*` also publishes them as a GitHub prerelease, with `tex_files` as `tex_files.tar`.
+- **For the Edge check** (spike only): `scripts/stage-engine-ci.ts` puts the artifact next to TikZJax beta24's worker and fonts in `vendor/engine-ci/dist`. It checks the hashes and applies the same two fixes to the minified worker. `?build=ci` on the bench page loads it.
+
+**Not settled yet:**
+- The format isn't byte-reproducible: the dump records the date and time it was made, so every build has a new `core.dump` hash. `tex.wasm` is reproducible: two builds gave the same SHA-256. Pinning is therefore by the hash of the published file. Fixing the clock during the dump would make it reproducible (step 7).
+- expl3 picks `l3backend-dvips.def`, not the dvisvgm backend (step 6).
+- `npm run fetch-engines` doesn't fetch the release yet (step 7).
+
+**Why:** The owner's requirement (D15) that the engine be built reproducibly on Linux CI, not on a Windows machine. Each fix makes TeX see the file system as pdfTeX does, which the 2026 kernel relies on. The format from 2023 that TikZJax ships hid the faults: that kernel neither quoted names nor tested existence with `\filesize`.

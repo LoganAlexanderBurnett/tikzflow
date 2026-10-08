@@ -34,7 +34,8 @@ if (command === "write") {
   const probe = readProbe(log);
   const versions = {
     latex: /LaTeX2e <([^>]+)>/.exec(formatLog)?.[1] ?? null,
-    l3kernel: /L3 programming layer <([^>]+)>/.exec(formatLog)?.[1] ?? null,
+    // INITEX's latex.log doesn't print this line; every run on the format does.
+    l3kernel: /L3 programming layer <([^>]+)>/.exec(formatLog + log)?.[1] ?? null,
     engine: /^This is ([^,\n]+(?:, Version [^\s]+)?)/m.exec(formatLog)?.[1] ?? null,
     pgf: probe?.pgf ?? null,
     libraries: probe?.libraries ?? null,

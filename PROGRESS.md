@@ -12,7 +12,76 @@ Milestone 0 is done and was approved on 2026-10-07:
 
 **Milestone 2b (edges): done and approved (2026-10-08).** The owner tested all of it, and the fixes of D57, by hand. Their answers are in DECISIONS.md D58 and "M2b review" below. SPEC.md's revisions log now covers D53–D58.
 
-**Milestone 3 (accurate preview and export): plan approved (2026-10-08); step 1, the CI feasibility check (D15), in progress.** The owner's answers: `gh` is logged in with a token for this repo only (Contents, Actions, Workflows: read/write; report any missing permission instead of working around it); pin the TL2026 Docker image by digest after confirming pgf 3.1.12; publish engine files as a GitHub Release, fetched by hash; push the `m3-engine-ci` branch when needed; show the download list before the first run. Only step 1 in this session: stop when it passes or needs a fallback. The workflow is `.github/workflows/engine.yml` with scripts in `engine/build/`. Steps 2–5 (D58 items 4–7) come after it. Also read "Notes for later milestones" below.
+**Milestone 3 (accurate preview and export): plan approved (2026-10-08); step 1, the CI feasibility check (D15), passed and is waiting for the owner's review.** See "M3 step 1" below and D59. The owner's standing answers:
+- `gh` is logged in with a token for this repo only (Contents, Actions, Workflows: read/write). Report any missing permission instead of working around it.
+- Engine files are published as GitHub Releases and fetched by hash. The TL2026 Docker image is pinned by digest.
+- Push the `m3-engine-ci` branch when needed. Show the download list before CI downloads anything new.
+
+Steps 2–5 (D58 items 4–7) come next, after approval; they were not started. Also read "Notes for later milestones" below.
+
+## M3 plan and status
+| Step | Content | Status |
+|---|---|---|
+| 1 | CI feasibility: build `tex.wasm` and dump a TL2026 format in GitHub Actions (D15, D59) | Done, waiting for review |
+| 2 | Deleting a node in a `fit` removes it from the list (D58 item 4) | Not started |
+| 3 | "Split and apply" for arrow tips (D58 item 5) | Not started |
+| 4 | Form changes turn overlapping side keys into `auto` (D58 item 6) | Not started |
+| 5 | Flip label side on a label with no side key writes `auto` (D58 item 7) | Not started |
+| 6 | Our own driver from `pgfsys-dvisvgm.def`; `dvi2html` adapted; boxes, bp units | Not started |
+| 7 | Our worker and files: missing-package warning, bytes, caching, `\scrollmode`, log, error lines, packages, `_headers`, `.gz` serving, fetch the release by hash | Not started |
+| 8 | Accurate preview in the app; locked blocks drawn and selectable; errors; font notice; minimum stroke | Not started |
+| 9 | Service worker, offline | Not started |
+| 10 | Importing the preamble, column-width guide | Not started |
+| 11 | Export: `.tex`, snippet, SVG, PNG, PDF | Not started |
+| 12 | Save and open: IndexedDB autosave, File System Access API, fallback | Not started |
+| 13 | Share links in the URL hash | Not started |
+| 14 | End-to-end tests, goldens, docs, report, push, Cloudflare Pages checks | Not started |
+
+## M3 step 1: engine CI feasibility (2026-10-08)
+**Passed.** GitHub Actions on Ubuntu 24.04 does the whole build from pinned inputs (D59): it builds `tex.wasm` with web2js, dumps a format with the 2026 LaTeX kernel, and compiles the M0 sample. The sample also compiles in Edge with the result.
+
+### How to try it
+- Look at the runs: https://github.com/LoganAlexanderBurnett/tikzflow/actions/workflows/engine.yml (branch `m3-engine-ci`). The passing run is 37842560730.
+- Locally, in Edge:
+  1. Download the artifact: `gh run download 37842560730 --name engine --dir vendor/engine-ci/artifact` (3.1 MB).
+  2. Stage it: `node scripts/stage-engine-ci.ts`.
+  3. Run the bench: `npm run bench-engines -- tikzjax --query=build=ci --tag=ci`.
+
+  Or open `/spike/engines/bench.html?engine=tikzjax&build=ci` with `npm run dev`.
+
+### Results
+| | Our CI build | TikZJax 1.0.0-beta24 |
+|---|---|---|
+| LaTeX kernel / expl3 | 2026-06-01 / 2026-09-09 | 2023-11-01 / 2024-01-22 |
+| pgf | **3.1.12** | 3.1.10 |
+| All 7 libraries load | Yes | Yes |
+| `tex.wasm` | 526 kB, 0.12 MB gz | 526 kB |
+| `core.dump` | 163.8 MB raw, **2.98 MB gz**, 2.05 MB Brotli | 5.73 MB gz |
+| Download in Edge (22 files) | **2.94 MB Brotli** | 3.88 MB Brotli |
+| Edge 154, 3 fresh contexts: load / cold / warm compile | 776 / 500 / **435 ms** | 795 / 434 / 399 ms |
+| Compiles OK | 18 of 18, each the same 9,176-byte DVI as CI's | — |
+
+**The release:** the tag `engine-feasibility-1` published the prerelease https://github.com/LoganAlexanderBurnett/tikzflow/releases/tag/engine-feasibility-1 (run 37843255339). It holds `core.dump.gz` (2.98 MB), `tex.wasm.gz` (122 kB), `tex_files.tar` (82 kB) and `manifest.json`. Downloaded with `gh release download`, every hash matched its manifest, and the Edge bench gave the same results: 18 of 18 compiles, load 769 ms, cold 483 ms, warm 439 ms. `tex.wasm.gz` has the same SHA-256 as run 37842560730's (`f63698e3…`): the wasm build is reproducible, only the format isn't.
+
+**CI timings:** `tie`, `tangle` and the Pascal compile take 4 s; `wasm-opt` (asyncify) 34 s; the format dump 36 s + 6 s. The sample compiles in 1.8 s in Node. A whole run takes about 5 minutes, most of it pulling the 2.7 GB image.
+
+**The engine itself needed no fallback.** Memory and string-pool sizes are enough, and web2js's change files already provide the primitives the 2026 kernel needs. The wasm's interface is the same as beta24's (19 imports plus memory, the same asyncify exports), so beta24's worker loads it unchanged.
+
+### What had to be fixed: missing files (D15 item 4, D59)
+Three runs failed before the fourth passed, each on how a missing file looks to TeX:
+1. **Run 37840910012:** the format dumped, but the sample said "Unknown arrow tip kind 'Stealth'". `\usetikzlibrary{arrows.meta}` had loaded an empty `tikzlibraryarrows.meta.code.tex`, a file that doesn't exist. The cause was web2js's loader. The 2026 kernel quotes file names, and TeX's retry `TeXinputs:"name"` was answered as present but empty.
+2. **Run 37841548298:** with the loader fixed, the format build stopped at `omlenc.dfu`. web2js's `\filesize` printed `0` for a missing file, where pdfTeX prints nothing, so expl3's existence test said every file existed. The same fault had been loading empty files silently in run 1.
+3. **Run 37842161043:** my kpsewhich stand-in had cached `sample.aux` as missing before TeX wrote it.
+
+The fixes are a checked patch script for web2js (`engine/build/patch-web2js.cjs`: four lines in `library.js` and one in `changes/filesize.ch`) and the same two fixes in the staged worker. TikZJax's 2023 format hid all of this: that kernel neither quoted names nor tested existence with `\filesize`.
+
+### Known limits
+- **No drawing yet.** The format uses pgf's own `pgfsys-dvisvgm.def`. `dvi2html` draws its paths, but without the ximera driver's page wrapper it gives no `<svg>` root and writes text as HTML. That is step 6 (our driver). Until then, the bench counts a CI-build compile as OK when TeX writes the DVI without errors.
+- **expl3 loads `l3backend-dvips.def`**, not the dvisvgm backend. To settle in step 6.
+- **Warm compiles are about 9% slower** than beta24 (435 vs 399 ms), presumably the larger 2026 kernel. To watch in step 7.
+- **The format isn't byte-reproducible.** The dump records when it was made, so every build has new hashes. Pinning is by the hash of the published file. Fixing the clock during the dump would make rebuilds identical (step 7).
+- **`npm run fetch-engines` doesn't fetch the release yet** (step 7). The staged worker is TikZJax's, edited in two places for the spike only.
+- `tex_files` holds only the 15 files the sample needs. The curated package set comes in step 7.
 
 ## M2b review (2026-10-08)
 The owner tested all of 2b and the follow-up fixes by hand: everything works well. Answers (D58):
@@ -407,7 +476,7 @@ Not answered yet: whether a palette click with nothing selected should continue 
 | M1: Core loop | Done, approved 2026-10-07 |
 | M2a: Creating and editing nodes and styles | Done, approved 2026-10-07 |
 | M2b: Editing edges | Done, approved 2026-10-08 |
-| M3: Accurate preview and export | Plan proposed 2026-10-08 |
+| M3: Accurate preview and export | In progress: step 1 done 2026-10-08 |
 | M4: Layout and import | Not started |
 | M5: Polish and launch prep | Not started |
 
@@ -696,7 +765,7 @@ Playwright's Firefox 155, and an older Firefox 137 build, both fail to start on 
 ## Notes for later milestones
 ### Milestone 3: owner requirements on top of SPEC.md (2026-10-07)
 These come from the M0 review. The full reasoning is in DECISIONS.md D15 and D16.
-1. **First task: confirm the CI toolchain is feasible.** Build TikZJax's `tex.wasm` (web2js) and dump our own format from a pinned TeX Live snapshot in **GitHub Actions on Linux**, not locally on Windows. Do this before any other Milestone 3 work.
+1. **First task: confirm the CI toolchain is feasible.** *Done 2026-10-08 (M3 step 1, D59).* Build TikZJax's `tex.wasm` (web2js) and dump our own format from a pinned TeX Live snapshot in **GitHub Actions on Linux**, not locally on Windows. Do this before any other Milestone 3 work.
 2. **Our own engine build** (D15): current LaTeX kernel, expl3 and pgf 3.1.12, with matching extra packages hosted as `tex_files/<name>.gz`.
 3. **Replace `pgfsys-ximera.def`** (unknown origin and license) with a driver based on pgf's `pgfsys-dvisvgm.def` (LPPL). Fix box handling so that `\matrix` cell borders and pictures nested in node text keep their strokes and colours. Adapt `dvi2html` as needed.
 4. **Use `\scrollmode` by default**, stream the TeX log, and map error lines back to the user's source.

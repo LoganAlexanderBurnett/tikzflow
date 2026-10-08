@@ -52,6 +52,10 @@ A free, static, fully client-side web app for creating and editing TikZ flowchar
   - `node scripts/pack-texmf.ts`: builds `vendor/packs/tikz-flat.json`, which busytex needs.
   - `npm run bench-engines -- tikzjax busytex`: runs the Playwright engine benchmark in Edge. Results go to `spike/engines/results/`.
   - Engine bench page: `/spike/engines/bench.html?engine=tikzjax|busytex|swiftlatex`. Output viewer: `/spike/engines/view.html?files=busytex.pdf,tikzjax.svg`.
+  - Engine CI (D59): `.github/workflows/engine.yml` builds `tex.wasm` and the format on pushes to `m3-engine-ci`; a tag `engine-*` also publishes a GitHub prerelease. To try a run's files in Edge:
+    1. `gh run download <run id> --name engine --dir vendor/engine-ci/artifact`
+    2. `node scripts/stage-engine-ci.ts`
+    3. `npm run bench-engines -- tikzjax --query=build=ci --tag=ci`, or open `bench.html?engine=tikzjax&build=ci`.
   - `npm run compare-engines`: compares TikZJax with busytex on `spike/engines/diagrams/*.tex`. It writes composite PNGs and `compare.json` to `spike/engines/results/compare/`.
   - `/spike/engines/packages.html`: the TikZJax runtime-package and user-preamble checks.
 - Playwright's Firefox doesn't start on this machine (see PROGRESS.md), so use Edge (`msedge` channel) for browser automation. In development builds, `window.tikzflow` exposes the store for tests and debugging.
@@ -63,5 +67,6 @@ A free, static, fully client-side web app for creating and editing TikZ flowchar
   - `src/edit/`: text changes (and merging two edits into one), snapping, the move planner and emitter, resizing and matching sizes, node creation and the palette, style edits and factoring, label edits, the properties edits, libraries, and edge edits: `edges.ts` (the core, ends, waypoints, new edges), `vertices.ts` (corners, Straighten, rewriting the code between two ends), `orthogonal.ts`, `curves.ts`, `split.ts` and `edgeop.ts` (an `edge` operation turned into `--`); `labels.ts` (adding and sliding edge labels, Yes/No on decisions), `edgeprops.ts` (the edge properties panel's edits) and `delete.ts` (deleting nodes, edges and paths).
   - `src/ui/`: Preact components, the CodeMirror setup, and the store.
   - `test/`: Vitest tests, `test/e2e/` Playwright tests, and `test/fixtures/golden/`.
+  - `engine/build/`: the CI engine build (D59): format dump, sample compile and check, packing, the kpsewhich stand-in, and the web2js patches.
   - `spike/`: Milestone 0 engine code, plus the fidelity harness and probes. It is still used by `npm run fidelity`.
 - Shell quoting: backslashes in `node -e` and heredocs get mangled in this environment. Write files containing TeX or regexes with the editor tools, not shell one-liners.
