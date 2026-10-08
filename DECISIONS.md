@@ -634,3 +634,27 @@ Answers:
 - **Fidelity probe.** `spike/engines/probes/p4-edge-waypoints.tex` checks 16 path points against pdfTeX: `++` after a bare node starts from its centre; `+` keeps its base; perpendicular points with anchors; `pos` on `|-` and `-|`; a coordinate with no operation before it moves (D46's fix); and a path's `scale` applying to relative points with and without units. All 16 are within 0.01 pt.
 
 **Why:** Writing points relationally keeps edges attached when nodes move, which is the first 2b item. Holding the other points and checking by layout is the same safety net as moves (D24) and resizing (D40).
+
+## D48: Anchors, reconnecting and drawing edges (M2b step 3, 2026-10-07)
+**Decision:**
+- **End handles.** The selected edge shows a handle at each end. Dragging one shows the node under the pointer with its eight compass anchors, and the edge redrawn as it would be written (a preview layout, as for resizing). Dropping writes the end:
+  - on an anchor dot (within 9 px): `(b.west)`;
+  - anywhere else on the node: the bare name `(b)`, so the path meets the border pointing at the other end;
+  - on another node: the same, which reconnects the edge;
+  - on empty canvas: nothing, with a note.
+- **Only that end's text changes** (`planEnd`), through the step 2 core: relative points after it are held where they were, and the result is checked by layout. One undo step.
+- **Refused, with the reason in a tooltip and the status bar:**
+  - **A node defined after the edge's code.** TikZ can only refer to nodes defined earlier.
+  - **An end shared with the next edge in the same `\draw`** (`b` in `(a) -- (b) -- (c)`). Moving it would move that edge too, against D45. Splitting the statement would change the arrow tips (one `->` tip becomes two), so it isn't done silently.
+  - **The node a `\node ... edge` path starts from.**
+  - **Both ends on one node.**
+  - **Locked edges.**
+- **"Change start anchor" and "Change end anchor"** in the edge's context menu (right-click on the edge, a label or an end; the menu key or Shift+F10 when it is selected). Each opens a 3×3 compass of the node's anchors, with the border ("automatic") in the middle and the current one marked. The arrow keys move through the menu, and Escape closes it. Later steps add their items to the same menu.
+- **Drawing a new edge.** The node under the pointer shows four connection handles just outside its sides. Dragging one to another node writes a new statement in the form the picture uses most (`edgeHead`, D34), after its last path and after both nodes (`planConnect`):
+  - dropped on the node's middle: `\draw[->] (a) -- (b);`;
+  - dropped on an anchor dot: `\draw[->] (a.east) -- (b.north);`, both ends with their anchors.
+
+  An unnamed node gets a name in the same edit (D44). The new edge is selected.
+- **Edge ids after an edit** follow the path through the changes (D46), so the edge stays selected after its end moves.
+
+**Why:** Anchors are what keeps an edge attached in TikZ: an end written as a node name moves with the node, with no extra code. Dropping on a node's middle gives the plainest code, `(a) -- (b)`, which is what most hand-written flowcharts use. An anchor is written only when it was asked for.

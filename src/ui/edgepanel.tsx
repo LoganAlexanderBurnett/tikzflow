@@ -50,7 +50,7 @@ export function EdgePanel() {
             </ul>
           </div>
         )}
-        {!help && <p class="tf-note">Double-click a label on the canvas to edit it.</p>}
+        {!help && <p class="tf-note">Drag an end to another anchor or node. Right-click the edge for its anchors. Double-click a label to edit it.</p>}
       </section>
     </>
   );

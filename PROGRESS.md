@@ -10,14 +10,14 @@ Milestone 0 is done and was approved on 2026-10-07:
 
 **Milestone 2a (nodes and styles): done and approved (2026-10-07).** The owner tested it by hand; their answers are in DECISIONS.md D44 and "M2a review" below.
 
-**Now:** Milestone 2b (edges). The plan was approved on 2026-10-07 (D45); the owner asked for steps 1–3 first, then a stop. Milestone 2 was split into 2a and 2b, each with its own checkpoint (D32). The full list is in SPEC.md, "Milestone 2b". Also read the "Notes for later milestones" below.
+**Now:** Milestone 2b (edges). The plan was approved on 2026-10-07 (D45). Steps 1–3 are done and waiting for the owner's review (report below), as they asked; step 4 hasn't been started. Milestone 2 was split into 2a and 2b, each with its own checkpoint (D32). The full list is in SPEC.md, "Milestone 2b". Also read the "Notes for later milestones" below.
 
 ## M2b plan and status
 | Step | Content | Status |
 |---|---|---|
 | 1 | Edge model and selection; Tab names an unnamed parent (D44, D46) | Done |
 | 2 | Edge-editing core and waypoint emitter (D47) | Done |
-| 3 | Anchors: endpoint handles, reconnecting, change anchor, drawing new edges | Not started |
+| 3 | Anchors: endpoint handles, reconnecting, change anchor, drawing new edges (D48) | Done |
 | 4 | Vertices: ghost handles, add/remove, Straighten | Not started |
 | 5 | Orthogonal mode | Not started |
 | 6 | Curved mode | Not started |
@@ -25,6 +25,63 @@ Milestone 0 is done and was approved on 2026-10-07:
 | 8 | Edge properties panel with edge-or-style scope | Not started |
 | 9 | Delete nodes and edges (re-attach or pin dependents, drop dangling edges) | Not started |
 | 10 | Context menu polish, end-to-end tests, goldens, sweep, docs, report, push | Not started |
+
+## M2b steps 1–3 (2026-10-07)
+### How to try it
+- `npm run dev`, open http://localhost:5173.
+- **Click an edge** (or one of its labels). It gets a halo, its code is highlighted, and the panel names it ("rec → stop") with its form (straight, orthogonal, …). Moving the cursor into an edge's code selects it too.
+- **Double-click an edge label** ("yes", "no") to edit it in place, like a node label.
+- **Drag an end** of the selected edge:
+  - onto one of a node's anchor dots: `(stop.east)`;
+  - onto a node's middle: the border, `(stop)`;
+  - onto another node: the edge is reconnected.
+
+  The edge follows live, and one Ctrl+Z undoes it.
+- **Right-click an edge** (or press Shift+F10 with one selected) for "Change start anchor" and "Change end anchor": a compass of the node's anchors.
+- **Hover a node**: four small handles appear just outside its sides. Drag one to another node to draw an edge, `\draw[->] (base) -- (rec);`, or drop it on an anchor dot for `(read.east) -- (base.north)`.
+- **Tab on an unnamed node** now names it, e.g. `\node[draw] (readInput) at (0,0) {Read input};`, and adds the child in the same undo step.
+
+### What works
+- **Edge model (D46).** Paths are split into node-to-node edges: `\draw (a) -- (b) -- (c);` is two edges, waypoints and `\coordinate`s stay inside one, and each `edge` operation is its own. Each edge knows its form, labels and code.
+  - **Corpus:** 261 edges across 29 pictures. The only locked one is the research figure's dashed frame, a closed shape.
+  - **Locked edges** say why in plain language. These are shapes (`rectangle`, `cycle`, …) and code the editor can't follow.
+- **Edge-editing core (D47).** Points are written in emitter order:
+  - perpendicular coordinates (`(b |- a)`) when they line up with two nodes;
+  - relative points in the picture's own style (`++(8mm,0)` or `++(0.8,0)`);
+  - plain coordinates last.
+
+  All in the path's own frame, so `scale` is accounted for. Later relative points are held where they were. Every edit is checked by laying it out again. The UI for moving waypoints comes with vertices in step 4; the core moves 32 of the corpus's 34 first waypoints, and refuses the other two with the reason (a coordinate another path uses).
+- **Anchors (D48):** end handles, live preview, reconnecting, the anchor compass in the context menu, and drawing edges from connection handles. Only the end's text changes.
+- **Unnamed parents (D44)** get a name from their label, style or shape, written as ` (name)` after their options.
+- **Interpreter fix:** `\draw (a) -- (b) (c) -- (d);` no longer draws b to c. pdfTeX confirmed it with the new probe.
+
+### Tests
+- **Vitest:** 610 tests in 15 files, about 10 s. New:
+  - `test/edges.test.ts` (16): routes, edge splitting, labels, locks, and a corpus check that every connection is an edge;
+  - `test/edge-edit.test.ts` (14): emitter order, plain vs. `mm` style, holding points, `+` vs `++`, scaled paths, snapping, and a corpus waypoint sweep;
+  - `test/edge-ends.test.ts` (12): anchors, borders, reconnecting, refusals, new edges, unnamed nodes, and a corpus sweep that moves every editable edge's end to another anchor;
+  - two unnamed-parent tests in `test/create.test.ts`.
+
+  The golden minimal-diff files didn't change.
+- **Playwright:** 62 tests in Edge, about 39 s. New: `test/e2e/edges.spec.ts` (11): selection, labels, cursor sync, lock card, end drags, reconnecting, the context menu and Shift+F10, and drawing edges.
+- **Fidelity:** the new probe `spike/engines/probes/p4-edge-waypoints.tex` puts 16 path points within 0.01 pt of pdfTeX.
+- `npm run typecheck` and `npm run build` pass. `npm run layout:bench`: the edge model takes 1.0 ms on the 200-node picture; the rest is unchanged.
+- I checked the edge halo, the end drag, the menu and the connection drag in screenshots from Playwright's Edge. The app's own browser pane couldn't take screenshots this session.
+
+### Known limits (steps 1–3)
+- **Shared ends aren't moved.** In `(a) -- (b) -- (c)`, the `b` end of either edge is refused with the reason, because moving it would move the other edge too.
+- **An end can't attach to a node defined after the edge's code.** It is refused with the reason; moving the edge's code below that node would be a small addition.
+- **The start of a `\node (a) {...} edge (b);` path** is the node statement itself and can't be moved.
+- **Ends attach to the eight compass anchors and the border.** Angle anchors (`a.30`) and shape-specific ones are kept when written by hand, but not offered.
+- **A waypoint the editor writes is never a node anchor.** The path would pass through that node and read as two edges, so perpendicular coordinates are used instead.
+- **A path that defines a coordinate another path uses** refuses edits that would move that coordinate.
+- **Edges inside `\foreach` or other blocks kept as-is** aren't edges; they still aren't drawn natively (M3).
+
+### Decisions for you
+1. **Shared ends:** should dropping the shared end of `(a) -- (b) -- (c)` split the statement into two `\draw`s? It would change a single `->` tip into two. Or keep refusing?
+2. **Ends on later nodes:** should the editor move the edge's code below the node it is dropped on, instead of refusing?
+3. **New edges:** dropping on a node's middle gives `(a) -- (b)`, and on an anchor dot gives both anchors. Is that the rule you want?
+4. **Connection handles** show on whichever node the pointer is over. Is that too busy? The alternative is to show them only on the selected node.
 
 ## M2a review (2026-10-07)
 The owner tested all of 2a by hand: palette and keyboard creation, corner resizing, Match width and the style panel all work well. Answers to the report's questions (D44):

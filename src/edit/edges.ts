@@ -18,7 +18,10 @@ import { anchorPoint, type Point } from "../tikz/shapes.ts";
 import { applyLinear, applyMatrix, invert } from "../tikz/state.ts";
 import { CM, PT_PER_UNIT, trimNumber } from "../tikz/units.ts";
 import { applyChanges, type Change } from "./changes.ts";
+import { insertStatements, nodeAnchor, pathAnchor } from "./insert.ts";
+import { nameForUnnamed, nameNodeChange, nameStyle, takenNames } from "./names.ts";
 import type { Guide } from "./snap.ts";
+import { definedStyleNames, nodeStyles, styleSites } from "./styles.ts";
 
 const MM = PT_PER_UNIT.mm!;
 /** How far an alignment may be off and still count, in pt. */
@@ -395,4 +398,139 @@ export function snapWaypoint(layout: PictureLayout, edge: Edge, neighbours: read
 /** The stop an edge starts or ends at. */
 export function endStop(edge: Edge, which: "from" | "to"): RouteStop {
   return edge.route.stops[which === "from" ? edge.from : edge.to]!;
+}
+
+// ---------------------------------------------------------------- ends and new edges
+
+/** The anchors an end can be attached to, in the order they are offered. */
+export const END_ANCHORS = ["north", "north east", "east", "south east", "south", "south west", "west", "north west"] as const;
+
+/** Where an end goes: a node, at one of its anchors or (no anchor) on its border. */
+export interface EndTarget {
+  node: string;
+  anchor?: string;
+}
+
+/** The code for an end at `t`: "(b.west)", or "(b)" for the border. */
+function endText(layout: PictureLayout, t: EndTarget): string | null {
+  const n = layout.nodes.find((x) => x.id === t.node);
+  if (!n?.name || n.implicitName || !SIMPLE_NAME.test(n.name)) return null;
+  return t.anchor ? `(${n.name}.${t.anchor})` : `(${n.name})`;
+}
+
+/** Where the stop for an end at `t` lands: the anchor, or the node's centre (the path clips to the border). */
+function endPoint(layout: PictureLayout, t: EndTarget): Point | null {
+  const n = layout.nodes.find((x) => x.id === t.node);
+  if (!n) return null;
+  return t.anchor ? anchorPoint(n.shape, t.anchor) : n.shape.center;
+}
+
+/** Why `which` end of `edge` can't be moved, or null if it can. */
+export function endBlocker(edge: Edge, which: "from" | "to"): string | null {
+  if (edge.lock) return `This edge can't be edited: ${edge.lock.message}.`;
+  const stop = endStop(edge, which);
+  if (stop.item < 0) return "This edge starts at the node its code is written on (\\node ... edge); change that in the code.";
+  if (which === "from" && edge.sharedStart) return "This end is shared with the edge before it in the same \\draw, so moving it would move that edge too. Change it in the code.";
+  if (which === "to" && edge.sharedEnd) return "This end is shared with the edge after it in the same \\draw, so moving it would move that edge too. Change it in the code.";
+  return null;
+}
+
+/**
+ * Attaches `which` end of edge `edgeId` to `target`: another anchor of the
+ * same node, its border, or another node (reconnecting). Only that end's
+ * text changes. The node must be defined before the edge's code, as TikZ
+ * requires.
+ */
+export function planEnd(text: string, picIndex: number, edgeId: string, which: "from" | "to", target: EndTarget): EditOutcome {
+  const doc = analyzeDocument(text);
+  const layout = layoutDocumentPicture(doc, picIndex);
+  const edge = layout && findEdge(layout, edgeId);
+  if (!layout || !edge) return { ok: false, reason: "There is no such edge." };
+  const blocked = endBlocker(edge, which);
+  if (blocked) return { ok: false, reason: blocked };
+  const node = layout.nodes.find((n) => n.id === target.node);
+  if (!node || node.kind !== "statement") return { ok: false, reason: "Drop the end on a node." };
+  const other = which === "from" ? edge.target : edge.source;
+  if (other === node.id) return { ok: false, reason: "Both ends would be on the same node; drop it on another node." };
+  if (!pathReferences(layout, edge.path).some((n) => n.id === node.id)) {
+    return { ok: false, reason: `${node.name ?? "That node"} comes after this edge in the code, and TikZ can only refer to nodes defined earlier. Move the edge's code below it first.` };
+  }
+  const t = endText(layout, target);
+  const want = endPoint(layout, target);
+  if (!t || !want) return { ok: false, reason: "That node has no name the code can refer to; give it one first." };
+  const stop = which === "from" ? edge.from : edge.to;
+  const range = edge.route.stops[stop]!.range;
+  if (text.slice(range.from, range.to) === t) return { ok: false, reason: "The end is already there." };
+  const r = writeStops(text, picIndex, edge, [{ stop, text: t, want, tolerance: POINT_EPS }]);
+  if (!r.ok) return r;
+  // The edge must still run between nodes, ending at the new one.
+  const after = findEdge(r.layout, edgeId);
+  const end = after && (which === "from" ? after.source : after.target);
+  if (end !== node.id) return { ok: false, reason: "That end couldn't be attached there." };
+  return r;
+}
+
+/**
+ * Draws a new edge from `from` to `to`, written like the picture's other
+ * connections (`\draw[->] (a) -- (b);`, D34) after its last path and after
+ * both nodes. An unnamed node gets a name in the same edit (D44).
+ */
+export function planConnect(
+  text: string,
+  picIndex: number,
+  from: EndTarget,
+  to: EndTarget,
+  head: string,
+): (EditOutcome & { ok: true; edgeId: string }) | { ok: false; reason: string } {
+  const doc = analyzeDocument(text);
+  const layout = layoutDocumentPicture(doc, picIndex);
+  const pic = doc.syntax.pictures[picIndex];
+  if (!layout || !pic) return { ok: false, reason: "There is no picture." };
+  const a = layout.nodes.find((n) => n.id === from.node);
+  const b = layout.nodes.find((n) => n.id === to.node);
+  if (!a || !b || a.kind !== "statement" || b.kind !== "statement") return { ok: false, reason: "Drop the edge on a node." };
+  if (a.id === b.id) return { ok: false, reason: "Drop the edge on another node." };
+  const changes: Change[] = [];
+  const notes: string[] = [];
+  const taken = takenNames(doc, pic, layout);
+  const style = nameStyle(layout.nodes.flatMap((n) => (n.name ? [n.name] : [])));
+  const defined = definedStyleNames(styleSites(doc, pic));
+  const nameOf = (n: LaidOutNode): string | null => {
+    if (n.name) return !n.implicitName && SIMPLE_NAME.test(n.name) ? n.name : null;
+    const name = nameForUnnamed(n, nodeStyles(n.syntax, defined), taken, style);
+    taken.add(name);
+    changes.push(nameNodeChange(text, n.syntax, name));
+    notes.push(`named a node ${name} so the edge can refer to it`);
+    return name;
+  };
+  const an = nameOf(a);
+  const bn = nameOf(b);
+  if (!an || !bn) return { ok: false, reason: "A node's name can't be referred to in code (it is made up or contains special characters)." };
+  const end = (name: string, anchor?: string) => (anchor ? `(${name}.${anchor})` : `(${name})`);
+  const statement = `${head} ${end(an, from.anchor)} -- ${end(bn, to.anchor)};`;
+  // After both nodes' statements, and after the last path, as hand-written flowcharts are laid out.
+  const after = nodeAnchor(doc, pic, Math.max(a.statement.to, b.statement.to));
+  if (!after) return { ok: false, reason: "The code right after the last node has a syntax error, so the edge can't be added safely. Fix that first." };
+  const insert = insertStatements(text, pic, pathAnchor(doc, pic, after), [statement]);
+  changes.push(insert);
+  const next = applyChanges(text, changes);
+  const doc2 = analyzeDocument(next);
+  if (doc2.errors.length > doc.errors.length) return { ok: false, reason: "The edge couldn't be written without breaking the code." };
+  const layout2 = layoutDocumentPicture(doc2, picIndex);
+  if (!layout2 || layout2.nodes.length !== layout.nodes.length) return { ok: false, reason: "The edge couldn't be written." };
+  for (let i = 0; i < layout.nodes.length; i++) {
+    const p = layout.nodes[i]!.shape.center;
+    const q = layout2.nodes[i]!.shape.center;
+    if (Math.hypot(p.x - q.x, p.y - q.y) > KEEP_TOLERANCE) return { ok: false, reason: "Adding the edge would move a node, so it wasn't written." };
+  }
+  // The new statement starts where it was inserted, shifted by any names added before it.
+  const shift = changes.filter((c) => c !== insert && c.to <= insert.from).reduce((s, c) => s + c.insert.length - (c.to - c.from), 0);
+  const at = next.indexOf(statement, insert.from + shift);
+  const edge = pictureEdges(layout2).find((e) => e.path.syntax.from === at);
+  // A node that was just named has a new id, so compare by position in the picture.
+  const index = (id?: string) => layout2.nodes.findIndex((n) => n.id === id);
+  if (!edge || index(edge.source) !== layout.nodes.indexOf(a) || index(edge.target) !== layout.nodes.indexOf(b)) {
+    return { ok: false, reason: "The edge couldn't be written between those nodes." };
+  }
+  return { ok: true, changes, text: next, layout: layout2, notes, edgeId: edge.id };
 }

@@ -941,3 +941,152 @@ button:disabled {
   margin: 0;
   padding: 0;
 }
+
+/* Ends of the selected edge, and connection handles next to a node (M2b) */
+
+.tf-end-handle {
+  fill: var(--panel);
+  stroke: var(--accent);
+  cursor: grab;
+}
+
+.tf-end-handle:hover {
+  fill: var(--accent);
+}
+
+.tf-end-handle.blocked {
+  stroke: var(--muted);
+  cursor: not-allowed;
+}
+
+.tf-end-handle.blocked:hover {
+  fill: var(--panel);
+}
+
+.tf-connect-handle {
+  fill: var(--accent-soft);
+  stroke: var(--accent);
+  cursor: crosshair;
+  opacity: 0.75;
+}
+
+.tf-connect-handle:hover {
+  fill: var(--accent);
+  opacity: 1;
+}
+
+.tf-edge-drag {
+  pointer-events: none;
+}
+
+.tf-drop-target {
+  fill: var(--accent-soft);
+  stroke: var(--accent);
+}
+
+.tf-edge-drag.refused .tf-drop-target {
+  fill: none;
+  stroke: var(--lock);
+}
+
+.tf-anchor-dot {
+  fill: var(--panel);
+  stroke: var(--accent);
+}
+
+.tf-anchor-dot.active {
+  fill: var(--accent);
+}
+
+.tf-drag-line {
+  stroke: var(--accent);
+  fill: none;
+}
+
+/* The edge context menu */
+
+.tf-menu {
+  position: absolute;
+  z-index: 6;
+  min-width: 190px;
+  padding: 4px;
+  background: var(--panel);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 18%);
+  font-size: 13px;
+}
+
+.tf-menu-item {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  cursor: default;
+  outline: none;
+}
+
+.tf-menu-item:hover,
+.tf-menu-item.open,
+.tf-menu-item:focus {
+  background: var(--accent-soft);
+}
+
+.tf-menu-item.disabled {
+  color: var(--muted);
+}
+
+.tf-menu-item.disabled:hover {
+  background: none;
+}
+
+.tf-menu-more {
+  color: var(--muted);
+}
+
+.tf-menu-note {
+  padding: 4px 8px 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.tf-submenu {
+  display: none;
+  position: absolute;
+  left: 100%;
+  top: -5px;
+  padding: 6px;
+  margin-left: 2px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 18%);
+}
+
+.tf-menu-item.open > .tf-submenu {
+  display: block;
+}
+
+.tf-compass {
+  display: grid;
+  grid-template-columns: repeat(3, 28px);
+  gap: 3px;
+}
+
+.tf-compass-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.tf-compass-btn.current {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}

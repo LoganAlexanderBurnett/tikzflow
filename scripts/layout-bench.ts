@@ -3,6 +3,7 @@
 import { planMove } from "../src/edit/move.ts";
 import { snapNode } from "../src/edit/snap.ts";
 import { analyzeDocument, layoutDocumentPicture } from "../src/model/document.ts";
+import { pictureEdges } from "../src/model/edges.ts";
 
 const lines = ["\\begin{tikzpicture}[node distance=8mm, process/.style={draw, minimum width=2cm}]"];
 for (let i = 0; i < 200; i++) {
@@ -30,4 +31,5 @@ const layout = layoutDocumentPicture(doc, 0)!;
 const n = layout.nodes[100]!;
 time("layout with drag override", () => layoutDocumentPicture(doc, 0, new Map([[n.id, { x: n.shape.center.x + 10, y: n.shape.center.y }]])));
 time("snap", () => snapNode(layout, n, { x: n.shape.center.x + 10, y: n.shape.center.y }, 3));
+time("edge model", () => pictureEdges(layout));
 time("plan move (drop)", () => planMove(text, 0, n.id, { x: n.shape.center.x + 40, y: n.shape.center.y - 20 }), 5);

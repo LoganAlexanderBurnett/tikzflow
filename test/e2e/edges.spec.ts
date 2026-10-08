@@ -94,3 +94,119 @@ test("a locked edge says why", async ({ page }) => {
   await page.mouse.click(p.x, p.y);
   await expect(page.getByTestId("edge-lock-card")).toContainText("Part of a shape");
 });
+
+// ---------------------------------------------------------------- step 3: anchors
+
+/** The screen box of node `id`'s shape. */
+async function nodeBox(page: Page, id: string) {
+  const box = await page.locator(`g[data-node="${id}"] path`).first().boundingBox();
+  if (!box) throw new Error(`node ${id} not drawn`);
+  return box;
+}
+
+async function selectEdge(page: Page, index: number) {
+  const ids = await edgeIds(page);
+  const p = await onEdge(page, ids[index]!);
+  await page.mouse.click(p.x, p.y);
+  return ids[index]!;
+}
+
+async function dragTo(page: Page, from: { x: number; y: number }, to: { x: number; y: number }) {
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move((from.x + to.x) / 2, (from.y + to.y) / 2, { steps: 4 });
+  await page.mouse.move(to.x, to.y, { steps: 4 });
+}
+
+async function centerOf(page: Page, selector: string) {
+  const b = await page.locator(selector).boundingBox();
+  if (!b) throw new Error(`${selector} not shown`);
+  return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+}
+
+test("dragging an edge's end onto an anchor attaches it there, as one undo step", async ({ page }) => {
+  const before = await code(page);
+  await selectEdge(page, 4); // rec → stop
+  const end = await centerOf(page, '[data-testid="edge-end-to"]');
+  const stop = await nodeBox(page, "stop");
+  await dragTo(page, end, { x: stop.x + stop.width - 1, y: stop.y + stop.height / 2 });
+  await expect(page.getByTestId("edge-drag")).toHaveCount(1);
+  await expect(page.getByTestId("status")).toContainText("Release to attach");
+  await page.screenshot({ path: "test-results/m2b-end-drag.png" });
+  await page.mouse.up();
+  const after = await code(page);
+  expect(after).toBe(before.replace("\\draw[->] (rec)   -- (stop);", "\\draw[->] (rec)   -- (stop.east);"));
+  await expect(page.getByTestId("status")).toContainText("Moved the end to stop.east.");
+  await page.keyboard.press("Control+z");
+  expect(await code(page)).toBe(before);
+});
+
+test("dropping an end on another node's middle reconnects it to that node's border", async ({ page }) => {
+  const before = await code(page);
+  await selectEdge(page, 1); // read → small
+  const end = await centerOf(page, '[data-testid="edge-end-to"]');
+  const base = await nodeBox(page, "base");
+  await dragTo(page, end, { x: base.x + base.width * 0.35, y: base.y + base.height * 0.4 });
+  await page.mouse.up();
+  expect(await code(page)).toBe(before.replace("\\draw[->] (read)  -- (small);", "\\draw[->] (read)  -- (base);"));
+  await expect(page.getByTestId("status")).toContainText("Reconnected the end to the border of base.");
+  await expect(page.getByTestId("edge-title")).toHaveText("read → base");
+});
+
+test("dropping an end on empty canvas leaves the code alone", async ({ page }) => {
+  const before = await code(page);
+  await selectEdge(page, 1);
+  const end = await centerOf(page, '[data-testid="edge-end-to"]');
+  await dragTo(page, end, { x: end.x + 160, y: end.y + 10 });
+  await page.mouse.up();
+  expect(await code(page)).toBe(before);
+  await expect(page.getByTestId("status")).toContainText("drop it on a node");
+});
+
+test("the context menu changes an end's anchor, and the menu key opens it too", async ({ page }) => {
+  const before = await code(page);
+  const id = await selectEdge(page, 4);
+  const p = await onEdge(page, id);
+  await page.mouse.click(p.x, p.y, { button: "right" });
+  const menu = page.getByTestId("edge-menu");
+  await expect(menu).toBeVisible();
+  await page.getByTestId("menu-to-anchor").hover();
+  await page.screenshot({ path: "test-results/m2b-edge-menu.png" });
+  await page.getByTestId("menu-to-anchor").getByRole("button", { name: "north", exact: true }).click();
+  await expect(menu).toHaveCount(0);
+  expect(await code(page)).toBe(before.replace("\\draw[->] (rec)   -- (stop);", "\\draw[->] (rec)   -- (stop.north);"));
+  // Shift+F10 with an edge selected opens the menu; Escape closes it.
+  await page.getByTestId("canvas").focus();
+  await page.keyboard.press("Shift+F10");
+  await expect(menu).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(menu).toHaveCount(0);
+});
+
+test("dragging a node's connection handle to another node draws a new edge", async ({ page }) => {
+  const before = await code(page);
+  const base = await nodeBox(page, "base");
+  await page.mouse.move(base.x + base.width / 2, base.y + base.height / 2);
+  const handles = page.getByTestId("connect-handle");
+  await expect(handles).toHaveCount(4);
+  const south = await handles.nth(2).boundingBox();
+  const rec = await nodeBox(page, "rec");
+  await dragTo(page, { x: south!.x + south!.width / 2, y: south!.y + south!.height / 2 }, { x: rec.x + rec.width * 0.6, y: rec.y + rec.height * 0.45 });
+  await page.screenshot({ path: "test-results/m2b-connect-drag.png" });
+  await page.mouse.up();
+  expect(await code(page)).toBe(before.replace("\\draw[->] (base)  |- (stop);", "\\draw[->] (base)  |- (stop);\n  \\draw[->] (base) -- (rec);"));
+  await expect(page.getByTestId("edge-title")).toHaveText("base → rec");
+  await page.keyboard.press("Control+z");
+  expect(await code(page)).toBe(before);
+});
+
+test("a new edge dropped on an anchor keeps both anchors", async ({ page }) => {
+  const before = await code(page);
+  const read = await nodeBox(page, "read");
+  await page.mouse.move(read.x + read.width / 2, read.y + read.height / 2);
+  const east = await page.getByTestId("connect-handle").nth(1).boundingBox();
+  const base = await nodeBox(page, "base");
+  await dragTo(page, { x: east!.x + east!.width / 2, y: east!.y + east!.height / 2 }, { x: base.x + base.width / 2, y: base.y + 1 });
+  await page.mouse.up();
+  expect(await code(page)).toBe(before.replace("\\draw[->] (base)  |- (stop);", "\\draw[->] (base)  |- (stop);\n  \\draw[->] (read.east) -- (base.north);"));
+});

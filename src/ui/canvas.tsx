@@ -10,13 +10,15 @@ import type { Scope } from "../edit/properties.ts";
 import { type Hold, planResize, type ResizeOutcome, resizeBlocker, type SizeWant } from "../edit/resize.ts";
 import { type GapMark, snapNode } from "../edit/snap.ts";
 import { labelledNode } from "../edit/label.ts";
+import { END_ANCHORS, endBlocker, type EndTarget } from "../edit/edges.ts";
+import { EdgeMenu } from "./edgemenu.tsx";
 import { pictureEnv } from "../model/document.ts";
 import { type Edge, edgeD, edgeEnds, edgeOfLabel } from "../model/edges.ts";
 import { undrawable } from "../model/explain.ts";
 import { type RGB, cssColor } from "../tikz/colors.ts";
 import { defaultTipLength, defaultTipWidth } from "../tikz/keys.ts";
 import type { LaidOutNode, LaidOutPath, PictureLayout, Tip } from "../tikz/layout.ts";
-import { outline, type Point } from "../tikz/shapes.ts";
+import { anchorPoint, outline, type Point } from "../tikz/shapes.ts";
 import { PT_PER_UNIT } from "../tikz/units.ts";
 import type { Shading } from "../tikz/state.ts";
 import { katexMacros, labelHtml } from "./labelHtml.ts";
@@ -26,7 +28,10 @@ import {
   applyResize,
   cancelLabelEdit,
   commitLabelEdit,
+  connectNodes,
   createFromKeyboard,
+  moveEnd,
+  previewEnd,
   dropFromPalette,
   labelEdit,
   labelEditProblem,
@@ -35,6 +40,7 @@ import {
   baseLayout,
   currentPicture,
   doc,
+  edges,
   fitRequests,
   guides,
   layout,
@@ -113,6 +119,90 @@ function EdgeSelection({ edge, scale }: { edge: Edge; scale: number }) {
 }
 
 const NO_HITS: readonly EdgeHit[] = [];
+
+/** The two ends of the selected edge, as handles to drag to another anchor or node. */
+function EndHandles({ edge, scale }: { edge: Edge; scale: number }) {
+  const ends = edgeEnds(edge);
+  return (
+    <g class="tf-end-handles">
+      {(["from", "to"] as const).map((which) => {
+        const p = which === "from" ? ends.start : ends.end;
+        const blocked = endBlocker(edge, which);
+        return (
+          <circle
+            key={which}
+            data-end={which}
+            data-testid={`edge-end-${which}`}
+            cx={f(p.x)}
+            cy={f(p.y)}
+            r={f(5 / scale)}
+            class={`tf-end-handle${blocked ? " blocked" : ""}`}
+            stroke-width={f(1.4 / scale)}
+          >
+            <title>{blocked ?? `Drag the ${which === "from" ? "start" : "end"} to another anchor or node. Right-click for its anchors.`}</title>
+          </circle>
+        );
+      })}
+    </g>
+  );
+}
+
+/** Small handles outside a node's sides: drag one to another node to draw an edge. */
+function ConnectHandles({ n, scale }: { n: LaidOutNode; scale: number }) {
+  const off = CONNECT_OFFSET / scale;
+  const dirs: Record<(typeof SIDES)[number], Point> = { north: { x: 0, y: 1 }, east: { x: 1, y: 0 }, south: { x: 0, y: -1 }, west: { x: -1, y: 0 } };
+  return (
+    <g class="tf-connect-handles">
+      {SIDES.map((side) => {
+        const a = anchorPoint(n.shape, side);
+        if (!a) return null;
+        const d = dirs[side];
+        return (
+          <circle
+            key={side}
+            data-connect={side}
+            data-connect-node={n.id}
+            data-testid="connect-handle"
+            cx={f(a.x + d.x * off)}
+            cy={f(a.y + d.y * off)}
+            r={f(4.5 / scale)}
+            class="tf-connect-handle"
+            stroke-width={f(1.2 / scale)}
+          >
+            <title>Drag to another node to draw an edge</title>
+          </circle>
+        );
+      })}
+    </g>
+  );
+}
+
+/** While an end or a new edge is dragged: the node it would attach to, its anchors, and a line to the pointer. */
+function EdgeDragOverlay({ view, layout, scale }: { view: EdgeDragView; layout: PictureLayout; scale: number }) {
+  const n = view.target && layout.nodes.find((x) => x.id === view.target!.node);
+  return (
+    <g class={`tf-edge-drag${view.ok ? "" : " refused"}`} data-testid="edge-drag">
+      {n && (
+        <rect
+          x={f(n.shape.center.x - n.shape.hw - 3 / scale)}
+          y={f(n.shape.center.y - n.shape.hh - 3 / scale)}
+          width={f(2 * n.shape.hw + 6 / scale)}
+          height={f(2 * n.shape.hh + 6 / scale)}
+          class="tf-drop-target"
+          stroke-width={f(1.5 / scale)}
+        />
+      )}
+      {n &&
+        END_ANCHORS.map((a) => {
+          const q = anchorPoint(n.shape, a);
+          if (!q) return null;
+          const active = view.target?.anchor === a;
+          return <circle key={a} cx={f(q.x)} cy={f(q.y)} r={f((active ? 4.5 : 3) / scale)} class={`tf-anchor-dot${active ? " active" : ""}`} stroke-width={f(1 / scale)} />;
+        })}
+      {view.line && <line x1={f(view.line.from.x)} y1={f(view.line.from.y)} x2={f(view.line.to.x)} y2={f(view.line.to.y)} class="tf-drag-line" stroke-width={f(1.5 / scale)} stroke-dasharray={`${f(4 / scale)} ${f(3 / scale)}`} />}
+    </g>
+  );
+}
 
 interface View {
   /** Screen pixels per pt. */
@@ -425,6 +515,51 @@ interface ResizeDrag {
 
 const MM_PT = PT_PER_UNIT.mm!;
 
+/** Dragging an end of the selected edge to another anchor or node. */
+interface EndDrag {
+  kind: "end";
+  edgeId: string;
+  which: "from" | "to";
+  pointer: Point;
+  moved: boolean;
+  target: EndTarget | null;
+  key: string;
+  /** Whether the edge can go where it is now. */
+  ok: boolean;
+}
+
+/** Drawing a new edge from a node's connection handle. */
+interface ConnectDrag {
+  kind: "connect";
+  from: EndTarget;
+  start: Point;
+  target: EndTarget | null;
+}
+
+/** What the canvas shows while an end or a new edge is dragged: the node under the pointer, its anchors, and a line. */
+interface EdgeDragView {
+  target: EndTarget | null;
+  ok: boolean;
+  line?: { from: Point; to: Point };
+}
+
+/** How far outside a node its connection handles sit, in screen px. */
+const CONNECT_OFFSET = 13;
+const SIDES = ["north", "east", "south", "west"] as const;
+
+/** The node under `p` (with a margin, in pt) and the anchor of it within `snap` pt, if any. */
+function targetAt(l: PictureLayout, p: Point, margin: number, snap: number, exclude?: string): EndTarget | null {
+  const hit = [...l.nodes].reverse().find((n) => n.kind === "statement" && n.id !== exclude && Math.abs(p.x - n.shape.center.x) <= n.shape.hw + margin && Math.abs(p.y - n.shape.center.y) <= n.shape.hh + margin);
+  if (!hit) return null;
+  let best: { anchor: string; d: number } | null = null;
+  for (const a of END_ANCHORS) {
+    const q = anchorPoint(hit.shape, a);
+    const d = q ? Math.hypot(q.x - p.x, q.y - p.y) : Infinity;
+    if (d <= snap && (!best || d < best.d)) best = { anchor: a, d };
+  }
+  return best ? { node: hit.id, anchor: best.anchor } : { node: hit.id };
+}
+
 export function Canvas() {
   const svgRef = useRef<SVGSVGElement>(null);
   const size = useSignal({ w: 800, h: 600 });
@@ -433,8 +568,15 @@ export function Canvas() {
     | { kind: "node"; id: string; pointer: Point; center: Point; moved: boolean; target: Point; alignedWith: string[] }
     | { kind: "pan"; client: Point; view: View; moved: boolean }
     | ResizeDrag
+    | EndDrag
+    | ConnectDrag
     | null
   >(null);
+  /** The node the pointer is over, for its connection handles. */
+  const hover = useSignal<string | null>(null);
+  const edgeDrag = useSignal<EdgeDragView | null>(null);
+  /** The edge context menu, at a position in the canvas pane. */
+  const menu = useSignal<{ edgeId: string; x: number; y: number } | null>(null);
 
   // Track the canvas size.
   useEffect(() => {
@@ -506,6 +648,33 @@ export function Canvas() {
     const pathEl = target.closest("[data-path]");
     const svg = svgRef.current!;
     svg.focus({ preventScroll: true });
+    // An end of the selected edge: drag it to another anchor or node.
+    const endEl = target.closest("[data-end]");
+    const edge = selectedEdge.value;
+    if (e.button === 0 && endEl && edge) {
+      const which = endEl.getAttribute("data-end") === "from" ? "from" : "to";
+      const blocked = endBlocker(edge, which);
+      if (blocked) {
+        status.value = blocked;
+        return;
+      }
+      drag.current = { kind: "end", edgeId: edge.id, which, pointer: toModel(e), moved: false, target: null, key: "", ok: false };
+      svg.setPointerCapture(e.pointerId);
+      return;
+    }
+    // A connection handle next to a node: drag it to another node to draw an edge.
+    const connectEl = target.closest("[data-connect]");
+    if (e.button === 0 && connectEl) {
+      const id = connectEl.getAttribute("data-connect-node")!;
+      const anchor = connectEl.getAttribute("data-connect")!;
+      const n = baseLayout.value?.nodes.find((x) => x.id === id);
+      if (n) {
+        drag.current = { kind: "connect", from: { node: id, anchor }, start: anchorPoint(n.shape, anchor) ?? n.shape.center, target: null };
+        svg.setPointerCapture(e.pointerId);
+        status.value = "Drop on another node to draw an edge: on its middle for (a) -- (b), on one of its anchor dots for that anchor.";
+      }
+      return;
+    }
     const handleEl = target.closest("[data-handle]");
     if (e.button === 0 && handleEl) {
       const handle = HANDLES.find((h) => h.id === handleEl.getAttribute("data-handle"));
@@ -653,9 +822,66 @@ export function Canvas() {
     guides.value = { lines: [], gaps };
   };
 
+  /** Dragging an end: find the node and anchor under the pointer and show the edge going there. */
+  const endMove = (d: EndDrag, e: PointerEvent) => {
+    const p = toModel(e);
+    if (!d.moved && Math.hypot(p.x - d.pointer.x, p.y - d.pointer.y) * view.value.scale < 3) return;
+    d.moved = true;
+    const l = baseLayout.value;
+    if (!l) return;
+    const t = targetAt(l, p, 4 / view.value.scale, 9 / view.value.scale);
+    const key = t ? `${t.node}|${t.anchor ?? ""}` : "";
+    const edge = shownEdges.value.find((x) => x.id === d.edgeId);
+    if (key !== d.key) {
+      d.key = key;
+      d.target = t;
+      const why = previewEnd(d.edgeId, d.which, t);
+      d.ok = !!t && !why;
+      status.value = !t ? "Drop the end on a node." : why ?? "Release to attach the end here.";
+    }
+    // Without a valid target, a line from the other end follows the pointer.
+    const fixed = edge && edgeEnds(edge)[d.which === "from" ? "end" : "start"];
+    edgeDrag.value = { target: d.target, ok: d.ok, ...(!d.ok && fixed ? { line: { from: fixed, to: p } } : {}) };
+  };
+
+  /** Drawing a new edge: a line from the start to the pointer, or to the anchor it would attach to. */
+  const connectMove = (d: ConnectDrag, e: PointerEvent) => {
+    const p = toModel(e);
+    const l = baseLayout.value;
+    if (!l) return;
+    const t = targetAt(l, p, 4 / view.value.scale, 9 / view.value.scale, d.from.node);
+    d.target = t;
+    const n = t && l.nodes.find((x) => x.id === t.node);
+    const to = n ? (t.anchor ? (anchorPoint(n.shape, t.anchor) ?? p) : n.shape.center) : p;
+    edgeDrag.value = { target: t, ok: !!t, line: { from: d.start, to } };
+  };
+
+  /** Without a drag: which node is the pointer near, for its connection handles. */
+  const hoverMove = (e: PointerEvent) => {
+    const l = baseLayout.value;
+    if (!l || labelEdit.value) return;
+    const p = toModel(e);
+    // Near enough to reach its connection handles, which sit outside it.
+    const reach = (CONNECT_OFFSET + 8) / view.value.scale;
+    const n = [...l.nodes].reverse().find((x) => x.kind === "statement" && Math.abs(p.x - x.shape.center.x) <= x.shape.hw + reach && Math.abs(p.y - x.shape.center.y) <= x.shape.hh + reach);
+    const id = n?.id ?? null;
+    if (id !== hover.value) hover.value = id;
+  };
+
   const onPointerMove = (e: PointerEvent) => {
     const d = drag.current;
-    if (!d) return;
+    if (!d) {
+      hoverMove(e);
+      return;
+    }
+    if (d.kind === "end") {
+      endMove(d, e);
+      return;
+    }
+    if (d.kind === "connect") {
+      connectMove(d, e);
+      return;
+    }
     if (d.kind === "pan") {
       const dx = e.clientX - d.client.x;
       const dy = e.clientY - d.client.y;
@@ -685,6 +911,27 @@ export function Canvas() {
     const d = drag.current;
     drag.current = null;
     if (!d) return;
+    if (d.kind === "end") {
+      edgeDrag.value = null;
+      if (!d.moved) return;
+      if (d.target && d.ok) moveEnd(d.edgeId, d.which, d.target);
+      else {
+        previewEnd(d.edgeId, d.which, null);
+        if (!d.target) status.value = "The end stays where it was: drop it on a node.";
+      }
+      return;
+    }
+    if (d.kind === "connect") {
+      edgeDrag.value = null;
+      if (!d.target) {
+        status.value = "No edge drawn: drop it on another node.";
+        return;
+      }
+      // Dropped on an anchor: both ends get their anchors. Dropped on the middle: plain (a) -- (b).
+      const from: EndTarget = d.target.anchor && d.from.anchor ? d.from : { node: d.from.node };
+      connectNodes(from, d.target);
+      return;
+    }
     if (d.kind === "pan") {
       if (!d.moved) selectFromCanvas(null);
       return;
@@ -758,7 +1005,39 @@ export function Canvas() {
     }
   };
 
+  /** Opens the edge menu at a point in the canvas pane (screen px from its top left). */
+  const openMenu = (edgeId: string, x: number, y: number) => {
+    menu.value = { edgeId, x, y };
+  };
+
+  /** Right-click an edge (or one of its labels) for its menu. */
+  const onContextMenu = (e: MouseEvent) => {
+    const target = e.target as Element;
+    const edgeId =
+      target.closest("[data-edge]")?.getAttribute("data-edge") ??
+      (() => {
+        const labelId = target.closest("[data-label]")?.getAttribute("data-label");
+        return labelId ? edgeOfLabel(shownEdges.value, labelId)?.id : undefined;
+      })() ??
+      (target.closest("[data-end]") ? selectedEdge.value?.id : undefined);
+    if (!edgeId) return;
+    e.preventDefault();
+    selectFromCanvas({ kind: "edge", id: edgeId });
+    const r = svgRef.current!.getBoundingClientRect();
+    openMenu(edgeId, e.clientX - r.left, e.clientY - r.top);
+  };
+
   const onKeyDown = (e: KeyboardEvent) => {
+    // The menu key, or Shift+F10, opens the selected edge's menu at its middle.
+    const edge = selectedEdge.value;
+    if (edge && (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10"))) {
+      e.preventDefault();
+      const { start, end } = edgeEnds(edge);
+      const v = view.value;
+      const mid = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+      openMenu(edge.id, (mid.x - v.cx) * v.scale + size.value.w / 2, (v.cy - mid.y) * v.scale + size.value.h / 2);
+      return;
+    }
     if (e.key === "F2" && selectedIds.value.length) {
       e.preventDefault();
       startLabelEdit(selectedIds.value[selectedIds.value.length - 1]!);
@@ -835,6 +1114,9 @@ export function Canvas() {
   // One selected node that can be resized gets handles, unless it's being moved.
   const only = selected.length === 1 ? selected[0] : undefined;
   const handleNode = only && !resizeBlocker(only) && !overrides.value.size ? only : undefined;
+  // Connection handles on the node under the pointer, unless something is being dragged or typed.
+  const hoverNode = hover.value && !edgeDrag.value && !labelEdit.value && !overrides.value.size && !previewLayout.value ? l?.nodes.find((n) => n.id === hover.value && n.kind === "statement") : undefined;
+  const menuEdge = menu.value ? edges.value.find((x) => x.id === menu.value!.edgeId) : undefined;
 
   return (
     <>
@@ -847,6 +1129,10 @@ export function Canvas() {
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
+      onPointerLeave={() => {
+        if (!drag.current) hover.value = null;
+      }}
+      onContextMenu={onContextMenu}
       onDblClick={onDoubleClick}
       onKeyDown={onKeyDown}
       onDragOver={onDragOver}
@@ -903,6 +1189,9 @@ export function Canvas() {
       )}
       <g transform="scale(1 -1)" class="tf-overlay">
         {selEdge && <EdgeSelection edge={selEdge} scale={v.scale} />}
+        {selEdge && !selEdge.lock && !edgeDrag.value && <EndHandles edge={selEdge} scale={v.scale} />}
+        {hoverNode && <ConnectHandles n={hoverNode} scale={v.scale} />}
+        {edgeDrag.value && l && <EdgeDragOverlay view={edgeDrag.value} layout={l} scale={v.scale} />}
         {selected.map((n) => (
           <rect
             x={f(n.shape.center.x - n.shape.hw - 3 / v.scale)}
@@ -947,6 +1236,17 @@ export function Canvas() {
       </g>
     </svg>
     <LabelEditor view={v} size={size.value} onDone={() => svgRef.current?.focus({ preventScroll: true })} />
+    {menu.value && menuEdge && (
+      <EdgeMenu
+        edge={menuEdge}
+        x={menu.value.x}
+        y={menu.value.y}
+        onClose={() => {
+          menu.value = null;
+          svgRef.current?.focus({ preventScroll: true });
+        }}
+      />
+    )}
     </>
   );
 }

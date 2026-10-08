@@ -5,7 +5,8 @@ import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { batch, computed, effect, signal } from "@preact/signals";
 import type { Change } from "../edit/changes.ts";
-import { defaultEntry, type PaletteEntry, paletteEntries, planCreate, type Placement } from "../edit/create.ts";
+import { defaultEntry, edgeHead, type PaletteEntry, paletteEntries, planCreate, type Placement } from "../edit/create.ts";
+import { type EndTarget, planConnect, planEnd } from "../edit/edges.ts";
 import { draftOf, labelBlocker, labelledNode, labelProblem, planLabelEdit } from "../edit/label.ts";
 import { withLibraries } from "../edit/libraries.ts";
 import { formatDistance, planAttach, planPin } from "../edit/move.ts";
@@ -14,7 +15,7 @@ import { planMatch } from "../edit/resize.ts";
 import type { GapMark, Guide } from "../edit/snap.ts";
 import { planFactor, planStyleEdit, type Repeat } from "../edit/styleedit.ts";
 import { analyzeDocument, layoutDocumentPicture } from "../model/document.ts";
-import { type Edge, edgeOfLabel, pictureEdges } from "../model/edges.ts";
+import { type Edge, edgeOfLabel, edgeTitle, pictureEdges } from "../model/edges.ts";
 import type { Range } from "../model/syntax.ts";
 import { unusedCoordinates } from "../model/references.ts";
 import { summarize } from "../model/summary.ts";
@@ -635,5 +636,61 @@ export function matchSize(axis: "w" | "h"): boolean {
   const where = scope.kind === "style" ? ` in the ${scope.name} style, so every node using it matches` : "";
   const count = scope.kind === "style" ? "" : ` for ${r.changed.length === 1 ? "1 node" : `${r.changed.length} nodes`}`;
   status.value = `Matched the ${what} to ${first?.name ?? "the first node"} (${formatDistance(r.size)})${count}${where}.${r.notes.map((n) => ` Note: ${n}.`).join("")}`;
+  return true;
+}
+
+// ---------------------------------------------------------------- edges
+
+/** What an end is called in messages: "b.west", or "b" for the border. */
+function targetName(t: EndTarget): string {
+  const n = baseLayout.value?.nodes.find((x) => x.id === t.node);
+  const name = n?.name ?? "the node";
+  return t.anchor ? `${name}.${t.anchor}` : `the border of ${name}`;
+}
+
+/**
+ * Shows edge `edgeId` with its `which` end at `target` while it is dragged
+ * there, or as it is with null. Returns why it can't go there, or null.
+ */
+export function previewEnd(edgeId: string, which: "from" | "to", target: EndTarget | null): string | null {
+  if (!target) {
+    previewLayout.value = null;
+    return null;
+  }
+  const r = planEnd(text.value, currentPicture.value, edgeId, which, target);
+  previewLayout.value = r.ok ? r.layout : null;
+  return r.ok ? null : r.reason;
+}
+
+/** Attaches an end of edge `edgeId` to `target` (another anchor, the border, or another node), as one undoable step. */
+export function moveEnd(edgeId: string, which: "from" | "to", target: EndTarget): boolean {
+  previewLayout.value = null;
+  const edge = edges.value.find((e) => e.id === edgeId);
+  const r = planEnd(text.value, currentPicture.value, edgeId, which, target);
+  if (!r.ok) {
+    status.value = r.reason;
+    return false;
+  }
+  const other = which === "from" ? edge?.source : edge?.target;
+  applyEdit(r.changes, "input.edge.end");
+  const what = which === "from" ? "start" : "end";
+  status.value = other && other !== target.node ? `Reconnected the ${what} to ${targetName(target)}.` : `Moved the ${what} to ${targetName(target)}.`;
+  return true;
+}
+
+/** Draws a new edge between two nodes, written like the picture's other connections, and selects it. */
+export function connectNodes(from: EndTarget, to: EndTarget): boolean {
+  const l = baseLayout.value;
+  if (!l) return false;
+  const r = planConnect(text.value, currentPicture.value, from, to, edgeHead(doc.value, l));
+  if (!r.ok) {
+    status.value = r.reason;
+    return false;
+  }
+  applyEdit(r.changes, "input.edge.new");
+  selection.value = { kind: "edge", id: r.edgeId };
+  queueMicrotask(highlightSelection);
+  const edge = edges.value.find((e) => e.id === r.edgeId);
+  status.value = `Added an edge${edge ? ` ${edgeTitle(edge, baseLayout.value!)}` : ""}.${r.notes.map((n) => ` Also ${n}.`).join("")}`;
   return true;
 }
