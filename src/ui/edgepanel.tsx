@@ -1,6 +1,7 @@
 // The side panel for a selected edge (M2b): what it connects, how it is
-// written, and why it is locked if it is. Its properties come in step 8.
-import { edgeTitle } from "../model/edges.ts";
+// written, what can be dragged, and why it is locked if it is. Its properties
+// come in step 8.
+import { type Edge, edgeTitle } from "../model/edges.ts";
 import { describeMode, explainEdge, explainPath } from "../model/explain.ts";
 import { baseLayout, doc, selectedEdge, selection, startLabelEdit } from "./store.ts";
 
@@ -8,6 +9,13 @@ import { baseLayout, doc, selectedEdge, selection, startLabelEdit } from "./stor
 function labelText(source: string): string {
   const flat = source.replace(/%[^\n]*/g, "").replace(/\\\\/g, " ").replace(/\s+/g, " ").trim();
   return flat.length > 32 ? `${flat.slice(0, 31)}…` : flat;
+}
+
+/** What can be dragged on an edge of this form. */
+function howTo(mode: Edge["mode"]): string {
+  if (mode === "orthogonal") return "Drag a segment's bar to slide it across.";
+  if (mode === "curved") return "Drag a control point to reshape the curve; Alt drags one end on its own.";
+  return "Drag a ghost handle to add a corner; double-click a corner to remove it.";
 }
 
 export function EdgePanel() {
@@ -50,7 +58,7 @@ export function EdgePanel() {
             </ul>
           </div>
         )}
-        {!help && <p class="tf-note">Drag an end to another anchor or node. Right-click the edge for its anchors. Double-click a label to edit it.</p>}
+        {!help && <p class="tf-note">{howTo(edge.mode)} Drag an end to another anchor or node. Right-click the edge for more. Double-click a label to edit it.</p>}
       </section>
     </>
   );

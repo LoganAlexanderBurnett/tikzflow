@@ -12,6 +12,7 @@ import { type GapMark, snapNode } from "../edit/snap.ts";
 import { labelledNode } from "../edit/label.ts";
 import type { Change } from "../edit/changes.ts";
 import { END_ANCHORS, endBlocker, type EndTarget, planWaypoint, snapWaypoint } from "../edit/edges.ts";
+import { curveSegments, planControl } from "../edit/curves.ts";
 import { orthoPolyline, planSlide, snapSlide } from "../edit/orthogonal.ts";
 import { edgeVertices, isEdgeOperation, planAddVertex } from "../edit/vertices.ts";
 import { EdgeMenu, type EdgeMenuAt } from "./edgemenu.tsx";
@@ -204,6 +205,31 @@ function SegmentHandles({ edge, scale }: { edge: Edge; scale: number }) {
             <title>{p.axis === "h" ? "Drag up or down to slide this segment" : "Drag left or right to slide this segment"}</title>
           </rect>
         );
+      })}
+    </g>
+  );
+}
+
+/** The control points of the selected edge's curves, on arms from where the curve leaves and arrives. */
+function ControlHandles({ edge, scale }: { edge: Edge; scale: number }) {
+  const segs = curveSegments(edge);
+  if (!segs.length) return null;
+  return (
+    <g class="tf-control-handles">
+      {segs.map((k) => {
+        const s = edge.route.segs[k]!;
+        const arms: Array<[Point, Point, 1 | 2]> = [
+          [s.from, s.c1!, 1],
+          [s.to, s.c2!, 2],
+        ];
+        return arms.map(([end, c, which]) => (
+          <g key={`${k}:${which}`}>
+            <line x1={f(end.x)} y1={f(end.y)} x2={f(c.x)} y2={f(c.y)} class="tf-control-arm" stroke-width={f(1 / scale)} stroke-dasharray={`${f(3 / scale)} ${f(2 / scale)}`} />
+            <circle data-control={`${k}:${which}`} data-testid="control-handle" cx={f(c.x)} cy={f(c.y)} r={f(4 / scale)} class="tf-control-handle" stroke-width={f(1.2 / scale)}>
+              <title>Drag to reshape the curve. Alt drags this end on its own.</title>
+            </circle>
+          </g>
+        ));
       })}
     </g>
   );
@@ -620,6 +646,19 @@ interface SlideDrag {
   last: { changes: Change[]; text: string; layout: PictureLayout } | null;
 }
 
+/** Dragging a control point of a curve. */
+interface ControlDrag {
+  kind: "control";
+  edgeId: string;
+  seg: number;
+  which: 1 | 2;
+  pointer: Point;
+  origin: Point;
+  moved: boolean;
+  key: string;
+  last: { changes: Change[]; text: string; layout: PictureLayout } | null;
+}
+
 /** Drawing a new edge from a node's connection handle. */
 interface ConnectDrag {
   kind: "connect";
@@ -663,6 +702,7 @@ export function Canvas() {
     | EndDrag
     | VertexDrag
     | SlideDrag
+    | ControlDrag
     | ConnectDrag
     | null
   >(null);
@@ -754,6 +794,19 @@ export function Canvas() {
       }
       drag.current = { kind: "end", edgeId: edge.id, which, pointer: toModel(e), moved: false, target: null, key: "", ok: false };
       svg.setPointerCapture(e.pointerId);
+      return;
+    }
+    // A control point of the selected edge's curve.
+    const controlEl = target.closest("[data-control]");
+    if (e.button === 0 && edge && controlEl) {
+      const [k, w] = controlEl.getAttribute("data-control")!.split(":");
+      const seg = Number(k);
+      const which = w === "2" ? 2 : 1;
+      const s = edge.route.segs[seg];
+      if (s?.c1 && s.c2) {
+        drag.current = { kind: "control", edgeId: edge.id, seg, which, pointer: toModel(e), origin: which === 1 ? s.c1 : s.c2, moved: false, key: "", last: null };
+        svg.setPointerCapture(e.pointerId);
+      }
       return;
     }
     // A segment of the selected orthogonal edge: slide it across.
@@ -1029,6 +1082,27 @@ export function Canvas() {
     status.value = `Release to write ${edgeCode(r.text, r.layout, d.edgeId)}`;
   };
 
+  /** Dragging a control point: write the curve (bend, out/in, controls) and show it. Alt frees a bend. */
+  const controlMove = (d: ControlDrag, e: PointerEvent) => {
+    const p = toModel(e);
+    if (!d.moved && Math.hypot(p.x - d.pointer.x, p.y - d.pointer.y) * view.value.scale < 3) return;
+    d.moved = true;
+    const at = { x: d.origin.x + p.x - d.pointer.x, y: d.origin.y + p.y - d.pointer.y };
+    const key = `${Math.round(at.x / MM_PT)}|${Math.round(at.y / MM_PT)}|${e.altKey}`;
+    if (key === d.key) return;
+    d.key = key;
+    const r = planControl(text.value, currentPicture.value, d.edgeId, d.seg, d.which, at, e.altKey);
+    if (!r.ok) {
+      d.last = null;
+      previewLayout.value = null;
+      status.value = r.reason;
+      return;
+    }
+    d.last = { changes: r.changes, text: r.text, layout: r.layout };
+    previewLayout.value = r.layout;
+    status.value = `Release to write ${edgeCode(r.text, r.layout, d.edgeId)}`;
+  };
+
   /** Drawing a new edge: a line from the start to the pointer, or to the anchor it would attach to. */
   const connectMove = (d: ConnectDrag, e: PointerEvent) => {
     const p = toModel(e);
@@ -1075,6 +1149,10 @@ export function Canvas() {
       slideMove(d, e);
       return;
     }
+    if (d.kind === "control") {
+      controlMove(d, e);
+      return;
+    }
     if (d.kind === "pan") {
       const dx = e.clientX - d.client.x;
       const dy = e.clientY - d.client.y;
@@ -1118,6 +1196,11 @@ export function Canvas() {
       previewLayout.value = null;
       guides.value = { lines: [], gaps: [] };
       if (d.moved && d.last) applyEdgeEdit(d.last.changes, "input.edge.slide", `Slid the segment: ${edgeCode(d.last.text, d.last.layout, d.edgeId)}`);
+      return;
+    }
+    if (d.kind === "control") {
+      previewLayout.value = null;
+      if (d.moved && d.last) applyEdgeEdit(d.last.changes, "input.edge.curve", `Reshaped the curve: ${edgeCode(d.last.text, d.last.layout, d.edgeId)}`);
       return;
     }
     if (d.kind === "vertex") {
@@ -1412,6 +1495,7 @@ export function Canvas() {
         {selEdge && <EdgeSelection edge={selEdge} scale={v.scale} />}
         {selEdge && !selEdge.lock && !edgeDrag.value && <VertexHandles edge={selEdge} scale={v.scale} />}
         {selEdge && !selEdge.lock && !edgeDrag.value && <SegmentHandles edge={selEdge} scale={v.scale} />}
+        {selEdge && !selEdge.lock && !edgeDrag.value && <ControlHandles edge={selEdge} scale={v.scale} />}
         {selEdge && !selEdge.lock && !edgeDrag.value && <EndHandles edge={selEdge} scale={v.scale} />}
         {hoverNode && <ConnectHandles n={hoverNode} scale={v.scale} />}
         {edgeDrag.value && l && <EdgeDragOverlay view={edgeDrag.value} layout={l} scale={v.scale} />}

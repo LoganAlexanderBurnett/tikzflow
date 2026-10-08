@@ -106,8 +106,12 @@ async function nodeBox(page: Page, id: string) {
 
 async function selectEdge(page: Page, index: number) {
   const ids = await edgeIds(page);
-  const p = await onEdge(page, ids[index]!);
-  await page.mouse.click(p.x, p.y);
+  // The view may still be fitting a document just set: click again until the edge is selected.
+  await expect(async () => {
+    const p = await onEdge(page, ids[index]!);
+    await page.mouse.click(p.x, p.y);
+    await expect(page.getByTestId("edge-selection")).toHaveCount(1, { timeout: 500 });
+  }).toPass({ timeout: 5000 });
   return ids[index]!;
 }
 
@@ -339,4 +343,44 @@ test("sliding the sample's |- edge along stop's side moves where it meets stop",
   expect(after).toMatch(/\\draw\[->\] \(base\)  \|- \(\[yshift=\dmm\]stop\.east\);/);
   expect(after.replace(/\(\[yshift=\dmm\]stop\.east\)/, "(stop)")).toBe(before);
   await page.screenshot({ path: "test-results/m2b-slide-end.png" });
+});
+
+// ---------------------------------------------------------------- step 6: curved mode
+
+test("Make curved writes a plain bend left, and dragging a control point changes the bend", async ({ page }) => {
+  const before = await code(page);
+  const id = await selectEdge(page, 4); // rec → stop
+  const p = await onEdge(page, id, 0.5);
+  await page.mouse.click(p.x, p.y, { button: "right" });
+  await page.getByTestId("menu-curved").click();
+  const curved = await code(page);
+  expect(curved).toBe(before.replace("\\draw[->] (rec)   -- (stop);", "\\draw[->] (rec)   to[bend left] (stop);"));
+  await expect(page.getByTestId("edge-mode")).toContainText("Curved");
+  await expect(page.getByTestId("control-handle")).toHaveCount(2);
+  const c1 = await centerOf(page, '[data-testid="control-handle"] >> nth=0');
+  await dragTo(page, c1, { x: c1.x + 30, y: c1.y + 6 });
+  await page.screenshot({ path: "test-results/m2b-curve-drag.png" });
+  await page.mouse.up();
+  const after = await code(page);
+  expect(after).toMatch(/\\draw\[->\] \(rec\)   to\[bend left=\d+(, looseness=[\d.]+)?\] \(stop\);/);
+  await expect(page.getByTestId("status")).toContainText("Reshaped the curve");
+  await page.keyboard.press("Control+z");
+  expect(await code(page)).toBe(curved);
+  // Straighten goes back to the start.
+  const q = await onEdge(page, id, 0.5);
+  await page.mouse.click(q.x, q.y, { button: "right" });
+  await page.getByTestId("menu-straighten").click();
+  expect(await code(page)).toBe(before);
+});
+
+test("Alt-dragging a control point of a bend writes out and in", async ({ page }) => {
+  await setCode(page, `${TWO}\\draw[->] (a) to[bend left] (b);\n\\end{tikzpicture}\n`);
+  await expect(page.locator("path[data-edge]")).toHaveCount(1);
+  await selectEdge(page, 0);
+  const c2 = await centerOf(page, '[data-testid="control-handle"] >> nth=1');
+  await page.keyboard.down("Alt");
+  await dragTo(page, c2, { x: c2.x + 20, y: c2.y - 30 });
+  await page.mouse.up();
+  await page.keyboard.up("Alt");
+  expect(await code(page)).toMatch(/\\draw\[->\] \(a\) to\[out=-?\d+, in=-?\d+(, (out |in )?looseness=[\d.]+)*\] \(b\);/);
 });

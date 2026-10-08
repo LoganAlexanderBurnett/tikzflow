@@ -20,7 +20,7 @@ Milestone 0 is done and was approved on 2026-10-07:
 | 3 | Anchors: endpoint handles, reconnecting, change anchor, drawing new edges (D48) | Done |
 | 4 | Vertices: ghost handles, add/remove, Straighten; split a \draw, move an edge below a later node (D49, D50) | Done |
 | 5 | Orthogonal mode: Make orthogonal, sliding segments (D51) | Done |
-| 6 | Curved mode | Not started |
+| 6 | Curved mode: Make curved, control points (D52) | Done |
 | 7 | Edge labels: add, slide (`pos=`), yes/no on decisions | Not started |
 | 8 | Edge properties panel with edge-or-style scope | Not started |
 | 9 | Delete nodes and edges (re-attach or pin dependents, drop dangling edges) | Not started |

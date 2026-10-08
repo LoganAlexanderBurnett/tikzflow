@@ -7,6 +7,7 @@ import { batch, computed, effect, signal } from "@preact/signals";
 import type { Change } from "../edit/changes.ts";
 import { defaultEntry, edgeHead, type PaletteEntry, paletteEntries, planCreate, type Placement } from "../edit/create.ts";
 import { type EndTarget, findEdge, planConnect, planEnd } from "../edit/edges.ts";
+import { planMakeCurved } from "../edit/curves.ts";
 import { planMakeOrthogonal } from "../edit/orthogonal.ts";
 import { planSplit } from "../edit/split.ts";
 import { planAddVertex, planRemoveVertex, planStraighten } from "../edit/vertices.ts";
@@ -771,6 +772,17 @@ export function makeOrthogonal(edgeId: string): boolean {
     return false;
   }
   applyEdgeEdit(r.changes, "input.edge.orthogonal", `Made the edge orthogonal: ${edgeCode(r.text, r.layout, edgeId)}`);
+  return true;
+}
+
+/** "Make curved": a plain bend left (D45). */
+export function makeCurved(edgeId: string): boolean {
+  const r = planMakeCurved(text.value, currentPicture.value, edgeId);
+  if (!r.ok) {
+    status.value = r.reason;
+    return false;
+  }
+  applyEdgeEdit(r.changes, "input.edge.curved", `Made the edge curved: ${edgeCode(r.text, r.layout, edgeId)}`);
   return true;
 }
 

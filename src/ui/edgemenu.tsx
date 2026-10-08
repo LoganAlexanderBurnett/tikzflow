@@ -7,7 +7,8 @@ import { splitBlocker } from "../edit/split.ts";
 import { edgeVertices, isEdgeOperation, nearestLineSegment } from "../edit/vertices.ts";
 import { type Edge, pathEdges } from "../model/edges.ts";
 import { anchorPoint, type Point } from "../tikz/shapes.ts";
-import { addVertex, baseLayout, makeOrthogonal, moveEnd, removeVertex, splitEdge, straightenEdge } from "./store.ts";
+import { curveBlocker } from "../edit/curves.ts";
+import { addVertex, baseLayout, makeCurved, makeOrthogonal, moveEnd, removeVertex, splitEdge, straightenEdge } from "./store.ts";
 
 /** The compass, laid out as it points; the middle is the border ("automatic"). */
 const COMPASS: Array<string | null> = ["north west", "north", "north east", "west", null, "east", "south west", "south", "south east"];
@@ -224,7 +225,12 @@ function FormItems({ edge, close, hover }: { edge: Edge; close: () => void; hove
         : lined && edge.mode === "straight"
           ? "It already runs straight across or down."
           : null);
-  return <ActionItem label="Make orthogonal" why={orthoWhy} testid="menu-orthogonal" onHover={hover} run={() => (makeOrthogonal(edge.id), close())} />;
+  return (
+    <>
+      <ActionItem label="Make orthogonal" why={orthoWhy} testid="menu-orthogonal" onHover={hover} run={() => (makeOrthogonal(edge.id), close())} />
+      <ActionItem label="Make curved" why={curveBlocker(edge)} testid="menu-curved" onHover={hover} run={() => (makeCurved(edge.id), close())} />
+    </>
+  );
 }
 
 /** "Split into separate edges", for a \draw with more than one edge. */

@@ -703,3 +703,19 @@ Steps 4–6 are done without a checkpoint between them, as the owner asked.
 - **Menu:** "Make orthogonal" after Straighten; disabled with the reason when it doesn't apply. Orthogonal edges show segment bars instead of corner and ghost handles.
 
 **Why:** `|-` and `-|` are how people write flowchart connectors, and a corner they compute themselves stays square when either node moves. Moving the end along the node's side, instead of adding a stub inside the node, is what a slid connector is expected to do in diagram tools.
+
+## D52: Curved mode (M2b step 6, 2026-10-08)
+**Decision:** `src/edit/curves.ts`.
+- **Make curved** writes a plain `bend left` (D45): `(a) -- (b)` becomes `(a) to[bend left] (b)`. Corners go; labels, comments, ends and the `to`'s other keys stay (`to[red]` becomes `to[red, bend left]`). An `edge` operation gets the key in its own options, `edge[bend left]`.
+- **Control handles.** Each curve of the selected edge shows its two control points, on dashed arms from where the curve leaves and arrives. Dragging one redraws the curve live; one undo step.
+- **What a drag writes,** the first that draws it (SPEC.md's order):
+  1. **`bend left=40`** (or `bend right`, plain `bend left` for 30°, `looseness=1.5` when it isn't 1). A curve written with `bend` stays symmetric while dragged: the other control point mirrors the one under the pointer. Bend angles are rounded to 5°.
+  2. **`out=60, in=180`**, with `looseness` when both ends agree, or `out looseness` and `in looseness` when they don't. Hold **Alt** to drag one end of a bend on its own, which writes this form. Angles are whole degrees, loosenesses tenths.
+  3. **`.. controls +(…) and +(…) ..`** is kept for curves already written that way: the dragged point is rewritten relative to its end (plain numbers stay plain).
+
+  A free curve dragged close enough to symmetric becomes a `bend` again. Each result is checked by laying it out: the control point must land within rounding of where it was dropped.
+- **The interpreter, checked against pdfTeX** (probe `p5-curves.tex`, D50): for `bend` and `relative`, TikZ turns the angles by the line between the centres to find where the curve meets the borders, then measures the control points from the line between those border points (`\tikz@to@compute@relative`). Without `relative`, the angles are absolute and the curve leaves from the angle anchor. Control distance is 0.3915 times the distance between the two border points, times the looseness of that end.
+- **Menu:** "Make curved" after "Make orthogonal". Straighten (D50) undoes either. The panel's hint says what can be dragged for each form.
+- **Fidelity:** `npm run fidelity` gives 235 of 331 nodes within 1 pt of pdfTeX: the M2a count (204) plus the 31 new probe points. No corpus node changed.
+
+**Why:** `bend left` and `out`/`in` are what people write for curved connectors; `.. controls ..` is for curves drawn by hand, so it's kept rather than introduced. Keeping a bend symmetric while dragging keeps it a one-key edit, and Alt is already "free" elsewhere (no snapping).
