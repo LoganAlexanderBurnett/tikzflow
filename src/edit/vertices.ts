@@ -168,11 +168,18 @@ function middleText(text: string, edge: Edge, mid: EdgeMiddle, steps: readonly S
   return `${lead}${body}${trail}`;
 }
 
+/** A new text for one of an edge's ends, and where it must land. */
+export interface EndWrite {
+  text: string;
+  want: Point;
+  tolerance?: number;
+}
+
 /**
  * Replaces the code between `edge`'s ends with `steps`, keeping its labels
  * (each after the step `place` gives it), its comments, and both ends as
- * written. `wants` are where the new points (by step) must land. The points
- * after the edge stay where they were.
+ * written unless `ends` rewrites them. `wants` are where the new points (by
+ * step) must land. The points after the edge stay where they were.
  */
 export function rewriteMiddle(
   text: string,
@@ -182,19 +189,30 @@ export function rewriteMiddle(
   place: (item: number) => number,
   wants: ReadonlyArray<{ step: number; want: Point; tolerance?: number }> = [],
   check?: (route: Route, layout: PictureLayout) => string | null,
+  ends: { from?: EndWrite; to?: EndWrite } = {},
 ): EditOutcome {
   const mid = edgeMiddle(edge);
   if (mid.problem) return { ok: false, reason: mid.problem };
   const insert = middleText(text, edge, mid, steps, place);
-  if (insert === text.slice(mid.range.from, mid.range.to)) return { ok: false, reason: "Nothing to change: the edge is already written that way." };
   const route = edge.route;
+  const changes: Change[] = [];
+  if (insert !== text.slice(mid.range.from, mid.range.to)) changes.push({ from: mid.range.from, to: mid.range.to, insert });
+  const a = route.stops[edge.from]!;
+  const b = route.stops[edge.to]!;
+  if (ends.from && ends.from.text !== text.slice(a.range.from, a.range.to)) changes.push({ from: a.range.from, to: a.range.to, insert: ends.from.text });
+  if (ends.to && ends.to.text !== text.slice(b.range.from, b.range.to)) changes.push({ from: b.range.from, to: b.range.to, insert: ends.to.text });
+  if (!changes.length) return { ok: false, reason: "Nothing to change: the edge is already written that way." };
   const delta = steps.length - (edge.to - edge.from);
+  const endWants = [
+    ...(ends.from ? [{ stop: edge.from, want: ends.from.want, tolerance: ends.from.tolerance ?? POINT_EPS }] : []),
+    ...(ends.to ? [{ stop: edge.to + delta, want: ends.to.want, tolerance: ends.to.tolerance ?? POINT_EPS }] : []),
+  ];
   return editPath(text, picIndex, edge, {
-    changes: [{ from: mid.range.from, to: mid.range.to, insert }],
-    map: (k) => (k <= edge.from ? k : k >= edge.to ? k + delta : null),
+    changes,
+    map: (k) => (k === edge.from && ends.from ? null : k === edge.to && ends.to ? null : k <= edge.from ? k : k >= edge.to ? k + delta : null),
     stops: route.stops.length + delta,
     segs: route.segs.length - edge.segs.length + steps.length,
-    wants: wants.map((w) => ({ stop: edge.from + 1 + w.step, want: w.want, ...(w.tolerance !== undefined ? { tolerance: w.tolerance } : {}) })),
+    wants: [...wants.map((w) => ({ stop: edge.from + 1 + w.step, want: w.want, ...(w.tolerance !== undefined ? { tolerance: w.tolerance } : {}) })), ...endWants],
     ...(check ? { check } : {}),
   });
 }

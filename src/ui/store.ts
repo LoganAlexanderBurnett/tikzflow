@@ -7,6 +7,7 @@ import { batch, computed, effect, signal } from "@preact/signals";
 import type { Change } from "../edit/changes.ts";
 import { defaultEntry, edgeHead, type PaletteEntry, paletteEntries, planCreate, type Placement } from "../edit/create.ts";
 import { type EndTarget, findEdge, planConnect, planEnd } from "../edit/edges.ts";
+import { planMakeOrthogonal } from "../edit/orthogonal.ts";
 import { planSplit } from "../edit/split.ts";
 import { planAddVertex, planRemoveVertex, planStraighten } from "../edit/vertices.ts";
 import { draftOf, labelBlocker, labelledNode, labelProblem, planLabelEdit } from "../edit/label.ts";
@@ -751,6 +752,25 @@ export function straightenEdge(edgeId: string): boolean {
     return false;
   }
   applyEdgeEdit(r.changes, "input.edge.straighten", "Straightened the edge.");
+  return true;
+}
+
+/** The code of the statement holding edge `edgeId`, on one line and cut short, for messages. */
+export function edgeCode(t: string, l: PictureLayout, edgeId: string): string {
+  const e = findEdge(l, edgeId);
+  if (!e) return "";
+  const flat = t.slice(e.path.syntax.from, e.path.syntax.to).replace(/%[^\n]*/g, "").replace(/\s+/g, " ").trim();
+  return flat.length > 90 ? `${flat.slice(0, 89)}…` : flat;
+}
+
+/** "Make orthogonal": a single corner where it can (D45). */
+export function makeOrthogonal(edgeId: string): boolean {
+  const r = planMakeOrthogonal(text.value, currentPicture.value, edgeId);
+  if (!r.ok) {
+    status.value = r.reason;
+    return false;
+  }
+  applyEdgeEdit(r.changes, "input.edge.orthogonal", `Made the edge orthogonal: ${edgeCode(r.text, r.layout, edgeId)}`);
   return true;
 }
 

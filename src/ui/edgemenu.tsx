@@ -7,7 +7,7 @@ import { splitBlocker } from "../edit/split.ts";
 import { edgeVertices, isEdgeOperation, nearestLineSegment } from "../edit/vertices.ts";
 import { type Edge, pathEdges } from "../model/edges.ts";
 import { anchorPoint, type Point } from "../tikz/shapes.ts";
-import { addVertex, baseLayout, moveEnd, removeVertex, splitEdge, straightenEdge } from "./store.ts";
+import { addVertex, baseLayout, makeOrthogonal, moveEnd, removeVertex, splitEdge, straightenEdge } from "./store.ts";
 
 /** The compass, laid out as it points; the middle is the border ("automatic"). */
 const COMPASS: Array<string | null> = ["north west", "north", "north east", "west", null, "east", "south west", "south", "south east"];
@@ -170,6 +170,7 @@ export function EdgeMenu({ edge, x, y, at, onClose }: { edge: Edge; x: number; y
     >
       {edge.lock && <div class="tf-menu-note">This edge is kept as written; see the panel for why.</div>}
       <CornerItems edge={edge} at={at} close={onClose} hover={() => (open.value = null)} />
+      <FormItems edge={edge} close={onClose} hover={() => (open.value = null)} />
       <div class="tf-menu-sep" role="separator" />
       <AnchorItem edge={edge} which="from" open={open.value === "from"} onOpen={() => (open.value = "from")} onDone={onClose} />
       <AnchorItem edge={edge} which="to" open={open.value === "to"} onOpen={() => (open.value = "to")} onDone={onClose} />
@@ -206,6 +207,24 @@ function CornerItems({ edge, at, close, hover }: { edge: Edge; at: EdgeMenuAt; c
       <ActionItem label="Straighten" why={locked ?? (straight ? "It is already straight." : null)} testid="menu-straighten" onHover={hover} run={() => (straightenEdge(edge.id), close())} />
     </>
   );
+}
+
+/** Make orthogonal, Make curved. */
+function FormItems({ edge, close, hover }: { edge: Edge; close: () => void; hover: () => void }) {
+  const locked = edge.lock ? "This edge is kept as written." : null;
+  const a = edge.route.stops[edge.from]!.point;
+  const b = edge.route.stops[edge.to]!.point;
+  const lined = Math.abs(a.x - b.x) < 0.5 || Math.abs(a.y - b.y) < 0.5;
+  const orthoWhy =
+    locked ??
+    (isEdgeOperation(edge)
+      ? 'This edge is an "edge" operation, which joins its ends directly. Write it with "--" to give it corners.'
+      : edge.mode === "orthogonal"
+        ? "It is already orthogonal: drag a segment to slide it."
+        : lined && edge.mode === "straight"
+          ? "It already runs straight across or down."
+          : null);
+  return <ActionItem label="Make orthogonal" why={orthoWhy} testid="menu-orthogonal" onHover={hover} run={() => (makeOrthogonal(edge.id), close())} />;
 }
 
 /** "Split into separate edges", for a \draw with more than one edge. */

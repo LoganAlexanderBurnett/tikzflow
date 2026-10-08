@@ -95,7 +95,9 @@ export function evalCoordText(text: string, env: CoordEnv): CoordResult {
     const inner = evalCoordText(t.slice(end + 1), env);
     if (!inner.ok) return inner;
     const [dx, dy] = applyLinear(env.state.matrix, shift[0], shift[1]);
-    return { ok: true, point: { x: inner.point.x + dx, y: inner.point.y + dy }, refs: inner.refs };
+    // "([yshift=3mm]a.east)" is still a point of a (it moves with it), but not its border.
+    const of = inner.node ?? inner.anchored;
+    return { ok: true, point: { x: inner.point.x + dx, y: inner.point.y + dy }, refs: inner.refs, ...(of ? { anchored: of } : {}) };
   }
 
   // Perpendicular coordinates.

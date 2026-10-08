@@ -12,6 +12,7 @@ import { type GapMark, snapNode } from "../edit/snap.ts";
 import { labelledNode } from "../edit/label.ts";
 import type { Change } from "../edit/changes.ts";
 import { END_ANCHORS, endBlocker, type EndTarget, planWaypoint, snapWaypoint } from "../edit/edges.ts";
+import { orthoPolyline, planSlide, snapSlide } from "../edit/orthogonal.ts";
 import { edgeVertices, isEdgeOperation, planAddVertex } from "../edit/vertices.ts";
 import { EdgeMenu, type EdgeMenuAt } from "./edgemenu.tsx";
 import { pictureEnv } from "../model/document.ts";
@@ -29,6 +30,7 @@ import {
   applyEdgeEdit,
   applyEdit,
   cornerMessage,
+  edgeCode,
   removeVertex,
   applyResize,
   cancelLabelEdit,
@@ -176,6 +178,30 @@ function VertexHandles({ edge, scale }: { edge: Edge; scale: number }) {
         return (
           <rect key={`v${k}`} data-vertex={k} data-testid="vertex-handle" x={f(q.x - r)} y={f(q.y - r)} width={f(2 * r)} height={f(2 * r)} transform={`rotate(45 ${f(q.x)} ${f(q.y)})`} class="tf-vertex-handle" stroke-width={f(1.2 / scale)}>
             <title>Drag to move this corner. Double-click to remove it.</title>
+          </rect>
+        );
+      })}
+    </g>
+  );
+}
+
+/** Handles on the segments of an orthogonal edge: drag one to slide it across. */
+function SegmentHandles({ edge, scale }: { edge: Edge; scale: number }) {
+  if (edge.mode !== "orthogonal" || isEdgeOperation(edge)) return null;
+  const poly = orthoPolyline(edge);
+  if (!poly) return null;
+  return (
+    <g class="tf-segment-handles">
+      {poly.pieces.map((p, i) => {
+        const len = Math.hypot(p.drawnTo.x - p.drawnFrom.x, p.drawnTo.y - p.drawnFrom.y);
+        if (len * scale < 16) return null;
+        const mx = (p.drawnFrom.x + p.drawnTo.x) / 2;
+        const my = (p.drawnFrom.y + p.drawnTo.y) / 2;
+        const w = (p.axis === "h" ? 12 : 5) / scale;
+        const h = (p.axis === "h" ? 5 : 12) / scale;
+        return (
+          <rect key={i} data-segment={i} data-testid="segment-handle" x={f(mx - w / 2)} y={f(my - h / 2)} width={f(w)} height={f(h)} rx={f(1.5 / scale)} class={`tf-segment-handle ${p.axis}`} stroke-width={f(1.2 / scale)}>
+            <title>{p.axis === "h" ? "Drag up or down to slide this segment" : "Drag left or right to slide this segment"}</title>
           </rect>
         );
       })}
@@ -580,6 +606,20 @@ interface VertexDrag {
   last: { changes: Change[]; stop: number; layout: PictureLayout } | null;
 }
 
+/** Sliding a segment of an orthogonal edge across. */
+interface SlideDrag {
+  kind: "slide";
+  edgeId: string;
+  piece: number;
+  axis: "h" | "v";
+  pointer: Point;
+  /** The segment's y (horizontal) or x (vertical) when the drag started. */
+  origin: number;
+  moved: boolean;
+  key: string;
+  last: { changes: Change[]; text: string; layout: PictureLayout } | null;
+}
+
 /** Drawing a new edge from a node's connection handle. */
 interface ConnectDrag {
   kind: "connect";
@@ -622,6 +662,7 @@ export function Canvas() {
     | ResizeDrag
     | EndDrag
     | VertexDrag
+    | SlideDrag
     | ConnectDrag
     | null
   >(null);
@@ -713,6 +754,17 @@ export function Canvas() {
       }
       drag.current = { kind: "end", edgeId: edge.id, which, pointer: toModel(e), moved: false, target: null, key: "", ok: false };
       svg.setPointerCapture(e.pointerId);
+      return;
+    }
+    // A segment of the selected orthogonal edge: slide it across.
+    const segmentEl = target.closest("[data-segment]");
+    if (e.button === 0 && edge && segmentEl) {
+      const piece = Number(segmentEl.getAttribute("data-segment"));
+      const p = orthoPolyline(edge)?.pieces[piece];
+      if (p) {
+        drag.current = { kind: "slide", edgeId: edge.id, piece, axis: p.axis, pointer: toModel(e), origin: p.axis === "h" ? p.from.y : p.from.x, moved: false, key: "", last: null };
+        svg.setPointerCapture(e.pointerId);
+      }
       return;
     }
     // A corner of the selected edge, or a ghost handle to add one.
@@ -950,6 +1002,33 @@ export function Canvas() {
     status.value = cornerMessage(r.layout, d.edgeId, stop, d.stop !== null ? "Release to write" : "Release to add");
   };
 
+  /** Sliding a segment: snap it to node lines, write the route, and show it. */
+  const slideMove = (d: SlideDrag, e: PointerEvent) => {
+    const p = toModel(e);
+    if (!d.moved && Math.hypot(p.x - d.pointer.x, p.y - d.pointer.y) * view.value.scale < 3) return;
+    d.moved = true;
+    const l = baseLayout.value;
+    const edge = edges.value.find((x) => x.id === d.edgeId);
+    const piece = edge && orthoPolyline(edge)?.pieces[d.piece];
+    if (!l || !edge || !piece) return;
+    const raw = d.origin + (d.axis === "h" ? p.y - d.pointer.y : p.x - d.pointer.x);
+    const snapped = e.altKey ? { value: raw, guides: [] } : snapSlide(l, edge, piece, raw, 7 / view.value.scale);
+    guides.value = { lines: snapped.guides, gaps: [] };
+    const key = `${Math.round(snapped.value / MM_PT)}|${snapped.guides.length}`;
+    if (key === d.key) return;
+    d.key = key;
+    const r = planSlide(text.value, currentPicture.value, d.edgeId, d.piece, snapped.value);
+    if (!r.ok) {
+      d.last = null;
+      previewLayout.value = null;
+      status.value = r.reason;
+      return;
+    }
+    d.last = { changes: r.changes, text: r.text, layout: r.layout };
+    previewLayout.value = r.layout;
+    status.value = `Release to write ${edgeCode(r.text, r.layout, d.edgeId)}`;
+  };
+
   /** Drawing a new edge: a line from the start to the pointer, or to the anchor it would attach to. */
   const connectMove = (d: ConnectDrag, e: PointerEvent) => {
     const p = toModel(e);
@@ -992,6 +1071,10 @@ export function Canvas() {
       vertexMove(d, e);
       return;
     }
+    if (d.kind === "slide") {
+      slideMove(d, e);
+      return;
+    }
     if (d.kind === "pan") {
       const dx = e.clientX - d.client.x;
       const dy = e.clientY - d.client.y;
@@ -1029,6 +1112,12 @@ export function Canvas() {
         previewEnd(d.edgeId, d.which, null);
         if (!d.target) status.value = "The end stays where it was: drop it on a node.";
       }
+      return;
+    }
+    if (d.kind === "slide") {
+      previewLayout.value = null;
+      guides.value = { lines: [], gaps: [] };
+      if (d.moved && d.last) applyEdgeEdit(d.last.changes, "input.edge.slide", `Slid the segment: ${edgeCode(d.last.text, d.last.layout, d.edgeId)}`);
       return;
     }
     if (d.kind === "vertex") {
@@ -1322,6 +1411,7 @@ export function Canvas() {
       <g transform="scale(1 -1)" class="tf-overlay">
         {selEdge && <EdgeSelection edge={selEdge} scale={v.scale} />}
         {selEdge && !selEdge.lock && !edgeDrag.value && <VertexHandles edge={selEdge} scale={v.scale} />}
+        {selEdge && !selEdge.lock && !edgeDrag.value && <SegmentHandles edge={selEdge} scale={v.scale} />}
         {selEdge && !selEdge.lock && !edgeDrag.value && <EndHandles edge={selEdge} scale={v.scale} />}
         {hoverNode && <ConnectHandles n={hoverNode} scale={v.scale} />}
         {edgeDrag.value && l && <EdgeDragOverlay view={edgeDrag.value} layout={l} scale={v.scale} />}

@@ -289,3 +289,54 @@ test("a shared end points to Split into separate edges, which splits the \\draw"
   await page.mouse.up();
   expect(await code(page)).toContain("\\draw[-] (a) -- (c);\n\\draw[->] (b) -- (c);");
 });
+
+// ---------------------------------------------------------------- step 5: orthogonal mode
+
+const TWO = "\\begin{tikzpicture}\n\\node[draw] (a) {A};\n\\node[draw] (b) at (4,-2) {B};\n";
+
+test("Make orthogonal writes a single corner", async ({ page }) => {
+  await setCode(page, `${TWO}\\draw[->] (a) -- node[above] {x} (b);\n\\end{tikzpicture}\n`);
+  await expect(page.locator("path[data-edge]")).toHaveCount(1);
+  const id = await selectEdge(page, 0);
+  const p = await onEdge(page, id, 0.5);
+  await page.mouse.click(p.x, p.y, { button: "right" });
+  await page.getByTestId("menu-orthogonal").click();
+  expect(await code(page)).toContain("\\draw[->] (a) -| node[above] {x} (b);");
+  await expect(page.getByTestId("edge-mode")).toContainText("Orthogonal");
+  await expect(page.getByTestId("segment-handle")).toHaveCount(2);
+  await expect(page.getByTestId("status")).toContainText("Made the edge orthogonal: \\draw[->] (a) -| node[above] {x} (b);");
+});
+
+test("sliding the middle segment of an orthogonal edge moves both its corners", async ({ page }) => {
+  await setCode(page, `${TWO}\\draw[->] (a) -- ++(0,-1) -| (b);\n\\end{tikzpicture}\n`);
+  await expect(page.locator("path[data-edge]")).toHaveCount(1);
+  await selectEdge(page, 0);
+  await expect(page.getByTestId("segment-handle")).toHaveCount(3);
+  const mid = await centerOf(page, '[data-testid="segment-handle"] >> nth=1');
+  await page.keyboard.down("Alt");
+  await dragTo(page, mid, { x: mid.x, y: mid.y + 25 });
+  await page.screenshot({ path: "test-results/m2b-slide.png" });
+  await page.mouse.up();
+  await page.keyboard.up("Alt");
+  const after = await code(page);
+  expect(after).toMatch(/\\draw\[->\] \(a\) -- \+\+\(0,-1\.\d\) -\| \(b\);/);
+  await expect(page.getByTestId("status")).toContainText("Slid the segment");
+  await page.keyboard.press("Control+z");
+  expect(await code(page)).toContain("\\draw[->] (a) -- ++(0,-1) -| (b);");
+});
+
+test("sliding the sample's |- edge along stop's side moves where it meets stop", async ({ page }) => {
+  const before = await code(page);
+  await selectEdge(page, 5); // base |- stop
+  const handles = page.getByTestId("segment-handle");
+  await expect(handles).toHaveCount(2);
+  const h = await centerOf(page, '[data-testid="segment-handle"] >> nth=1');
+  await page.keyboard.down("Alt");
+  await dragTo(page, h, { x: h.x, y: h.y - 9 });
+  await page.mouse.up();
+  await page.keyboard.up("Alt");
+  const after = await code(page);
+  expect(after).toMatch(/\\draw\[->\] \(base\)  \|- \(\[yshift=\dmm\]stop\.east\);/);
+  expect(after.replace(/\(\[yshift=\dmm\]stop\.east\)/, "(stop)")).toBe(before);
+  await page.screenshot({ path: "test-results/m2b-slide-end.png" });
+});
