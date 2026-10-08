@@ -282,6 +282,14 @@ button.link {
   cursor: pointer;
 }
 
+/* The label picked on the selected edge: Flip side acts on it */
+.tf-label-hit.picked {
+  stroke: var(--accent);
+  stroke-width: 1.5px;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+}
+
 /* The selected edge */
 .tf-edge-selection {
   pointer-events: none;
@@ -1177,4 +1185,19 @@ button:disabled {
 
 .tf-menu-text {
   flex: 1;
+}
+
+.tf-edge-labels li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tf-edge-labels li.picked {
+  font-weight: 600;
+}
+
+.tf-small {
+  padding: 1px 6px;
+  font-size: 12px;
 }

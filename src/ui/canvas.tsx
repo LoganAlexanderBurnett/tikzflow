@@ -61,8 +61,10 @@ import {
   revealRequest,
   pinNode,
   previewLayout,
+  pickLabel,
   selectFromCanvas,
   selectedEdge,
+  selectedLabelId,
   selectedIds,
   selection,
   shownEdges,
@@ -958,6 +960,7 @@ export function Canvas() {
       const edge = edgeOfLabel(shownEdges.value, id);
       const path = baseLayout.value?.paths.find((x) => x.syntax.from === labelledNode(baseLayout.value, id)?.statement.from);
       selectFromCanvas(edge ? { kind: "edge", id: edge.id } : path ? { kind: "path", id: path.id } : null);
+      pickLabel(edge?.id ?? null, id);
       // Dragging it slides it along its edge.
       const l = baseLayout.value;
       if (edge && l && !labelEdit.value && !slideBlocker(l, id)) {
@@ -971,6 +974,7 @@ export function Canvas() {
     }
     const edgeEl = target.closest("[data-edge]");
     if (e.button === 0 && edgeEl) {
+      pickLabel(null, null);
       selectFromCanvas({ kind: "edge", id: edgeEl.getAttribute("data-edge")! });
       return;
     }
@@ -1397,14 +1401,14 @@ export function Canvas() {
   };
 
   /** Opens the edge menu at a point of the canvas (screen px from its top left). The menu is placed in the pane that holds it, which starts higher up. */
-  const openMenu = (edgeId: string, x: number, y: number, at: Point, vertex: number | null = null) => {
+  const openMenu = (edgeId: string, x: number, y: number, at: Point, vertex: number | null = null, label: string | null = null) => {
     const svg = svgRef.current;
     const pane = svg?.closest(".tf-canvas-pane");
     const s = svg?.getBoundingClientRect();
     const p = pane?.getBoundingClientRect();
     const dx = s && p ? s.left - p.left : 0;
     const dy = s && p ? s.top - p.top : 0;
-    menu.value = { edgeId, x: x + dx, y: y + dy, at: { at, vertex, scale: view.value.scale } };
+    menu.value = { edgeId, x: x + dx, y: y + dy, at: { at, vertex, label, scale: view.value.scale } };
   };
 
   /** Right-click an edge (or one of its labels) for its menu. */
@@ -1422,9 +1426,12 @@ export function Canvas() {
     if (!edgeId) return;
     e.preventDefault();
     selectFromCanvas({ kind: "edge", id: edgeId });
+    // A right-click on a label is about that label.
+    const label = target.closest("[data-label]")?.getAttribute("data-label") ?? null;
+    if (label) pickLabel(edgeId, label);
     const r = svgRef.current!.getBoundingClientRect();
     const corner = target.closest("[data-vertex]")?.getAttribute("data-vertex");
-    openMenu(edgeId, e.clientX - r.left, e.clientY - r.top, toModel(e), corner ? Number(corner) : null);
+    openMenu(edgeId, e.clientX - r.left, e.clientY - r.top, toModel(e), corner ? Number(corner) : null, label);
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
@@ -1581,7 +1588,7 @@ export function Canvas() {
             <rect
               data-label={n.id}
               data-testid="edge-label"
-              class="tf-label-hit"
+              class={`tf-label-hit${n.id === selectedLabelId.value ? " picked" : ""}`}
               x={f(n.shape.center.x - n.shape.hw)}
               y={f(-n.shape.center.y - n.shape.hh)}
               width={f(2 * n.shape.hw)}

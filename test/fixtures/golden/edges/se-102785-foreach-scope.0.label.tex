@@ -29,7 +29,7 @@ myedge/.style=
 \node[below=of b] (c) {C};
 \foreach \pare/\chil in {a/b,a/d,a/e,b/c,d/c} 
   \draw[myedge] (\pare.south) -- (\chil.north);
-\draw[myedge] (a.south) -- node[right] {yes} (c.north);
+\draw[myedge] (a.south) -- node[auto, swap] {yes} (c.north);
 \begin{scope}[xshift=5.5cm]
 \node (a) {A};
 \node[below=of a] (d) {D};

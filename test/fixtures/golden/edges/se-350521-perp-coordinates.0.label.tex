@@ -16,7 +16,7 @@
   \node[data,below=of db] (d1) {$N=4\,199$};
   \node[data,below=of d1] (d2) {$N=2\,848$};
   \node[data,below=of d2] (d3) {$N=2\,561$};
-  \draw[flow] (db) -- node[right] {yes} (d1);
+  \draw[flow] (db) -- node[auto] {yes} (d1);
   \draw[flow] (d1) -- coordinate(d1d2) (d2);
   \draw[flow] (d2) -- coordinate(d2d3) (d3);
   \node[filter,right=of db] (excl) {Exclusions};

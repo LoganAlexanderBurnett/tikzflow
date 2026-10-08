@@ -62,7 +62,7 @@
 \node [coordinate, above =1cm of Maxgen] (top1) {};  %% Coordinate on right and middle
  \node [coordinate,above  =1.5 cm of Maxgen] (top2) {};   
 
-\path [line] (start) -- node[right] {yes} (AB);
+\path [line] (start) -- node[auto] {yes} (AB);
 \path [line] (Gene_expression_data) -- (Preprocess_box);
 \path [line] (Gene_expression_data) -| (DAVID);
 \path [line] (Preprocess_box) -- (FCM);

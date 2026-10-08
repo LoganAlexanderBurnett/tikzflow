@@ -42,6 +42,7 @@ const ITEMS = [
   "menu-orthogonal",
   "menu-curved",
   "menu-add-label",
+  "menu-flip-label",
   "menu-from-anchor",
   "menu-to-anchor",
   "menu-split",

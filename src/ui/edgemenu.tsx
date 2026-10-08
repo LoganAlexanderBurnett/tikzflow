@@ -4,14 +4,14 @@ import { useSignal } from "@preact/signals";
 import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { edgeOpBlocker } from "../edit/edgeop.ts";
 import { deleteBlocker } from "../edit/delete.ts";
-import { addLabelBlocker } from "../edit/labels.ts";
+import { addLabelBlocker, flipBlocker } from "../edit/labels.ts";
 import { endBlocker, endStop } from "../edit/edges.ts";
 import { splitBlocker } from "../edit/split.ts";
 import { edgeVertices, isEdgeOperation, nearestLineSegment } from "../edit/vertices.ts";
 import type { Edge } from "../model/edges.ts";
 import { anchorPoint, type Point } from "../tikz/shapes.ts";
 import { curveBlocker } from "../edit/curves.ts";
-import { addVertex, deleteSelection, startAddLabel, baseLayout, makeCurved, makeOrthogonal, moveEnd, removeVertex, splitEdge, straightenEdge } from "./store.ts";
+import { addVertex, baseLayout, deleteSelection, flipLabel, makeCurved, makeOrthogonal, moveEnd, removeVertex, selectedLabelId, splitEdge, startAddLabel, straightenEdge } from "./store.ts";
 
 /** The compass, laid out as it points; the middle is the border ("automatic"). */
 const COMPASS: Array<string | null> = ["north west", "north", "north east", "west", null, "east", "south west", "south", "south east"];
@@ -161,6 +161,8 @@ export interface EdgeMenuAt {
   at: Point;
   /** The corner right-clicked, if one was (a stop index). */
   vertex: number | null;
+  /** The label right-clicked, if one was. */
+  label: string | null;
   /** Screen px per pt, for how near the pointer has to be. */
   scale: number;
 }
@@ -270,6 +272,7 @@ export function EdgeMenu({ edge, x, y, at, onClose }: { edge: Edge; x: number; y
       <FormItems edge={edge} close={onClose} hover={hover} />
       <div class="tf-menu-sep" role="separator" />
       <ActionItem label="Add label here" why={addLabelBlocker(edge)} testid="menu-add-label" onHover={hover} run={() => (onClose(), startAddLabel(edge.id, at.at))} />
+      <FlipItem edge={edge} at={at} close={onClose} hover={hover} />
       <div class="tf-menu-sep" role="separator" />
       <AnchorItem edge={edge} which="from" open={open.value === "from"} onOpen={() => (open.value = "from")} onDone={onClose} />
       <AnchorItem edge={edge} which="to" open={open.value === "to"} onOpen={() => (open.value = "to")} onDone={onClose} />
@@ -351,6 +354,23 @@ function FormItems({ edge, close, hover }: { edge: Edge; close: () => void; hove
       />
     </>
   );
+}
+
+/** "Flip label side": the label right-clicked, the one picked, or the edge's only one. */
+function FlipItem({ edge, at, close, hover }: { edge: Edge; at: EdgeMenuAt; close: () => void; hover: () => void }) {
+  const layout = baseLayout.value;
+  const labelId = at.label ?? selectedLabelId.value ?? (edge.labels.length === 1 ? edge.labels[0]!.id : null);
+  const why =
+    edge.lock
+      ? `This edge can't be edited: ${edge.lock.message}.`
+      : !edge.labels.length
+        ? "This edge has no labels."
+        : !labelId
+          ? "Click the label you mean first, or right-click it."
+          : layout
+            ? flipBlocker(layout, labelId)
+            : "There is no picture.";
+  return <ActionItem label="Flip label side" why={why} testid="menu-flip-label" onHover={hover} run={() => (flipLabel(labelId!), close())} />;
 }
 
 /** "Split into separate edges": always listed; it says why when the \draw has only one edge. */

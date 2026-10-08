@@ -42,7 +42,7 @@ every path/.style = {thick,-Stealth}
 \draw   (start) edge (in1)
         (in1)  edge (pro1)
         (pro1) edge (d1);
-\draw (d1.east) node[above right] {yes} -| node[pos=0.75, left] {yes} (d9);
+\draw (d1.east) node[above right] {yes} -| node[pos=0.75, auto, swap] {yes} (d9);
 \draw (d1.west) node[above left]  {no}  -| (d2);
 \draw (d2.east) node[above right] {yes} -| (d3);
 \draw (d2) -- node[left]{no} (d4);

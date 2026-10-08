@@ -23,7 +23,7 @@
   \node[process, below=of check]  (rec)    {Compute\\ $n \cdot f(n-1)$};
   \node[terminal, below=of rec]   (stop)   {Stop};
 
-  \draw[-{Stealth}] (start) -- node[right] {yes} (read);
+  \draw[-{Stealth}] (start) -- node[auto] {yes} (read);
   \draw[-{Stealth}] (read)  -- (check);
   \draw[-{Stealth}] (check) -- node[above] {yes} (base);
   \draw[-{Stealth}] (check) -- node[right] {no}  (rec);

@@ -6,7 +6,7 @@
 		\node [style=Process] (3) at (0, 0) {Done};
 	\end{pgfonlayer}
 	\begin{pgfonlayer}{edgelayer}
-		\draw [style=Arrow] (0) to node[right] {yes} (1);
+		\draw [style=Arrow] (0) to node[auto] {yes} (1);
 		\draw [style=Arrow] (1) to (2);
 		\draw [style=Arrow, bend right=45] (2) to (0);
 		\draw [style=Arrow] (1) to (3);

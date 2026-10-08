@@ -55,7 +55,7 @@
     \node (r5) [mbigblock,fit=(r6) (r9) (r11),inner sep=0pt]{}; 
     \node (r10) [mbigblock,below of=r5,node distance=2.8cm,text width=10cm] {Mostly individuals from middle and upper\\ socioeconomic strata (except for Chinese medicine use)};
     % Flows
-    \draw[thick,->] (m2) -- node[right] {yes} (m3) coordinate[midway](m23);
+    \draw[thick,->] (m2) -- node[auto] {yes} (m3) coordinate[midway](m23);
     \node[block,right=1.7cm of m23,yshift=-0.8cm] (m5) {Minimal\\out of\\pocket\\fees\\(waived for\\ the\\ indigent)};% <- renamed  
     \draw[thick,-] (m5.west|-m23) -- (m23);
     \draw[thick,->] (m2) -| (l1) ;

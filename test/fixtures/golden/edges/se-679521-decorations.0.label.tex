@@ -35,7 +35,7 @@
   \node(M)[bigbox, above=2.5mm of Y]{Text M};
   \node(N)[bigbox, below=2.5mm of Y]{Text N};
   \node(O)[bigellipse, left=3cm of Y]{Text O};
-  \draw[->](A)--node[above] {yes} (B);
+  \draw[->](A)--node[auto] {yes} (B);
   \draw[fork](B.east)--(D.west);
   \draw[fork](B.east)--(C.west);
   \draw[fork](B.east)--(E.west);

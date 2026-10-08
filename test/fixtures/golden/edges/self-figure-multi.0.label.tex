@@ -29,7 +29,7 @@ Two pictures in one document: the first sits inside a \verb|\resizebox|.
       \node[choice, below=of in] (odd)  {$n$ odd?};
       \node[box, right=of odd]   (tri)  {$n \gets 3n+1$};
       \node[box, below=of odd]   (half) {$n \gets n/2$};
-      \draw[->] (in) -- node[right] {yes} (odd);
+      \draw[->] (in) -- node[auto] {yes} (odd);
       \draw[->] (odd) -- node[above] {\yes} (tri);
       \draw[->] (odd) -- node[right] {\no}  (half);
       \draw[->] (tri) |- (in);

@@ -15,7 +15,7 @@
   \path[arrow] (idle) edge (ready)
                (ready) edge node {yes} (run)
                (ready) edge node[swap] {no} (wait);
-  \draw[arrow] (wait) -- node[above] {yes} (loop) |- (idle);
+  \draw[arrow] (wait) -- node[auto, swap] {yes} (loop) |- (idle);
   \draw[arrow] (run) to[bend right=30] node[pos=0.3, above, sloped] {done} (idle);
   \draw[arrow, dashed] (run.south) to[out=-90, in=0] (wait.east);
   \draw[arrow, dotted] (wait.south east) .. controls +(1,-1) and +(1,0) .. (run.south east);

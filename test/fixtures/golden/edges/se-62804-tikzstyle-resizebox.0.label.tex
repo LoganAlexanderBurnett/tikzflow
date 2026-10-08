@@ -23,7 +23,7 @@
         \node[block, right=3cm of stcd]                (stop) {Stop};
 
 
-        \path[line] (init) --          node[right] {yes} (nbrh);
+        \path[line] (init) --          node[auto] {yes} (nbrh);
         \path[line] (nbrh) --          (ovgt);
         \path[line] (ovgt) -- node{yes}(accp);
         \path[line] (ovgt) -- node{no} (rand);

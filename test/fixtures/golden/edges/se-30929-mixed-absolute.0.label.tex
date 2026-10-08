@@ -22,7 +22,7 @@
 \node (pfeil3) at (9.5,1.5) [arrow,left] {Text};
 \node (pfeil4) at (9.5,2.5) [arrow,left] {Lorem, Ipsum, Dolor, Sit};
 
-\draw[arr] (pfeil0.east) -- node[above] {yes} (stoffVor.west);
+\draw[arr] (pfeil0.east) -- node[auto] {yes} (stoffVor.west);
 \draw[arr] (stoffVor.east) -- (haupt.west);
 \draw[arr] (haupt.east) -- (stoffNach.west);
 \draw[arr] (stoffNach.north) --  ++(0,0.5) node [auto, swap, yshift=6] {Text} -| ($ (stoffVor.east) + (0.25,0) $);

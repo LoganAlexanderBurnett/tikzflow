@@ -66,7 +66,7 @@ font=\sffamily]
   \node[below=1cm of PR,standard,rounded corners=1em] (CEM) {Calculate\\ evaluation\\ metrics};
  \end{scope}
  \begin{scope}[-latex,thick]
-  \draw (VS.east) -- node[above] {yes} (T1.west);
+  \draw (VS.east) -- node[auto] {yes} (T1.west);
   \draw (T1) -- (T2) node[midway,right]{Mask test ratings};
   \draw[shorten >=1mm] (T2) -- (PE) node[midway,right]{Feed the model};
   \draw[shorten <=1mm] (PE) -- (PR);

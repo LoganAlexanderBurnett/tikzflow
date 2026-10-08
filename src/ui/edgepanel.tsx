@@ -27,7 +27,8 @@ import { pictureEnv } from "../model/document.ts";
 import { type Edge, edgeTitle, pathEdges } from "../model/edges.ts";
 import { describeMode, explainEdge, explainPath } from "../model/explain.ts";
 import { ColorPicker, Swatch } from "./colorpicker.tsx";
-import { applyEdgeProperty, baseLayout, deleteSelection, currentPicture, doc, selectedEdge, selection, startLabelEdit } from "./store.ts";
+import { flipBlocker } from "../edit/labels.ts";
+import { applyEdgeProperty, baseLayout, currentPicture, deleteSelection, doc, flipLabel, pickLabel, selectedEdge, selectedLabelId, selection, startLabelEdit } from "./store.ts";
 
 /** The label's TeX on one line, cut short. */
 function labelText(source: string): string {
@@ -230,13 +231,25 @@ export function EdgePanel() {
           <div class="tf-prop">
             <span class="tf-prop-label">Labels</span>
             <ul class="tf-edge-labels">
-              {edge.labels.map((n) => (
-                <li>
-                  <button class="link" onClick={() => startLabelEdit(n.id)} title="Edit this label">
-                    {labelText(n.syntax.label?.inner ? doc.value.text.slice(n.syntax.label.inner.from, n.syntax.label.inner.to) : "") || "(empty)"}
-                  </button>
-                </li>
-              ))}
+              {edge.labels.map((n) => {
+                const why = flipBlocker(layout, n.id);
+                return (
+                  <li class={n.id === selectedLabelId.value ? "picked" : undefined}>
+                    <button class="link" onClick={() => startLabelEdit(n.id)} onFocus={() => pickLabel(edge.id, n.id)} title="Edit this label">
+                      {labelText(n.syntax.label?.inner ? doc.value.text.slice(n.syntax.label.inner.from, n.syntax.label.inner.to) : "") || "(empty)"}
+                    </button>{" "}
+                    <button
+                      class="tf-small"
+                      data-testid="label-flip"
+                      disabled={!!why}
+                      title={why ?? "Put this label on the other side of the edge"}
+                      onClick={() => flipLabel(n.id)}
+                    >
+                      Flip side
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}

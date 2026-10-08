@@ -52,8 +52,8 @@ test("a decision with labelled branches, an edge restyled and its label slid, an
   await page.keyboard.press("Enter");
 
   let built = await code(page);
-  expect(built).toMatch(/\\draw\[->\] \(valid\) -- node\[near start, right\] \{Yes\} \(save\);/);
-  expect(built).toMatch(/\\draw\[->\] \(valid\) -- node\[near start, above\] \{No\} \(reportError\);/);
+  expect(built).toMatch(/\\draw\[->\] \(valid\) -- node\[near start, auto\] \{Yes\} \(save\);/);
+  expect(built).toMatch(/\\draw\[->\] \(valid\) -- node\[near start, auto\] \{No\} \(reportError\);/);
   await expect(page.getByTestId("summary-headline")).toHaveText("5 nodes and 4 edges editable");
   await page.screenshot({ path: "test-results/m2b-flowchart-built.png" });
 
@@ -65,7 +65,7 @@ test("a decision with labelled branches, an edge restyled and its label slid, an
   await page.getByTestId("edge-dash-dashed").click();
   await page.getByTestId("edge-width").selectOption("thick");
   built = await code(page);
-  expect(built).toMatch(/\\draw\[->, dashed, thick\] \(valid\) -- node\[near start, above\] \{No\} \(reportError\);/);
+  expect(built).toMatch(/\\draw\[->, dashed, thick\] \(valid\) -- node\[near start, auto\] \{No\} \(reportError\);/);
 
   // Slide its label.
   const label = page.getByTestId("edge-label").last();
@@ -74,7 +74,7 @@ test("a decision with labelled branches, an edge restyled and its label slid, an
   await page.mouse.down();
   await page.mouse.move(box.x + box.width / 2 + 25, box.y + box.height / 2, { steps: 5 });
   await page.mouse.up();
-  expect(await code(page)).toMatch(/node\[near start, above\] \{No\}|node\[above, pos=0\.\d+\] \{No\}|node\[pos=0\.\d+, above\] \{No\}/);
+  expect(await code(page)).toMatch(/node\[(near start|pos=0\.\d+), auto\] \{No\}|node\[auto, pos=0\.\d+\] \{No\}/);
 
   // Delete the error node: its edge goes with it, and nothing else moves.
   const before = await code(page);
@@ -82,7 +82,7 @@ test("a decision with labelled branches, an edge restyled and its label slid, an
   await page.keyboard.press("Delete");
   const after = await code(page);
   expect(after).not.toContain("reportError");
-  expect(after).toContain("\\draw[->] (valid) -- node[near start, right] {Yes} (save);");
+  expect(after).toContain("\\draw[->] (valid) -- node[near start, auto] {Yes} (save);");
   await expect(page.getByTestId("summary-headline")).toHaveText("4 nodes and 3 edges editable");
   await page.keyboard.press("Control+z");
   expect(await code(page)).toBe(before);

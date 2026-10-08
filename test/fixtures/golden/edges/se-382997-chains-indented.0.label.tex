@@ -103,7 +103,7 @@
     % draw a path with a (consistently positioned) annotation node, then
     % we draw the arrow itself.
     \path (t1.south) to node [near start, xshift=1em] {$y$} (p2);
-\draw [->,lcnorm] (t1.south) -- node[right] {yes} (p2);
+\draw [->,lcnorm] (t1.south) -- node[auto] {yes} (p2);
 %\path (t1.east) to node [near start, xshift=1em] {$n$} (p4);
 %\draw [->,lcnorm] (t1.east) -- (p4.west);
 \draw[->,lcnorm] (t1.east)--++(0:10mm) node[near start, above] {$n$} |-(p4);

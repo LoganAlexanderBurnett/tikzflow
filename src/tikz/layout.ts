@@ -1173,6 +1173,8 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint, 
       }
       // Path coordinates ("coordinate (m)") are named points, kept with the nodes.
       const placed = layoutNode(synEff, scope, ctx, pn.syn.kind === "coordinate" ? "coordinate" : "path", nodeState, syn, where);
+      // The node keeps the syntax as written: the anchor `auto` implies is not in the code, and edits locate options through it.
+      if (placed) placed.syntax = pn.syn;
       // It moves with whatever the path goes through.
       if (placed) placed.position.refs = [...new Set([...placed.position.refs, ...pathRefs])];
       if (placed && seg && pn.syn.kind !== "coordinate") placed.pathPos = { t, point: where.point };

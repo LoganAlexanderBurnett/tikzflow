@@ -10,7 +10,7 @@
 		\node[draw=none] (n\i) at (\i, -2) {$\lbl_{\i}$};
 	}
 
-	\draw[->] (a) to[bend left=20] node[midway, above] {go} node[below] {yes} (b);
+	\draw[->] (a) to[bend left=20] node[midway, above] {go} node[auto, swap] {yes} (b);
 	\draw[->]   (b)  .. controls +(1,-1) and +(1,1) ..  (c);
 	\draw (c) -| ++(-1.5,1) coordinate (corner) -- (a);
 	\path (a) edge[->, dashed] (c)

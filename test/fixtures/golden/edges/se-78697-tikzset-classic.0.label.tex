@@ -34,7 +34,7 @@ data/.style = {draw, trapezium,node distance=3cm,fill=olive!20}
     \node [block, below of=decide, node distance=3cm] (test) {test};
     \node [subroutine, below of=test, node distance=3cm] (sub) {part1\nodepart{two}part2\nodepart{three}part3};
     % Draw edges
-    \path [line] (init) -- node[right] {yes} (identify);
+    \path [line] (init) -- node[auto] {yes} (identify);
     \path [line] (identify) -- (evaluate);
     \path [line] (evaluate) -- (decide);
     \path [line] (decide) -| node [near start] {yes} (update);

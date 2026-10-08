@@ -449,7 +449,7 @@ test("Add label here writes a label where the edge was clicked, and Escape write
   await page.getByTestId("menu-add-label").click();
   await page.keyboard.type("go on");
   await page.keyboard.press("Enter");
-  expect(await code(page)).toMatch(/\\draw\[->\] \(a\) -- node\[pos=0\.2[05]?, (above|below|left|right)\] \{go on\} \(b\);/);
+  expect(await code(page)).toMatch(/\\draw\[->\] \(a\) -- node\[pos=0\.2[05]?, auto(, swap)?\] \{go on\} \(b\);/);
   await expect(page.getByTestId("edge-label")).toHaveCount(1);
   // One undo takes it away.
   await page.keyboard.press("Control+z");
@@ -566,5 +566,5 @@ test("a new node out of a decision gets its Yes label", async ({ page }) => {
   await page.keyboard.press("Tab");
   await page.keyboard.type("Do it");
   await page.keyboard.press("Enter");
-  expect(await code(page)).toMatch(/\\draw\[->\] \(d\) -- node\[near start, (right|above)\] \{Yes\} \(doIt\);/);
+  expect(await code(page)).toMatch(/\\draw\[->\] \(d\) -- node\[near start, auto(, swap)?\] \{Yes\} \(doIt\);/);
 });

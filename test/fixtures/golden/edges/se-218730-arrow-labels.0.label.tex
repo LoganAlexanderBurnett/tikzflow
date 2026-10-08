@@ -55,7 +55,7 @@ P, V, X};
 
 
     % Draw edges
-    \path [line] (init) -- node[right] {yes} (setloadavg);
+    \path [line] (init) -- node[auto] {yes} (setloadavg);
     \path [line] (setloadavg) -- (setk);
     \path [line] (setk) -- (startsim);
     \path [line] (startsim) -- (setloadlevel);

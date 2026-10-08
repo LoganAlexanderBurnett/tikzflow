@@ -48,7 +48,7 @@ Two pictures in one document: the first sits inside a \verb|\resizebox|.
       \node[box, below=of b] (c) {C};
     \end{scope}
     { [dashed]
-      \draw (a) -- node[above] {yes} (b);
+      \draw (a) -- node[auto] {yes} (b);
       \draw (b) -- (c);
     }
     \draw[->, brand] (c) -| (a);

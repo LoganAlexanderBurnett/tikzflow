@@ -47,7 +47,7 @@ arrow/.style = {thick,->,>=stealth}
 \node (final) [startstop, below=of stopping] {Final best solution};
 
 % Arrows
-\draw [arrow] (start) -- node[right] {yes} (employedBee);
+\draw [arrow] (start) -- node[auto] {yes} (employedBee);
 \draw [arrow] (employedBee.south) --++(0,-0.5) -| (placeBee);
 \draw [arrow] (placeBee) -- (evaluate);
 \draw [arrow] (evaluate) -- (returnBee);

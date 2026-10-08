@@ -11,7 +11,7 @@ import { planMakeCurved } from "../edit/curves.ts";
 import { planMakeOrthogonal } from "../edit/orthogonal.ts";
 import { planSplit } from "../edit/split.ts";
 import { planAddVertex, planRemoveVertex, planStraighten } from "../edit/vertices.ts";
-import { planAddLabel } from "../edit/labels.ts";
+import { planAddLabel, planFlipLabel } from "../edit/labels.ts";
 import { type DeleteTarget, planDelete } from "../edit/delete.ts";
 import { type EdgeEdit, type EdgeScope, planEdgeProperty } from "../edit/edgeprops.ts";
 import { draftOf, labelBlocker, labelledNode, labelProblem, planLabelEdit } from "../edit/label.ts";
@@ -502,6 +502,34 @@ export function startAddLabel(edgeId: string, at: Point): boolean {
 }
 
 const ADD_LABEL_PLACEHOLDER = "label";
+
+/** The label picked on the canvas, on the selected edge: flipping its side acts on it (D57). */
+const pickedLabel = signal<{ edgeId: string; labelId: string } | null>(null);
+
+/** Picks a label of an edge, or none. */
+export function pickLabel(edgeId: string | null, labelId: string | null): void {
+  pickedLabel.value = edgeId && labelId ? { edgeId, labelId } : null;
+}
+
+/** The picked label, while its edge is the selected one. */
+export const selectedLabelId = computed<string | null>(() => {
+  const sel = selection.value;
+  const p = pickedLabel.value;
+  if (!p || sel?.kind !== "edge" || sel.id !== p.edgeId) return null;
+  return baseLayout.value?.pathNodes.some((n) => n.id === p.labelId) ? p.labelId : null;
+});
+
+/** "Flip side": the label goes to the other side of its edge (D57). */
+export function flipLabel(labelId: string): boolean {
+  const r = planFlipLabel(text.value, currentPicture.value, labelId);
+  if (!r.ok) {
+    status.value = r.reason;
+    return false;
+  }
+  pickedLabel.value = { edgeId: r.edgeId, labelId: r.labelId };
+  applyEdgeEdit(r.changes, "input.edge.label.flip", `Flipped the label to the other side of the edge: ${r.written}`, r.edgeId);
+  return true;
+}
 
 /** Writes the label being added, with the text typed. An empty label adds nothing. */
 function commitAddLabel(e: LabelEdit, adding: NonNullable<LabelEdit["adding"]>): boolean {
