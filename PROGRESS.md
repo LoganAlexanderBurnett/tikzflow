@@ -10,7 +10,7 @@ Milestone 0 is done and was approved on 2026-10-07:
 
 **Milestone 2a (nodes and styles): done and approved (2026-10-07).** The owner tested it by hand; their answers are in DECISIONS.md D44 and "M2a review" below.
 
-**Now:** Milestone 2b (edges). The plan was approved on 2026-10-07 (D45). Steps 1–3 were reviewed and approved (D49). Steps 4–6 are being done without a checkpoint between them, as the owner asked. Milestone 2 was split into 2a and 2b, each with its own checkpoint (D32). The full list is in SPEC.md, "Milestone 2b". Also read the "Notes for later milestones" below.
+**Now:** Milestone 2b (edges). The plan was approved on 2026-10-07 (D45). Steps 1–3 were reviewed and approved (D49). Steps 4–6 are done (report below) and waiting for the owner's review; step 7 hasn't been started. Milestone 2 was split into 2a and 2b, each with its own checkpoint (D32). The full list is in SPEC.md, "Milestone 2b". Also read the "Notes for later milestones" below.
 
 ## M2b plan and status
 | Step | Content | Status |
@@ -25,6 +25,60 @@ Milestone 0 is done and was approved on 2026-10-07:
 | 8 | Edge properties panel with edge-or-style scope | Not started |
 | 9 | Delete nodes and edges (re-attach or pin dependents, drop dangling edges) | Not started |
 | 10 | Context menu polish, end-to-end tests, goldens, sweep, docs, report, push | Not started |
+
+## M2b steps 4–6 (2026-10-08)
+Done in one go, as the owner asked, with a commit after each step. The owner's answers on steps 1–3 (D49) are in too: "Split into separate edges" and moving an edge's code below a later node.
+
+### How to try it
+- `npm run dev`, open http://localhost:5173, and click the `rec → stop` edge.
+- **Corners (step 4).** A faint ghost handle sits in the middle of each straight segment. Drag it to add a corner: `\draw[->] (rec) -- ++(9mm,-9mm) -- (stop);`. Drag the diamond-shaped corner to move it (it snaps level and plumb with nodes and its neighbours, e.g. `(b |- a)`); double-click it to remove it.
+- **Right-click the edge** (or Shift+F10): Add vertex here, Remove vertex, Straighten, Make orthogonal, Make curved, Change start/end anchor, and, for a `\draw` with several edges, Split into separate edges. Disabled items say why on hover.
+- **Orthogonal (step 5).** "Make orthogonal" on a diagonal edge writes `(a) -| (b)` or `(a) |- (b)`, whichever crosses no node. Click the sample's `base |- stop` edge: each segment has a small bar. Drag the horizontal one up a little and the edge meets Stop higher, `([yshift=2mm]stop.east)`; drag it beyond Stop's top and a short piece out of Stop is added. Alt turns snapping off.
+- **Curves (step 6).** "Make curved" writes `to[bend left]`. Drag a control point: `to[bend left=50, looseness=1.7]`, both handles moving together. Hold Alt to drag one end on its own: `to[out=60, in=180]`.
+- **Split.** Paste `\draw[->] (a) -- (b) -- (c);` with three nodes. Dragging the shared end is refused, and the message points to "Split into separate edges", which writes `\draw[-] (a) -- (b);` and `\draw[->] (b) -- (c);`.
+- **Later nodes.** Drop an end on a node defined below the edge's code: the `\draw` moves below that node in the same undo step, and the status bar says so.
+
+### What works
+- **The edit core takes edits that add or remove points** (`editPath`, D50). Every edge edit is still checked by laying out the result: nothing else moves, points it leaves alone stay put (relative points after it are held), and points it writes land where they were dropped.
+- **Step 4: corners and Straighten (D50).** New corners are written in emitter order: perpendicular, `++(…)` from the point before, or plain numbers in plain pictures. A segment's labels stay on the half they were nearer. Straighten keeps labels, comments, spacing and a `to`'s other keys.
+- **Split into separate edges (D49, D50).** Arrow tips stay where they were: `<->` becomes `<-` on the first piece and `->` on the last; tips from a style are turned off with `-` where needed. The split is checked edge by edge: same segments, tips, labels, colour and line.
+- **Moving an edge below a later node (D49, D50),** with its trailing comment, when the statement is at the top level and defines no name other code uses.
+- **Step 5: orthogonal mode (D51).** Single corner where it can; two corners through the middle when both single corners would cross a node; anchors on a side decide which way the route leaves. Sliding writes the route again as a `|-`/`-|` chain. An end piece moves along the node's side: `([yshift=2mm]a.east)`, `(a.east |- c)` when it lines up with another node, a border angle `(a.34)` on diamonds and ellipses, and back to `(a)` on the centre line.
+- **Step 6: curved mode (D52).** Bends stay symmetric while dragged; free curves are written as `out`/`in` with one or two loosenesses and turn back into a bend when dragged symmetric; `.. controls ..` curves keep their form.
+- **Interpreter, checked with pdfTeX.** Bends now measure their control points from the line between the border points, as `tikzlibrarytopaths` does: they were up to 0.6 pt off and are now within 0.1 pt (new probe `p5-curves.tex`, 12 curve points). Also read now: `out looseness`, `in looseness`, `relative`, `bend angle`. A shifted anchor, `([yshift=2mm]a.east)`, counts as an end on `a`.
+- **Fixed:** an edge's selection didn't follow edits before it in the code (`mapPathId` had lost a backslash); Escape didn't close the menu if pressed before it took the focus.
+
+### Tests
+- **Vitest:** 657 tests in 18 files, about 11 s. New:
+  - `test/vertices.test.ts` (14): adding, removing, Straighten, label halves, held points, and a corpus sweep that straightens every bent or curved edge;
+  - `test/orthogonal.test.ts` (15): single and double corners, anchors, sliding middle and end pieces, border angles, stubs, snapping, and a corpus sweep;
+  - `test/curves.test.ts` (11): Make curved, symmetric bends, out/in, two loosenesses, back to a bend, Alt, controls, `edge` operations, and a corpus sweep;
+  - `test/edge-ends.test.ts` (+7): moving the code below a later node and its refusals, and Split (tips, styles, refusals, kinds of operation).
+
+  The corpus has no `\draw` with more than one edge, so Split is tested on written examples. The golden minimal-diff files didn't change.
+- **Playwright:** 72 tests in Edge, about 47 s. `test/e2e/edges.spec.ts` has 10 new: ghost drag and double-click, moving a corner to `(b |- a)`, Straighten, Add/Remove vertex from the menu, Split then moving the freed end, Make orthogonal, sliding a middle segment, sliding the sample's `|-` along Stop, Make curved and dragging a bend, and Alt-dragging to `out`/`in`.
+- **Fidelity:** 235 of 331 nodes within 1 pt of pdfTeX: M2a's 204 plus the 31 probe points of `p4` and `p5`. No corpus node changed.
+- `npm run typecheck` and `npm run build` pass. `npm run layout:bench` is unchanged (parse 7.8 ms, layout 7.8 ms, edge model 1.0 ms, drop 35 ms).
+- I checked the ghost drag, the new corner, sliding and the curve drag in screenshots from Playwright's Edge. The app's browser pane still can't take screenshots in this environment.
+
+### Known limits (steps 4–6)
+- **Corners go on straight segments only.** A curved segment is straightened first; orthogonal edges slide their segments instead of showing corners.
+- **`edge` operations** (`(a) edge (b)`) join their ends directly: they can be curved and straightened, but can't get corners or an orthogonal route.
+- **Rewriting the code between two ends** (Straighten, Make orthogonal, Make curved, sliding) is refused when the path has options in the middle (they apply to all of it) or an `edge` operation there.
+- **Labels on a rewritten edge** go after the piece they are nearest; their `pos=` isn't adjusted yet (step 7).
+- **Make orthogonal** checks only node boxes for crossings, not labels or other edges, and its fallback is two corners through the middle.
+- **Rounding:** corners and shifts in whole millimetres; bend angles to 5°, `out`/`in` to 1°, looseness to 0.1. A border angle (`(a.34)`) can sit up to about 0.3 pt off the line it was slid to.
+- **`rounded corners`** don't change a rectangle's border in TikZ, so a slid edge meets a terminal's side where the sharp rectangle would be, a fraction of a millimetre outside the drawn curve. pdfTeX draws it the same way.
+- **A dragged curve replaces the curve keys it finds** (`distance`, `min distance` and the like, which the preview doesn't draw yet) with what it writes. Other keys stay.
+- **`.. controls ..` is never introduced,** only kept.
+- **Split** is refused when tips on both ends come from a style, when the arrow key is set in the middle of the path, and for paths with `edge` operations.
+- **Moving an edge below a later node** is refused inside a scope and for `\node ... edge` statements.
+
+### Decisions for you
+1. **Bend angles snap to 5°** while dragging (`bend left=45`), `out`/`in` to whole degrees. Is 5° right for bends, or should they be whole degrees too?
+2. **Alt frees a bend** (drags one control point on its own, writing `out`/`in`). Alt already means "no snapping" elsewhere. OK, or would you prefer another key?
+3. **Sliding an end segment along a node** writes `([yshift=2mm]a.east)`. The alternative is to always add a short piece out of the node and keep `(a)`. Is the shifted anchor readable enough?
+4. **`edge` operations:** should "Make orthogonal" and corners convert `(a) edge (b)` into `(a) -- (b)` (a different operation, which also changes how its options apply), or keep refusing?
 
 ## M2b steps 1–3 (2026-10-07)
 ### How to try it
@@ -77,7 +131,7 @@ Milestone 0 is done and was approved on 2026-10-07:
 - **A path that defines a coordinate another path uses** refuses edits that would move that coordinate.
 - **Edges inside `\foreach` or other blocks kept as-is** aren't edges; they still aren't drawn natively (M3).
 
-### Decisions for you
+### Decisions for you (answered 2026-10-07, D49)
 1. **Shared ends:** should dropping the shared end of `(a) -- (b) -- (c)` split the statement into two `\draw`s? It would change a single `->` tip into two. Or keep refusing?
 2. **Ends on later nodes:** should the editor move the edge's code below the node it is dropped on, instead of refusing?
 3. **New edges:** dropping on a node's middle gives `(a) -- (b)`, and on an anchor dot gives both anchors. Is that the rule you want?
