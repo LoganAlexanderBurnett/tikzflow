@@ -78,13 +78,13 @@ export function dependents(layout: PictureLayout, id: string): Set<string> {
 }
 
 /** Nodes a moved node may be positioned relative to: defined earlier, named, not depending on it. */
-export function referenceCandidates(layout: PictureLayout, node: LaidOutNode): LaidOutNode[] {
+export function referenceCandidates(layout: PictureLayout, node: LaidOutNode, exclude?: ReadonlySet<string>): LaidOutNode[] {
   const index = layout.nodes.indexOf(node);
   const deps = dependents(layout, node.id);
   const latest = new Map<string, LaidOutNode>();
   for (const n of layout.nodes.slice(0, index)) if (n.name) latest.set(n.name, n);
   return [...latest.values()].filter(
-    (n) => n.kind === "statement" && n.name && !n.implicitName && SIMPLE_NAME.test(n.name) && !deps.has(n.id) && n.name !== node.name,
+    (n) => n.kind === "statement" && n.name && !n.implicitName && SIMPLE_NAME.test(n.name) && !deps.has(n.id) && n.name !== node.name && !exclude?.has(n.name),
   );
 }
 
@@ -100,8 +100,8 @@ const OPPOSITE_ANCHOR: Record<string, string> = {
 };
 
 /** Candidate specs for putting `node` with its centre at `c`, best first. */
-export function candidateSpecs(layout: PictureLayout, node: LaidOutNode, c: Point): PositionSpec[] {
-  const refs = referenceCandidates(layout, node).sort(
+export function candidateSpecs(layout: PictureLayout, node: LaidOutNode, c: Point, exclude?: ReadonlySet<string>): PositionSpec[] {
+  const refs = referenceCandidates(layout, node, exclude).sort(
     (a, b) => Math.hypot(a.shape.center.x - c.x, a.shape.center.y - c.y) - Math.hypot(b.shape.center.x - c.x, b.shape.center.y - c.y),
   );
   // Positioning distances and node shifts are not scaled by the picture's
@@ -118,7 +118,7 @@ export function candidateSpecs(layout: PictureLayout, node: LaidOutNode, c: Poin
   const kept: PositionSpec[] = [];
   const prev = previousRelation(layout, node);
   // The node it was positioned relative to stays a candidate even if it is a coordinate.
-  const prevTarget = prev && layout.nodes.find((n) => n.name === prev.target && !refs.includes(n));
+  const prevTarget = prev && !exclude?.has(prev.target) && layout.nodes.find((n) => n.name === prev.target && !refs.includes(n));
   const targets = prevTarget ? [...refs, prevTarget] : refs;
   // Keeping the position as written and setting the node's own shifts.
   const own = ownShift(node.syntax);
@@ -204,11 +204,14 @@ export function candidateSpecs(layout: PictureLayout, node: LaidOutNode, c: Poin
   // A node that was placed with plain numbers keeps that style unless the
   // drop lines up with other nodes.
   const wasAbsolute = node.position.kind === "at" && node.position.refs.length === 0;
+  // Keeping the position as written (with a shift) keeps the names it refers to, which a caller may be removing.
+  const dropsNames = !!exclude && node.position.refs.some((r) => exclude.has(r));
+  const usable = (list: PositionSpec[]) => (dropsNames ? list.filter((sp) => sp.kind !== "shift") : list);
   if (wasAbsolute) return [...specs, ...perp.slice(0, 1), ...explicit.slice(0, 1), absolute];
   // Order: lined up at node distance; lined up with two nodes; lined up at
   // another distance; the relation it had before (with a shift if needed);
   // a nearby diagonal; a nearby node plus a shift; plain coordinates.
-  return [...specs, ...perp.slice(0, 1), ...nudged.slice(0, 1), ...explicit.slice(0, 2), ...kept, ...diagonal.slice(0, 1), ...shifted.slice(0, 1), absolute];
+  return usable([...specs, ...perp.slice(0, 1), ...nudged.slice(0, 1), ...explicit.slice(0, 2), ...kept, ...diagonal.slice(0, 1), ...shifted.slice(0, 1), absolute]);
 }
 
 /** Diagonal gaps and shifts are only used up to this distance, in pt. */
@@ -409,13 +412,13 @@ function mergeInserts(changes: Change[]): Change[] {
  * Plans moving node `nodeId` of picture `picIndex` so its centre is at
  * `center`. Returns null if the node can't be moved.
  */
-export function planMove(text: string, picIndex: number, nodeId: string, center: Point): MoveResult | null {
+export function planMove(text: string, picIndex: number, nodeId: string, center: Point, exclude?: ReadonlySet<string>): MoveResult | null {
   const doc = analyzeDocument(text);
   const layout = layoutDocumentPicture(doc, picIndex);
   const node = layout?.nodes.find((n) => n.id === nodeId);
   if (!layout || !node || node.locked || node.kind === "path") return null;
   const syn = node.syntax;
-  for (const spec of candidateSpecs(layout, node, center)) {
+  for (const spec of candidateSpecs(layout, node, center, exclude)) {
     const result = trySpec(text, picIndex, node, syn, spec, center);
     if (!result) continue;
     // Relational positions need the positioning library.

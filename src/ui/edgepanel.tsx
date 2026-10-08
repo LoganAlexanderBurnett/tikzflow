@@ -27,7 +27,7 @@ import { pictureEnv } from "../model/document.ts";
 import { type Edge, edgeTitle, pathEdges } from "../model/edges.ts";
 import { describeMode, explainEdge, explainPath } from "../model/explain.ts";
 import { ColorPicker, Swatch } from "./colorpicker.tsx";
-import { applyEdgeProperty, baseLayout, currentPicture, doc, selectedEdge, selection, startLabelEdit } from "./store.ts";
+import { applyEdgeProperty, baseLayout, deleteSelection, currentPicture, doc, selectedEdge, selection, startLabelEdit } from "./store.ts";
 
 /** The label's TeX on one line, cut short. */
 function labelText(source: string): string {
@@ -243,6 +243,11 @@ export function EdgePanel() {
         {!help && <p class="tf-note">{howTo(edge.mode)} Drag an end to another anchor or node. Right-click the edge for more (Add label here too). Drag a label to slide it along the edge; double-click it to edit it.</p>}
       </section>
       <EdgeProperties key={edge.id} edge={edge} />
+      <div class="tf-actions">
+        <button data-testid="delete-selection" onClick={() => deleteSelection()} title="Delete this edge (the Delete key does the same)">
+          Delete edge
+        </button>
+      </div>
     </>
   );
 }

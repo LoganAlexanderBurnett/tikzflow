@@ -3,6 +3,7 @@
 import { useSignal } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
 import { edgeOpBlocker } from "../edit/edgeop.ts";
+import { deleteBlocker } from "../edit/delete.ts";
 import { addLabelBlocker } from "../edit/labels.ts";
 import { endBlocker, endStop } from "../edit/edges.ts";
 import { splitBlocker } from "../edit/split.ts";
@@ -10,7 +11,7 @@ import { edgeVertices, isEdgeOperation, nearestLineSegment } from "../edit/verti
 import { type Edge, pathEdges } from "../model/edges.ts";
 import { anchorPoint, type Point } from "../tikz/shapes.ts";
 import { curveBlocker } from "../edit/curves.ts";
-import { addVertex, startAddLabel, baseLayout, makeCurved, makeOrthogonal, moveEnd, removeVertex, splitEdge, straightenEdge } from "./store.ts";
+import { addVertex, deleteSelection, startAddLabel, baseLayout, makeCurved, makeOrthogonal, moveEnd, removeVertex, splitEdge, straightenEdge } from "./store.ts";
 
 /** The compass, laid out as it points; the middle is the border ("automatic"). */
 const COMPASS: Array<string | null> = ["north west", "north", "north east", "west", null, "east", "south west", "south", "south east"];
@@ -179,6 +180,8 @@ export function EdgeMenu({ edge, x, y, at, onClose }: { edge: Edge; x: number; y
       <AnchorItem edge={edge} which="from" open={open.value === "from"} onOpen={() => (open.value = "from")} onDone={onClose} />
       <AnchorItem edge={edge} which="to" open={open.value === "to"} onOpen={() => (open.value = "to")} onDone={onClose} />
       <SplitItem edge={edge} close={onClose} hover={() => (open.value = null)} />
+      <div class="tf-menu-sep" role="separator" />
+      <ActionItem label="Delete edge" why={deleteBlocker(edge)} testid="menu-delete" onHover={() => (open.value = null)} run={() => (onClose(), deleteSelection())} />
     </div>
   );
 }

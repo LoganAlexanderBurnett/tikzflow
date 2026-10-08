@@ -27,7 +27,7 @@ import type { LaidOutNode, PictureLayout } from "../tikz/layout.ts";
 import { ColorPicker, Swatch } from "./colorpicker.tsx";
 import { EdgePanel, PathPanel } from "./edgepanel.tsx";
 import { StylePanel } from "./stylepanel.tsx";
-import { applyProperty, attachNode, baseLayout, currentPicture, doc, matchSize, pinNode, scopeStyle, selectedNodes, selection } from "./store.ts";
+import { applyProperty, attachNode, deleteSelection, baseLayout, currentPicture, doc, matchSize, pinNode, scopeStyle, selectedNodes, selection } from "./store.ts";
 
 function LockCard({ layout, node }: { layout: PictureLayout; node: LaidOutNode }) {
   const candidates = attachCandidates(layout, node).map((n) => n.name!);
@@ -366,6 +366,15 @@ export function Inspector() {
             {nodes.length === 1 ? nodeTitle(primary) : `${nodes.length} nodes`}
           </h2>
           {primary.lock && <LockCard key={primary.id} layout={layout} node={primary} />}
+          <div class="tf-actions">
+            <button
+              data-testid="delete-selection"
+              onClick={() => deleteSelection()}
+              title="Delete the selected nodes and the edges that led to them. Nodes placed relative to them are re-attached or pinned where they are. The Delete key does the same."
+            >
+              {nodes.length === 1 ? "Delete node" : `Delete ${nodes.length} nodes`}
+            </button>
+          </div>
           {statements.length > 0 ? (
             <Properties key={key} layout={layout} nodes={statements} />
           ) : (

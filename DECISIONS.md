@@ -752,3 +752,17 @@ Steps 4–6 are done without a checkpoint between them, as the owner asked.
 - **Reading:** the panel shows what the edge gets from its options and styles, and which style it comes from.
 
 **Why:** The same scope idea as the node panel (D37), so a figure that styles edges through a named style (`\draw[flow]`) is edited at the style, and a hand-written `\draw[->, thick]` is edited in place.
+
+## D56: Delete (M2b step 9, 2026-10-08)
+**Decision:** `src/edit/delete.ts`. The Delete key (or Backspace) on the canvas, a button in the panel and "Delete edge" in the edge menu remove the selected nodes, edge or path as one undo step. The selection is cleared.
+- **Nodes** (several may be selected). In this order, each step re-drawing the picture:
+  1. **Nodes placed relative to a deleted node** (`below=of b`, `at (b |- a)`, `at (b.south)`, a `\coordinate` at it) are written again against nodes that stay, where they are now: the move planner (D24) with the deleted names excluded, so `below=of b` becomes `below=26mm of a` or `at (a |- c)`, and when nothing else fits they get plain coordinates ("pinned at its current position"). The status bar lists what was re-attached.
+  2. **Corners of edges that stay**, written relative to a deleted node (`(b |- d)`), are written another way (relative to the point before, or plain), by the waypoint writer (D47) with the names excluded.
+  3. **Edges that would be left dangling are deleted**: every edge that starts or ends at a deleted node. An edge in a `\draw` with several edges is split out first, and an `edge` operation becomes a `--` of its own first (D49, D53), so only that edge goes. A path that starts in a deleted node's own `\node … edge …;` statement goes with it.
+  4. **The node statements** are removed: the whole line, and a comment after the statement on that line, when it is alone there; otherwise only the statement.
+- **An edge:** the same, for one edge. **A path** that isn't an edge (a circle, a `\path` with only labels) is removed as a statement.
+- **Checked by drawing the result:** no new syntax errors, every other node within 1.5 mm of where it was, no name that LaTeX would reject that wasn't already rejected, and every other edge still joining the same nodes. Anything else refuses, with the reason, and the code stays as it was.
+- **Refused, with the reason:** a name used in code the editor keeps as written (a loop, a matrix, a pic); a node in the `fit` of another one (take it out of the fit first); a node written inside a path (`… coordinate (m)`); a node that is part of a chain or placed in a way that can't be rewritten without moving it; an edge kept as written (shapes, code it doesn't understand).
+- **Not done:** libraries and styles that nothing uses any more are left alone (D34's conservative rule); labels of a deleted edge go with it.
+
+**Why:** "Never leave code LaTeX can't compile" (D36) extends to removal. Moving dependents to where they were, not leaving them to jump, is what someone deleting a box in the middle of a flow expects, and the exclusion approach reuses the planner that already knows how to write a position readably.

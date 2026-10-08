@@ -40,6 +40,7 @@ import {
   commitLabelEdit,
   connectNodes,
   createFromKeyboard,
+  deleteSelection,
   moveEnd,
   previewEnd,
   dropFromPalette,
@@ -1433,6 +1434,12 @@ export function Canvas() {
       const v = view.value;
       const mid = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
       openMenu(edge.id, (mid.x - v.cx) * v.scale + size.value.w / 2, (v.cy - mid.y) * v.scale + size.value.h / 2, mid);
+      return;
+    }
+    // Delete removes the selection, re-attaching or pinning what depended on it (D56).
+    if ((e.key === "Delete" || e.key === "Backspace") && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && !labelEdit.value && selection.value) {
+      e.preventDefault();
+      deleteSelection();
       return;
     }
     if (e.key === "F2" && selectedIds.value.length) {

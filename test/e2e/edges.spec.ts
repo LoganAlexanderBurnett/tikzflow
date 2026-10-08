@@ -510,6 +510,55 @@ test("the edge panel can edit the style an edge uses, so every edge using it cha
   expect(await code(page)).toContain("flow/.style={->, thick}");
 });
 
+// ---------------------------------------------------------------- step 9: delete
+
+test("Delete removes a node with its edges, re-attaches what hung from it, and one undo brings it all back", async ({ page }) => {
+  const before = await code(page);
+  const rec = await nodeBox(page, "rec");
+  await page.mouse.click(rec.x + rec.width / 2, rec.y + rec.height / 2);
+  await expect(page.getByTestId("delete-selection")).toHaveText("Delete node");
+  await page.keyboard.press("Delete");
+  const after = await code(page);
+  expect(after).not.toContain("(rec)");
+  // stop was below rec: it hangs from small now, and nothing mentions rec any more.
+  expect(after).toMatch(/\\node\[terminal, below=[^\]]*of small\]\s+\(stop\)/);
+  expect(after).not.toMatch(/\brec\b/);
+  await expect(page.getByTestId("status")).toContainText("Deleted rec and 2 edges that led to it");
+  await expect(page.getByTestId("summary-headline")).toHaveText("5 nodes and 4 edges editable");
+  await page.screenshot({ path: "test-results/m2b-deleted.png" });
+  await page.keyboard.press("Control+z");
+  expect(await code(page)).toBe(before);
+});
+
+test("Delete removes the selected edge, from the key, the menu and the panel", async ({ page }) => {
+  const before = await code(page);
+  const id = await selectEdge(page, 4); // rec → stop
+  await page.keyboard.press("Delete");
+  expect(await code(page)).toBe(before.replace("  \\draw[->] (rec)   -- (stop);\n", ""));
+  await expect(page.getByTestId("summary-headline")).toHaveText("6 nodes and 5 edges editable");
+  await page.keyboard.press("Control+z");
+  expect(await code(page)).toBe(before);
+  const p = await onEdge(page, (await edgeIds(page))[4]!);
+  await page.mouse.click(p.x, p.y, { button: "right" });
+  await page.getByTestId("menu-delete").click();
+  expect(await code(page)).toBe(before.replace("  \\draw[->] (rec)   -- (stop);\n", ""));
+  await page.keyboard.press("Control+z");
+  await selectEdge(page, 4);
+  await page.getByTestId("delete-selection").click();
+  expect(await code(page)).toBe(before.replace("  \\draw[->] (rec)   -- (stop);\n", ""));
+  expect(id).toBeTruthy();
+});
+
+test("a deletion that would leave a dangling reference is refused with the reason", async ({ page }) => {
+  await setCode(page, "\\begin{tikzpicture}\n\\node[draw] (a) at (0,0) {A};\n\\node[draw] (b) at (2,0) {B};\n\\node[draw, fit=(a) (b)] (box) {};\n\\end{tikzpicture}\n");
+  const before = await code(page);
+  await page.evaluate(() => (window as unknown as { tikzflow: { store: { selectNodes: (ids: string[]) => void } } }).tikzflow.store.selectNodes(["a"]));
+  await page.locator("svg.tf-canvas").focus();
+  await page.keyboard.press("Delete");
+  expect(await code(page)).toBe(before);
+  await expect(page.getByTestId("status")).toContainText("part of the fit");
+});
+
 test("a new node out of a decision gets its Yes label", async ({ page }) => {
   await setCode(page, "\\begin{tikzpicture}[node distance=8mm]\n\\node[draw, diamond] (d) at (0,0) {Ok?};\n\\end{tikzpicture}\n");
   await expect(page.getByTestId("summary-headline")).toContainText("1 node");

@@ -12,6 +12,7 @@ import { planMakeOrthogonal } from "../edit/orthogonal.ts";
 import { planSplit } from "../edit/split.ts";
 import { planAddVertex, planRemoveVertex, planStraighten } from "../edit/vertices.ts";
 import { planAddLabel } from "../edit/labels.ts";
+import { type DeleteTarget, planDelete } from "../edit/delete.ts";
 import { type EdgeEdit, type EdgeScope, planEdgeProperty } from "../edit/edgeprops.ts";
 import { draftOf, labelBlocker, labelledNode, labelProblem, planLabelEdit } from "../edit/label.ts";
 import { withLibraries } from "../edit/libraries.ts";
@@ -854,5 +855,28 @@ export function applyEdgeProperty(edgeId: string, scope: EdgeScope, edit: EdgeEd
     return false;
   }
   applyEdgeEdit(r.changes, "input.edge.props", `${done}${scope.kind === "style" ? ` through the ${scope.name} style` : ""}.${r.notes.map((n) => ` Note: ${n}.`).join("")}`);
+  return true;
+}
+
+/**
+ * Deletes the selected nodes, edge or path as one undoable step (D56). Nodes
+ * placed relative to a deleted node are re-attached or pinned, and edges that
+ * would be left dangling go too. Returns false if it was refused, with the
+ * reason in the status bar.
+ */
+export function deleteSelection(): boolean {
+  const sel = selection.peek();
+  if (!sel || !view) return false;
+  const target: DeleteTarget = sel.kind === "nodes" ? { kind: "nodes", ids: sel.ids } : sel;
+  const r = planDelete(text.value, currentPicture.value, target);
+  if (!r.ok) {
+    status.value = r.reason;
+    return false;
+  }
+  previewLayout.value = null;
+  guides.value = { lines: [], gaps: [] };
+  selection.value = null;
+  applyEdit(r.changes, "delete.selection");
+  status.value = `${r.message}.${r.notes.map((n) => ` Also: ${n}.`).join("")}`;
   return true;
 }

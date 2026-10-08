@@ -12,6 +12,7 @@
 // the path stays exactly where it was, and nothing else in the picture moves.
 import { analyzeDocument, type DocumentModel, layoutDocumentPicture } from "../model/document.ts";
 import { type Edge, pictureEdges } from "../model/edges.ts";
+import { coordNames } from "../model/references.ts";
 import type { PictureSyntax, Range } from "../model/syntax.ts";
 import type { LaidOutNode, LaidOutPath, PictureLayout, Route, RouteStop } from "../tikz/layout.ts";
 import { anchorPoint, type Point } from "../tikz/shapes.ts";
@@ -404,7 +405,7 @@ export function writeStops(text: string, picIndex: number, edge: Edge, writes: r
  * Moves waypoint `index` (a route stop strictly inside `edge`) to `p`,
  * written in the first form that lands there. Returns the edit and the form.
  */
-export function planWaypoint(text: string, picIndex: number, edgeId: string, index: number, p: Point): (EditOutcome & { ok: true; form: PointForm }) | { ok: false; reason: string } {
+export function planWaypoint(text: string, picIndex: number, edgeId: string, index: number, p: Point, avoid?: ReadonlySet<string>): (EditOutcome & { ok: true; form: PointForm }) | { ok: false; reason: string } {
   const doc = analyzeDocument(text);
   const layout = layoutDocumentPicture(doc, picIndex);
   const edge = layout && findEdge(layout, edgeId);
@@ -413,6 +414,8 @@ export function planWaypoint(text: string, picIndex: number, edgeId: string, ind
   if (!inside.includes(index)) return { ok: false, reason: "That isn't a point inside this edge." };
   let last: string | null = null;
   for (const c of waypointCandidates(doc, picIndex, layout, edge, index, p)) {
+    // A caller removing nodes asks for forms that don't refer to them.
+    if (avoid && coordNames(c.text).some((n) => avoid.has(n.name))) continue;
     const r = writeStops(text, picIndex, edge, [{ stop: index, text: c.text, want: p, tolerance: c.form === "perpendicular" ? POINT_EPS : ROUND_TOLERANCE }]);
     if (r.ok) return { ...r, form: c.form };
     last = r.reason;
