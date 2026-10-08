@@ -783,3 +783,18 @@ Steps 4–6 are done without a checkpoint between them, as the owner asked.
 **Why:** The owner found, by testing, that labels overlapped their line on segments that don't match their side key, and that the menu's items changed from edge to edge and fell off the bottom of the screen. `auto` is TikZ's own answer to the first and what a person writing a flowchart by hand uses when edges bend; the checks (beside the line, mirror image) mean the editor never writes a label it can't see is placed as asked.
 
 **Not done:** a label still slides along its own segment only; it can't be dragged onto another segment of the edge. Straighten, Make orthogonal and the like keep a label's keys as they are, so a label written with a side key can end up on the line after the edge's form changes until it is flipped or dragged.
+
+## D58: Milestone 2b review: approvals and answers (2026-10-08)
+**Decision:** The owner tested all of Milestone 2b and the fixes of D57 by hand and approved the milestone. Answers to the report's questions and to the known limits of D57:
+1. **Unlabelled first branch:** add no Yes/No to the next branch (as built, D54).
+2. **Automatic label placement: approved,** now written with `auto`/`auto, swap` (D57).
+3. **Delete re-attaches relationally, else pins (D56): approved.**
+4. **Deleting a node that is in another node's `fit`:** remove it from the `fit=` list automatically, so the fitted node shrinks. Refuse only when it is the fit's last member. (Changes D56's refusal.)
+5. **Arrow tips on one edge of a `\draw` with several edges:** keep the refusal explicit (D55), but the edge panel gets a **Split and apply** button that splits the path into separate edges (D49, D50) and sets the tip on this edge, in one undo step.
+6. **Changing an edge's form** (Straight, Orthogonal, Curved): a label side key that would then overlap the line becomes `auto`/`auto, swap`, by the same rule as dragging a label (D57 item 3). (Lifts D57's "Not done" on form changes.)
+7. **Flip label side on a label with no side key:** write `auto` instead of refusing. (Changes D57 item 3.)
+8. **SPEC.md:** D53–D57 and these answers are added to its "Spec revisions" log.
+
+Items 4–7 are scheduled as small steps early in Milestone 3, right after the engine feasibility check (D15).
+
+**Why:** The owner's answers. Items 4 and 7 replace refusals with the edit the user evidently wants; item 5 keeps the panel honest about the tip belonging to the whole path while saving a trip to the menu; item 6 applies the rule the owner already approved for drags to every edit that changes the line under a label.

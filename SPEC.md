@@ -118,6 +118,13 @@ New features:
 - Defaults: "Make curved" writes a plain `bend left`; "Make orthogonal" uses a single-corner route (`|-` or `-|`) where it can.
 
 ### Milestone 3: Accurate preview and export
+Fixes from testing Milestone 2b, done early (after the engine feasibility check):
+- Deleting a node that is in another node's `fit` removes it from the `fit=` list. Only the fit's last member is refused.
+- The edge panel offers "Split and apply" when an arrow tip is set on one edge of a `\draw` with several edges.
+- Changing an edge's form (straight, orthogonal, curved) turns a label side key that would then overlap the line into `auto`, by the same rule as dragging a label.
+- "Flip label side" on a label with no side key writes `auto`.
+
+Features:
 - Integrate the WASM TeX engine. The quick SVG preview shows instantly, and the compiled output replaces it when ready.
 - Lazy-load and cache the engine and packages with a service worker so it works offline after the first visit.
 - Clearly show compile errors, mapped to source lines.
@@ -187,3 +194,17 @@ Start with Milestone 0. Before writing code, give me a brief plan for the spike 
   - Recorded the 2b defaults: plain `bend left` and single-corner orthogonal routes.
 - **2026-10-07, after Milestone 2b steps 1–3** (approved by the project owner; reasons in DECISIONS.md D49):
   - Added to 2b: "Split into separate edges" for ends shared by two edges, and moving an edge's `\draw` below a node defined later when an end is dropped on it.
+- **2026-10-08, after Milestone 2b steps 4–6** (approved by the project owner; reasons in DECISIONS.md D53):
+  - Curves are edited with a handle near each end (writing `out=`/`in=`) and one in the middle (keeping a bend symmetric). Alt keeps its meaning of "no snapping".
+  - Make orthogonal and adding a corner convert an `edge` operation into `--`, in its own `\draw` if needed.
+  - Split writes `[-]` only to override an arrow tip inherited from a style or the picture.
+- **2026-10-08, Milestone 2b steps 7–10** (approved by the project owner; reasons in DECISIONS.md D54–D56 and D58):
+  - Edge labels: "Add label here" writes the label before the clicked segment's end with `pos=` where needed; dragging writes `pos=`; Yes/No go on the first two branches out of a decision, following the figure's own wording.
+  - The edge properties panel keeps the form an edge already uses, doesn't repeat inherited values, and loads `arrows.meta` when a tip needs it. A tip on one edge of a multi-edge `\draw` is refused with a pointer to Split.
+  - Delete re-attaches dependent nodes with the move planner or pins them, rewrites corners written relative to the deleted node, and lists what it refuses and why.
+- **2026-10-08, after the owner's testing of Milestone 2b** (approved by the project owner; reasons in DECISIONS.md D57):
+  - The edge menu always shows the same items in the same order, ticks the edge's current form, and gives a reason for each disabled item. Menus stay inside the window.
+  - Labels are written with `auto`/`auto, swap` instead of a side key. A "Flip label side" action was added, and dragging a label onto a part of the line that would cut through it turns its side key into `auto`.
+- **2026-10-08, the Milestone 2b review** (approved by the project owner; reasons in DECISIONS.md D58):
+  - No Yes/No is added when a decision's first branch is unlabelled.
+  - Added to the start of Milestone 3: removing a deleted node from a `fit=` list, "Split and apply" for arrow tips, `auto` labels after a form change, and Flip on a label with no side key.

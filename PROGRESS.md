@@ -10,7 +10,20 @@ Milestone 0 is done and was approved on 2026-10-07:
 
 **Milestone 2a (nodes and styles): done and approved (2026-10-07).** The owner tested it by hand; their answers are in DECISIONS.md D44 and "M2a review" below.
 
-**Milestone 2b (edges): all ten steps are done (2026-10-08) and waiting for the owner's review. The owner's first test found three problems, fixed in "Fixes after the owner's testing of M2b" below (D57).** The plan was approved on 2026-10-07 (D45). Steps 1–3 were approved (D49) and steps 4–6 were approved with five decisions (D53). Steps 7–10 and the finished decision 4 are reported in "Milestone 2b report" below. Milestone 2 was split into 2a and 2b, each with its own checkpoint (D32). The full list is in SPEC.md, "Milestone 2b". Also read the "Notes for later milestones" below. Nothing of Milestone 3 has been started.
+**Milestone 2b (edges): done and approved (2026-10-08).** The owner tested all of it, and the fixes of D57, by hand. Their answers are in DECISIONS.md D58 and "M2b review" below. SPEC.md's revisions log now covers D53–D58.
+
+**Milestone 3 (accurate preview and export): plan proposed (2026-10-08), waiting for approval.** Nothing of it has been started. Its first task is the CI feasibility check (D15); the four small edits of D58 (items 4–7) come right after it. Also read "Notes for later milestones" below.
+
+## M2b review (2026-10-08)
+The owner tested all of 2b and the follow-up fixes by hand: everything works well. Answers (D58):
+1. **Unlabelled first branch:** no Yes/No on the next branch (as built).
+2. **Automatic label placement:** approved, with `auto`/`swap` (D57).
+3. **Delete re-attaches, else pins:** approved.
+4. **A deleted node in a `fit`:** remove it from the `fit=` list; refuse only if it is the last member. *Early M3 step.*
+5. **Arrow tips on a multi-edge `\draw`:** keep the refusal, and add a **Split and apply** button in the edge panel. *Early M3 step.*
+6. **Form changes** (Straight, Orthogonal, Curved): a side key that would overlap the line becomes `auto`, as for drags. *Early M3 step.*
+7. **Flip label side** on a label with no side key: write `auto`. *Early M3 step.*
+8. **SPEC.md revisions** for D53–D57: added, with these answers.
 
 ## Fixes after the owner's testing of M2b (2026-10-08)
 Three problems from the owner's hands-on test, each fixed and committed on its own (D57). Nothing of Milestone 3 has been started.
@@ -87,7 +100,7 @@ Steps 7–10 were done in one go, as the owner asked, with a commit after each. 
   - Deleting an edge in a `\draw` with several edges splits the statement, so the remaining edges end up as separate `\draw`s.
 - **Still from steps 1–6:** see "Known limits (steps 1–6)" below, in particular that corners go on straight segments only, `.. controls ..` is never introduced, and Split is refused for paths with `edge` operations. Firefox is still untested.
 
-### Decisions for you
+### Decisions for you (answered 2026-10-08, D58)
 1. **Yes/No when the first branch is unlabelled.** I add nothing (an unlabelled first branch gives no clue which wording the figure uses). The alternative is to write "No" anyway, as the plan's wording says, which leaves a half-labelled decision. Which?
 2. **Where the automatic labels sit.** `node[near start, right]` for a branch leaving downwards or upwards, `node[near start, above]` for sideways. Hand-written flowcharts differ; is this the style you want?
 3. **Delete re-attaches with whole-millimetre distances,** e.g. `below=2.6cm of small`, and pins with plain coordinates when nothing fits. The alternative is to always pin, or to refuse when the position would need a number. Is re-attaching what you meant?
@@ -393,8 +406,8 @@ Not answered yet: whether a palette click with nothing selected should continue 
 | M0: Technical spike | Done, approved 2026-10-07 |
 | M1: Core loop | Done, approved 2026-10-07 |
 | M2a: Creating and editing nodes and styles | Done, approved 2026-10-07 |
-| M2b: Editing edges | Done 2026-10-08, waiting for review |
-| M3: Accurate preview and export | Not started |
+| M2b: Editing edges | Done, approved 2026-10-08 |
+| M3: Accurate preview and export | Plan proposed 2026-10-08 |
 | M4: Layout and import | Not started |
 | M5: Polish and launch prep | Not started |
 
