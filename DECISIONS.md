@@ -616,3 +616,21 @@ Answers:
 - **Unnamed parents (D44).** Tab, Enter or a palette click on a node with no name gives it one in the same edit, from its label (then its style, then its shape), written as ` (name)` after its options. The parent is named first, so it keeps the plainer name when both labels would give the same one.
 
 **Why:** Every later 2b step (anchors, vertices, modes, labels, properties, delete) edits one edge's code. Tying each point and segment to its source range is what lets those edits change only that edge's bytes.
+
+## D47: The edge-editing core and how points are written (M2b step 2, 2026-10-07)
+**Decision:** Every edge edit goes through `src/edit/edges.ts`.
+- **What an edit changes.** It replaces the text of some of a path's points (`writeStops`); later steps add operations. Nothing outside that path's statement changes.
+- **How a point is written,** in SPEC.md's emitter order as it applies to a point on a path:
+  1. **An end** goes to a node's anchor (`(b.west)`) or its bare name for the border (step 3).
+  2. **A perpendicular coordinate** when the point lines up with the centre line or a side of two different nodes defined before the path: `(b |- a)`, `(a.east |- b.north)`. The edge's own end nodes are preferred.
+  3. **Relative to the point before it**, `++(8mm,0)`, so it follows its nodes. A `+` point stays `+` (it doesn't move the point later ones are measured from). Lengths are whole millimetres (D44), written in the picture's own style: plain numbers (`++(0.5,0)`) when the picture's relative points are written that way, otherwise `mm`/`cm` (10 mm and more as `cm`, as `formatDistance` does).
+  4. **Plain coordinates** last, in the path's units to 0.01 of a unit. A point already written with plain numbers keeps them unless it lines up with two nodes, as for nodes (D24).
+- **A waypoint is never written as a node's anchor.** The path would then pass through that node, and it would read as two edges (D46).
+- **The path's own frame.** Routes record the path's transformation and unit vectors, so `\draw[scale=2]` gets `++(1.5,0.5)` for a 3 cm by 1 cm move.
+- **Other points stay put.** Relative points later in the path that are measured from a point that moved are rewritten so they stay where they were. They are written to 0.1 mm, since they hold a position someone else chose. Everything else in the path must stay exactly in place.
+- **Checked by layout.** The patched text must have no new syntax errors and the same nodes in the same places (coordinates on the path itself excepted), and every other path must draw exactly as before. A written point must land within whole-millimetre rounding of where it was dropped (0.5 pt for perpendicular coordinates). Anything else is refused with the reason. One case this refuses: a path that defines a coordinate another path uses (`coordinate (corner)`), because moving it would move the other path. Two corpus waypoints hit it; the other 32 move.
+- **The node a `\node ... edge` path starts from** is the node statement itself, and an edit can't rewrite it.
+- **Snapping** (`snapWaypoint`) lines a point up with the centre lines and sides of nodes it may refer to, and level or plumb with its neighbouring points so segments come out straight, with guides.
+- **Fidelity probe.** `spike/engines/probes/p4-edge-waypoints.tex` checks 16 path points against pdfTeX: `++` after a bare node starts from its centre; `+` keeps its base; perpendicular points with anchors; `pos` on `|-` and `-|`; a coordinate with no operation before it moves (D46's fix); and a path's `scale` applying to relative points with and without units. All 16 are within 0.01 pt.
+
+**Why:** Writing points relationally keeps edges attached when nodes move, which is the first 2b item. Holding the other points and checking by layout is the same safety net as moves (D24) and resizing (D40).

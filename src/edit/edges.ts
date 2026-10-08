@@ -1,0 +1,398 @@
+// Editing edges (M2b): the shared core every edge edit is built from.
+//
+// An edge edit replaces the text of some of its path's stops (and, in later
+// steps, operations) and nothing else. Points are written in the emitter
+// order of SPEC.md, as far as it applies to a point on a path:
+//   1. a node's anchor, for an end ("(b.west)"), or the bare name for its border;
+//   2. a perpendicular coordinate when the point lines up with two nodes ("(a |- b)");
+//   3. relative to the point before it ("++(8mm,0)"), so it follows its nodes;
+//   4. plain coordinates, as a last resort or in pictures written that way.
+// Every edit is checked by laying the patched text out again: the points it
+// writes land where they should (to the millimetre), every other point of
+// the path stays exactly where it was, and nothing else in the picture moves.
+import { analyzeDocument, type DocumentModel, layoutDocumentPicture } from "../model/document.ts";
+import { type Edge, pictureEdges } from "../model/edges.ts";
+import type { PictureSyntax } from "../model/syntax.ts";
+import type { LaidOutNode, LaidOutPath, PictureLayout, Route, RouteStop } from "../tikz/layout.ts";
+import { anchorPoint, type Point } from "../tikz/shapes.ts";
+import { applyLinear, applyMatrix, invert } from "../tikz/state.ts";
+import { CM, PT_PER_UNIT, trimNumber } from "../tikz/units.ts";
+import { applyChanges, type Change } from "./changes.ts";
+import type { Guide } from "./snap.ts";
+
+const MM = PT_PER_UNIT.mm!;
+/** How far an alignment may be off and still count, in pt. */
+export const POINT_EPS = 0.5;
+/** Written points are rounded to whole millimetres (D44), so they may land this far off. */
+const ROUND_TOLERANCE = Math.SQRT2 * 0.75 * MM;
+/** Points the edit doesn't write must stay exactly where they were. */
+const KEEP_TOLERANCE = 0.05;
+/** Relative points rewritten to stay in place are written to 0.1 mm, so they land within this. */
+const HOLD_TOLERANCE = 0.06 * MM;
+const SIMPLE_NAME = /^[A-Za-z0-9_\-:]+$/;
+
+export type EditOutcome = { ok: true; changes: Change[]; text: string; layout: PictureLayout; notes: string[] } | { ok: false; reason: string };
+
+/** The edge with id `id`, or undefined. */
+export function findEdge(layout: PictureLayout, id: string): Edge | undefined {
+  return pictureEdges(layout).find((e) => e.id === id);
+}
+
+/** The path with id `id` after an edit inside it: its position in the text doesn't change. */
+function pathAfter(layout: PictureLayout, id: string): LaidOutPath | undefined {
+  return layout.paths.find((p) => p.id === id);
+}
+
+// ---------------------------------------------------------------- writing points
+
+/** "8mm", "1.5cm", "0": a length in whole millimetres, as a person would write it. */
+export function formatLength(pt: number): string {
+  const mm = Math.round(pt / MM);
+  if (mm === 0) return "0";
+  if (Math.abs(mm) < 10) return `${mm}mm`;
+  return `${trimNumber(mm / 10)}cm`;
+}
+
+/** How a picture writes relative points: with units ("++(5mm,0)") or plain numbers ("++(0.5,0)"). */
+export function relativeStyle(text: string, pic: PictureSyntax): "dims" | "plain" {
+  let dims = 0;
+  let plain = 0;
+  for (const m of text.slice(pic.from, pic.to).matchAll(/\+\+?\s*\(([^()]*)\)/g)) {
+    if (!/,/.test(m[1]!)) continue;
+    if (/\d\s*(pt|cm|mm|in|bp|em|ex)\b/.test(m[1]!)) dims++;
+    else if (/^[\s\d.,+-]+$/.test(m[1]!)) plain++;
+  }
+  return plain > dims ? "plain" : "dims";
+}
+
+/** Whether the frame's x and y units are the plain 1 cm axes, so plain numbers mean centimetres. */
+function unitAxes(route: Route): { x: number; y: number } | null {
+  const { xUnit, yUnit } = route.frame;
+  if (Math.abs(xUnit[1]) > 1e-9 || Math.abs(yUnit[0]) > 1e-9 || xUnit[0] <= 0 || yUnit[1] <= 0) return null;
+  return { x: xUnit[0], y: yUnit[1] };
+}
+
+/**
+ * "++(8mm,-3mm)" or "++(0.8,-0.3)": a relative point for an offset in canvas
+ * pt, rounded to `step` millimetres (whole millimetres unless a point is being
+ * held where it was).
+ */
+function relativeText(route: Route, offset: Point, prefix: "+" | "++", style: "dims" | "plain", step = 1): string | null {
+  const inv = invert(route.frame.matrix);
+  if (!inv) return null;
+  const [lx, ly] = applyLinear(inv, offset.x, offset.y);
+  const mm = (v: number) => Math.round(v / MM / step) * step;
+  const axes = unitAxes(route);
+  if (style === "plain" && axes && Math.abs(axes.x - CM) < 1e-6 && Math.abs(axes.y - CM) < 1e-6) {
+    const cm = (v: number) => trimNumber(mm(v) / 10);
+    return `${prefix}(${cm(lx)},${cm(ly)})`;
+  }
+  const len = (v: number) => {
+    const m = mm(v);
+    if (Math.abs(m) < 1e-9) return "0";
+    return Math.abs(m) < 10 ? `${trimNumber(m)}mm` : `${trimNumber(m / 10)}cm`;
+  };
+  return `${prefix}(${len(lx)},${len(ly)})`;
+}
+
+/** "(2.5,-1)": plain coordinates in the path's own units, to 0.01 of a unit. */
+function absoluteText(route: Route, p: Point, sep: string): string | null {
+  const inv = invert(route.frame.matrix);
+  const axes = unitAxes(route);
+  if (!inv) return null;
+  const [lx, ly] = applyMatrix(inv, p.x, p.y);
+  if (!axes) return `(${formatLength(lx)}${sep}${formatLength(ly)})`;
+  const fmt = (v: number, unit: number) => trimNumber(Math.round((v / unit) * 100) / 100);
+  return `(${fmt(lx, axes.x)}${sep}${fmt(ly, axes.y)})`;
+}
+
+/** Nodes a point on `path` may refer to by name: named, with a shape, and defined before the path. */
+export function pathReferences(layout: PictureLayout, path: LaidOutPath): LaidOutNode[] {
+  const latest = new Map<string, LaidOutNode>();
+  for (const n of layout.nodes) {
+    if (n.statement.from >= path.syntax.from) break;
+    if (n.name && !n.implicitName && SIMPLE_NAME.test(n.name) && n.kind === "statement") latest.set(n.name, n);
+  }
+  return [...latest.values()];
+}
+
+/** The x (centre, east, west) and y (centre, north, south) lines of a node a point can line up with. */
+function nodeLines(n: LaidOutNode): { xs: Array<{ at: number; ref: string }>; ys: Array<{ at: number; ref: string }> } {
+  const c = n.shape.center;
+  const at = (a: string) => anchorPoint(n.shape, a);
+  const name = n.name!;
+  const xs = [{ at: c.x, ref: name }];
+  const ys = [{ at: c.y, ref: name }];
+  for (const a of ["east", "west"]) {
+    const p = at(a);
+    if (p && Math.abs(p.x - c.x) > POINT_EPS) xs.push({ at: p.x, ref: `${name}.${a}` });
+  }
+  for (const a of ["north", "south"]) {
+    const p = at(a);
+    if (p && Math.abs(p.y - c.y) > POINT_EPS) ys.push({ at: p.y, ref: `${name}.${a}` });
+  }
+  return { xs, ys };
+}
+
+/** "(a |- b)" when `p` has the x of a node line and the y of another node's, or null. */
+export function perpendicularText(layout: PictureLayout, path: LaidOutPath, p: Point, prefer: readonly string[] = []): string | null {
+  const refs = pathReferences(layout, path);
+  // Ends of the edge first, then nearer nodes; centres before sides.
+  const rank = (n: LaidOutNode) => (prefer.includes(n.id) ? 0 : 1) * 1e6 + Math.hypot(n.shape.center.x - p.x, n.shape.center.y - p.y);
+  const sorted = [...refs].sort((a, b) => rank(a) - rank(b));
+  let x: { ref: string; node: string } | null = null;
+  let y: { ref: string; node: string } | null = null;
+  for (const n of sorted) {
+    const lines = nodeLines(n);
+    if (!x) {
+      const hit = lines.xs.find((l) => Math.abs(l.at - p.x) <= POINT_EPS);
+      if (hit) x = { ref: hit.ref, node: n.id };
+    }
+    if (!y) {
+      const hit = lines.ys.find((l) => Math.abs(l.at - p.y) <= POINT_EPS);
+      if (hit) y = { ref: hit.ref, node: n.id };
+    }
+  }
+  if (!x || !y || x.node === y.node) return null;
+  return `(${x.ref} |- ${y.ref})`;
+}
+
+/** Where a relative point at stop `index` of `route` is measured from: the last point not written with "+". */
+export function relativeBase(route: Route, index: number): Point | null {
+  for (let k = index - 1; k >= 0; k--) {
+    const s = route.stops[k]!;
+    if (s.relative !== "+") return s.point;
+  }
+  return null;
+}
+
+export type PointForm = "perpendicular" | "relative" | "absolute";
+
+export interface PointCandidate {
+  /** The text for the stop's whole range, e.g. "++(8mm,0)" or "(a |- b)". */
+  text: string;
+  form: PointForm;
+}
+
+/**
+ * Ways to write a waypoint of `edge` (stop `index` of its route) at `p`, best
+ * first. A waypoint is never written as a node's anchor: the path would then
+ * pass through that node, which reads as two edges. A point written with
+ * plain numbers keeps them unless it lines up with nodes, so plain-coordinate
+ * pictures stay that way (as for nodes, D24).
+ */
+export function waypointCandidates(doc: DocumentModel, picIndex: number, layout: PictureLayout, edge: Edge, index: number, p: Point): PointCandidate[] {
+  const route = edge.route;
+  const pic = doc.syntax.pictures[picIndex]!;
+  const stop = route.stops[index];
+  const out: PointCandidate[] = [];
+  const ends = [edge.source, edge.target].filter((x): x is string => !!x);
+  const perp = perpendicularText(layout, edge.path, p, ends);
+  if (perp) out.push({ text: perp, form: "perpendicular" });
+  const base = relativeBase(route, index);
+  const relative = base && relativeText(route, { x: p.x - base.x, y: p.y - base.y }, stop?.relative ?? "++", relativeStyle(doc.text, pic));
+  const sep = stop && /,\s/.test(stop.text) ? ", " : ",";
+  const absolute = absoluteText(route, p, sep);
+  const wasAbsolute = stop && !stop.relative && !stop.node && /^[\s\d.,+-]+$/.test(stop.text);
+  if (wasAbsolute) {
+    if (absolute) out.push({ text: absolute, form: "absolute" });
+    return out;
+  }
+  if (relative) out.push({ text: relative, form: "relative" });
+  if (absolute && !stop?.relative) out.push({ text: absolute, form: "absolute" });
+  return out;
+}
+
+// ---------------------------------------------------------------- checking
+
+/**
+ * Lays out `changes` applied to `text` and checks the edit stayed inside path
+ * `pathId`: no new syntax errors, every node where it was, every other path
+ * drawn as before. Returns the new layout and path, or why not.
+ */
+function layoutAfter(
+  text: string,
+  picIndex: number,
+  before: { doc: DocumentModel; layout: PictureLayout },
+  pathId: string,
+  changes: readonly Change[],
+): { text: string; layout: PictureLayout; path: LaidOutPath } | { reason: string } {
+  const next = applyChanges(text, changes);
+  const doc = analyzeDocument(next);
+  if (doc.errors.length > before.doc.errors.length) return { reason: "That would break the code around the edge, so it wasn't written." };
+  const layout = layoutDocumentPicture(doc, picIndex);
+  const path = layout && pathAfter(layout, pathId);
+  if (!layout || !path?.route) return { reason: "The edge couldn't be found after the edit, so it wasn't written." };
+  if (layout.nodes.length !== before.layout.nodes.length) return { reason: "That would change the picture's nodes, so it wasn't written." };
+  for (let i = 0; i < layout.nodes.length; i++) {
+    // Coordinates placed on the path itself move with it.
+    if (layout.nodes[i]!.statement.from === path.syntax.from) continue;
+    const a = before.layout.nodes[i]!.shape.center;
+    const b = layout.nodes[i]!.shape.center;
+    if (Math.hypot(a.x - b.x, a.y - b.y) > KEEP_TOLERANCE) return { reason: `That would move ${layout.nodes[i]!.name ?? "a node"}, so it wasn't written.` };
+  }
+  const others = (l: PictureLayout, id: string) => l.paths.filter((p) => p.id !== id && !p.id.startsWith(`${id}/`)).map((p) => p.d);
+  const was = others(before.layout, pathId);
+  const now = others(layout, pathId);
+  if (was.length !== now.length || was.some((d, i) => d !== now[i])) return { reason: "That would change another path, so it wasn't written." };
+  return { text: next, layout, path };
+}
+
+/**
+ * Rewrites relative points after the edited ones that moved because the point
+ * they are measured from moved, so they stay where they were (D45: editing
+ * one point leaves the rest of the path alone). `keep` maps route stop
+ * indices to where they must stay.
+ */
+function holdRelatives(
+  text: string,
+  picIndex: number,
+  before: { doc: DocumentModel; layout: PictureLayout },
+  pathId: string,
+  changes: Change[],
+  keep: ReadonlyMap<number, Point>,
+  style: "dims" | "plain",
+): { changes: Change[]; text: string; layout: PictureLayout; path: LaidOutPath; held: Set<number> } | { reason: string } {
+  let current = changes;
+  const held = new Set<number>();
+  for (let round = 0; round < 16; round++) {
+    const after = layoutAfter(text, picIndex, before, pathId, current);
+    if ("reason" in after) return after;
+    const route = after.path.route!;
+    const oldRoute = pathAfter(before.layout, pathId)!.route!;
+    const done = { ...after, changes: current, held };
+    if (route.stops.length !== oldRoute.stops.length) return done;
+    let fixed = false;
+    for (const [k, want] of keep) {
+      const s = route.stops[k]!;
+      const off = Math.hypot(s.point.x - want.x, s.point.y - want.y);
+      if (off <= (held.has(k) ? HOLD_TOLERANCE : KEEP_TOLERANCE)) continue;
+      // Only a relative point can be held by rewriting it, once; anything else moved for another reason.
+      const base = relativeBase(route, k);
+      const old = oldRoute.stops[k]!;
+      if (!s.relative || !base || held.has(k)) return done;
+      const t = relativeText(route, { x: want.x - base.x, y: want.y - base.y }, s.relative, style, 0.1);
+      if (!t) return done;
+      current = [...current, { from: old.range.from, to: old.range.to, insert: t }];
+      held.add(k);
+      fixed = true;
+      break;
+    }
+    if (!fixed) return done;
+  }
+  return { reason: "The points after this one couldn't be kept in place." };
+}
+
+export interface StopWrite {
+  /** Index into the route's stops. */
+  stop: number;
+  /** The text for the stop's whole range. */
+  text: string;
+  /** Where the stop should land, or undefined to check only that it still exists. */
+  want?: Point;
+  /** How far off it may land (default: whole-millimetre rounding). */
+  tolerance?: number;
+}
+
+/**
+ * Replaces stops of `edge`'s path with new text, holds the path's other
+ * points in place, and checks the result. The stop a `\node ... edge` path
+ * starts from is the node itself and can't be rewritten here.
+ */
+export function writeStops(text: string, picIndex: number, edge: Edge, writes: readonly StopWrite[]): EditOutcome {
+  const doc = analyzeDocument(text);
+  const layout = layoutDocumentPicture(doc, picIndex);
+  const pic = doc.syntax.pictures[picIndex];
+  if (!layout || !pic) return { ok: false, reason: "There is no picture." };
+  if (edge.lock) return { ok: false, reason: `This edge can't be edited: ${edge.lock.message}.` };
+  const route = edge.route;
+  const changes: Change[] = [];
+  for (const w of writes) {
+    const s = route.stops[w.stop];
+    if (!s || s.item < 0) return { ok: false, reason: "This end is the node the path starts from; change it in the code." };
+    changes.push({ from: s.range.from, to: s.range.to, insert: w.text });
+  }
+  const keep = new Map<number, Point>();
+  route.stops.forEach((s, k) => {
+    if (!writes.some((w) => w.stop === k)) keep.set(k, s.point);
+  });
+  const before = { doc, layout };
+  const held = holdRelatives(text, picIndex, before, edge.path.id, changes, keep, relativeStyle(text, pic));
+  if ("reason" in held) return { ok: false, reason: held.reason };
+  const newRoute = held.path.route!;
+  if (newRoute.stops.length !== route.stops.length || newRoute.segs.length !== route.segs.length) return { ok: false, reason: "That would change how the path is put together, so it wasn't written." };
+  for (const [k, want] of keep) {
+    const s = newRoute.stops[k]!;
+    if (Math.hypot(s.point.x - want.x, s.point.y - want.y) > (held.held.has(k) ? HOLD_TOLERANCE : KEEP_TOLERANCE)) return { ok: false, reason: "That would move other points of the path, so it wasn't written." };
+  }
+  for (const w of writes) {
+    if (!w.want) continue;
+    const s = newRoute.stops[w.stop]!;
+    if (Math.hypot(s.point.x - w.want.x, s.point.y - w.want.y) > (w.tolerance ?? ROUND_TOLERANCE)) return { ok: false, reason: "That point couldn't be written where it was dropped." };
+  }
+  return { ok: true, changes: held.changes, text: held.text, layout: held.layout, notes: [] };
+}
+
+/**
+ * Moves waypoint `index` (a route stop strictly inside `edge`) to `p`,
+ * written in the first form that lands there. Returns the edit and the form.
+ */
+export function planWaypoint(text: string, picIndex: number, edgeId: string, index: number, p: Point): (EditOutcome & { ok: true; form: PointForm }) | { ok: false; reason: string } {
+  const doc = analyzeDocument(text);
+  const layout = layoutDocumentPicture(doc, picIndex);
+  const edge = layout && findEdge(layout, edgeId);
+  if (!layout || !edge) return { ok: false, reason: "There is no such edge." };
+  const inside = edge.segs.slice(1).map((k) => edge.route.segs[k]!.a);
+  if (!inside.includes(index)) return { ok: false, reason: "That isn't a point inside this edge." };
+  let last: string | null = null;
+  for (const c of waypointCandidates(doc, picIndex, layout, edge, index, p)) {
+    const r = writeStops(text, picIndex, edge, [{ stop: index, text: c.text, want: p, tolerance: c.form === "perpendicular" ? POINT_EPS : ROUND_TOLERANCE }]);
+    if (r.ok) return { ...r, form: c.form };
+    last = r.reason;
+  }
+  return { ok: false, reason: last ?? "That point couldn't be written." };
+}
+
+// ---------------------------------------------------------------- snapping
+
+export interface PointSnap {
+  point: Point;
+  guides: Guide[];
+}
+
+/**
+ * Snaps a point being dragged on `edge` (route stop `index`, or a new point
+ * between stops `index - 1` and `index`): to the centre lines and sides of
+ * nodes it can refer to, and level or plumb with the points before and after
+ * it, so segments come out straight. `threshold` is in pt.
+ */
+export function snapWaypoint(layout: PictureLayout, edge: Edge, neighbours: readonly Point[], raw: Point, threshold: number): PointSnap {
+  const xs: Array<{ at: number; from: number }> = [];
+  const ys: Array<{ at: number; from: number }> = [];
+  for (const n of pathReferences(layout, edge.path)) {
+    const lines = nodeLines(n);
+    for (const l of lines.xs) xs.push({ at: l.at, from: n.shape.center.y });
+    for (const l of lines.ys) ys.push({ at: l.at, from: n.shape.center.x });
+  }
+  for (const q of neighbours) {
+    xs.push({ at: q.x, from: q.y });
+    ys.push({ at: q.y, from: q.x });
+  }
+  const best = (list: Array<{ at: number; from: number }>, v: number) => {
+    let b: { at: number; from: number } | null = null;
+    for (const c of list) if (Math.abs(c.at - v) <= threshold && (!b || Math.abs(c.at - v) < Math.abs(b.at - v))) b = c;
+    return b;
+  };
+  const bx = best(xs, raw.x);
+  const by = best(ys, raw.y);
+  const point = { x: bx ? bx.at : raw.x, y: by ? by.at : raw.y };
+  const guides: Guide[] = [];
+  if (bx) guides.push({ axis: "v", at: bx.at, from: Math.min(bx.from, point.y), to: Math.max(bx.from, point.y) });
+  if (by) guides.push({ axis: "h", at: by.at, from: Math.min(by.from, point.x), to: Math.max(by.from, point.x) });
+  return { point, guides };
+}
+
+/** The stop an edge starts or ends at. */
+export function endStop(edge: Edge, which: "from" | "to"): RouteStop {
+  return edge.route.stops[which === "from" ? edge.from : edge.to]!;
+}

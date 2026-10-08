@@ -16,7 +16,7 @@ Milestone 0 is done and was approved on 2026-10-07:
 | Step | Content | Status |
 |---|---|---|
 | 1 | Edge model and selection; Tab names an unnamed parent (D44, D46) | Done |
-| 2 | Edge-editing core and waypoint emitter | Not started |
+| 2 | Edge-editing core and waypoint emitter (D47) | Done |
 | 3 | Anchors: endpoint handles, reconnecting, change anchor, drawing new edges | Not started |
 | 4 | Vertices: ghost handles, add/remove, Straighten | Not started |
 | 5 | Orthogonal mode | Not started |

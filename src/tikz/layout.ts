@@ -153,6 +153,8 @@ export interface Route {
   shapes: boolean;
   /** Part of the path couldn't be evaluated or isn't understood. */
   broken: boolean;
+  /** The path's coordinate frame: its transformation and the x and y unit vectors, for writing coordinates. */
+  frame: { matrix: Matrix; xUnit: [number, number]; yUnit: [number, number] };
 }
 
 export interface LaidOutPath {
@@ -1093,7 +1095,8 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint, 
     if (it.kind === "options" && !opOption) applyKeys(st, keysOf(it.list), kc);
   });
 
-  const route: Route = { stops: startStop ? [startStop] : [], segs: [], shapes: false, broken: false };
+  const frame = { matrix: st.matrix, xUnit: st.xUnit, yUnit: st.yUnit };
+  const route: Route = { stops: startStop ? [startStop] : [], segs: [], shapes: false, broken: false, frame };
   const main: PathBuild = { segments: [], subpathStarts: [], extra: [], connects: [], edges: [], issues: [], route };
   // The stop the current point came from, the start of the current subpath, and the operation being read.
   let curStop = startStop ? 0 : -1;
@@ -1387,7 +1390,7 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint, 
           // An edge is its own path and leaves the current point where it was.
           const ids = [cur.ref, refId].filter((x): x is string => !!x);
           const from = route.stops[curStop];
-          const edgeRoute: Route = { stops: from ? [from, stop] : [stop], segs: from ? [{ ...info, a: 0, b: 1 }] : [], shapes: false, broken: !from };
+          const edgeRoute: Route = { stops: from ? [from, stop] : [stop], segs: from ? [{ ...info, a: 0, b: 1 }] : [], shapes: false, broken: !from, frame: { matrix: (opState ?? st).matrix, xUnit: (opState ?? st).xUnit, yUnit: (opState ?? st).yUnit } };
           edges.push({
             build: { segments: [seg], subpathStarts: [0], extra: [], connects: ids, edges: ids.length === 2 ? [[ids[0]!, ids[1]!]] : [], issues: [], route: edgeRoute },
             st: opState ?? st,
