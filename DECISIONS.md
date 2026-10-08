@@ -601,3 +601,18 @@ Answers:
 5. **Palette click with nothing selected:** the node goes at the centre of the view, written relationally where possible, like a drag. That is what D41 already does (a "point" placement, snapped and passed to the move planner), so nothing changes.
 
 **Why:** The owner's answers. Without delete and drawing edges between existing nodes, Tab and Enter would be the only ways to make an edge. The delete rule extends the project's "never leave code LaTeX can't compile" stance (D36) to removal.
+
+## D46: The edge model (M2b step 1, 2026-10-07)
+**Decision:**
+- **Routes.** The layout records, for every path, the points it goes through (`RouteStop`: the coordinate's source range and text, the node it names, its anchor, whether it is bare or relative) and the pieces drawn between them (`RouteSeg`: line, `|-`/`-|` corner, or curve, with the operation and control points that drew it). Geometry is kept before arrow-tip shortening. A route is marked when the path also draws shapes (`rectangle`, `circle`, `arc`, `cycle`, …) or has something the interpreter can't follow.
+- **Edges** (`src/model/edges.ts`) are a path's route split at every node with a shape it passes through: `\draw (a) -- (b) -- (c);` is two edges, `(a) -- (1,1) -- (c)` is one with a waypoint, and each `edge` operation is its own. Coordinates (`\coordinate`) are waypoints, not ends. An edge can end at a plain point (`(a) -- ++(1,0)`). Paths that draw nothing (`\path`) have no edges.
+- **Mode** comes from how the edge is written: any curve is "curved", any `|-`/`-|` is "orthogonal", several pieces are a "polyline", otherwise "straight".
+- **Labels** belong to the edge whose operation comes last before them in the code, so `(a) -- node {x} (b)` and `(a) -- (b) node[pos=.5] {x}` both label a → b.
+- **Locked edges** (shapes, or code the editor can't follow) can be selected and say why in the panel; they are never rewritten.
+- **Selection** gains an edge kind. Clicking an edge, one of its labels, or putting the cursor in its code selects it; a path with one edge highlights its whole statement, otherwise only that edge's part. Paths without edges (chain joins, `\path`, shapes) are still selected as a whole and the panel says what they are.
+- **Edge ids** are the path's position plus the edge's index (`path@412:1`). An edit maps a selected edge's id through its changes (`mapPathId`), so the edge stays selected after code before it changes.
+- **Edge labels** are edited in place like node labels (double-click, D39), with the same refusals and parse check.
+- **Interpreter fix.** A coordinate with no operation before it now moves instead of drawing: `\draw (a) -- (b) (c) -- (d);` no longer draws b to c. TikZ has always worked this way; no corpus picture or golden file changed.
+- **Unnamed parents (D44).** Tab, Enter or a palette click on a node with no name gives it one in the same edit, from its label (then its style, then its shape), written as ` (name)` after its options. The parent is named first, so it keeps the plainer name when both labels would give the same one.
+
+**Why:** Every later 2b step (anchors, vertices, modes, labels, properties, delete) edits one edge's code. Tying each point and segment to its source range is what lets those edits change only that edge's bytes.

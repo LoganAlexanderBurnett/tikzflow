@@ -3,8 +3,9 @@
 // words (pure math, symbols, other scripts) fall back to the node's style or
 // shape plus a number, e.g. "decision2" (D34).
 import type { DocumentModel } from "../model/document.ts";
-import type { PictureSyntax } from "../model/syntax.ts";
-import type { PictureLayout } from "../tikz/layout.ts";
+import type { NodeSyntax, PictureSyntax } from "../model/syntax.ts";
+import type { LaidOutNode, PictureLayout } from "../tikz/layout.ts";
+import type { Change } from "./changes.ts";
 
 export type NameStyle = "camel" | "snake" | "kebab";
 
@@ -105,4 +106,24 @@ export function takenNames(doc: DocumentModel, pic: PictureSyntax, layout: Pictu
   for (const m of body.matchAll(/\(\s*([A-Za-z][A-Za-z0-9_\-]*)\s*\)/g)) out.add(m[1]!);
   for (const m of body.matchAll(/\bname\s*=\s*\{?\s*([A-Za-z0-9_\-]+)/g)) out.add(m[1]!);
   return out;
+}
+
+/**
+ * The change that gives an unnamed node statement the name `name`: " (name)"
+ * after its options, before its "at" clause or label, as a person would
+ * write it.
+ */
+export function nameNodeChange(text: string, syn: NodeSyntax, name: string): Change {
+  const before = syn.label?.range.from ?? syn.to;
+  const pos = Math.max(syn.keyword.to, ...syn.options.filter((o) => o.to <= before).map((o) => o.to));
+  const next = text[pos] ?? "";
+  return { from: pos, to: pos, insert: ` (${name})${/\s/.test(next) || next === ";" ? "" : " "}` };
+}
+
+/**
+ * A name for node `node` that has none: from its label, else its first
+ * document style, else its shape (D44).
+ */
+export function nameForUnnamed(node: LaidOutNode, styles: readonly string[], taken: ReadonlySet<string>, style: NameStyle): string {
+  return newNodeName(node.syntax.label?.text ?? "", taken, styles[0] ?? node.shape.kind, style);
 }

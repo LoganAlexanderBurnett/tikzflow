@@ -9,7 +9,9 @@ import { planMove, positioningText, referenceCandidates } from "../edit/move.ts"
 import type { Scope } from "../edit/properties.ts";
 import { type Hold, planResize, type ResizeOutcome, resizeBlocker, type SizeWant } from "../edit/resize.ts";
 import { type GapMark, snapNode } from "../edit/snap.ts";
+import { labelledNode } from "../edit/label.ts";
 import { pictureEnv } from "../model/document.ts";
+import { type Edge, edgeD, edgeEnds, edgeOfLabel } from "../model/edges.ts";
 import { undrawable } from "../model/explain.ts";
 import { type RGB, cssColor } from "../tikz/colors.ts";
 import { defaultTipLength, defaultTipWidth } from "../tikz/keys.ts";
@@ -43,8 +45,10 @@ import {
   pinNode,
   previewLayout,
   selectFromCanvas,
+  selectedEdge,
   selectedIds,
   selection,
+  shownEdges,
   status,
   text,
   unusedCoords,
@@ -82,6 +86,33 @@ function UndrawnMark({ n, scale }: { n: LaidOutNode; scale: number }) {
     </g>
   );
 }
+
+/** The selected edge: a halo along it, its ends, its labels outlined. */
+function EdgeSelection({ edge, scale }: { edge: Edge; scale: number }) {
+  const ends = edgeEnds(edge);
+  const r = 3 / scale;
+  return (
+    <g class={`tf-edge-selection${edge.lock ? " locked" : ""}`} data-testid="edge-selection">
+      <path d={edgeD(edge)} class="tf-path-halo" stroke-width={6 / scale} />
+      {[ends.start, ends.end].map((p) => (
+        <circle cx={f(p.x)} cy={f(p.y)} r={f(r)} class="tf-edge-end" stroke-width={f(1.2 / scale)} />
+      ))}
+      {edge.labels.map((n) => (
+        <rect
+          x={f(n.shape.center.x - n.shape.hw - 2 / scale)}
+          y={f(n.shape.center.y - n.shape.hh - 2 / scale)}
+          width={f(2 * n.shape.hw + 4 / scale)}
+          height={f(2 * n.shape.hh + 4 / scale)}
+          class="tf-selection"
+          stroke-width={1 / scale}
+          stroke-dasharray={`${3 / scale} ${2 / scale}`}
+        />
+      ))}
+    </g>
+  );
+}
+
+const NO_HITS: readonly EdgeHit[] = [];
 
 interface View {
   /** Screen pixels per pt. */
@@ -233,16 +264,26 @@ function NodeLabelView({ n, macros }: { n: LaidOutNode; macros: Record<string, s
 const pathSig = (p: LaidOutPath) =>
   [p.id, p.d, p.stroke, p.fill, p.lineWidth, p.dash, p.opacity, p.fillOpacity, p.shading && JSON.stringify(p.shading), JSON.stringify(p.tips)].join("|");
 
-const PathShape = memo(PathShapeView, (a, b) => a.scale === b.scale && a.selected === b.selected && pathSig(a.p) === pathSig(b.p));
+/** Where each edge of a path can be clicked. */
+interface EdgeHit {
+  id: string;
+  d: string;
+}
 
-function PathShapeView({ p, scale, selected }: { p: LaidOutPath; scale: number; selected: boolean }) {
+const PathShape = memo(
+  PathShapeView,
+  (a, b) => a.scale === b.scale && a.selected === b.selected && pathSig(a.p) === pathSig(b.p) && a.hits.map((h) => h.id + h.d).join("|") === b.hits.map((h) => h.id + h.d).join("|"),
+);
+
+function PathShapeView({ p, scale, selected, hits }: { p: LaidOutPath; scale: number; selected: boolean; hits: readonly EdgeHit[] }) {
   if (!p.d && !p.tips.length) return null;
   const minStroke = 0.6 / scale;
   const fill = p.shading ? `url(#${gradId(p.id)})` : rgba(p.fill);
   return (
     <g data-path={p.id} class={`tf-path${selected ? " selected" : ""}`}>
       {selected && <path d={p.d} class="tf-path-halo" stroke-width={p.lineWidth + 4 / scale} />}
-      <path d={p.d} class="tf-path-hit" stroke-width={10 / scale} />
+      {/* A path with edges is clicked edge by edge; other paths as a whole. */}
+      {hits.length ? null : <path d={p.d} class="tf-path-hit" stroke-width={10 / scale} />}
       <path
         d={p.d}
         fill={fill}
@@ -266,6 +307,9 @@ function PathShapeView({ p, scale, selected }: { p: LaidOutPath; scale: number; 
           />
         );
       })}
+      {hits.map((h) => (
+        <path key={h.id} d={h.d} data-edge={h.id} data-testid="edge-hit" class="tf-path-hit" stroke-width={10 / scale} />
+      ))}
     </g>
   );
 }
@@ -299,7 +343,7 @@ function LabelEditor({ view, size, onDone }: { view: View; size: { w: number; h:
     [session],
   );
   // A node being created isn't in the code yet; it is in the preview layout.
-  const n = e ? (e.creating ? layout.value : baseLayout.value)?.nodes.find((x) => x.id === e.id) : undefined;
+  const n = e ? labelledNode(e.creating ? layout.value : baseLayout.value, e.id) : undefined;
   if (!e || !n) return null;
   const problem = labelEditProblem.value;
   const x = (n.shape.center.x - (view.cx - size.w / 2 / view.scale)) * view.scale;
@@ -505,6 +549,20 @@ export function Canvas() {
       } else if (n?.locked) status.value = `Locked: ${n.locked}. The panel on the right says why and how to fix it.`;
       return;
     }
+    const labelEl = target.closest("[data-label]");
+    if (e.button === 0 && labelEl) {
+      // A label on a path selects its edge (or the path, if it has none).
+      const id = labelEl.getAttribute("data-label")!;
+      const edge = edgeOfLabel(shownEdges.value, id);
+      const path = baseLayout.value?.paths.find((x) => x.syntax.from === labelledNode(baseLayout.value, id)?.statement.from);
+      selectFromCanvas(edge ? { kind: "edge", id: edge.id } : path ? { kind: "path", id: path.id } : null);
+      return;
+    }
+    const edgeEl = target.closest("[data-edge]");
+    if (e.button === 0 && edgeEl) {
+      selectFromCanvas({ kind: "edge", id: edgeEl.getAttribute("data-edge")! });
+      return;
+    }
     if (e.button === 0 && pathEl) {
       selectFromCanvas({ kind: "path", id: pathEl.getAttribute("data-path")! });
       return;
@@ -683,6 +741,13 @@ export function Canvas() {
     const l = baseLayout.value;
     if (!l) return;
     for (const el of document.elementsFromPoint(e.clientX, e.clientY)) {
+      // A label on an edge.
+      const labelId = el.closest("[data-label]")?.getAttribute("data-label");
+      if (labelId) {
+        e.preventDefault();
+        startLabelEdit(labelId);
+        return;
+      }
       const id = el.closest("[data-node]")?.getAttribute("data-node");
       const n = id ? l.nodes.find((x) => x.id === id) : undefined;
       if (n?.kind === "statement") {
@@ -750,6 +815,16 @@ export function Canvas() {
   const g = guides.value;
 
   const items = l ? drawOrder(l) : [];
+  const edgeList = shownEdges.value;
+  const hitsByPath = new Map<string, EdgeHit[]>();
+  for (const e of edgeList) {
+    const list = hitsByPath.get(e.path.id) ?? [];
+    list.push({ id: e.id, d: edgeD(e) });
+    hitsByPath.set(e.path.id, list);
+  }
+  // The selected edge as shown (it follows a node being dragged).
+  const selEdgeId = selectedEdge.value?.id;
+  const selEdge: Edge | undefined = selEdgeId ? edgeList.find((x) => x.id === selEdgeId) : undefined;
   const gradients: JSX.Element[] = [];
   if (l) {
     for (const n of l.nodes) if (n.shading) gradients.push(<Gradient id={gradId(n.id)} shading={n.shading} />);
@@ -792,7 +867,7 @@ export function Canvas() {
           </g>
         ) : (
           <g key={it.p.id} transform="scale(1 -1)">
-            <PathShape p={it.p} scale={v.scale} selected={sel?.kind === "path" && sel.id === it.p.id} />
+            <PathShape p={it.p} scale={v.scale} selected={sel?.kind === "path" && sel.id === it.p.id} hits={hitsByPath.get(it.p.id) ?? NO_HITS} />
           </g>
         ),
       )}
@@ -804,6 +879,19 @@ export function Canvas() {
             </g>
           )}
           <NodeLabel n={n} macros={macros.value} />
+          {n.kind === "path" && n.text && (
+            <rect
+              data-label={n.id}
+              data-testid="edge-label"
+              class="tf-label-hit"
+              x={f(n.shape.center.x - n.shape.hw)}
+              y={f(-n.shape.center.y - n.shape.hh)}
+              width={f(2 * n.shape.hw)}
+              height={f(2 * n.shape.hh)}
+            >
+              <title>Double-click to edit this label</title>
+            </rect>
+          )}
         </g>
       ))}
       {l?.nodes.map((n) =>
@@ -814,6 +902,7 @@ export function Canvas() {
         ) : null,
       )}
       <g transform="scale(1 -1)" class="tf-overlay">
+        {selEdge && <EdgeSelection edge={selEdge} scale={v.scale} />}
         {selected.map((n) => (
           <rect
             x={f(n.shape.center.x - n.shape.hw - 3 / v.scale)}

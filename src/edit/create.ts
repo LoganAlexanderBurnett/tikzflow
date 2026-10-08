@@ -14,11 +14,11 @@ import { applyChanges, type Change, composeChanges } from "./changes.ts";
 import { insertStatements, nodeAnchor, pathAnchor, type Anchor } from "./insert.ts";
 import { ensureLibraries, libraryLoaded, shapeLibraries } from "./libraries.ts";
 import { formatDistance, type MoveResult, planMove, positioningText, previousRelation } from "./move.ts";
-import { nameStyle, newNodeName, takenNames } from "./names.ts";
+import { nameForUnnamed, nameNodeChange, nameStyle, newNodeName, takenNames } from "./names.ts";
 import { labelProblem } from "./label.ts";
 import { styleUsers } from "./properties.ts";
 import { snapNode } from "./snap.ts";
-import { addStyles, definedStyleNames, styleSites } from "./styles.ts";
+import { addStyles, definedStyleNames, nodeStyles, styleSites } from "./styles.ts";
 
 /** One shape in the palette: a style to use and, if the document lacks it, the style to add. */
 export interface PaletteEntry {
@@ -231,6 +231,8 @@ interface Prepared {
   /** The changes that give the picture the style and libraries the node needs. */
   setup: Change[];
   notes: string[];
+  /** A name given to an unnamed parent so the new node can refer to it (D44), and the change that writes it. */
+  parentName?: { name: string; change: Change };
 }
 
 /** Style and libraries for `entry`, and a name for the node. */
@@ -261,8 +263,18 @@ function prepare(text: string, picIndex: number, req: CreateRequest, relative: b
     notes.push(`loaded the ${needed.filter((l) => !libraryLoaded(doc, pic, l)).join(", ")} library`);
   }
   const taken = takenNames(doc, pic, layout);
-  const name = newNodeName(req.label, taken, entry.style, nameStyle(layout.nodes.flatMap((n) => (n.name ? [n.name] : []))));
-  return { doc, pic, layout, name, setup, notes };
+  const style = nameStyle(layout.nodes.flatMap((n) => (n.name ? [n.name] : [])));
+  // An unnamed parent is named first, from its own label, so it keeps the plainer name.
+  const { placement } = req;
+  const parent = placement.kind === "at" ? undefined : layout.nodes.find((n) => n.id === placement.of);
+  let parentName: Prepared["parentName"];
+  if (parent && parent.kind === "statement" && !parent.name && !parent.lock) {
+    const n = nameForUnnamed(parent, nodeStyles(parent.syntax, defined), taken, style);
+    taken.add(n);
+    parentName = { name: n, change: nameNodeChange(text, parent.syntax, n) };
+  }
+  const name = newNodeName(req.label, taken, entry.style, style);
+  return parentName ? { doc, pic, layout, name, setup, notes, parentName } : { doc, pic, layout, name, setup, notes };
 }
 
 /** The statement for the new node. */
@@ -275,7 +287,7 @@ function nodeStatement(entry: PaletteEntry, relation: string | null, at: string 
 function insertion(p: Prepared, text: string, parent: LaidOutNode | null, nodeText: string, edgeText: string | null): Change[] | { reason: string } {
   const statements = [nodeText];
   // A parent whose name is used again later can't be referred to from the end of the picture.
-  const reused = parent && p.layout.nodes.some((n) => n !== parent && n.name === parent.name && p.layout.nodes.indexOf(n) > p.layout.nodes.indexOf(parent));
+  const reused = parent?.name && p.layout.nodes.some((n) => n !== parent && n.name === parent.name && p.layout.nodes.indexOf(n) > p.layout.nodes.indexOf(parent));
   if (reused && parent) {
     const anchor: Anchor = { pos: parent.statement.to, indentFrom: parent.statement.from };
     if (edgeText) statements.push(edgeText);
@@ -331,15 +343,20 @@ export function planCreate(text: string, picIndex: number, req: CreateRequest): 
   // Beside a node.
   const parent = layout.nodes.find((n) => n.id === placement.of);
   if (!parent || parent.kind !== "statement") return { ok: false, reason: "Select a node to add to." };
-  const parentName = usableName(parent);
-  if (!parentName) return { ok: false, reason: "This node has no name the code can refer to; give it one, such as (start), first." };
   if (parent.lock) return { ok: false, reason: `This node is locked (${parent.locked}), so a node placed relative to it wouldn't land where it looks. Fix that first.` };
+  // An unnamed parent gets a name in the same edit (D44).
+  const parentName = usableName(parent) ?? prepared.parentName?.name;
+  if (!parentName) return { ok: false, reason: "This node's name can't be referred to in code (it is made up or contains special characters); rename it first." };
+  if (prepared.parentName) {
+    setup.unshift(prepared.parentName.change);
+    notes.push(`named the selected node ${parentName} so the new one can refer to it`);
+  }
 
   const flow = flowDirection(layout, parent);
   const sibling = placement.kind === "sibling";
   const incoming = sibling ? incomingEdge(doc, layout, parent) : null;
   const from = sibling ? incoming?.from : parent;
-  const fromName = from && usableName(from);
+  const fromName = sibling ? from && usableName(from) : parentName;
   const head = sibling ? incoming?.head : edgeHead(doc, layout);
   const edge = fromName && head ? `${head} (${fromName}) -- (${name});` : null;
   const perpendicular: Direction = flow === "below" || flow === "above" ? "right" : "below";

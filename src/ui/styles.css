@@ -275,6 +275,31 @@ button.link {
   pointer-events: none;
 }
 
+/* Labels on edges: clicked to select the edge, double-clicked to edit. */
+.tf-label-hit {
+  fill: transparent;
+  pointer-events: all;
+  cursor: pointer;
+}
+
+/* The selected edge */
+.tf-edge-selection {
+  pointer-events: none;
+}
+
+.tf-edge-selection.locked .tf-path-halo {
+  stroke: color-mix(in srgb, var(--lock) 22%, transparent);
+}
+
+.tf-edge-end {
+  fill: var(--panel);
+  stroke: var(--accent);
+}
+
+.tf-edge-selection.locked .tf-edge-end {
+  stroke: var(--lock);
+}
+
 .tf-label {
   position: relative;
   width: 100%;
@@ -909,4 +934,10 @@ button:disabled {
 .tf-match {
   display: flex;
   gap: 6px;
+}
+
+.tf-edge-labels {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }

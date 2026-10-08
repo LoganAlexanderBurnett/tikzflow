@@ -118,12 +118,31 @@ describe("a child (Tab)", () => {
     expect(m.name).toBe("decision1");
   });
 
-  it("refuses a node with no name, a locked node and a label that would break the code", () => {
-    const unnamed = "\\begin{tikzpicture}\n\\node[draw] at (0,0) {A};\n\\end{tikzpicture}\n";
-    const l = layoutOf(unnamed);
-    const id = l.nodes[0]!.id;
-    const r1 = planCreate(unnamed, 0, { entry: STANDARD_ENTRIES[0]!, label: "B", placement: { kind: "child", of: id } });
-    expect(r1.ok).toBe(false);
+  it("names an unnamed parent from its label, in the same edit (D44)", () => {
+    const unnamed = "\\begin{tikzpicture}\n\\node[draw] at (0,0) {Read input};\n\\end{tikzpicture}\n";
+    const id = layoutOf(unnamed).nodes[0]!.id;
+    const r = create(unnamed, "process", "Check", { kind: "child", of: id });
+    expect(r.text).toContain("\\node[draw] (readInput) at (0,0) {Read input};");
+    expect(r.text).toContain("below=of readInput] (check) {Check};");
+    expect(r.text).toContain("(readInput) -- (check);");
+    expect(r.notes.join(" ")).toMatch(/named the selected node readInput/);
+    // Only the name was added to the parent's statement.
+    expect(line(r.text, "Read input")).toBe(line(unnamed, "Read input").replace("[draw]", "[draw] (readInput)"));
+  });
+
+  it("gives the parent the plainer name when both labels would give the same one", () => {
+    const unnamed = "\\begin{tikzpicture}\n\\node {Step};\n\\end{tikzpicture}\n";
+    const id = layoutOf(unnamed).nodes[0]!.id;
+    const r = create(unnamed, "process", "Step", { kind: "sibling", of: id });
+    expect(r.text).toContain("\\node (step) {Step};");
+    expect(r.name).toBe("step2");
+    // A label without words falls back to the shape.
+    const math = "\\begin{tikzpicture}\n\\node[draw]{$x$};\n\\end{tikzpicture}\n";
+    const m = create(math, "process", "Next", { kind: "child", of: layoutOf(math).nodes[0]!.id });
+    expect(m.text).toContain("\\node[draw] (rectangle1) {$x$};");
+  });
+
+  it("refuses a locked node and a label that would break the code", () => {
     const bad = planCreate(SAMPLE, 0, { entry: entry(SAMPLE, "process"), label: "50% done", placement: { kind: "child", of: "stop" } });
     expect(bad.ok).toBe(false);
   });

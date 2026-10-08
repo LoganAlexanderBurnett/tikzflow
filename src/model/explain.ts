@@ -1,6 +1,7 @@
 // Plain-language explanations for locked nodes, and which one-click fixes
 // apply (D36).
-import type { LaidOutNode, PictureLayout } from "../tikz/layout.ts";
+import type { LaidOutNode, LaidOutPath, PictureLayout } from "../tikz/layout.ts";
+import type { Edge, EdgeMode } from "./edges.ts";
 
 export interface LockHelp {
   title: string;
@@ -103,7 +104,7 @@ export function explainLock(layout: PictureLayout, node: LaidOutNode, earlierNam
     case "path":
       return {
         title: "Part of a path",
-        body: "This node sits on a path and moves with it. Editing path labels isn't supported yet.",
+        body: "This node sits on a path and moves with it. Select the edge it belongs to to work on it; double-click it to edit its text.",
         canPin: false,
         canAttach: false,
       };
@@ -115,4 +116,47 @@ export function explainLock(layout: PictureLayout, node: LaidOutNode, earlierNam
         canAttach: false,
       };
   }
+}
+
+/** An edge's mode in a few words. */
+export function describeMode(mode: EdgeMode): string {
+  switch (mode) {
+    case "straight":
+      return "Straight";
+    case "polyline":
+      return "Straight pieces through points";
+    case "orthogonal":
+      return "Orthogonal (|- and -|)";
+    case "curved":
+      return "Curved";
+  }
+}
+
+/** Why an edge can't be edited visually, in plain language, or null if it can. */
+export function explainEdge(edge: Edge): { title: string; body: string } | null {
+  if (!edge.lock) return null;
+  if (edge.lock.kind === "shapes") {
+    return {
+      title: "Part of a shape",
+      body: "This path also draws a shape: a rectangle, a circle, an arc or a closed outline (cycle). The editor keeps it exactly as written rather than risk changing the shape. You can still change it in the code.",
+    };
+  }
+  return {
+    title: "Code the editor doesn't fully understand",
+    body: "Part of this path uses something the editor can't follow, such as a macro, a loop variable, or a coordinate it can't work out. LaTeX may well handle it, but the editor keeps the path exactly as written rather than write a wrong one. You can still change it in the code.",
+  };
+}
+
+/** What a selected path that isn't an edge is, in plain language. */
+export function explainPath(path: LaidOutPath): { title: string; body: string } {
+  if (path.syntax.command === "join") {
+    return { title: "Drawn by a chain", body: "The chains library draws this line between two nodes on a chain (join). It follows the nodes; it has no code of its own to edit." };
+  }
+  if (!path.stroke) {
+    return { title: "An invisible path", body: "This path draws nothing itself (\\path); it is there to place labels or coordinates. Edit it in the code." };
+  }
+  if (path.route?.shapes) {
+    return { title: "A shape", body: "This path draws a shape (a rectangle, a circle, an arc or a closed outline) rather than a connection. Edit it in the code." };
+  }
+  return { title: "A path the editor keeps as written", body: "The editor doesn't treat this path as an edge between nodes. Edit it in the code." };
 }

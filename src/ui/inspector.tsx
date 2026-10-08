@@ -24,6 +24,7 @@ import { pictureEnv } from "../model/document.ts";
 import { explainLock } from "../model/explain.ts";
 import { cssColor, type RGB } from "../tikz/colors.ts";
 import type { LaidOutNode, PictureLayout } from "../tikz/layout.ts";
+import { EdgePanel, PathPanel } from "./edgepanel.tsx";
 import { StylePanel } from "./stylepanel.tsx";
 import { applyProperty, attachNode, baseLayout, currentPicture, doc, matchSize, pinNode, scopeStyle, selectedNodes, selection } from "./store.ts";
 
@@ -441,8 +442,12 @@ export function Inspector() {
       <button class="tf-collapse" onClick={() => setCollapsed(true)} title="Hide the properties panel" aria-label="Hide the properties panel" aria-expanded={true} data-testid="inspector-toggle">
         »
       </button>
-      {!layout || !primary ? (
-        <p class="tf-empty">{selection.value?.kind === "path" ? "Editing paths comes in a later step." : "Select a node to edit its colours, font and alignment. Shift-click selects several."}</p>
+      {selection.value?.kind === "edge" ? (
+        <EdgePanel />
+      ) : selection.value?.kind === "path" ? (
+        <PathPanel />
+      ) : !layout || !primary ? (
+        <p class="tf-empty">Select a node to edit its colours, font and alignment. Shift-click selects several. Click an edge to work on it.</p>
       ) : (
         <>
           <h2 class="tf-title" title={nodes.length === 1 ? nodeTitle(primary) : undefined}>

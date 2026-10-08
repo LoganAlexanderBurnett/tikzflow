@@ -6,7 +6,7 @@ import { EditorView } from "@codemirror/view";
 import { batch, computed, effect, signal } from "@preact/signals";
 import type { Change } from "../edit/changes.ts";
 import { defaultEntry, type PaletteEntry, paletteEntries, planCreate, type Placement } from "../edit/create.ts";
-import { draftOf, labelBlocker, labelProblem, planLabelEdit } from "../edit/label.ts";
+import { draftOf, labelBlocker, labelledNode, labelProblem, planLabelEdit } from "../edit/label.ts";
 import { withLibraries } from "../edit/libraries.ts";
 import { formatDistance, planAttach, planPin } from "../edit/move.ts";
 import { type PropEdit, propertyChanges, type Scope, sharedStyles } from "../edit/properties.ts";
@@ -14,6 +14,7 @@ import { planMatch } from "../edit/resize.ts";
 import type { GapMark, Guide } from "../edit/snap.ts";
 import { planFactor, planStyleEdit, type Repeat } from "../edit/styleedit.ts";
 import { analyzeDocument, layoutDocumentPicture } from "../model/document.ts";
+import { type Edge, edgeOfLabel, pictureEdges } from "../model/edges.ts";
 import type { Range } from "../model/syntax.ts";
 import { unusedCoordinates } from "../model/references.ts";
 import { summarize } from "../model/summary.ts";
@@ -22,10 +23,10 @@ import type { LaidOutNode, LaidOutPath, PictureLayout } from "../tikz/layout.ts"
 import type { Point } from "../tikz/shapes.ts";
 import { fromCanvas, setHighlight, setOpaque } from "./editor.ts";
 
-/** What the pointer or the cursor is on. */
-export type Hit = { kind: "node"; id: string } | { kind: "path"; id: string };
-/** The selection: one or more nodes (the last one is the primary), or one path. */
-export type Selection = { kind: "nodes"; ids: readonly string[] } | { kind: "path"; id: string } | null;
+/** What the pointer or the cursor is on: a node, an edge, or a path that has no edges the editor models. */
+export type Hit = { kind: "node"; id: string } | { kind: "edge"; id: string } | { kind: "path"; id: string };
+/** The selection: one or more nodes (the last one is the primary), one edge, or one path. */
+export type Selection = { kind: "nodes"; ids: readonly string[] } | { kind: "edge"; id: string } | { kind: "path"; id: string } | null;
 
 export function selectionOf(hit: Hit | null): Selection {
   if (!hit) return null;
@@ -62,6 +63,18 @@ export const layout = computed<PictureLayout | null>(() => {
   const o = overrides.value;
   if (!o.size) return baseLayout.value;
   return layoutDocumentPicture(doc.value, currentPicture.value, o);
+});
+
+/** The edges of the picture as the text describes it (M2b). */
+export const edges = computed<Edge[]>(() => {
+  const l = baseLayout.value;
+  return l ? pictureEdges(l) : [];
+});
+
+/** The edges as shown, with any drag in progress applied. */
+export const shownEdges = computed<Edge[]>(() => {
+  const l = layout.value;
+  return l === baseLayout.value ? edges.value : l ? pictureEdges(l) : [];
 });
 
 export const summary = computed(() => {
@@ -104,12 +117,12 @@ function syncOpaque() {
 export function onEditorCursor(pos: number): void {
   const l = baseLayout.value;
   if (!l) return;
-  selection.value = selectionOf(objectAt(l, pos));
+  selection.value = selectionOf(objectAt(l, pos, edges.value));
   highlightSelection();
 }
 
-/** The smallest node or path whose source contains `pos`. */
-export function objectAt(l: PictureLayout, pos: number): Hit | null {
+/** The smallest node, edge or path whose source contains `pos`. */
+export function objectAt(l: PictureLayout, pos: number, edgeList: readonly Edge[] = pictureEdges(l)): Hit | null {
   let best: { sel: Hit; size: number } | null = null;
   const consider = (sel: Hit, r: Range) => {
     if (pos < r.from || pos > r.to) return;
@@ -117,14 +130,24 @@ export function objectAt(l: PictureLayout, pos: number): Hit | null {
     if (!best || size < best.size) best = { sel, size };
   };
   for (const n of l.nodes) consider({ kind: "node", id: n.id }, n.statement);
-  for (const p of l.paths) consider({ kind: "path", id: p.id }, p.range);
-  // Labels on a path select the path.
+  // A path with edges selects the edge the cursor is in; other paths select the path.
+  for (const p of l.paths) if (!edgeList.some((e) => e.path === p)) consider({ kind: "path", id: p.id }, p.range);
+  for (const e of edgeList) consider({ kind: "edge", id: e.id }, e.range);
+  // Labels on a path select their edge, or the path.
   for (const n of l.pathNodes) {
+    const e = edgeOfLabel(edgeList, n.id);
     const p = l.paths.find((x) => x.syntax.from === n.statement.from);
-    if (p) consider({ kind: "path", id: p.id }, { from: n.syntax.from, to: n.syntax.to });
+    if (e) consider({ kind: "edge", id: e.id }, { from: n.syntax.from, to: n.syntax.to });
+    else if (p) consider({ kind: "path", id: p.id }, { from: n.syntax.from, to: n.syntax.to });
   }
   return (best as { sel: Hit } | null)?.sel ?? null;
 }
+
+/** The selected edge, if one is. */
+export const selectedEdge = computed<Edge | null>(() => {
+  const sel = selection.value;
+  return sel?.kind === "edge" ? (edges.value.find((e) => e.id === sel.id) ?? null) : null;
+});
 
 /** Ids of the selected nodes, primary last. */
 export const selectedIds = computed<readonly string[]>(() => (selection.value?.kind === "nodes" ? selection.value.ids : []));
@@ -161,6 +184,10 @@ export const activeScope = computed<Scope | null>(() => {
 function rangesOf(sel: Selection, l: PictureLayout): Range[] {
   if (!sel) return [];
   if (sel.kind === "nodes") return sel.ids.flatMap((id) => l.nodes.find((n) => n.id === id)?.statement ?? []);
+  if (sel.kind === "edge") {
+    const e = edges.value.find((x) => x.id === sel.id);
+    return e ? [e.range] : [];
+  }
   const p: LaidOutPath | undefined = l.paths.find((x) => x.id === sel.id);
   return p ? [p.range] : [];
 }
@@ -241,9 +268,24 @@ export function showReference(name: string, ranges: readonly Range[]): void {
   revealInCode(ranges[i]!);
 }
 
-/** Applies a visual edit as one undoable step. */
+/**
+ * An edge or path id after `changes`: ids hold the path's position in the
+ * text ("path@120:0"), which text inserted or removed before it moves.
+ */
+export function mapPathId(id: string, changes: readonly Change[]): string {
+  return id.replace(/^(path@)(d+)/, (_m, pre: string, n: string) => {
+    const at = Number(n);
+    let shift = 0;
+    for (const c of changes) if (c.to <= at && !(c.from === at && c.to === at)) shift += c.insert.length - (c.to - c.from);
+    return `${pre}${at + shift}`;
+  });
+}
+
+/** Applies a visual edit as one undoable step. A selected edge or path stays selected. */
 export function applyEdit(changes: Change[], label: string): void {
   if (!view || !changes.length) return;
+  const sel = selection.peek();
+  if (sel?.kind === "edge" || sel?.kind === "path") selection.value = { kind: sel.kind, id: mapPathId(sel.id, changes) };
   view.dispatch({
     changes,
     annotations: isolateHistory.of("full"),
@@ -385,17 +427,20 @@ export const labelEditProblem = computed(() => {
   return e ? labelProblem(e.draft) : null;
 });
 
-/** Starts editing the label of node `id`. Says why in the status bar if it can't. */
+/** Starts editing the label of node `id`, or of a label on an edge. Says why in the status bar if it can't. */
 export function startLabelEdit(id: string): boolean {
   const l = baseLayout.value;
-  const n = l?.nodes.find((x) => x.id === id);
+  const n = labelledNode(l, id);
   const why = labelBlocker(text.value, currentPicture.value, id);
   if (!n || why) {
     status.value = why ?? "There is no such node.";
     return false;
   }
   const original = draftOf(n.syntax.label!.text);
-  selectFromCanvas({ kind: "node", id });
+  if (n.kind === "path") {
+    const e = edgeOfLabel(edges.value, id);
+    selectFromCanvas(e ? { kind: "edge", id: e.id } : null);
+  } else selectFromCanvas({ kind: "node", id });
   labelEdit.value = { session: ++sessions, id, original, draft: original };
   return true;
 }
@@ -425,9 +470,9 @@ export function commitLabelEdit(): boolean {
     return false;
   }
   labelEdit.value = null;
-  const name = baseLayout.value?.nodes.find((x) => x.id === e.id)?.name ?? e.id;
+  const n = labelledNode(baseLayout.value, e.id);
   applyEdit(r.changes, "input.label");
-  status.value = `Changed the label of ${name}.`;
+  status.value = n?.kind === "path" ? "Changed the edge label." : `Changed the label of ${n?.name ?? e.id}.`;
   return true;
 }
 

@@ -3,7 +3,7 @@
 import type { BodyItem, NodeSyntax, OptionList, PathItemSyntax, PathSyntax, PictureSyntax, Range } from "../model/syntax.ts";
 import { layoutLabel, type LabelEnv, type Macro, type TextLayout } from "../text/label.ts";
 import { ColorTable, type RGB } from "./colors.ts";
-import { type CoordEnv, type CoordResult, evalCoordText, type NameEntry } from "./coords.ts";
+import { type CoordEnv, type CoordResult, evalCoordText, type NameEntry, splitNodeRef } from "./coords.ts";
 import { applyKeys, applyStyle, defaultTipLength, defaultTipWidth, KNOWN_SHAPES, parseNodeDistance, SHAPE_LIBRARY, StyleTable } from "./keys.ts";
 import { type KeyValue, parseOptionString } from "./options.ts";
 import { anchorOffset, anchorPoint, borderToward, makeShape, type NodeShape, outline, type Point, shapeBounds } from "./shapes.ts";
@@ -108,9 +108,58 @@ export interface Tip {
   lineWidth: number;
 }
 
+/** A point a path goes through, tied to the coordinate that gives it. */
+export interface RouteStop {
+  /** Index of the coordinate in the path's items; -1 for the node a "\node ... edge" path starts from. */
+  item: number;
+  /** The coordinate's source, "(a.east)", or the node's statement for item -1. */
+  range: Range;
+  /** The text between the parentheses, without comments. */
+  text: string;
+  relative?: "+" | "++";
+  /** The point the coordinate gives (a bare node name gives the node's centre). */
+  point: Point;
+  /** Id of the node or coordinate it names, bare or with an anchor. */
+  node?: string;
+  /** The anchor written after the name ("east" for "a.east"). */
+  anchor?: string;
+  /** A bare node name: the path is clipped to the node's border. */
+  bare?: boolean;
+}
+
+/** One drawn piece of a path between two stops. Geometry is before any shortening for arrow tips. */
+export interface RouteSeg {
+  kind: "line" | "curve" | "hv" | "vh";
+  from: Point;
+  to: Point;
+  c1?: Point;
+  c2?: Point;
+  /** Indices into the route's stops. */
+  a: number;
+  b: number;
+  /** Index of the item that starts the operation: "--", "|-", "-|", "to", "edge", or the first "..". */
+  op: number;
+  /** Items of ".. controls (c1) and (c2) .." control points. */
+  controls?: number[];
+  /** The segment closes the subpath ("cycle"). */
+  cycle?: boolean;
+}
+
+/** How a path runs, for editing edges (M2b). */
+export interface Route {
+  stops: RouteStop[];
+  segs: RouteSeg[];
+  /** The path also draws shapes (rectangle, circle, arc, …) or closes with "cycle". */
+  shapes: boolean;
+  /** Part of the path couldn't be evaluated or isn't understood. */
+  broken: boolean;
+}
+
 export interface LaidOutPath {
   id: string;
   syntax: PathSyntax;
+  /** Its stops and segments, for edge editing. Undefined for chain joins. */
+  route?: Route;
   /** The range to highlight for this path (the edge operation for "edge"). */
   range: Range;
   d: string;
@@ -338,7 +387,14 @@ export function layoutPicture(pic: PictureSyntax, env: LayoutEnv, overrides: Rea
         const node = layoutNode(item.node, scope, ctx, item.node.kind === "coordinate" ? "coordinate" : "statement", undefined, item.node);
         if (node && item.trailing) {
           // "\node (a) {A} edge (b);" continues as a path from the node.
-          layoutPath(item.trailing, scope, ctx, { point: node.shape.center, node: { shape: node.shape, nodeId: node.id }, ref: node.id });
+          layoutPath(item.trailing, scope, ctx, { point: node.shape.center, node: { shape: node.shape, nodeId: node.id }, ref: node.id }, {
+            item: -1,
+            range: item.node.name?.range ?? item.node,
+            text: item.node.name?.text ?? "",
+            point: node.shape.center,
+            node: node.id,
+            bare: true,
+          });
         }
         break;
       }
@@ -1018,10 +1074,11 @@ interface PathBuild {
   connects: string[];
   edges: Array<[string, string]>;
   issues: string[];
+  route?: Route;
 }
 
 /** Lays out a path statement, and any "edge" operations in it as separate paths. */
-function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint): void {
+function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint, startStop?: RouteStop): void {
   const st = itemCopy(scope.state);
   const styles = scope.styles.child();
   const kc = keyCtx(ctx, styles);
@@ -1036,7 +1093,13 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint):
     if (it.kind === "options" && !opOption) applyKeys(st, keysOf(it.list), kc);
   });
 
-  const main: PathBuild = { segments: [], subpathStarts: [], extra: [], connects: [], edges: [], issues: [] };
+  const route: Route = { stops: startStop ? [startStop] : [], segs: [], shapes: false, broken: false };
+  const main: PathBuild = { segments: [], subpathStarts: [], extra: [], connects: [], edges: [], issues: [], route };
+  // The stop the current point came from, the start of the current subpath, and the operation being read.
+  let curStop = startStop ? 0 : -1;
+  let subStop = curStop;
+  let opItem = -1;
+  let ctrlItems: number[] = [];
   // The last node the current subpath passed through.
   let chainRef: string | undefined = start?.ref;
   const edges: Array<{ build: PathBuild; st: State; range: Range; nodes: PendingNode[] }> = [];
@@ -1103,9 +1166,12 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint):
         if ((op === "to" || op === "edge") && opState) applyKeys(opState, keysOf(it.list), kc);
         break;
       case "op":
-        if (it.op === "..") op = op === "controls" ? "controls" : "skip";
-        else {
+        if (it.op === "..") {
+          if (op !== "controls") opItem = i;
+          op = op === "controls" ? "controls" : "skip";
+        } else {
           op = it.op;
+          opItem = i;
           opState = null;
         }
         break;
@@ -1113,10 +1179,12 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint):
         switch (it.word) {
           case "to":
             op = "to";
+            opItem = i;
             opState = itemCopy(st);
             break;
           case "edge":
             op = "edge";
+            opItem = i;
             opState = itemCopy(st);
             opState.fill = false;
             applyStyle(opState, "every edge", kc);
@@ -1127,12 +1195,16 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint):
           case "controls":
             op = "controls";
             controls = [];
+            ctrlItems = [];
             break;
           case "and":
             break;
           case "cycle":
+            route.shapes = true;
             if (cur && subStart) {
               const seg: Segment = { kind: "line", from: cur.point, to: subStart };
+              if (curStop >= 0 && subStop >= 0) route.segs.push({ kind: "line", from: seg.from, to: seg.to, a: curStop, b: subStop, op: opItem, cycle: true });
+              curStop = subStop;
               main.segments.push(seg);
               lastSeg = seg;
               placeNodes(pending.splice(0), seg, subStart, st);
@@ -1143,10 +1215,12 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint):
             break;
           case "rectangle":
           case "arc":
+            route.shapes = true;
             op = it.word;
             break;
           case "circle":
           case "ellipse": {
+            route.shapes = true;
             op = it.word;
             // "circle [radius=2pt]" takes its size from options.
             const next = items[i + 1];
@@ -1166,6 +1240,7 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint):
           }
           default:
             main.issues.push(`"${it.word}" isn't drawn natively`);
+            route.shapes = true;
             op = "skip";
         }
         break;
@@ -1188,6 +1263,7 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint):
       case "unknown": {
         const t = it.text.trim();
         main.issues.push(`"${t.slice(0, 30)}" isn't understood here`);
+        route.broken = true;
         if (/^\\|^let$|^plot$|^pic$|^decorate$|^foreach$/.test(t)) broken = true;
         break;
       }
@@ -1225,6 +1301,7 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint):
             const c: { text: string; relative?: "+" | "++" } = { text: it.coord.text };
             if (it.coord.relative) c.relative = it.coord.relative;
             controls.push(c);
+            ctrlItems.push(i);
             break;
           }
         }
@@ -1234,7 +1311,17 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint):
           const opaqueRef = r.refs.find((n) => mayBeOpaqueName(ctx.out, n));
           main.issues.push(opaqueRef ? `refers to "${opaqueRef}" inside a block kept as-is` : r.reason);
           broken = true;
+          route.broken = true;
           break;
+        }
+        const stop: RouteStop = { item: i, range: { from: it.coord.from, to: it.coord.to }, text: it.coord.text, point: r.point };
+        if (it.coord.relative) stop.relative = it.coord.relative;
+        const named = r.node ?? r.anchored;
+        if (named?.nodeId) stop.node = named.nodeId;
+        if (r.node) stop.bare = true;
+        else if (r.anchored && !it.coord.relative) {
+          const anchor = splitNodeRef(it.coord.text, ctx.names)?.anchor;
+          if (anchor) stop.anchor = anchor;
         }
         const target: PathPoint = r.node ? { point: r.point, node: r.node } : { point: r.point };
         // Coordinates are waypoints, not edge endpoints.
@@ -1254,9 +1341,12 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint):
           if (refId) main.connects.push(refId);
           chainRef = refId;
           op = "move";
+          curStop = route.stops.push(stop) - 1;
+          subStop = curStop;
           break;
         }
         if (op === "rectangle") {
+          curStop = route.stops.push(stop) - 1;
           const a = cur.point;
           const b = target.point;
           main.extra.push(`M ${P(a)} L ${f3(b.x)} ${f3(a.y)} L ${P(b)} L ${f3(a.x)} ${f3(b.y)} Z`);
@@ -1289,11 +1379,17 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint):
           seg = { kind: "hv", from: clip(cur, corner), to: clip(target, corner) };
         } else seg = toSegment(cur, target, opState ?? st);
 
+        const info: RouteSeg = { kind: seg.kind, from: seg.from, to: seg.to, a: curStop, b: -1, op: opItem };
+        if (seg.c1) info.c1 = seg.c1;
+        if (seg.c2) info.c2 = seg.c2;
+        if (op === "controls") info.controls = ctrlItems;
         if (op === "edge") {
           // An edge is its own path and leaves the current point where it was.
           const ids = [cur.ref, refId].filter((x): x is string => !!x);
+          const from = route.stops[curStop];
+          const edgeRoute: Route = { stops: from ? [from, stop] : [stop], segs: from ? [{ ...info, a: 0, b: 1 }] : [], shapes: false, broken: !from };
           edges.push({
-            build: { segments: [seg], subpathStarts: [0], extra: [], connects: ids, edges: ids.length === 2 ? [[ids[0]!, ids[1]!]] : [], issues: [] },
+            build: { segments: [seg], subpathStarts: [0], extra: [], connects: ids, edges: ids.length === 2 ? [[ids[0]!, ids[1]!]] : [], issues: [], route: edgeRoute },
             st: opState ?? st,
             range: { from: opRange?.from ?? it.coord.from, to: it.coord.to },
             nodes: opNodes,
@@ -1303,6 +1399,10 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint):
           op = "move";
           break;
         }
+        info.b = route.stops.push(stop) - 1;
+        if (info.a >= 0) route.segs.push(info);
+        else route.broken = true;
+        curStop = info.b;
         main.segments.push(seg);
         lastSeg = seg;
         placeNodes(pending.splice(0), seg, seg.to, opState ?? st);
@@ -1314,6 +1414,8 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint):
         cur = target;
         moveBase();
         opState = null;
+        // A coordinate with no operation before it moves: "(a) -- (b) (c)" doesn't draw b to c.
+        op = "move";
         break;
       }
     }
@@ -1398,6 +1500,7 @@ function emitPath(id: string, syn: PathSyntax, range: Range, build: PathBuild, s
     unrendered: st.unrendered,
     layer: st.layer,
   };
+  if (build.route) path.route = build.route;
   if (st.draw && stroke) path.stroke = stroke;
   const fill = st.fillColor === "none" ? undefined : (st.fillColor ?? st.color);
   if (st.fill && fill && !st.shading) path.fill = fill;
