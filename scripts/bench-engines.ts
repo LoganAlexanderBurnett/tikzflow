@@ -15,7 +15,7 @@ import type { BenchResult } from "../spike/engines/bench.ts";
 
 const args = process.argv.slice(2);
 const opt = (name: string, fallback: string) =>
-  args.find((a) => a.startsWith(`--${name}=`))?.split("=")[1] ?? fallback;
+  args.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3) ?? fallback;
 const engines = args.filter((a) => !a.startsWith("--"));
 const trials = Number(opt("trials", "3"));
 const runs = Number(opt("runs", "6"));

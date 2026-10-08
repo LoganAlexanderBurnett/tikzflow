@@ -7,9 +7,10 @@ import { LIBRARIES, SAMPLE_JOB, readProbe, type Probe } from "./sample.ts";
 // `?build=ci` loads the engine built in CI (M3 step 1, D15) instead of the
 // published package: vendor/engine-ci/dist holds the package's worker and
 // fonts with our tex.wasm, core.dump and tex_files.
+const CI_ROOT = "/vendor/engine-ci/dist";
 const ROOT =
   typeof location !== "undefined" && new URLSearchParams(location.search).get("build") === "ci"
-    ? "/vendor/engine-ci/dist"
+    ? CI_ROOT
     : "/vendor/tikzjax/package/dist";
 
 type Reply =
@@ -99,9 +100,16 @@ export class TikzJax implements Engine {
     try {
       const svg = String(await this.#call("texify", job.body, dataset));
       const log = this.#consoleLines.join("\n");
-      // The CI engine's format uses pgf's dvisvgm driver, which dvi2html may
-      // not draw; the log's probe line still holds.
-      return { ok: svg.includes("<svg"), output: { kind: "svg", svg }, log, probe: probeFromSvg(svg) ?? readProbe(log) };
+      // The CI engine's format uses pgf's dvisvgm driver. dvi2html draws its
+      // paths but, without the ximera driver's page wrapper, gives no <svg>
+      // root (our driver comes in M3 step 6). Until then a CI-build compile
+      // counts as OK when TeX wrote the DVI without errors, and the probe is
+      // read from the log.
+      const ok =
+        ROOT === CI_ROOT
+          ? /Output written on input\.dvi/.test(log) && !/^! /m.test(log)
+          : svg.includes("<svg");
+      return { ok, output: { kind: "svg", svg }, log, probe: probeFromSvg(svg) ?? readProbe(log) };
     } catch (e) {
       return { ok: false, output: { kind: "none" }, log: [...this.#consoleLines, String(e)].join("\n"), probe: null };
     }
