@@ -1,0 +1,14 @@
+\begin{tikzpicture}
+	\begin{pgfonlayer}{nodelayer}
+		\node [style=Process] (0) at (0, 3) {Start};
+		\node [style=Decision] (1) at (0, 1.5) {OK?};
+		\node [style=Process] (2) at (3, 1.5) {Fix};
+		\node [style=Process] (3) at (0, 0) {Done};
+	\end{pgfonlayer}
+	\begin{pgfonlayer}{edgelayer}
+		\draw [style=Arrow] (0) to (1);
+		\draw [style=Arrow] (1) to (2);
+		\draw [style=Arrow, bend right=45] (2) |- (0);
+		\draw [style=Arrow] (1) to (3);
+	\end{pgfonlayer}
+\end{tikzpicture}

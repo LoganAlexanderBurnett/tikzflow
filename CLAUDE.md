@@ -45,6 +45,7 @@ A free, static, fully client-side web app for creating and editing TikZ flowchar
   - `npm run corpus:report [-- <filter>] [-- -v]`: lays out every corpus picture and prints the "what I understood" summary. `-v` adds locked nodes and node geometry.
   - `npm run layout:bench`: times the model, layout, snapping and a move on a 200-node picture.
   - `UPDATE_GOLDEN=1 npx vitest run test/golden.test.ts`: regenerates `test/fixtures/golden/`. Review the result with `npm run golden:review` before committing.
+  - `UPDATE_GOLDEN=1 npx vitest run test/golden-edges.test.ts`: regenerates `test/fixtures/golden/edges/`, the golden files for edge edits (dashed, label, orthogonal, curved, delete).
   - `npm run fidelity [-- --only=<file>] [-- --verbose]`: compiles the corpus and `spike/engines/probes/*.tex` with pdfTeX (busytex) and compares node anchors with the native layout. It writes `spike/engines/results/fidelity.json`. It needs `npm run fetch-engines` and `node scripts/pack-texmf.ts` first. When unsure how TikZ behaves, add a probe here rather than guessing (D23).
   - `npm run gen:font-metrics`: regenerates `src/text/fontMetrics.ts` from KaTeX. Run it after upgrading KaTeX.
   - `npm run fetch-engines`: downloads the engines and CTAN packages listed in `scripts/engine-manifest.ts` into the gitignored `vendor/` folder, recording sizes and hashes in `vendor/LOCK.json`.
@@ -59,7 +60,7 @@ A free, static, fully client-side web app for creating and editing TikZ flowchar
   - `src/model/`: tree → syntax (with source ranges), the document model, the edge model (paths split into node-to-node edges), and the summary.
   - `src/tikz/`: the TikZ interpreter: units, colours, keys and styles, coordinates, shapes, and layout.
   - `src/text/`: label typesetting.
-  - `src/edit/`: text changes (and merging two edits into one), snapping, the move planner and emitter, resizing and matching sizes, node creation and the palette, style edits and factoring, label edits, the properties edits, libraries, and edge edits: `edges.ts` (the core, ends, waypoints, new edges), `vertices.ts` (corners, Straighten, rewriting the code between two ends), `orthogonal.ts`, `curves.ts` and `split.ts`.
+  - `src/edit/`: text changes (and merging two edits into one), snapping, the move planner and emitter, resizing and matching sizes, node creation and the palette, style edits and factoring, label edits, the properties edits, libraries, and edge edits: `edges.ts` (the core, ends, waypoints, new edges), `vertices.ts` (corners, Straighten, rewriting the code between two ends), `orthogonal.ts`, `curves.ts`, `split.ts` and `edgeop.ts` (an `edge` operation turned into `--`); `labels.ts` (adding and sliding edge labels, Yes/No on decisions), `edgeprops.ts` (the edge properties panel's edits) and `delete.ts` (deleting nodes, edges and paths).
   - `src/ui/`: Preact components, the CodeMirror setup, and the store.
   - `test/`: Vitest tests, `test/e2e/` Playwright tests, and `test/fixtures/golden/`.
   - `spike/`: Milestone 0 engine code, plus the fidelity harness and probes. It is still used by `npm run fidelity`.

@@ -1,0 +1,56 @@
+\documentclass{amsart}
+
+\usepackage{tikz, lipsum}
+\usetikzlibrary{positioning, decorations.pathreplacing, calc, arrows.meta, shapes.geometric}
+
+\tikzset{
+    bigbox/.style={draw, rounded corners, minimum width=2.5cm, minimum height=1.5cm},
+    smallbox/.style={draw, rounded corners, minimum width=2cm, minimum height=1cm},
+    bigcircle/.style={draw, circle, minimum size=2cm},
+    bigellipse/.style={draw, ellipse, minimum width=3cm, minimum height=2.5cm},
+    place/.style={inner sep=0pt, outer sep=0pt},
+    fork/.style={decorate, decoration={show path construction, lineto code={
+        \draw[rounded corners, ->](\tikzinputsegmentfirst)-|($(\tikzinputsegmentfirst)!.5!(\tikzinputsegmentlast)$)|-(\tikzinputsegmentlast);}
+    }}
+}
+
+\begin{document}
+\lipsum[1]
+\[
+\begin{tikzpicture}[scale=.8, transform shape, node distance=1cm, >=Latex]
+  \node(A)[bigbox]{Text A};
+  \node(B)[bigbox, right=of A]{Text B};
+  \node[place](X)[right=3cm of B]{};
+  \node(C)[smallbox, above=2.5mm of X]{Text C};
+  \node(D)[smallbox, above=5mm of C]{Text D};
+  \node(E)[smallbox, below=2.5mm of X]{Text E};
+  \node(F)[smallbox, below=5mm of E]{Text F};
+  \node(G)[bigbox, above=of D]{Text G};
+  \node(H)[bigbox, right=of C]{Text H};
+  \node(I)[bigbox, below=of H]{Text I};
+  \node(J)[bigbox, below=of I]{Text J};
+  \node(K)[bigcircle, below=of J]{Text K};
+  \node(L)[bigbox, left=of K]{Text L};
+  \node[place](Y)[left=3cm of L]{};
+  \node(M)[bigbox, above=2.5mm of Y]{Text M};
+  \node(N)[bigbox, below=2.5mm of Y]{Text N};
+  \node(O)[bigellipse, left=3cm of Y]{Text O};
+  \draw[->](A)--node[above] {yes} (B);
+  \draw[fork](B.east)--(D.west);
+  \draw[fork](B.east)--(C.west);
+  \draw[fork](B.east)--(E.west);
+  \draw[fork](B.east)--(F.west);
+  \draw[->](D)--(G);
+  \draw[->](C)--(H);
+  \draw[->](H)--(I);
+  \draw[->](I)--(J);
+  \draw[->](J)--(K);
+  \draw[->](K)--(L);
+  \draw[fork](L.west)--(M.east);
+  \draw[fork](L.west)--(N.east);
+  \draw[fork](M.west)--(O.east);
+  \draw[fork](N.west)--(O.east);
+\end{tikzpicture}
+\]
+\lipsum[2]
+\end{document}

@@ -1,0 +1,23 @@
+% Old-style syntax that is still everywhere in the wild: \tikzstyle and
+% "below of=", plus the path forms a flowchart editor has to draw.
+\tikzstyle{every node}=[font=\small]
+\tikzstyle{state} = [draw, rounded corners=3pt, minimum width=2cm, minimum height=7mm]
+\tikzstyle{test}=[draw, diamond, aspect=2, inner sep=1pt]
+\tikzstyle arrow=[->, >=latex, thick]
+
+\begin{tikzpicture}[node distance=2cm, auto]
+  \node[state]                    (idle)  {Idle};
+  \node[test, below of=idle]      (ready) {Ready?};
+  \node[state, right of=ready, node distance=4cm] (run) {Run};
+  \node[state, below of=ready]    (wait)  {Wait};
+  \coordinate[left of=wait] (loop);
+
+  \path[arrow] (idle) edge (ready)
+               (ready) edge node {yes} (run)
+               (ready) edge node[swap] {no} (wait);
+  \draw[arrow] (wait) -- (loop) |- (idle);
+  \draw[arrow] (run) |- node[pos=0.3, above, sloped] {done} (idle);
+  \draw[arrow, dashed] (run.south) to[out=-90, in=0] (wait.east);
+  \draw[arrow, dotted] (wait.south east) .. controls +(1,-1) and +(1,0) .. (run.south east);
+  \draw[arrow] (run.north) -- ++(0,0.6) -| node[near start] {retry} (ready.north);
+\end{tikzpicture}

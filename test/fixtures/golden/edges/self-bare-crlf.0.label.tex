@@ -1,0 +1,19 @@
+%% Bare picture, as pasted from a paper. Saved with CRLF line endings and tabs.
+\begin{tikzpicture}[>=Stealth, every node/.style={draw, minimum size=7mm}]
+	\coordinate (origin) at (0,0);
+	\node (a) at (origin) {A};
+	\node (b) at ($(a)+(3,0)$) {B};
+	\node[circle] (c) at (a.south -| b.west) {C};
+
+	% A loop the editor can't model; it must survive untouched.
+	\foreach \i/\lbl in {1/x, 2/y, 3/z} {
+		\node[draw=none] (n\i) at (\i, -2) {$\lbl_{\i}$};
+	}
+
+	\draw[->] (a) to[bend left=20] node[midway, above] {go} node[below] {yes} (b);
+	\draw[->]   (b)  .. controls +(1,-1) and +(1,1) ..  (c);
+	\draw (c) -| ++(-1.5,1) coordinate (corner) -- (a);
+	\path (a) edge[->, dashed] (c)
+	          edge[<-]         (n1);
+	\fill[red] (corner) circle [radius=1.5pt];
+\end{tikzpicture}

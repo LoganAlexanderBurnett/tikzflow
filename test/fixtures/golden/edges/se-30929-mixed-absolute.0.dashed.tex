@@ -1,0 +1,42 @@
+\documentclass[ngerman]{scrartcl}
+
+\usepackage{ucs}
+\usepackage[utf8x]{inputenc}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows,positioning,calc}
+
+\begin{document}
+
+\tikzstyle{block} = [rectangle, fill=blue!20, minimum height=3em, minimum width=6em] \tikzstyle{arrow} = [single arrow, draw]
+
+\begin{tikzpicture}[auto, node distance=0.5cm and 0.5cm, arr/.style={->,thick}, line/.style={thick}, font=\footnotesize]
+
+\node (stoffVor) [block] {Box 1 text};
+\node (haupt) [block, right=of stoffVor, align=center] {Box 2 text};
+\node (stoffNach) [block, right=of haupt] {Box 3 text};
+\node (pfeil1) at (-2,-1.5) [arrow,left] {Arrow 1};
+\node (pfeil2) at (-2,-2.5) [arrow,left] {Arrow 2 text};
+\node (pfeil0) at (-2,0) [arrow,left] {Arrow 3 longer text};
+\node (neben) at (9.5,-0.5) [arrow,left,label=below:] {Text};
+\node (hauptP) at (9.5,0.5) [arrow,left,label=above:] {Text};
+\node (pfeil3) at (9.5,1.5) [arrow,left] {Text};
+\node (pfeil4) at (9.5,2.5) [arrow,left] {Lorem, Ipsum, Dolor, Sit};
+
+\draw[arr, dashed] (pfeil0.east) -- (stoffVor.west);
+\draw[arr] (stoffVor.east) -- (haupt.west);
+\draw[arr] (haupt.east) -- (stoffNach.west);
+\draw[arr] (stoffNach.north) --  ++(0,0.5) node [auto, swap, yshift=6] {Text} -| ($ (stoffVor.east) + (0.25,0) $);
+\draw[arr] (pfeil1.east) -| (stoffVor.240);
+\draw[arr] (pfeil1.east) -| (haupt.240);
+\draw[arr] (pfeil1.east) -| (stoffNach.240);
+\draw[arr] (pfeil2.east) -| (stoffVor.300);
+\draw[arr] (pfeil2.east) -| (haupt.300);
+\draw[arr] (pfeil2.east) -| (stoffNach.300);
+\draw[line] (haupt.150) |-  (pfeil4.west);
+\draw[line] (haupt.30) |-  (pfeil3.west);
+\draw[line] (stoffNach.350) -- ++ (0.25,0) -- ++ (0,-0.1) |- (neben.west);
+\draw[line] (stoffNach.10) -- ++ (0.25,0) -- ++ (0, +0.1) |- (hauptP.west);
+
+\end{tikzpicture}
+
+\end{document}

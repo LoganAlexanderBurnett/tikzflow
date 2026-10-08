@@ -10,33 +10,63 @@ Milestone 0 is done and was approved on 2026-10-07:
 
 **Milestone 2a (nodes and styles): done and approved (2026-10-07).** The owner tested it by hand; their answers are in DECISIONS.md D44 and "M2a review" below.
 
-**Now:** Milestone 2b (edges). The plan was approved on 2026-10-07 (D45). Steps 1–3 were reviewed and approved (D49). Steps 4–6 are done (report below) and waiting for the owner's review; step 7 hasn't been started. Milestone 2 was split into 2a and 2b, each with its own checkpoint (D32). The full list is in SPEC.md, "Milestone 2b". Also read the "Notes for later milestones" below.
+**Milestone 2b (edges): all ten steps are done (2026-10-08) and waiting for the owner's review.** The plan was approved on 2026-10-07 (D45). Steps 1–3 were approved (D49) and steps 4–6 were approved with five decisions (D53). Steps 7–10 and the finished decision 4 are reported in "Milestone 2b report" below. Milestone 2 was split into 2a and 2b, each with its own checkpoint (D32). The full list is in SPEC.md, "Milestone 2b". Also read the "Notes for later milestones" below. Nothing of Milestone 3 has been started.
 
-**Session stopped by the owner on 2026-10-08, part-way through the owner's follow-up decisions on steps 4–6 (D53). Steps 7–10 were not started. Nothing was pushed.** See "Where things stand" below.
+## Milestone 2b report (2026-10-08)
+Steps 7–10 were done in one go, as the owner asked, with a commit after each. The work that was half-finished when the last session stopped (decision 4 of D53) is finished too.
 
-## Where things stand (stopped 2026-10-08, not pushed)
-The owner approved steps 4–6 after testing and gave five decisions (D53). Then asked for steps 7–10 to be done in one go, with a commit after each. The session was stopped before step 7.
+### How to try it
+`npm install && npm run dev`, open http://localhost:5173 (the sample), and:
+- **Edge operations (D53 item 4).** Paste `\path[->] (a) edge (b);` with two nodes, right-click the edge and choose **Make orthogonal**, or drag its ghost handle to add a corner. It becomes `\draw[->] (a) -| (b);` (in its own `\draw` if the statement held other code), in one undo step, and the status bar says so.
+- **Edge labels (step 7).**
+  - Right-click an edge, **Add label here**: a box opens on the edge where you clicked. Type, press Enter: `\draw[->] (a) -- node[pos=0.25, above] {text} (b);`. Esc writes nothing.
+  - **Drag a label** along its edge: `pos=` is written (quarters snap; Alt gives hundredths).
+  - Select the sample's `small` decision and press **Tab**: the new branch gets `node[near start, right] {Yes}`, the next one `{No}`. The sample's own `yes` and `no` lower-case labels are followed when the figure already has them.
+- **Edge properties (step 8).** Click an edge. The panel has **Arrow** (none, end, start, both, and a tip: the figure's own, Stealth, Latex, To, Triangle), **Line** (solid, dashed, dotted), **Colour** (the same picker as nodes, plus "Default") and **Width** (the named TikZ widths). A "This edge / All *style* edges (N)" choice at the top works as for nodes. Try it on a figure with `\tikzset{flow/.style={->, thick}}` and `\draw[flow]`.
+- **Delete (step 9).** Select a node and press **Delete** (or Backspace, or the button in the panel). In the sample, delete `rec`: its two edges go, and `stop`, which hung below it, becomes `below=2.6cm of small` and stays where it was. Ctrl+Z brings everything back. Delete also works on a selected edge (key, panel button, or **Delete edge** in the edge menu). Deleting a node that sits in another node's `fit` is refused with the reason.
 
-### Done and committed
-- **Decision 2: curve handles, no Alt (commit "curve end handles and a middle handle").** A handle near each end writes only that end's `out=`/`in=` (edited in place when already written that way; a bend turns into `out`/`in`). A middle handle keeps the curve symmetric: a bend changes its angle (5°, or 1° with Alt) and only raises `looseness` when 85° isn't enough; an `out`/`in` curve keeps its angles and scales both loosenesses. `.. controls ..` curves keep their two control-point handles. Alt now only turns snapping off. Code: `planCurve` in `src/edit/curves.ts` (replaces `planControl`), handles in `src/ui/canvas.tsx`. `test/curves.test.ts` rewritten (16 tests) and two Playwright tests in `test/e2e/edges.spec.ts` (all 21 edge tests passed when run).
-- **Decision 5: Split writes `[-]` only when needed (commit "Split into separate edges: write [-] only when…").** A piece that loses every tip drops the arrow key (`\draw (a) -- (b);`); if the picture's or a style's own arrow would come back, it retries with `-`. Tests updated and added in `test/edge-ends.test.ts`; the Split Playwright test passes.
-- **Decisions 1 and 3** (5° bends, shifted anchors) needed no code.
-- **D53** is in DECISIONS.md.
+### What works
+- **Decision 4 finished (D53).** `src/edit/edgeop.ts`: the menu, the ghost handles and the status bar offer Make orthogonal and corners for `edge` operations. The CRLF bug in `composeChanges` is fixed by composing without CodeMirror's ChangeSet; it is covered by new unit tests. The vertices test for edge operations was updated.
+- **Step 7, labels (D54).** Add label here, sliding with `pos=` on lines, orthogonal pieces and curves (the interpreter's `pos` on curves was already checked against pdfTeX by probe `p5`), and Yes/No on branches out of decisions, for Tab, Enter and drawing an edge from a decision. The layout now records where a path label is attached (`pathPos`).
+- **Step 8, edge properties (D55).** `src/edit/edgeprops.ts`. Items are replaced or removed in place, the form the edge already uses is kept (`red` stays `red`, `draw=red` stays `draw=`), a value the edge inherits is not repeated, and `arrows.meta` is loaded when a tip needs it. Every edit is checked by drawing the result: the edge must come out as asked.
+- **Step 9, delete (D56).** `src/edit/delete.ts`. Dependents are re-attached or pinned where they are (the move planner with the deleted names excluded), corners written relative to the node are rewritten, dangling edges go (splitting a multi-edge `\draw` or converting an `edge` operation first), then the statements. Everything is checked by drawing the result: no new syntax errors, no node more than 1.5 mm from where it was, no new undefined names, every other edge still joining the same nodes.
+- **Step 10.** Edge menu: Add label here and Delete edge added, Escape and the arrow keys work as before. A new end-to-end scenario builds a flowchart with a decision and Yes/No branches, restyles an edge, slides its label and deletes a node. Golden minimal-diff tests now cover five edge edits per corpus picture.
 
-### Half-finished: decision 4, converting `edge` operations to `--` (committed as a work-in-progress commit)
-- **Written:** `src/edit/edgeop.ts` (`planEdgeToLine`, `viaLine`). It converts an `edge` operation to `--` in place when the statement holds only that edge (`\path` becomes `\draw`, the edge's options except curve/route keys join the statement's), or into its own `\draw` after the statement when other code shares it, then checks by re-layout that every other path, the node positions and the edge's look (colour, width, dash, opacity, tip count) are unchanged; `every edge` styling is written out if needed. `planMakeOrthogonal` (`src/edit/orthogonal.ts`) and `planAddVertex` (`src/edit/vertices.ts`) call it first and return one combined change set, a note ("converted the "edge" operation…") and `edgeId`. `EditOutcome` gained an optional `edgeId`.
-- **Tests:** `test/edgeop.test.ts` (13 tests). 12 pass.
-- **Known failures (2 of 676 Vitest tests):**
-  1. `test/edgeop.test.ts` corpus sweep: `composeChanges` (`src/edit/changes.ts`) throws "Mismatched change set lengths" on `corpus/self-bare-crlf.tex`. CodeMirror counts a CRLF line break as one character, while our positions count two, so composing changes whose inserted text contains `
-` is wrong. This is a latent bug in `composeChanges` (also used by resizing). I was checking how `text.value` is derived (`src/ui/store.ts:101` uses `state.doc.toString()`, which gives `
-`, so the app may not see CRLF at all; the tests do). Likely fix: compose without CodeMirror's ChangeSet, or normalise line breaks before composing. I also sorted the specs in `composeChanges` (unsorted specs were read as following on from earlier ones).
-  2. `test/vertices.test.ts` "refuses curves, orthogonal pieces and edge operations": the `\draw (a) edge (b);` case now converts instead of refusing. The test needs updating (keep the other two cases).
-- **Not done for this decision:** UI wiring. Ghost handles still skip edge operations (`canvas.tsx`, `isEdgeOperation` check near line 164), the menu items "Add vertex here" and "Make orthogonal" still say edge operations can't (`src/ui/edgemenu.tsx`), `store.ts` doesn't show the conversion note or select `r.edgeId` after the edit, the Playwright tests, and the "Known limits" lines in this file. The D53 text says item 4 is implemented; it is only partly (see above).
-- `npm run typecheck` fails on two lines in `test/edgeop.test.ts` (`moved` isn't in the `ok()` helper's return type). Trivial fix.
+### Tests
+- **Vitest:** 855 tests in 23 files, about 13 s. New since steps 4–6:
+  - `test/labels.test.ts` (21): positions, sides, segments, sliding, Yes/No wording and creation from a decision;
+  - `test/edgeprops.test.ts` (19): reading, arrows and tips, dashes, colour, width, styles, refusals, and a corpus sweep (about 1,600 edits);
+  - `test/delete.test.ts` (20): statements, edges, dependents, corners, refusals, and two corpus sweeps. 228 of 292 named corpus nodes can be deleted (78%); the rest are refused with a reason (loops and matrices, fits, chains);
+  - `test/golden-edges.test.ts` (116): minimal-diff goldens, `test/fixtures/golden/edges/` (115 files). Each edit stays inside its statement and moves no node;
+  - three `composeChanges` tests in `test/edit-core.test.ts`, and the `edgeop` tests from before (13).
+  The existing golden move files did not change.
+- **Playwright:** 83 tests in Edge, about 55 s. New: 10 in `test/e2e/edges.spec.ts` (edge operations 2, labels 3, properties 2, delete 3) and `test/e2e/flowchart.spec.ts` (the scenario).
+- **Fidelity:** `npm run fidelity` still gives 235 of 331 nodes within 1 pt of pdfTeX (the interpreter only gained `pathPos`).
+- `npm run typecheck` and `npm run build` pass. `npm run layout:bench`: parse 8.1 ms, layout 8.3 ms, edge model 0.8 ms, drop 33 ms: unchanged.
+- I checked the edge panel, the label box and the result of Delete in screenshots from Playwright's Edge. The app's browser pane still can't take screenshots in this environment.
 
-### Next, in order
-1. Fix the CRLF compose bug, the typecheck error and the `vertices.test.ts` expectation; finish the UI wiring and an e2e test for decision 4; update D53's wording and the known limits; commit.
-2. Steps 7–10 as in the plan table (edge labels, edge properties panel, delete, polish/e2e/goldens/docs/report). Then push to `origin` `trunk` and report on all of Milestone 2b.
+### Known limits
+- **Labels.** A label slides along its own segment only: it can't move to another segment of the edge, and dragging doesn't flip it to the other side of the line. Straighten, Make orthogonal and the like keep a label's `pos=` as it is. "Add label here" picks above/below/left/right from how the segment runs and where you clicked. Labels of locked edges can't be added or slid.
+- **Yes/No.** Nothing is added for a third branch, for a first branch that is unlabelled, or when the figure's decisions use other wording.
+- **Edge properties.**
+  - Arrow tips of one edge in a `\draw` with several edges are refused (Split first), because TikZ gives them to the whole path. Dashes, colour and width go to the whole path and the panel says "This path".
+  - Only styles named directly in the edge's options are offered as scopes, not `every edge`/`every path`.
+  - Custom tips (`Stealth[length=3mm]`) are kept and shown as "Custom"; they can be replaced but not created. The text colour of labels isn't edited.
+  - A bare picture has no preamble, so a Stealth/Latex/To/Triangle tip there only gets a note that `arrows.meta` must be loaded.
+- **Delete.**
+  - Refused: names used in code kept as written (loops, matrices, pics), a node in another node's `fit`, a node written inside a path, chain nodes, and edges kept as written. The reason is shown.
+  - A re-attached node is written to whole millimetres (D44), so it may sit up to about 1 mm from where it was.
+  - Styles and libraries that nothing uses any more stay (D34's conservative rule). A path label that was on a deleted edge goes with it.
+  - Deleting an edge in a `\draw` with several edges splits the statement, so the remaining edges end up as separate `\draw`s.
+- **Still from steps 1–6:** see "Known limits (steps 1–6)" below, in particular that corners go on straight segments only, `.. controls ..` is never introduced, and Split is refused for paths with `edge` operations. Firefox is still untested.
+
+### Decisions for you
+1. **Yes/No when the first branch is unlabelled.** I add nothing (an unlabelled first branch gives no clue which wording the figure uses). The alternative is to write "No" anyway, as the plan's wording says, which leaves a half-labelled decision. Which?
+2. **Where the automatic labels sit.** `node[near start, right]` for a branch leaving downwards or upwards, `node[near start, above]` for sideways. Hand-written flowcharts differ; is this the style you want?
+3. **Delete re-attaches with whole-millimetre distances,** e.g. `below=2.6cm of small`, and pins with plain coordinates when nothing fits. The alternative is to always pin, or to refuse when the position would need a number. Is re-attaching what you meant?
+4. **Delete refuses a node in another node's `fit`.** Removing it from the `fit=` list would change the fitted node's size, so I refused. Do you want that done automatically?
+5. **Arrow tips in a `\draw` with several edges** can't be set per edge (the panel points to Split). OK, or should the panel split the statement itself?
+6. **SPEC.md revisions.** D53–D56 (edge operations converted to `--`; Split writes `[-]` only when needed; labels, properties and delete rules) aren't in SPEC.md's "Spec revisions" yet. May I add them?
 
 ## M2b plan and status
 | Step | Content | Status |
@@ -47,12 +77,12 @@ The owner approved steps 4–6 after testing and gave five decisions (D53). Then
 | 4 | Vertices: ghost handles, add/remove, Straighten; split a \draw, move an edge below a later node (D49, D50) | Done |
 | 5 | Orthogonal mode: Make orthogonal, sliding segments (D51) | Done |
 | 6 | Curved mode: Make curved, control points (D52) | Done |
-| 7 | Edge labels: add, slide (`pos=`), yes/no on decisions | Not started |
-| 8 | Edge properties panel with edge-or-style scope | Not started |
-| 9 | Delete nodes and edges (re-attach or pin dependents, drop dangling edges) | Not started |
-| 10 | Context menu polish, end-to-end tests, goldens, sweep, docs, report, push | Not started |
+| 7 | Edge labels: add, slide (`pos=`), yes/no on decisions (D54) | Done |
+| 8 | Edge properties panel with edge-or-style scope (D55) | Done |
+| 9 | Delete nodes and edges (re-attach or pin dependents, drop dangling edges) (D56) | Done |
+| 10 | Context menu polish, end-to-end tests, goldens, sweep, docs, report, push | Done |
 
-## M2b steps 4–6 (2026-10-08)
+## M2b steps 4–6 (2026-10-08, approved with D53)
 Done in one go, as the owner asked, with a commit after each step. The owner's answers on steps 1–3 (D49) are in too: "Split into separate edges" and moving an edge's code below a later node.
 
 ### How to try it
@@ -87,11 +117,11 @@ Done in one go, as the owner asked, with a commit after each step. The owner's a
 - `npm run typecheck` and `npm run build` pass. `npm run layout:bench` is unchanged (parse 7.8 ms, layout 7.8 ms, edge model 1.0 ms, drop 35 ms).
 - I checked the ghost drag, the new corner, sliding and the curve drag in screenshots from Playwright's Edge. The app's browser pane still can't take screenshots in this environment.
 
-### Known limits (steps 4–6)
+### Known limits (steps 4–6; the `edge` operation limit is lifted by D53 item 4)
 - **Corners go on straight segments only.** A curved segment is straightened first; orthogonal edges slide their segments instead of showing corners.
 - **`edge` operations** (`(a) edge (b)`) join their ends directly. Make orthogonal and a new corner convert them to `--` first (D53), in place or in a `\draw` of its own, in the same undo step; the status bar says so. Refused for relative ends, statements other than `\draw`/`\path`, and a `\node ... edge` start.
 - **Rewriting the code between two ends** (Straighten, Make orthogonal, Make curved, sliding) is refused when the path has options in the middle (they apply to all of it) or an `edge` operation there.
-- **Labels on a rewritten edge** go after the piece they are nearest; their `pos=` isn't adjusted yet (step 7).
+- **Labels on a rewritten edge** go after the piece they are nearest; their `pos=` isn't adjusted (step 7 only adds and slides labels).
 - **Make orthogonal** checks only node boxes for crossings, not labels or other edges, and its fallback is two corners through the middle.
 - **Rounding:** corners and shifts in whole millimetres; bend angles to 5°, `out`/`in` to 1°, looseness to 0.1. A border angle (`(a.34)`) can sit up to about 0.3 pt off the line it was slid to.
 - **`rounded corners`** don't change a rectangle's border in TikZ, so a slid edge meets a terminal's side where the sharp rectangle would be, a fraction of a millimetre outside the drawn curve. pdfTeX draws it the same way.
@@ -100,7 +130,7 @@ Done in one go, as the owner asked, with a commit after each step. The owner's a
 - **Split** is refused when tips on both ends come from a style, when the arrow key is set in the middle of the path, and for paths with `edge` operations.
 - **Moving an edge below a later node** is refused inside a scope and for `\node ... edge` statements.
 
-### Decisions for you
+### Decisions for you (answered 2026-10-08, D53)
 1. **Bend angles snap to 5°** while dragging (`bend left=45`), `out`/`in` to whole degrees. Is 5° right for bends, or should they be whole degrees too?
 2. **Alt frees a bend** (drags one control point on its own, writing `out`/`in`). Alt already means "no snapping" elsewhere. OK, or would you prefer another key?
 3. **Sliding an end segment along a node** writes `([yshift=2mm]a.east)`. The alternative is to always add a short piece out of the node and keep `(a)`. Is the shifted anchor readable enough?
@@ -336,7 +366,7 @@ Not answered yet: whether a palette click with nothing selected should continue 
 | M0: Technical spike | Done, approved 2026-10-07 |
 | M1: Core loop | Done, approved 2026-10-07 |
 | M2a: Creating and editing nodes and styles | Done, approved 2026-10-07 |
-| M2b: Editing edges | In progress (plan approved 2026-10-07) |
+| M2b: Editing edges | Done 2026-10-08, waiting for review |
 | M3: Accurate preview and export | Not started |
 | M4: Layout and import | Not started |
 | M5: Polish and launch prep | Not started |

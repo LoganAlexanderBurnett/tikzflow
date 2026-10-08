@@ -1,0 +1,62 @@
+\documentclass{article}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, calc, positioning, shapes.geometric,}
+
+\usepackage[active,tightpage]{preview}
+\PreviewEnvironment{tikzpicture}
+\setlength\PreviewBorder{10pt}%
+
+\begin{document}
+
+\tikzset{
+     base/.style = {draw, minimum width=3cm, minimum height=1cm, align=center},
+startstop/.style = {base, rounded corners, fill=red!30},
+       io/.style = {base, trapezium,
+                    trapezium left angle=70, trapezium right angle=110,
+                    trapezium stretches=true,  %%%% <-- added
+                    fill=blue!30},
+  process/.style = {base, fill=orange!30},
+ decision/.style = {base, diamond, fill=green!30},
+every path/.style = {thick,-Stealth}
+        }
+
+    \begin{tikzpicture}[
+    node distance = 1cm and 0.8cm]
+%%order of the nodes
+\node (start) [startstop] {Start};
+\node (in1)   [io, below=of start]    {Select a pixel\\ 
+                                       in the vessel mask};
+\node (pro1)  [process, below=of in1] {obtain R,G,B values of \\
+                                       the corresponding di pixel};
+\node (d1) [decision, below=of pro1]     {d1};
+\node (d2) [decision, below left =of d1] {d2};
+\node (d4) [decision, below=of d2]       {d4};
+\node (d3) [decision, right=of d4 -| d1] {d3};
+\node (d5) [decision, below right=of d4] {d5};
+\node (d6) [decision, below left =of d4] {d6};
+\node (d7) [decision, below right=of d6] {d7};
+\node (d8) [decision, below left =of d6] {d8};
+\node (d9) [decision, below right=of d7 -| d3.east] {d9};
+\node (stop) [startstop, below=of d9] {Stop};
+%%%%%%%%%%%% arrows
+\draw   (start) edge (in1)
+        (in1)  edge (pro1)
+        (pro1) edge (d1);
+\draw (d1.east) to[bend left] node[above right] {yes} (d9);
+\draw (d1.west) node[above left]  {no}  -| (d2);
+\draw (d2.east) node[above right] {yes} -| (d3);
+\draw (d2) -- node[left]{no} (d4);
+\draw (d4.east) node[above right] {yes} -| (d5);
+\draw (d4.west) node[above left]  {no}  -| (d6);
+\draw (d6.east) node[above right] {yes} -| (d7);
+\draw (d6.west) node[above left]  {no}  -| (d8);
+\draw (d8.west) node[above left]  {no}  -- ++ (-1,0) |- (d9);
+\draw (d9.south) -- node[right] {yes} (stop.north);
+%
+\draw (d3.east) node[above right] {no} -- (d3 -| d9);
+\draw (d5.east) node[above right] {no} -- (d5 -| d9);
+\draw (d7.east) node[above right] {no} -- (d7 -| d9);
+%
+\draw (d9.east) node[above right]{no} -- ++ (1,0) |- ($(start)!0.5!(in1)$);
+    \end{tikzpicture};
+\end{document}
