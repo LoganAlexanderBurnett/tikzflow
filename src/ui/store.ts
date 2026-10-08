@@ -821,7 +821,7 @@ export function straightenEdge(edgeId: string): boolean {
     status.value = r.reason;
     return false;
   }
-  applyEdgeEdit(r.changes, "input.edge.straighten", "Straightened the edge.");
+  applyEdgeEdit(r.changes, "input.edge.straighten", `Straightened the edge.${r.notes.map((n) => ` Also ${n}.`).join("")}`);
   return true;
 }
 
@@ -851,7 +851,7 @@ export function makeCurved(edgeId: string): boolean {
     status.value = r.reason;
     return false;
   }
-  applyEdgeEdit(r.changes, "input.edge.curved", `Made the edge curved: ${edgeCode(r.text, r.layout, edgeId)}`);
+  applyEdgeEdit(r.changes, "input.edge.curved", `Made the edge curved: ${edgeCode(r.text, r.layout, edgeId)}${r.notes.map((n) => ` Also ${n}.`).join("")}`);
   return true;
 }
 

@@ -11,6 +11,7 @@ import { PT_PER_UNIT } from "../tikz/units.ts";
 import { endBlocker, type EditOutcome, findEdge, formatLength, isPlainStop, nodeLines, pathReferences, perpendicularText, POINT_EPS, relativeStyle, relativeText, absoluteText } from "./edges.ts";
 import type { Guide } from "./snap.ts";
 import { viaLine } from "./edgeop.ts";
+import { fixLabelSides } from "./labels.ts";
 import { edgeMiddle, type EndWrite, isEdgeOperation, labelOfItem, projectOnSegment, rewriteMiddle, type Step } from "./vertices.ts";
 
 const MM = PT_PER_UNIT.mm!;
@@ -265,6 +266,10 @@ function anchorAxis(anchor: string | undefined): "h" | "v" | null {
  * nearest piece.
  */
 export function planMakeOrthogonal(text: string, picIndex: number, edgeId: string): EditOutcome {
+  return fixLabelSides(text, picIndex, edgeId, makeOrthogonal(text, picIndex, edgeId));
+}
+
+function makeOrthogonal(text: string, picIndex: number, edgeId: string): EditOutcome {
   const { doc, layout, edge } = edgeIn(text, picIndex, edgeId);
   if (!layout || !edge) return { ok: false, reason: "There is no such edge." };
   if (isEdgeOperation(edge) && !edge.lock) {

@@ -9,7 +9,7 @@ import { segPoint } from "../tikz/layout.ts";
 import type { Point } from "../tikz/shapes.ts";
 import type { OptionItem } from "../model/syntax.ts";
 import { applyChanges, type Change, composeChanges } from "./changes.ts";
-import { findEdge } from "./edges.ts";
+import { type EditOutcome, findEdge } from "./edges.ts";
 import { labelProblem } from "./label.ts";
 import { findItems, formatOption, nodeTarget, removeItems, setOption } from "./optionEdits.ts";
 
@@ -166,6 +166,8 @@ function planAutoSide(text: string, picIndex: number, layout: PictureLayout, lab
   const g = label && edge && labelGeometry(edge, label);
   // Only a label the slide made worse: one that already sat on a sloping line the same way is the author's choice.
   if (!label || !g || g.overlap <= OVERLAP || g.overlap <= before + 1) return null;
+  // The layout doesn't turn a `sloped` label's anchors with the line, so where it sits can't be judged.
+  if (label.rotate !== undefined) return null;
   const sides = ownSides(label);
   if (!sides.length || sides.some((x) => x.item.value !== undefined)) return null;
   const keys = autoSide(g.angle, sum(sides.map((x) => sideVector(x.item.key))));
@@ -179,6 +181,54 @@ function planAutoSide(text: string, picIndex: number, layout: PictureLayout, lab
   const g2 = made && edge2 && labelGeometry(edge2, made);
   if (!g2 || g2.overlap > OVERLAP) return null;
   return { changes, text: next, layout: layout2, written: `${sides.map((x) => x.item.key).join(", ")} → ${keys}` };
+}
+
+/**
+ * After an edit that changes the form of an edge (Straight, Orthogonal,
+ * Curved, D58 item 6): a label written `above`, `left` and so on that the new
+ * line cuts through, and that the old line didn't, gets `auto` or `auto, swap`
+ * instead, on the side it was on, by the same rule as sliding a label (D57).
+ * Labels are matched to their old selves by their text in the code. Returns
+ * `outcome` (made from `text`) with the fixes added to its changes, in one set
+ * against `text`; a refused outcome is returned as it is.
+ */
+export function fixLabelSides(text: string, picIndex: number, edgeId: string, outcome: EditOutcome): EditOutcome {
+  if (!outcome.ok) return outcome;
+  const layout0 = layoutDocumentPicture(analyzeDocument(text), picIndex);
+  const edge0 = layout0 && findEdge(layout0, edgeId);
+  if (!layout0 || !edge0 || !edge0.labels.length) return outcome;
+  const was = new Map<string, number[]>();
+  for (const l of edge0.labels) {
+    const key = text.slice(l.syntax.from, l.syntax.to);
+    was.set(key, [...(was.get(key) ?? []), labelGeometry(edge0, l)?.overlap ?? 0]);
+  }
+  const edge1 = findEdge(outcome.layout, outcome.edgeId ?? edgeId);
+  if (!edge1) return outcome;
+  // Each label of the new edge with how much the old line cut into it (unmatched ones are left alone).
+  const todo = edge1.labels.map((l) => ({ from: l.syntax.from, before: was.get(outcome.text.slice(l.syntax.from, l.syntax.to))?.shift() ?? Infinity }));
+  let { changes, text: cur, layout } = outcome;
+  const notes = [...outcome.notes];
+  // Last label first, so the offsets of the others stay valid.
+  for (const t of todo.sort((a, b) => b.from - a.from)) {
+    const label = layout.pathNodes.find((n) => n.syntax.from === t.from);
+    if (!label || t.before === Infinity) continue;
+    const fix = planAutoSide(cur, picIndex, layout, label.id, t.before);
+    if (!fix) continue;
+    const words = labelWords(cur, label);
+    changes = composeChanges(text, changes, fix.changes);
+    cur = fix.text;
+    layout = fix.layout;
+    const [from, to] = fix.written.split(" → ");
+    notes.push(`wrote the label ${words} as ${to} instead of ${from}, so it stays beside the line`);
+  }
+  return { ...outcome, changes, text: cur, layout, notes };
+}
+
+/** A label's text in a few words, for messages. */
+function labelWords(text: string, label: LaidOutNode): string {
+  const inner = label.syntax.label?.inner;
+  const flat = inner ? text.slice(inner.from, inner.to).replace(/\s+/g, " ").trim() : "";
+  return `"${flat.length > 24 ? `${flat.slice(0, 23)}…` : flat}"`;
 }
 
 /** What `t` is written as: snapped to quarters, else to hundredths (Alt) or twentieths. */

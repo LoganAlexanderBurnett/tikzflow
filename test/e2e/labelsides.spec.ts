@@ -142,3 +142,20 @@ test("dragging a left label from the upright piece of |- onto the level piece tu
   await page.keyboard.press("Control+z");
   expect(await code(page)).toContain("node[pos=0.2, left] {x}");
 });
+
+test("Make orthogonal turns a label the new line would cut through into auto, in the same undo step", async ({ page }) => {
+  const start = "\\begin{tikzpicture}\n\\node[draw] (a) {A};\n\\node[draw] (b) at (4,-3) {B};\n\\draw[->] (a) -- node[pos=0.8, above] {x} (b);\n\\end{tikzpicture}\n";
+  await setCode(page, start);
+  const id = await firstEdge(page);
+  await expect(async () => {
+    const p = await onEdge(page, id, 0.5);
+    await page.mouse.click(p.x, p.y, { button: "right" });
+    await expect(page.getByTestId("edge-menu")).toBeVisible({ timeout: 700 });
+  }).toPass({ timeout: 6000 });
+  await page.getByTestId("menu-orthogonal").click();
+  expect(await code(page)).toContain("\\draw[->] (a) -| node[pos=0.8, auto] {x} (b);");
+  await expect(page.getByTestId("status")).toContainText('wrote the label "x" as auto instead of above');
+  expect(await lineCutsLabel(page)).toBe(0);
+  await page.keyboard.press("Control+z");
+  expect(await code(page)).toBe(start);
+});

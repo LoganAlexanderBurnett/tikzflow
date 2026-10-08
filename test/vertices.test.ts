@@ -116,7 +116,8 @@ describe("removing a corner", () => {
 describe("straighten", () => {
   it("removes corners and curves and keeps labels", () => {
     const cases: Array<[string, string]> = [
-      ["\\draw[->] (a) -- ++(1,0) |- node[right] {no} (b);", "\\draw[->] (a) -- node[right] {no} (b);"],
+      // The label is kept; its `right` would sit on the new, shallow line, so it becomes `auto` (D63).
+      ["\\draw[->] (a) -- ++(1,0) |- node[right] {no} (b);", "\\draw[->] (a) -- node[auto] {no} (b);"],
       ["\\draw (a) to[bend left=40] node {x} (b);", "\\draw (a) -- node {x} (b);"],
       ["\\draw (a) to[out=90, in=180, red] (b);", "\\draw (a) to[red] (b);"],
       ["\\draw (a) .. controls +(1,1) and +(-1,1) .. (b);", "\\draw (a) -- (b);"],

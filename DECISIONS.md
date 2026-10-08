@@ -850,3 +850,14 @@ Items 4–7 are scheduled as small steps early in Milestone 3, right after the e
 - Only arrow edits use it. Dashes, colour and width go to the whole path as before.
 
 **Why:** The owner's answer (D58 item 5). The refusal and its reason stay visible, but the way out is one click in the panel instead of a trip to the menu. Asking before splitting matters: it turns one statement into several.
+
+## D63: Form changes put overlapping labels beside the line (M3 step 4, 2026-10-08)
+**Decision:** `fixLabelSides` in `src/edit/labels.ts` (D58 item 6; lifts the "Not done" of D57), applied by `planStraighten`, `planMakeOrthogonal` and `planMakeCurved`.
+- After the form change is planned, each label of the edge that is written with a side key and has no distance (`above`, `left`, `below right`, …) is measured against the new line. If the line now cuts into its box more than 1.5 pt and by more than 1 pt more than the old line did, the key becomes `auto` or `auto, swap`, on the side the key pointed to: the same function and the same rule as sliding a label (D57 item 3, `planAutoSide`).
+- Labels are matched to their old selves by their text in the code, in order. A label that can't be matched is left as it is. The fixes are added to the form change's own changes, in one set against the original text, so one undo step covers both. The status bar says, for each: `wrote the label "x" as auto instead of above, so it stays beside the line`.
+- Left alone, as for slides: labels with a distance (`above=2mm`), labels with no side key (they sit on the line by design), labels the old line already cut through the same way (the author's choice), and **`sloped` labels**. The layout doesn't turn a sloped label's anchors with the line, so where it sits can't be judged; the first version converted `above, sloped` labels wrongly, which a golden file caught. That guard also applies to sliding now.
+- On an orthogonal piece an overlapping `above`/`left` has no side to keep (the key runs along the line), so it becomes plain `auto`: the default side of D57.
+- Dragging corners, sliding segments, moving nodes and the like don't do this. They aren't form changes, and the owner's rule (D58 item 6) names the three forms.
+- One existing test expectation changed: Straighten of `(a) -- ++(1,0) |- node[right] {no} (b)` now gives `node[auto]`, since `right` would sit on the new shallow line. One corpus golden file stayed the same after the sloped guard.
+
+**Why:** The owner's answer. Without it a form change could leave a label cutting through its own line, which the owner found by testing in M2b (D57).
