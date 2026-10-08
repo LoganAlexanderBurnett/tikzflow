@@ -70,9 +70,8 @@ jobs:
           npm install --omit=dev --no-audit --no-fund
           npm ls --omit=dev || true
 
-      - name: Fix web2js's file loader
-        working-directory: web2js
-        run: node ../engine/build/patch-web2js.cjs library.js
+      - name: Report missing files as missing (loader and \filesize)
+        run: node engine/build/patch-web2js.cjs web2js
 
       - name: Build tex.wasm
         working-directory: web2js
