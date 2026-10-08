@@ -11,7 +11,7 @@ import type { LaidOutPath, PictureLayout, Route, RouteSeg } from "../tikz/layout
 import type { Point } from "../tikz/shapes.ts";
 import { applyChanges, type Change } from "./changes.ts";
 import { findEdge } from "./edges.ts";
-import { appendItem } from "./optionEdits.ts";
+import { appendItem, removeItems } from "./optionEdits.ts";
 import { definedStyleNames, styleSites } from "./styles.ts";
 import { eolNear, indentAt } from "./text.ts";
 
@@ -99,19 +99,22 @@ export function planSplit(text: string, picIndex: number, edgeId: string): Split
   const headFrom = syn.from;
   const headTo = itemFrom(firstItem);
   const head = text.slice(headFrom, headTo);
-  const headFor = (w: { start: boolean; end: boolean }): string | null => {
-    if (w.start === has.start && w.end === has.end) return head;
-    let change: Change;
-    if (arrow) {
-      const sides = arrowSides(arrow.item.key)!;
-      const spec = `${w.start ? sides[0] : ""}-${w.end ? sides[1] : ""}`;
-      change = { from: arrow.item.from, to: arrow.item.to, insert: spec };
-    } else if (!w.start && !w.end) {
-      // Tips from a style or the picture: "-" turns them off for this piece.
-      const list = lists[lists.length - 1];
-      change = list ? appendItem(text, list, "-") : { from: syn.keyword.to, to: syn.keyword.to, insert: "[-]" };
-    } else return null;
-    return applyChanges(head, [{ from: change.from - headFrom, to: change.to - headFrom, insert: change.insert }]);
+  // A piece that loses every tip drops the arrow key rather than writing "-", unless
+  // `explicit`: that is the retry for a picture or style whose own arrow would come back.
+  const build = (explicit: boolean): SplitOutcome => {
+    const headFor = (w: { start: boolean; end: boolean }): string | null => {
+      if (w.start === has.start && w.end === has.end) return head;
+      let changes: Change[];
+      if (arrow) {
+        const sides = arrowSides(arrow.item.key)!;
+        if (!w.start && !w.end && !explicit) changes = removeItems(text, arrow.list, [arrow.item]);
+        else changes = [{ from: arrow.item.from, to: arrow.item.to, insert: `${w.start ? sides[0] : ""}-${w.end ? sides[1] : ""}` }];
+      } else if (!w.start && !w.end) {
+        // Tips from a style or the picture: "-" turns them off for this piece.
+        const list = lists[lists.length - 1];
+        changes = [list ? appendItem(text, list, "-") : { from: syn.keyword.to, to: syn.keyword.to, insert: "[-]" }];
+      } else return null;
+      return applyChanges(head, changes.map((c) => ({ from: c.from - headFrom, to: c.to - headFrom, insert: c.insert })));
   };
 
   // Each edge's code: from its start to its end and the nodes right after the
@@ -178,4 +181,8 @@ export function planSplit(text: string, picIndex: number, edgeId: string): Split
   const labelsNew = labels(layout2, syn.from, syn.from + insert.length);
   if (labelsOld.length !== labelsNew.length || labelsOld.some((p, i) => !near(p, labelsNew[i]!))) return refused;
   return { ok: true, changes, text: next2, layout: layout2, edgeIds };
+  };
+
+  const minimal = build(false);
+  return minimal.ok || !arrow ? minimal : build(true);
 }

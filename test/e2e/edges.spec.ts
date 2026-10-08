@@ -284,14 +284,14 @@ test("a shared end points to Split into separate edges, which splits the \\draw"
   const p = await onEdge(page, id, 0.5);
   await page.mouse.click(p.x, p.y, { button: "right" });
   await page.getByTestId("menu-split").click();
-  expect(await code(page)).toContain("\\draw[-] (a) -- (b);\n\\draw[->] (b) -- (c);");
+  expect(await code(page)).toContain("\\draw (a) -- (b);\n\\draw[->] (b) -- (c);");
   await expect(page.getByTestId("edge-title")).toHaveText("a → b");
   // Now the end moves on its own.
   const end = await centerOf(page, '[data-testid="edge-end-to"]');
   const c = await nodeBox(page, "c");
   await dragTo(page, end, { x: c.x + c.width * 0.4, y: c.y + c.height * 0.5 });
   await page.mouse.up();
-  expect(await code(page)).toContain("\\draw[-] (a) -- (c);\n\\draw[->] (b) -- (c);");
+  expect(await code(page)).toContain("\\draw (a) -- (c);\n\\draw[->] (b) -- (c);");
 });
 
 // ---------------------------------------------------------------- step 5: orthogonal mode

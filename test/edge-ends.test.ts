@@ -100,10 +100,19 @@ describe("splitting a \\draw into separate edges", () => {
     return r;
   };
 
-  it("gives only the last piece the end tip", () => {
+  it("gives only the last piece the end tip, and writes no [-] where nothing has to be turned off (D53)", () => {
     const r = split("\\draw[->] (a) -- (b) -- (c);");
-    expect(drawLines(r.text)).toEqual(["\\draw[-] (a) -- (b);", "\\draw[->] (b) -- (c);"]);
+    expect(drawLines(r.text)).toEqual(["\\draw (a) -- (b);", "\\draw[->] (b) -- (c);"]);
     expect(r.edgeIds).toHaveLength(2);
+    expect(drawLines(split("\\draw[thick, ->, red] (a) -- (b) -- (c);").text)).toEqual(["\\draw[thick, red] (a) -- (b);", "\\draw[thick, ->, red] (b) -- (c);"]);
+    expect(drawLines(split("\\draw[<->] (a) -- (b) -- (c) -- (a);").text)).toEqual(["\\draw[<-] (a) -- (b);", "\\draw (b) -- (c);", "\\draw[->] (c) -- (a);"]);
+  });
+
+  it("writes [-] when the picture's own arrow would otherwise come back", () => {
+    const text = `\\begin{tikzpicture}[->]\n${NODES}\n\\draw[->] (a) -- (b) -- (c);\n\\end{tikzpicture}\n`;
+    const r = planSplit(text, 0, edges(text)[0]!.id);
+    if (!r.ok) throw new Error(r.reason);
+    expect(drawLines(r.text)).toEqual(["\\draw[-] (a) -- (b);", "\\draw[->] (b) -- (c);"]);
   });
 
   it("keeps a start tip on the first piece and an end tip on the last", () => {
