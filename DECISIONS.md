@@ -719,3 +719,16 @@ Steps 4–6 are done without a checkpoint between them, as the owner asked.
 - **Fidelity:** `npm run fidelity` gives 235 of 331 nodes within 1 pt of pdfTeX: the M2a count (204) plus the 31 new probe points. No corpus node changed.
 
 **Why:** `bend left` and `out`/`in` are what people write for curved connectors; `.. controls ..` is for curves drawn by hand, so it's kept rather than introduced. Keeping a bend symmetric while dragging keeps it a one-key edit, and Alt is already "free" elsewhere (no snapping).
+
+## D53: Owner's answers on 2b steps 4–6, and the curve handles (2026-10-08)
+**Decision:** The owner tested steps 4–6 by hand (corners, Make orthogonal with sliding, Make curved with its control point) and answered the report's four questions:
+1. **5° bend snapping: approved.** Out and in angles stay whole degrees.
+2. **Alt never frees a bend.** Alt means "no snapping" everywhere. Curves get handles instead (done in this entry's code, `src/edit/curves.ts`, `planCurve`):
+   - **A handle near each end** (on the arm that leaves the end, a short way along it). Dragging it changes only that end's angle and writes `out=` or `in=`: edited in place when the curve is already written that way (`to[out=90, in=180]` becomes `to[out=60, in=180]`), else the curve is written as `out`/`in` with the loosenesses it had (a bend turns into `out`/`in`, other keys stay). The angle is the direction from the node's centre (or the point) to the pointer, in whole degrees; it snaps to multiples of 15° within 3° unless Alt is held.
+   - **A handle in the middle of the curve** keeps it symmetric. A bend stays a bend: the pointer sets how far the middle is from the chord, which sets the angle (rounded to 5°, or 1° with Alt) at the looseness the curve already has; `looseness` is only raised when even 85° falls short. A curve written with `out`/`in` keeps its angles and both loosenesses are scaled together. The pointer's movement along the chord is ignored, so a drag gives `bend left=45`, not `bend left=39, looseness=1.1`.
+   - **`.. controls ..` curves** keep their two control points as handles (they have no end or middle handle).
+3. **Shifted anchors such as `([yshift=2mm]a.east)`: approved** for sliding an end segment along a node (D51).
+4. **`edge` operations:** when the user explicitly chooses Make orthogonal or adds a corner, `(a) edge (b)` is converted to `--` (moving it into its own `\draw` if needed), verified by re-layout, in one undo step. (Implemented below.)
+5. **Split:** `[-]` is written only to override an arrow tip inherited from a style or the picture's options. Otherwise it is omitted (`\draw (a) -- (b);`). (Implemented below.)
+
+**Why:** Alt already means "no snapping" in every other drag; giving it a second meaning for curves would have made the key unpredictable. Handles near the ends and in the middle are the controls other diagram tools use for curves. Keeping looseness fixed while the angle changes keeps the code readable: `bend left=45` rather than a drifting `looseness`.

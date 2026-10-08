@@ -14,7 +14,7 @@ function labelText(source: string): string {
 /** What can be dragged on an edge of this form. */
 function howTo(mode: Edge["mode"]): string {
   if (mode === "orthogonal") return "Drag a segment's bar to slide it across.";
-  if (mode === "curved") return "Drag a control point to reshape the curve; Alt drags one end on its own.";
+  if (mode === "curved") return "Drag the middle handle to bend the curve; drag a handle near an end to turn it there.";
   return "Drag a ghost handle to add a corner; double-click a corner to remove it.";
 }
 

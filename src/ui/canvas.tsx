@@ -12,7 +12,7 @@ import { type GapMark, snapNode } from "../edit/snap.ts";
 import { labelledNode } from "../edit/label.ts";
 import type { Change } from "../edit/changes.ts";
 import { END_ANCHORS, endBlocker, type EndTarget, planWaypoint, snapWaypoint } from "../edit/edges.ts";
-import { curveSegments, planControl } from "../edit/curves.ts";
+import { type CurveHandle, curveForm, curveMiddle, curveSegments, planCurve } from "../edit/curves.ts";
 import { orthoPolyline, planSlide, snapSlide } from "../edit/orthogonal.ts";
 import { edgeVertices, isEdgeOperation, planAddVertex } from "../edit/vertices.ts";
 import { EdgeMenu, type EdgeMenuAt } from "./edgemenu.tsx";
@@ -210,7 +210,7 @@ function SegmentHandles({ edge, scale }: { edge: Edge; scale: number }) {
   );
 }
 
-/** The control points of the selected edge's curves, on arms from where the curve leaves and arrives. */
+/** The handles of the selected edge's curves: near each end and in the middle, or the control points of a `.. controls ..` curve. */
 function ControlHandles({ edge, scale }: { edge: Edge; scale: number }) {
   const segs = curveSegments(edge);
   if (!segs.length) return null;
@@ -218,22 +218,55 @@ function ControlHandles({ edge, scale }: { edge: Edge; scale: number }) {
     <g class="tf-control-handles">
       {segs.map((k) => {
         const s = edge.route.segs[k]!;
+        const form = curveForm(edge, k);
+        if (form === "controls") {
+          const arms: Array<[Point, Point, 1 | 2]> = [
+            [s.from, s.c1!, 1],
+            [s.to, s.c2!, 2],
+          ];
+          return arms.map(([end, c, which]) => (
+            <g key={`${k}:c${which}`}>
+              <line x1={f(end.x)} y1={f(end.y)} x2={f(c.x)} y2={f(c.y)} class="tf-control-arm" stroke-width={f(1 / scale)} stroke-dasharray={`${f(3 / scale)} ${f(2 / scale)}`} />
+              <circle data-control={`${k}:c${which}`} data-testid="control-handle" cx={f(c.x)} cy={f(c.y)} r={f(4 / scale)} class="tf-control-handle" stroke-width={f(1.2 / scale)}>
+                <title>Drag to move this control point</title>
+              </circle>
+            </g>
+          ));
+        }
+        if (form !== "keys") return null;
+        const mid = curveMiddle(s);
         const arms: Array<[Point, Point, 1 | 2]> = [
-          [s.from, s.c1!, 1],
-          [s.to, s.c2!, 2],
+          [s.from, curveEndHandle(s.from, s.c1!, scale), 1],
+          [s.to, curveEndHandle(s.to, s.c2!, scale), 2],
         ];
-        return arms.map(([end, c, which]) => (
-          <g key={`${k}:${which}`}>
-            <line x1={f(end.x)} y1={f(end.y)} x2={f(c.x)} y2={f(c.y)} class="tf-control-arm" stroke-width={f(1 / scale)} stroke-dasharray={`${f(3 / scale)} ${f(2 / scale)}`} />
-            <circle data-control={`${k}:${which}`} data-testid="control-handle" cx={f(c.x)} cy={f(c.y)} r={f(4 / scale)} class="tf-control-handle" stroke-width={f(1.2 / scale)}>
-              <title>Drag to reshape the curve. Alt drags this end on its own.</title>
-            </circle>
+        return (
+          <g key={k}>
+            {arms.map(([end, h, which]) => (
+              <g key={which}>
+                <line x1={f(end.x)} y1={f(end.y)} x2={f(h.x)} y2={f(h.y)} class="tf-control-arm" stroke-width={f(1 / scale)} stroke-dasharray={`${f(3 / scale)} ${f(2 / scale)}`} />
+                <circle data-control={`${k}:end${which}`} data-testid="curve-end-handle" cx={f(h.x)} cy={f(h.y)} r={f(3.5 / scale)} class="tf-control-handle tf-curve-end" stroke-width={f(1.2 / scale)}>
+                  <title>Drag to turn the curve where it {which === 1 ? "leaves" : "arrives"}: this end's angle only</title>
+                </circle>
+              </g>
+            ))}
+            <rect data-control={`${k}:mid`} data-testid="curve-mid-handle" x={f(mid.x - 4.5 / scale)} y={f(mid.y - 4.5 / scale)} width={f(9 / scale)} height={f(9 / scale)} rx={f(2 / scale)} class="tf-control-handle tf-curve-mid" stroke-width={f(1.2 / scale)}>
+              <title>Drag to bend the curve: both ends move together</title>
+            </rect>
           </g>
-        ));
+        );
       })}
     </g>
   );
 }
+
+/** Where a curve's end handle sits: on the arm that leaves the end, a short way along it. */
+function curveEndHandle(end: Point, control: Point, scale: number): Point {
+  const len = Math.hypot(control.x - end.x, control.y - end.y);
+  if (len < 1e-6) return { x: end.x + 22 / scale, y: end.y };
+  const d = Math.max(len * 0.5, 22 / scale);
+  return { x: end.x + ((control.x - end.x) / len) * d, y: end.y + ((control.y - end.y) / len) * d };
+}
+
 
 /** Small handles outside a node's sides: drag one to another node to draw an edge. */
 function ConnectHandles({ n, scale }: { n: LaidOutNode; scale: number }) {
@@ -651,8 +684,9 @@ interface ControlDrag {
   kind: "control";
   edgeId: string;
   seg: number;
-  which: 1 | 2;
+  handle: CurveHandle;
   pointer: Point;
+  /** Where the handle was when the drag started. */
   origin: Point;
   moved: boolean;
   key: string;
@@ -801,10 +835,12 @@ export function Canvas() {
     if (e.button === 0 && edge && controlEl) {
       const [k, w] = controlEl.getAttribute("data-control")!.split(":");
       const seg = Number(k);
-      const which = w === "2" ? 2 : 1;
+      const handle = w as CurveHandle;
       const s = edge.route.segs[seg];
       if (s?.c1 && s.c2) {
-        drag.current = { kind: "control", edgeId: edge.id, seg, which, pointer: toModel(e), origin: which === 1 ? s.c1 : s.c2, moved: false, key: "", last: null };
+        // The end handles sit on their arms, so they are grabbed where they are drawn; the middle handle is the curve's middle.
+        const origin = handle === "c1" ? s.c1 : handle === "c2" ? s.c2 : handle === "mid" ? curveMiddle(s) : toModel(e);
+        drag.current = { kind: "control", edgeId: edge.id, seg, handle, pointer: toModel(e), origin, moved: false, key: "", last: null };
         svg.setPointerCapture(e.pointerId);
       }
       return;
@@ -1082,7 +1118,7 @@ export function Canvas() {
     status.value = `Release to write ${edgeCode(r.text, r.layout, d.edgeId)}`;
   };
 
-  /** Dragging a control point: write the curve (bend, out/in, controls) and show it. Alt frees a bend. */
+  /** Dragging a curve handle: write the curve (bend, out/in, controls) and show it. Alt turns snapping off. */
   const controlMove = (d: ControlDrag, e: PointerEvent) => {
     const p = toModel(e);
     if (!d.moved && Math.hypot(p.x - d.pointer.x, p.y - d.pointer.y) * view.value.scale < 3) return;
@@ -1091,7 +1127,7 @@ export function Canvas() {
     const key = `${Math.round(at.x / MM_PT)}|${Math.round(at.y / MM_PT)}|${e.altKey}`;
     if (key === d.key) return;
     d.key = key;
-    const r = planControl(text.value, currentPicture.value, d.edgeId, d.seg, d.which, at, e.altKey);
+    const r = planCurve(text.value, currentPicture.value, d.edgeId, d.seg, d.handle, at, !e.altKey);
     if (!r.ok) {
       d.last = null;
       previewLayout.value = null;

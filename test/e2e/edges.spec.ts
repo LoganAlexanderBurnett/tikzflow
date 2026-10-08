@@ -347,7 +347,7 @@ test("sliding the sample's |- edge along stop's side moves where it meets stop",
 
 // ---------------------------------------------------------------- step 6: curved mode
 
-test("Make curved writes a plain bend left, and dragging a control point changes the bend", async ({ page }) => {
+test("Make curved writes a plain bend left, and dragging the middle handle changes the bend", async ({ page }) => {
   const before = await code(page);
   const id = await selectEdge(page, 4); // rec → stop
   const p = await onEdge(page, id, 0.5);
@@ -356,13 +356,15 @@ test("Make curved writes a plain bend left, and dragging a control point changes
   const curved = await code(page);
   expect(curved).toBe(before.replace("\\draw[->] (rec)   -- (stop);", "\\draw[->] (rec)   to[bend left] (stop);"));
   await expect(page.getByTestId("edge-mode")).toContainText("Curved");
-  await expect(page.getByTestId("control-handle")).toHaveCount(2);
-  const c1 = await centerOf(page, '[data-testid="control-handle"] >> nth=0');
-  await dragTo(page, c1, { x: c1.x + 30, y: c1.y + 6 });
+  await expect(page.getByTestId("curve-mid-handle")).toHaveCount(1);
+  await expect(page.getByTestId("curve-end-handle")).toHaveCount(2);
+  await expect(page.getByTestId("control-handle")).toHaveCount(0);
+  const mid = await centerOf(page, '[data-testid="curve-mid-handle"]');
+  await dragTo(page, mid, { x: mid.x - 30, y: mid.y + 4 });
   await page.screenshot({ path: "test-results/m2b-curve-drag.png" });
   await page.mouse.up();
   const after = await code(page);
-  expect(after).toMatch(/\\draw\[->\] \(rec\)   to\[bend left=\d+(, looseness=[\d.]+)?\] \(stop\);/);
+  expect(after).toMatch(/\\draw\[->\] \(rec\)   to\[bend (left|right)=\d+(, looseness=[\d.]+)?\] \(stop\);/);
   await expect(page.getByTestId("status")).toContainText("Reshaped the curve");
   await page.keyboard.press("Control+z");
   expect(await code(page)).toBe(curved);
@@ -373,14 +375,20 @@ test("Make curved writes a plain bend left, and dragging a control point changes
   expect(await code(page)).toBe(before);
 });
 
-test("Alt-dragging a control point of a bend writes out and in", async ({ page }) => {
+test("dragging a handle near one end of a bend turns only that end (out and in)", async ({ page }) => {
   await setCode(page, `${TWO}\\draw[->] (a) to[bend left] (b);\n\\end{tikzpicture}\n`);
   await expect(page.locator("path[data-edge]")).toHaveCount(1);
   await selectEdge(page, 0);
-  const c2 = await centerOf(page, '[data-testid="control-handle"] >> nth=1');
-  await page.keyboard.down("Alt");
-  await dragTo(page, c2, { x: c2.x + 20, y: c2.y - 30 });
+  const end2 = await centerOf(page, '[data-testid="curve-end-handle"] >> nth=1');
+  await dragTo(page, end2, { x: end2.x + 20, y: end2.y - 30 });
   await page.mouse.up();
-  await page.keyboard.up("Alt");
   expect(await code(page)).toMatch(/\\draw\[->\] \(a\) to\[out=-?\d+, in=-?\d+(, (out |in )?looseness=[\d.]+)*\] \(b\);/);
+  // The next drag of an end changes just that value, in place.
+  const before = await code(page);
+  const end1 = await centerOf(page, '[data-testid="curve-end-handle"] >> nth=0');
+  await dragTo(page, end1, { x: end1.x - 20, y: end1.y - 10 });
+  await page.mouse.up();
+  const after = await code(page);
+  expect(after.replace(/out=-?\d+/, "out=N")).toBe(before.replace(/out=-?\d+/, "out=N"));
+  expect(after).not.toBe(before);
 });

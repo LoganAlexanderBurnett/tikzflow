@@ -1153,3 +1153,12 @@ button:disabled {
   border-color: var(--accent);
   color: #fff;
 }
+
+.tf-curve-end {
+  fill: var(--panel);
+}
+
+.tf-curve-mid {
+  fill: var(--accent-soft);
+  cursor: grab;
+}

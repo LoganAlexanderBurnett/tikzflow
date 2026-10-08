@@ -127,22 +127,32 @@ function outInKeys(out: number, inA: number, l1: number, l2: number): string[] {
 }
 
 /**
- * The bend that puts control point `which` at `p` (the other mirrors it):
- * its angle, from the line between where the curve meets its ends (TikZ's
- * relative mode), and its looseness.
+ * The bend that puts the middle of a symmetric curve at `p`: the angle that
+ * reaches it at looseness `l0`, and a larger looseness only when even 85°
+ * falls short. The angle moves where the curve meets the borders (TikZ's
+ * relative mode), which moves the chord, so a few rounds settle it.
  */
-function bendFor(layout: PictureLayout, a: RouteStop, b: RouteStop, which: 1 | 2, p: Point): { theta: number; looseness: number } {
+function bendForMiddle(layout: PictureLayout, a: RouteStop, b: RouteStop, p: Point, l0: number): { theta: number; looseness: number } {
   const base = angleOf(a.point, b.point);
-  // The angle decides where the curve meets the borders, which decides the angle: two rounds settle it.
-  let theta = which === 1 ? norm(angleOf(a.point, p) - base) : norm(base + 180 - angleOf(b.point, p));
-  let looseness = 1;
-  for (let round = 0; round < 3; round++) {
+  const limit = Math.sin(85 / DEG);
+  let theta = 0;
+  let looseness = l0;
+  for (let round = 0; round < 4; round++) {
     const from = endAt(layout, a, base + theta);
     const to = endAt(layout, b, base + 180 - theta);
-    const chord = angleOf(from, to);
     const span = SPAN * dist(from, to);
-    theta = which === 1 ? norm(angleOf(from, p) - chord) : norm(chord + 180 - angleOf(to, p));
-    looseness = span > 0 ? dist(which === 1 ? from : to, p) / span : 1;
+    if (span <= 0) break;
+    const chord = angleOf(from, to) / DEG;
+    // How far p is from the chord, to its left; the middle of a symmetric curve is 3/4 as far as its control points.
+    const need = (-(p.x - from.x) * Math.sin(chord) + (p.y - from.y) * Math.cos(chord)) / 0.75 / span;
+    const ratio = need / l0;
+    if (Math.abs(ratio) <= limit) {
+      theta = Math.asin(ratio) * DEG;
+      looseness = l0;
+    } else {
+      theta = Math.sign(need) * 85;
+      looseness = Math.abs(need) / limit;
+    }
   }
   return { theta, looseness };
 }
@@ -166,14 +176,45 @@ function tolerance(seg: RouteSeg): number {
 export type ControlOutcome = (EditOutcome & { ok: true; form: "bend" | "out-in" | "controls" }) | { ok: false; reason: string };
 
 /**
- * Moves control point `which` (1 at the start, 2 at the end) of curved
- * segment `seg` to `p`. A curve written with `bend` stays symmetric (the other
- * control point mirrors this one) unless `free`. A `to` or `edge` curve is
- * written as a bend when that draws it, else with `out`/`in`; a
- * `.. controls ..` curve keeps its form, with the control point relative to
- * its end.
+ * The handles of a curve (D53). A curve written with `to` or `edge` keys has a
+ * handle near each end (`end1`, `end2`: only that end's angle changes) and one
+ * in the middle (`mid`: the curve stays symmetric). A `.. controls ..` curve
+ * has its two control points (`c1`, `c2`).
  */
-export function planControl(text: string, picIndex: number, edgeId: string, seg: number, which: 1 | 2, p: Point, free = false): ControlOutcome {
+export type CurveHandle = "c1" | "c2" | "end1" | "end2" | "mid";
+
+/** How a curved segment is written: with keys on `to`/`edge`, or `.. controls ..`. Null if its code isn't understood. */
+export function curveForm(edge: Edge, seg: number): "keys" | "controls" | null {
+  const s = edge.route.segs[seg];
+  const op = s && curveOp(edge, s);
+  return op ? (op.kind === "controls" ? "controls" : "keys") : null;
+}
+
+/** The point halfway along a curve. */
+export function curveMiddle(s: RouteSeg): Point {
+  return { x: (s.from.x + 3 * s.c1!.x + 3 * s.c2!.x + s.to.x) / 8, y: (s.from.y + 3 * s.c1!.y + 3 * s.c2!.y + s.to.y) / 8 };
+}
+
+/** Whole degrees, snapped to the nearest multiple of 15° when within 3° of it (unless `snap` is off). */
+function snapAngle(deg: number, snap: boolean): number {
+  const r = Math.round(deg);
+  if (!snap) return r;
+  const m = Math.round(deg / 15) * 15;
+  return Math.abs(deg - m) <= 3 ? m : r;
+}
+
+/**
+ * Drags one handle of curved segment `seg` to `p` (for `mid`, to where the
+ * curve's middle should be). `snap` is off with Alt: bends then go in whole
+ * degrees and `out`/`in` don't snap to multiples of 15°.
+ * - **`end1`, `end2`:** only that end's angle changes: `out=60` or `in=180`,
+ *   edited in place when the curve is written that way, else the curve is
+ *   written as `out`/`in` with the loosenesses it had.
+ * - **`mid`:** a bend stays a bend, with `looseness` where needed. A curve
+ *   written with `out`/`in` keeps its angles and both loosenesses are scaled.
+ * - **`c1`, `c2`:** a `.. controls ..` point, rewritten relative to its end.
+ */
+export function planCurve(text: string, picIndex: number, edgeId: string, seg: number, handle: CurveHandle, p: Point, snap = true): ControlOutcome {
   const { doc, layout, edge } = edgeIn(text, picIndex, edgeId);
   const pic = doc.syntax.pictures[picIndex];
   if (!layout || !edge || !pic) return { ok: false, reason: "There is no such edge." };
@@ -193,6 +234,8 @@ export function planControl(text: string, picIndex: number, edgeId: string, seg:
   };
 
   if (op.kind === "controls") {
+    if (handle !== "c1" && handle !== "c2") return { ok: false, reason: "Drag this curve's control points to reshape it." };
+    const which = handle === "c1" ? 1 : 2;
     // Rewrite that control point, relative to the end it belongs to.
     const items = s.controls ?? [];
     const k = items[which === 1 ? 0 : items.length - 1];
@@ -208,9 +251,9 @@ export function planControl(text: string, picIndex: number, edgeId: string, seg:
     const r = editPath(text, picIndex, edge, { changes: [{ from: it.coord.from, to: it.coord.to, insert: t }], check: lands(which === 1 || one ? p : null, which === 2 || one ? p : null) });
     return r.ok ? { ...r, form: "controls" } : r;
   }
+  if (handle === "c1" || handle === "c2") return { ok: false, reason: "Drag this curve's end handles or its middle handle to reshape it." };
 
-  // A "to" or "edge" curve: work out the control points wanted, then the keys that draw them.
-  const symmetric = !free && isBend(edge, seg);
+  // A "to" or "edge" curve: work out the keys that draw what was dragged.
   const list = op.list;
   if (list && text.slice(list.from, list.to).includes("%")) return { ok: false, reason: "This curve's options have a comment in them; reshape it in the code." };
   const keep = list ? list.items.filter((i) => !CURVE_KEYS.has(i.key)).map((i) => text.slice(i.from, i.to)) : [];
@@ -218,22 +261,50 @@ export function planControl(text: string, picIndex: number, edgeId: string, seg:
     const inner = [...keep, ...keys].join(", ");
     return list ? { from: list.from + 1, to: list.to - 1, insert: inner } : { from: op.item.kind === "keyword" ? op.item.range.to : 0, to: op.item.kind === "keyword" ? op.item.range.to : 0, insert: `[${inner}]` };
   };
-  const candidates: Array<{ keys: string[]; form: "bend" | "out-in"; check: ReturnType<typeof lands> }> = [];
-  if (symmetric) {
-    const bend = bendFor(layout, a, b, which, p);
-    const theta = Math.round(bend.theta / 5) * 5 || (bend.theta >= 0 ? 5 : -5);
-    candidates.push({ keys: bendKeys(theta, bend.looseness), form: "bend", check: () => null });
+  const candidates: Array<{ changes: Change[]; form: "bend" | "out-in"; check: ReturnType<typeof lands> | (() => null) }> = [];
+  const c1 = s.c1!;
+  const c2 = s.c2!;
+
+  if (handle === "mid") {
+    const m0 = curveMiddle(s);
+    const dx = p.x - m0.x;
+    const dy = p.y - m0.y;
+    if (isBend(edge, seg)) {
+      const span = SPAN * dist(s.from, s.to);
+      const l0 = Math.max(0.1, Math.round((dist(s.from, c1) / (span || 1)) * 10) / 10);
+      const bend = bendForMiddle(layout, a, b, p, l0);
+      let theta = snap ? Math.round(bend.theta / 5) * 5 : Math.round(bend.theta);
+      if (theta === 0) theta = bend.theta >= 0 ? (snap ? 5 : 1) : snap ? -5 : -1;
+      candidates.push({ changes: [write(bendKeys(theta, bend.looseness))], form: "bend", check: () => null });
+    } else {
+      // Scaling both arms by k moves the middle by (k - 1) · 3/8 · (arm 1 + arm 2).
+      const o = outInFor(layout, a, b, c1, c2);
+      const w = { x: (3 / 8) * (c1.x - s.from.x + c2.x - s.to.x), y: (3 / 8) * (c1.y - s.from.y + c2.y - s.to.y) };
+      const ww = w.x * w.x + w.y * w.y;
+      const k = Math.max(0.1, ww > 0 ? 1 + (dx * w.x + dy * w.y) / ww : 1);
+      candidates.push({ changes: [write(outInKeys(o.out, o.in, o.l1 * k, o.l2 * k))], form: "out-in", check: () => null });
+    }
   } else {
-    const c1 = which === 1 ? p : s.c1!;
-    const c2 = which === 2 ? p : s.c2!;
-    const bend = bendFor(layout, a, b, which, p);
-    candidates.push({ keys: bendKeys(Math.round(bend.theta), bend.looseness), form: "bend", check: lands(c1, c2) });
+    const first = handle === "end1";
     const o = outInFor(layout, a, b, c1, c2);
-    candidates.push({ keys: outInKeys(o.out, o.in, o.l1, o.l2), form: "out-in", check: lands(which === 1 ? c1 : null, which === 2 ? c2 : null) });
+    const angle = snapAngle(angleOf(first ? a.point : b.point, p), snap);
+    const out = first ? angle : o.out;
+    const inA = first ? o.in : angle;
+    // The curve afterwards: the angle changes, the loosenesses stay.
+    const from = endAt(layout, a, out);
+    const to = endAt(layout, b, inA);
+    const span = SPAN * dist(from, to);
+    const want1 = polar(from, out, o.l1 * span);
+    const want2 = polar(to, inA, o.l2 * span);
+    const keyItem = list && !isBend(edge, seg) && list.items.some((i) => i.key === "out") && list.items.some((i) => i.key === "in") ? list.items.filter((i) => i.key === (first ? "out" : "in")).at(-1) : undefined;
+    // Written that way already: change just that value.
+    if (keyItem?.valueRange) candidates.push({ changes: [{ from: keyItem.valueRange.from, to: keyItem.valueRange.to, insert: String(Math.round(norm(angle))) }], form: "out-in", check: lands(want1, want2) });
+    candidates.push({ changes: [write(outInKeys(out, inA, o.l1, o.l2))], form: "out-in", check: lands(want1, want2) });
   }
+
   let last: string | null = null;
   for (const c of candidates) {
-    const r = editPath(text, picIndex, edge, { changes: [write(c.keys)], check: c.check });
+    const r = editPath(text, picIndex, edge, { changes: c.changes, check: c.check });
     if (r.ok) return { ...r, form: c.form };
     last = r.reason;
   }
