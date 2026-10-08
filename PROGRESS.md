@@ -12,7 +12,7 @@ Milestone 0 is done and was approved on 2026-10-07:
 
 **Milestone 2b (edges): done and approved (2026-10-08).** The owner tested all of it, and the fixes of D57, by hand. Their answers are in DECISIONS.md D58 and "M2b review" below. SPEC.md's revisions log now covers D53–D58.
 
-**Milestone 3 (accurate preview and export): plan proposed (2026-10-08), waiting for approval.** Nothing of it has been started. Its first task is the CI feasibility check (D15); the four small edits of D58 (items 4–7) come right after it. Also read "Notes for later milestones" below.
+**Milestone 3 (accurate preview and export): plan approved (2026-10-08); step 1, the CI feasibility check (D15), in progress.** The owner's answers: `gh` is logged in with a token for this repo only (Contents, Actions, Workflows: read/write; report any missing permission instead of working around it); pin the TL2026 Docker image by digest after confirming pgf 3.1.12; publish engine files as a GitHub Release, fetched by hash; push the `m3-engine-ci` branch when needed; show the download list before the first run. Only step 1 in this session: stop when it passes or needs a fallback. The workflow is `.github/workflows/engine.yml` with scripts in `engine/build/`. Steps 2–5 (D58 items 4–7) come after it. Also read "Notes for later milestones" below.
 
 ## M2b review (2026-10-08)
 The owner tested all of 2b and the follow-up fixes by hand: everything works well. Answers (D58):
