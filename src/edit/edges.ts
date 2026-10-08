@@ -35,7 +35,8 @@ const KEEP_TOLERANCE = 0.05;
 const HOLD_TOLERANCE = 0.06 * MM;
 const SIMPLE_NAME = /^[A-Za-z0-9_\-:]+$/;
 
-export type EditOutcome = { ok: true; changes: Change[]; text: string; layout: PictureLayout; notes: string[] } | { ok: false; reason: string };
+/** `edgeId` is the edge's id afterwards when the edit moved it (an "edge" operation turned into a line of its own). */
+export type EditOutcome = { ok: true; changes: Change[]; text: string; layout: PictureLayout; notes: string[]; edgeId?: string } | { ok: false; reason: string };
 
 /** The edge with id `id`, or undefined. */
 export function findEdge(layout: PictureLayout, id: string): Edge | undefined {

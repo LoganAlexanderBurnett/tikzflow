@@ -12,6 +12,32 @@ Milestone 0 is done and was approved on 2026-10-07:
 
 **Now:** Milestone 2b (edges). The plan was approved on 2026-10-07 (D45). Steps 1–3 were reviewed and approved (D49). Steps 4–6 are done (report below) and waiting for the owner's review; step 7 hasn't been started. Milestone 2 was split into 2a and 2b, each with its own checkpoint (D32). The full list is in SPEC.md, "Milestone 2b". Also read the "Notes for later milestones" below.
 
+**Session stopped by the owner on 2026-10-08, part-way through the owner's follow-up decisions on steps 4–6 (D53). Steps 7–10 were not started. Nothing was pushed.** See "Where things stand" below.
+
+## Where things stand (stopped 2026-10-08, not pushed)
+The owner approved steps 4–6 after testing and gave five decisions (D53). Then asked for steps 7–10 to be done in one go, with a commit after each. The session was stopped before step 7.
+
+### Done and committed
+- **Decision 2: curve handles, no Alt (commit "curve end handles and a middle handle").** A handle near each end writes only that end's `out=`/`in=` (edited in place when already written that way; a bend turns into `out`/`in`). A middle handle keeps the curve symmetric: a bend changes its angle (5°, or 1° with Alt) and only raises `looseness` when 85° isn't enough; an `out`/`in` curve keeps its angles and scales both loosenesses. `.. controls ..` curves keep their two control-point handles. Alt now only turns snapping off. Code: `planCurve` in `src/edit/curves.ts` (replaces `planControl`), handles in `src/ui/canvas.tsx`. `test/curves.test.ts` rewritten (16 tests) and two Playwright tests in `test/e2e/edges.spec.ts` (all 21 edge tests passed when run).
+- **Decision 5: Split writes `[-]` only when needed (commit "Split into separate edges: write [-] only when…").** A piece that loses every tip drops the arrow key (`\draw (a) -- (b);`); if the picture's or a style's own arrow would come back, it retries with `-`. Tests updated and added in `test/edge-ends.test.ts`; the Split Playwright test passes.
+- **Decisions 1 and 3** (5° bends, shifted anchors) needed no code.
+- **D53** is in DECISIONS.md.
+
+### Half-finished: decision 4, converting `edge` operations to `--` (committed as a work-in-progress commit)
+- **Written:** `src/edit/edgeop.ts` (`planEdgeToLine`, `viaLine`). It converts an `edge` operation to `--` in place when the statement holds only that edge (`\path` becomes `\draw`, the edge's options except curve/route keys join the statement's), or into its own `\draw` after the statement when other code shares it, then checks by re-layout that every other path, the node positions and the edge's look (colour, width, dash, opacity, tip count) are unchanged; `every edge` styling is written out if needed. `planMakeOrthogonal` (`src/edit/orthogonal.ts`) and `planAddVertex` (`src/edit/vertices.ts`) call it first and return one combined change set, a note ("converted the "edge" operation…") and `edgeId`. `EditOutcome` gained an optional `edgeId`.
+- **Tests:** `test/edgeop.test.ts` (13 tests). 12 pass.
+- **Known failures (2 of 676 Vitest tests):**
+  1. `test/edgeop.test.ts` corpus sweep: `composeChanges` (`src/edit/changes.ts`) throws "Mismatched change set lengths" on `corpus/self-bare-crlf.tex`. CodeMirror counts a CRLF line break as one character, while our positions count two, so composing changes whose inserted text contains `
+` is wrong. This is a latent bug in `composeChanges` (also used by resizing). I was checking how `text.value` is derived (`src/ui/store.ts:101` uses `state.doc.toString()`, which gives `
+`, so the app may not see CRLF at all; the tests do). Likely fix: compose without CodeMirror's ChangeSet, or normalise line breaks before composing. I also sorted the specs in `composeChanges` (unsorted specs were read as following on from earlier ones).
+  2. `test/vertices.test.ts` "refuses curves, orthogonal pieces and edge operations": the `draw (a) edge (b);` case now converts instead of refusing. The test needs updating (keep the other two cases).
+- **Not done for this decision:** UI wiring. Ghost handles still skip edge operations (`canvas.tsx`, `isEdgeOperation` check near line 164), the menu items "Add vertex here" and "Make orthogonal" still say edge operations can't (`src/ui/edgemenu.tsx`), `store.ts` doesn't show the conversion note or select `r.edgeId` after the edit, the Playwright tests, and the "Known limits" lines in this file. The D53 text says item 4 is implemented; it is only partly (see above).
+- `npm run typecheck` fails on two lines in `test/edgeop.test.ts` (`moved` isn't in the `ok()` helper's return type). Trivial fix.
+
+### Next, in order
+1. Fix the CRLF compose bug, the typecheck error and the `vertices.test.ts` expectation; finish the UI wiring and an e2e test for decision 4; update D53's wording and the known limits; commit.
+2. Steps 7–10 as in the plan table (edge labels, edge properties panel, delete, polish/e2e/goldens/docs/report). Then push to `origin` `trunk` and report on all of Milestone 2b.
+
 ## M2b plan and status
 | Step | Content | Status |
 |---|---|---|

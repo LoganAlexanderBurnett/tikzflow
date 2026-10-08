@@ -10,6 +10,7 @@ import { applyLinear, invert } from "../tikz/state.ts";
 import { PT_PER_UNIT } from "../tikz/units.ts";
 import { endBlocker, type EditOutcome, findEdge, formatLength, isPlainStop, nodeLines, pathReferences, perpendicularText, POINT_EPS, relativeStyle, relativeText, absoluteText } from "./edges.ts";
 import type { Guide } from "./snap.ts";
+import { viaLine } from "./edgeop.ts";
 import { edgeMiddle, type EndWrite, isEdgeOperation, labelOfItem, projectOnSegment, rewriteMiddle, type Step } from "./vertices.ts";
 
 const MM = PT_PER_UNIT.mm!;
@@ -266,6 +267,11 @@ function anchorAxis(anchor: string | undefined): "h" | "v" | null {
 export function planMakeOrthogonal(text: string, picIndex: number, edgeId: string): EditOutcome {
   const { doc, layout, edge } = edgeIn(text, picIndex, edgeId);
   if (!layout || !edge) return { ok: false, reason: "There is no such edge." };
+  if (isEdgeOperation(edge) && !edge.lock) {
+    if (edge.mode === "orthogonal") return { ok: false, reason: "It is already orthogonal: drag a segment to slide it." };
+    // An "edge" operation joins its ends directly: it becomes a "--" first, in the same edit (D53).
+    return viaLine(text, picIndex, edge, (t2, id2) => planMakeOrthogonal(t2, picIndex, id2));
+  }
   const why = blocker(edge);
   if (why) return { ok: false, reason: why };
   if (edge.mode === "orthogonal") return { ok: false, reason: "It is already orthogonal: drag a segment to slide it." };

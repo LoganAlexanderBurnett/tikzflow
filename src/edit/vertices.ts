@@ -7,7 +7,8 @@ import { type Edge, itemFrom, itemTo } from "../model/edges.ts";
 import type { OptionList, PathItemSyntax, Range } from "../model/syntax.ts";
 import type { LaidOutNode, PictureLayout, Route, RouteSeg } from "../tikz/layout.ts";
 import type { Point } from "../tikz/shapes.ts";
-import type { Change } from "./changes.ts";
+import { type Change, composeChanges } from "./changes.ts";
+import { planEdgeToLine } from "./edgeop.ts";
 import { editPath, type EditOutcome, findEdge, isPlainStop, POINT_EPS, pointCandidates, type PointForm } from "./edges.ts";
 import { removeItems } from "./optionEdits.ts";
 import { eolNear, indentAt, indentUnit } from "./text.ts";
@@ -270,11 +271,20 @@ export function planAddVertex(text: string, picIndex: number, edgeId: string, se
   const { doc, layout, edge } = edgeIn(text, picIndex, edgeId);
   if (!layout || !edge) return { ok: false, reason: "There is no such edge." };
   if (edge.lock) return { ok: false, reason: `This edge can't be edited: ${edge.lock.message}.` };
-  if (isEdgeOperation(edge)) return { ok: false, reason: 'This edge is written as an "edge" operation, which joins its two ends directly, so it can\'t have corners.' };
   if (!edge.segs.includes(seg)) return { ok: false, reason: "That isn't part of this edge." };
   const s = edge.route.segs[seg]!;
   if (s.kind === "curve") return { ok: false, reason: "Corners go on straight edges: straighten this one first." };
   if (s.kind !== "line") return { ok: false, reason: "This part is orthogonal: drag the segment to slide it instead." };
+  if (isEdgeOperation(edge)) {
+    // An "edge" operation joins its ends directly: it becomes a "--" first, in the same edit (D53).
+    const c = planEdgeToLine(text, picIndex, edgeId);
+    if (!c.ok) return { ok: false, reason: c.reason };
+    const ne = findEdge(c.layout, c.edgeId)!;
+    const r = planAddVertex(c.text, picIndex, c.edgeId, ne.segs[0]!, p);
+    if (!r.ok) return r;
+    const note = `converted the "edge" operation to "--"${c.moved ? " in a \\draw of its own" : ""}`;
+    return { ...r, changes: composeChanges(text, c.changes, r.changes), notes: [note, ...r.notes], edgeId: c.edgeId };
+  }
   const route = edge.route;
   const items = edge.path.syntax.items;
   const a = route.stops[s.a]!;

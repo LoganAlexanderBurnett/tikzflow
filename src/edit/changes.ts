@@ -28,8 +28,10 @@ export function applyChanges(text: string, changes: readonly Change[]): string {
  */
 export function composeChanges(base: string, first: readonly Change[], second: readonly Change[]): Change[] {
   const afterFirst = applyChanges(base, first);
-  const a = ChangeSet.of(first.map((c) => ({ from: c.from, to: c.to, insert: c.insert })), base.length);
-  const b = ChangeSet.of(second.map((c) => ({ from: c.from, to: c.to, insert: c.insert })), afterFirst.length);
+  // ChangeSet.of reads specs out of order as following on from the ones before them, so sort them.
+  const specs = (cs: readonly Change[]) => [...cs].sort((x, y) => x.from - y.from || x.to - y.to).map((c) => ({ from: c.from, to: c.to, insert: c.insert }));
+  const a = ChangeSet.of(specs(first), base.length);
+  const b = ChangeSet.of(specs(second), afterFirst.length);
   const out: Change[] = [];
   a.compose(b).iterChanges((from, to, _fromB, _toB, inserted) => out.push({ from, to, insert: inserted.toString() }));
   return out;
