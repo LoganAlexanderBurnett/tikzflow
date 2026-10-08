@@ -822,3 +822,20 @@ Items 4–7 are scheduled as small steps early in Milestone 3, right after the e
 - `npm run fetch-engines` doesn't fetch the release yet (step 7).
 
 **Why:** The owner's requirement (D15) that the engine be built reproducibly on Linux CI, not on a Windows machine. Each fix makes TeX see the file system as pdfTeX does, which the 2026 kernel relies on. The format from 2023 that TikZJax ships hid the faults: that kernel neither quoted names nor tested existence with `\filesize`.
+
+## D60: Owner's review of M3 step 1 (2026-10-08)
+**Decision:**
+1. **The `\filesize` change to web2js is approved** (D59). It aligns the engine with pdfTeX.
+2. **All of Milestone 3 is done on the `m3-engine-ci` branch and merged into `trunk` at the end of the milestone** (not after step 1).
+3. Steps 2–5 (D58 items 4–7) are done one after the other without a pause, with a commit after each; then the branch is pushed and PROGRESS.md updated.
+
+**Why:** The owner's answers. One long-lived branch avoids merging an engine build that nothing in the app uses yet.
+
+## D61: Deleting a node takes it out of `fit=` lists (M3 step 2, 2026-10-08)
+**Decision:** `src/edit/delete.ts` (D58 item 4; changes D56's refusal).
+- Deleting a node removes every group that names it from the `fit=` list of other nodes (`fit=(a) (b) (c)` becomes `fit=(a) (c)`), together with the space that separated it, so the rest of the statement is untouched. A group that reaches a deleted node through a coordinate (`(a |- b)`) goes too. It works inside braces (`fit={(a) (b)}`) and for several nodes at once.
+- Refused only when no member would be left. The message names the nodes and says to delete the fitted node as well (that is allowed) or to change its fit in the code.
+- The fitted node shrinks, so it may move: the "no other node moved" check skips the nodes whose fit changed. A node placed relative to such a fitted node would move with it, and is still caught by that check, so the deletion is refused with the node's name.
+- The status bar says "b left the fit of box, which now fits the nodes that remain".
+
+**Why:** The owner's answer (D58 item 4): the edit the user evidently wants, instead of a refusal. A fit's size follows its members by definition, so a smaller fitted node is the intended result, not a side effect.

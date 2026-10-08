@@ -7,7 +7,8 @@
 // other edge must still be there.
 import { analyzeDocument, layoutDocumentPicture } from "../model/document.ts";
 import { type Edge, edgeTitle, pathEdges, pictureEdges } from "../model/edges.ts";
-import { coordNames, pictureReferences, unresolvedReferences } from "../model/references.ts";
+import { coordNames, parenGroups, pictureReferences, unresolvedReferences } from "../model/references.ts";
+import type { Range } from "../model/syntax.ts";
 import type { PictureLayout } from "../tikz/layout.ts";
 import { PT_PER_UNIT } from "../tikz/units.ts";
 import { applyChanges, type Change, composeChanges } from "./changes.ts";
@@ -141,6 +142,8 @@ export function planDelete(text: string, picIndex: number, target: DeleteTarget)
   let message: string;
   /** Which of the original nodes go (by index), for matching the rest afterwards. */
   const gone = new Set<number>();
+  /** The nodes whose `fit=` list lost a member. They change size, so they may move (by index). */
+  const fitted = new Set<number>();
 
   if (target.kind === "edge") {
     const edge = findEdge(layout, target.id);
@@ -178,14 +181,26 @@ export function planDelete(text: string, picIndex: number, target: DeleteTarget)
       const l = layoutDocumentPicture(now, picIndex)!;
       const goneNow = new Set([...gone].map((i) => l.nodes[i]!.id));
       let owner: (typeof l.nodes)[number] | undefined;
+      let fitDone = false;
       for (const r of pictureReferences(w.text, picNow)) {
         if (r.in !== "node" || !names.has(r.name)) continue;
         const m = l.nodes.find((n) => n.kind !== "path" && n.syntax.from === r.statement.from);
         if (!m || goneNow.has(m.id)) continue;
-        if (/^fit\b/.test(w.text.slice(r.range.from, r.range.to))) return refused(`${r.name} is part of the fit of ${m.name ?? "another node"}. Take it out of the fit in the code first.`);
+        if (/^fit\b/.test(w.text.slice(r.range.from, r.range.to))) {
+          // A deleted member leaves the `fit=` list, and the fitted node shrinks (D58 item 4, D61).
+          const out = planFitRemoval(w.text, r.range, names);
+          const who = m.name ?? "another node";
+          if (!out.ok) return refused(`${out.removed.join(", ")} ${out.removed.length === 1 ? "is the last node" : "are the last nodes"} that ${who} fits around, so ${out.removed.length === 1 ? "it" : "they"} can't be taken out of its fit. Delete ${who} as well, or change its fit in the code first.`);
+          w.apply(out.changes);
+          fitted.add(l.nodes.indexOf(m));
+          w.notes.push(`${out.removed.join(", ")} left the fit of ${who}, which now fits the nodes that remain`);
+          fitDone = true;
+          break;
+        }
         owner = m;
         break;
       }
+      if (fitDone) continue;
       if (!owner) break;
       const move = planMove(w.text, picIndex, owner.id, owner.shape.center, names);
       const label2 = owner.name ?? "A node";
@@ -255,7 +270,9 @@ export function planDelete(text: string, picIndex: number, target: DeleteTarget)
   if (doc2.errors.length > doc.errors.length) return refused("That would break the code around it, so nothing was deleted.");
   const survivors = layout.nodes.flatMap((n, i) => (gone.has(i) ? [] : [n]));
   if (layout2.nodes.length !== survivors.length) return refused("That would change which nodes the picture has, so nothing was deleted.");
+  const survivorIndex = layout.nodes.flatMap((n, i) => (gone.has(i) ? [] : [i]));
   for (let i = 0; i < survivors.length; i++) {
+    if (fitted.has(survivorIndex[i]!)) continue;
     const a = survivors[i]!.shape.center;
     const b = layout2.nodes[i]!.shape.center;
     if (Math.hypot(a.x - b.x, a.y - b.y) > KEEP) return refused(`That would move ${survivors[i]!.name ?? "another node"}, so nothing was deleted.`);
@@ -268,6 +285,34 @@ export function planDelete(text: string, picIndex: number, target: DeleteTarget)
   const same = keep.size === after.size && [...keep].every(([k, n]) => after.get(k) === n);
   if (!same) return refused("That would change the other edges of the picture, so nothing was deleted.");
   return { ok: true, changes: w.changes, text: next, layout: layout2, notes: w.notes, message };
+}
+
+/**
+ * Takes the groups that name a deleted node out of a `fit=(a) (b) (c)` option
+ * item, with the space that separates them. Fails, naming the nodes, when no
+ * member would be left.
+ */
+function planFitRemoval(text: string, item: Range, names: ReadonlySet<string>): { ok: true; changes: Change[]; removed: string[] } | { ok: false; removed: string[] } {
+  const raw = text.slice(item.from, item.to);
+  const eq = raw.indexOf("=") + 1;
+  const groups = parenGroups(raw.slice(eq)).map((g) => ({
+    from: item.from + eq + g.at - 1,
+    to: item.from + eq + g.at + g.text.length + 1,
+    hit: coordNames(g.text).filter((c) => names.has(c.name)).map((c) => c.name),
+  }));
+  const removed = [...new Set(groups.flatMap((g) => g.hit))];
+  let lastKept = -1;
+  groups.forEach((g, i) => {
+    if (!g.hit.length) lastKept = i;
+  });
+  if (lastKept < 0) return { ok: false, removed };
+  const changes: Change[] = [];
+  // A removed group goes with the space up to the next one; the ones at the end go with the space before them.
+  groups.forEach((g, i) => {
+    if (g.hit.length && i < lastKept) changes.push({ from: g.from, to: groups[i + 1]!.from, insert: "" });
+  });
+  if (lastKept < groups.length - 1) changes.push({ from: groups[lastKept]!.to, to: groups[groups.length - 1]!.to, insert: "" });
+  return { ok: true, changes, removed };
 }
 
 /** Why an edge or statement can't be deleted at all, or null. */
