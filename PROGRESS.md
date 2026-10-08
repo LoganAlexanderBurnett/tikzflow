@@ -12,21 +12,22 @@ Milestone 0 is done and was approved on 2026-10-07:
 
 **Milestone 2b (edges): done and approved (2026-10-08).** The owner tested all of it, and the fixes of D57, by hand. Their answers are in DECISIONS.md D58 and "M2b review" below. SPEC.md's revisions log now covers D53–D58.
 
-**Milestone 3 (accurate preview and export): plan approved (2026-10-08); step 1, the CI feasibility check (D15), passed and is waiting for the owner's review.** See "M3 step 1" below and D59. The owner's standing answers:
+**Milestone 3 (accurate preview and export): in progress on the `m3-engine-ci` branch.** Step 1, the CI feasibility check (D15, D59), passed and the owner approved it (D60). Steps 2–5, the four fixes from the M2b review (D58 items 4–7), are done (D61–D64); see "M3 steps 2–5" below. Step 6 is next. The owner's standing answers:
 - `gh` is logged in with a token for this repo only (Contents, Actions, Workflows: read/write). Report any missing permission instead of working around it.
 - Engine files are published as GitHub Releases and fetched by hash. The TL2026 Docker image is pinned by digest.
 - Push the `m3-engine-ci` branch when needed. Show the download list before CI downloads anything new.
+- All of Milestone 3 is done on `m3-engine-ci` and merged into `trunk` at the end of the milestone (D60).
 
-Steps 2–5 (D58 items 4–7) come next, after approval; they were not started. Also read "Notes for later milestones" below.
+Also read "Notes for later milestones" below.
 
 ## M3 plan and status
 | Step | Content | Status |
 |---|---|---|
-| 1 | CI feasibility: build `tex.wasm` and dump a TL2026 format in GitHub Actions (D15, D59) | Done, waiting for review |
-| 2 | Deleting a node in a `fit` removes it from the list (D58 item 4) | Not started |
-| 3 | "Split and apply" for arrow tips (D58 item 5) | Not started |
-| 4 | Form changes turn overlapping side keys into `auto` (D58 item 6) | Not started |
-| 5 | Flip label side on a label with no side key writes `auto` (D58 item 7) | Not started |
+| 1 | CI feasibility: build `tex.wasm` and dump a TL2026 format in GitHub Actions (D15, D59) | Done, approved (D60) |
+| 2 | Deleting a node in a `fit` removes it from the list (D58 item 4, D61) | Done |
+| 3 | "Split and apply" for arrow tips (D58 item 5, D62) | Done |
+| 4 | Form changes turn overlapping side keys into `auto` (D58 item 6, D63) | Done |
+| 5 | Flip label side on a label with no side key writes `auto` (D58 item 7, D64) | Done |
 | 6 | Our own driver from `pgfsys-dvisvgm.def`; `dvi2html` adapted; boxes, bp units | Not started |
 | 7 | Our worker and files: missing-package warning, bytes, caching, `\scrollmode`, log, error lines, packages, `_headers`, `.gz` serving, fetch the release by hash | Not started |
 | 8 | Accurate preview in the app; locked blocks drawn and selectable; errors; font notice; minimum stroke | Not started |
@@ -36,6 +37,36 @@ Steps 2–5 (D58 items 4–7) come next, after approval; they were not started. 
 | 12 | Save and open: IndexedDB autosave, File System Access API, fallback | Not started |
 | 13 | Share links in the URL hash | Not started |
 | 14 | End-to-end tests, goldens, docs, report, push, Cloudflare Pages checks | Not started |
+
+## M3 steps 2–5: the four fixes from the M2b review (2026-10-08)
+Done in one go on `m3-engine-ci`, as the owner asked (D60), with a commit after each step. The owner's decisions on step 1 are recorded in D60: the `\filesize` change to web2js is approved, and the whole of Milestone 3 is merged into `trunk` at its end.
+
+### How to try it
+`npm run dev`, open http://localhost:5173, and paste the code shown in each item into the code pane.
+- **Step 2, delete from a fit (D61).** Paste `\begin{tikzpicture}`, `\node[draw] (a) at (0,0) {A};`, `\node[draw] (b) at (2,0) {B};`, `\node[draw] (c) at (4,0) {C};`, `\node[draw, fit=(a) (b) (c)] (box) {};`, `\end{tikzpicture}`. Select `a` and press Delete: the code now says `fit=(b) (c)` and the box shrinks. The status bar says "a left the fit of box…". Ctrl+Z brings it back. Select `b` and `c` as well: the last member is refused with the reason.
+- **Step 3, Split and apply (D62).** Paste two or three nodes and `\draw[thick] (a) -- (b) -- (c);`. Click the first edge and click the `→` arrow in the panel. Nothing is written yet: a card explains that tips belong to the whole path and offers **Split and apply** or **Cancel**. Split and apply gives `\draw[thick, ->] (a) -- (b);` and `\draw[thick] (b) -- (c);` in one undo step, and the edge stays selected.
+- **Step 4, form changes (D63).** Paste `\node[draw] (a) at (0,0) {A};`, `\node[draw] (b) at (4,-3) {B};` and `\draw[->] (a) -- node[pos=0.8, above] {x} (b);`. Right-click the edge and choose **Orthogonal**: the result is `(a) -| node[pos=0.8, auto] {x} (b)`, and the status bar says the label was written as `auto` instead of `above`. One Ctrl+Z undoes both. Straight and Curved do the same.
+- **Step 5, Flip on a bare label (D64).** Paste `\draw[->] (a) -- node[pos=0.3] {x} (b);`. The label sits on the line. Right-click it, **Flip label side** (or the panel's **Flip side**): `node[pos=0.3, auto] {x}`, beside the line. A second click gives `auto, swap`.
+
+### What works
+- **Delete in a fit.** `fit=` lists lose the deleted nodes, with the spacing that separated them; braces, several nodes at once, and coordinates that reach a deleted node (`(a |- b)`) are handled. Only the fit's last member is refused (naming the nodes). The fitted node may move while it shrinks, so the "no other node moved" check skips it; a node placed against the fitted node still counts.
+- **Split and apply.** The refusal of D55 stays, with its message pointing at the button. The panel's direction buttons and tip menu stay enabled and ask first. The split (D49, D50) and the edit are one set of changes against the original text. If the split alone already gives the asked tip, only the split is written and the note says so. If the split is refused, nothing is written.
+- **Form changes.** Straight, Orthogonal and Curved (and the `edge`-operation conversion inside Orthogonal) turn a label side key that the new line cuts through, and the old one didn't, into `auto` or `auto, swap`, by the rule used for sliding. Labels with a distance, with no side key, that already overlapped, or that are `sloped` are left alone. The status bar says what was written.
+- **Flip.** A label with no side key gets `auto` (or `auto, swap`), checked to sit beside the line.
+
+### Tests
+- **Vitest:** 900 tests in 25 files (was 871 in 23). New: `test/splitapply.test.ts` (8), `test/labelforms.test.ts` (13, including a sweep of every corpus edge with labels through all three forms), five fit tests in `test/delete.test.ts`, three flip tests in `test/labels.test.ts`. One expectation changed on purpose: Straighten of `(a) -- ++(1,0) |- node[right] {no} (b)` now gives `node[auto]` (D63). No golden file changed.
+- **Playwright:** 95 tests in Edge (was 93). New: a fit deletion with its refusal (replacing the old refusal test), Split and apply, Make orthogonal with a label, and the flip of a bare label (replacing the old refusal check).
+- `npm run typecheck` and `npm run build` pass. I didn't re-run `npm run fidelity` or `layout:bench`: the interpreter and layout didn't change.
+
+### Found along the way
+- **`sloped` labels** aren't turned with the line by the layout (only drawn rotated), so where they sit can't be judged. The first version of step 4 converted `above, sloped` labels wrongly, which the corpus golden `self-tikzstyle-paths.0.orthogonal.tex` caught. Now `planAutoSide` skips them. This also fixes the same fault for sliding such a label, which was latent since D57.
+- **No Python in this environment.** Scripted edits to files with TeX or backslashes go through the editor tools, as CLAUDE.md says; shell heredocs lose the backslashes.
+
+### Known limits (new)
+- **Form changes only.** Dragging a corner, sliding a segment, dragging a curve handle or moving a node can still leave a hand-written `above` label on the line. The owner's item names the three forms.
+- **After Orthogonal, an overlapping label has no side to keep.** On an upright or level piece, `above` or `left` runs along the line, so the label gets plain `auto` (the default side of D57), not necessarily the side it was on.
+- **A fitted node's own dependents.** Deleting a member moves the fitted node, and a node placed relative to it would move with it, which refuses the deletion with that node's name.
 
 ## M3 step 1: engine CI feasibility (2026-10-08)
 **Passed.** GitHub Actions on Ubuntu 24.04 does the whole build from pinned inputs (D59): it builds `tex.wasm` with web2js, dumps a format with the 2026 LaTeX kernel, and compiles the M0 sample. The sample also compiles in Edge with the result.
@@ -476,7 +507,7 @@ Not answered yet: whether a palette click with nothing selected should continue 
 | M1: Core loop | Done, approved 2026-10-07 |
 | M2a: Creating and editing nodes and styles | Done, approved 2026-10-07 |
 | M2b: Editing edges | Done, approved 2026-10-08 |
-| M3: Accurate preview and export | In progress: step 1 done 2026-10-08 |
+| M3: Accurate preview and export | In progress: steps 1–5 done 2026-10-08 |
 | M4: Layout and import | Not started |
 | M5: Polish and launch prep | Not started |
 
