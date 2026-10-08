@@ -116,6 +116,21 @@ export function nodeAnchor(doc: DocumentModel, pic: PictureSyntax, after?: numbe
   return { pos: anchor.range.to, indentFrom: anchor.range.from };
 }
 
+/**
+ * Right after the top-level item that holds position `pos` (a node inside a
+ * scope: after the whole scope). Null if that item has a syntax error.
+ */
+export function afterTopItem(doc: DocumentModel, pic: PictureSyntax, pos: number): Anchor | null {
+  const holder = topLevel(doc, pic).find((t) => t.range.from <= pos && pos < t.range.to);
+  if (!holder || holder.broken) return null;
+  return { pos: holder.range.to, indentFrom: holder.range.from };
+}
+
+/** Whether `range` is a whole top-level item of the picture (not inside a scope or layer). */
+export function isTopLevelItem(doc: DocumentModel, pic: PictureSyntax, range: Range): boolean {
+  return topLevel(doc, pic).some((t) => t.range.from === range.from && t.range.to === range.to);
+}
+
 /** Where a new path goes: after the last top-level item holding paths, but never before `after`. */
 export function pathAnchor(doc: DocumentModel, pic: PictureSyntax, after: Anchor): Anchor {
   const last = [...topLevel(doc, pic)].reverse().find((t) => t.hasPaths && !t.broken);

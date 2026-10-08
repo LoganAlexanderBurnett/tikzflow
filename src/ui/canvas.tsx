@@ -10,8 +10,10 @@ import type { Scope } from "../edit/properties.ts";
 import { type Hold, planResize, type ResizeOutcome, resizeBlocker, type SizeWant } from "../edit/resize.ts";
 import { type GapMark, snapNode } from "../edit/snap.ts";
 import { labelledNode } from "../edit/label.ts";
-import { END_ANCHORS, endBlocker, type EndTarget } from "../edit/edges.ts";
-import { EdgeMenu } from "./edgemenu.tsx";
+import type { Change } from "../edit/changes.ts";
+import { END_ANCHORS, endBlocker, type EndTarget, planWaypoint, snapWaypoint } from "../edit/edges.ts";
+import { edgeVertices, isEdgeOperation, planAddVertex } from "../edit/vertices.ts";
+import { EdgeMenu, type EdgeMenuAt } from "./edgemenu.tsx";
 import { pictureEnv } from "../model/document.ts";
 import { type Edge, edgeD, edgeEnds, edgeOfLabel } from "../model/edges.ts";
 import { undrawable } from "../model/explain.ts";
@@ -24,7 +26,10 @@ import type { Shading } from "../tikz/state.ts";
 import { katexMacros, labelHtml } from "./labelHtml.ts";
 import {
   activeScope,
+  applyEdgeEdit,
   applyEdit,
+  cornerMessage,
+  removeVertex,
   applyResize,
   cancelLabelEdit,
   commitLabelEdit,
@@ -141,6 +146,37 @@ function EndHandles({ edge, scale }: { edge: Edge; scale: number }) {
           >
             <title>{blocked ?? `Drag the ${which === "from" ? "start" : "end"} to another anchor or node. Right-click for its anchors.`}</title>
           </circle>
+        );
+      })}
+    </g>
+  );
+}
+
+/**
+ * The corners of the selected edge, to drag or double-click away, and ghost
+ * handles in the middle of its straight segments: drag one to add a corner.
+ * Orthogonal edges are edited by sliding their segments instead.
+ */
+function VertexHandles({ edge, scale }: { edge: Edge; scale: number }) {
+  if (edge.mode === "orthogonal" || isEdgeOperation(edge)) return null;
+  return (
+    <g class="tf-vertex-handles">
+      {edge.segs.map((k) => {
+        const s = edge.route.segs[k]!;
+        if (s.kind !== "line" || Math.hypot(s.to.x - s.from.x, s.to.y - s.from.y) * scale < 24) return null;
+        return (
+          <circle key={`g${k}`} data-ghost={k} data-testid="ghost-handle" cx={f((s.from.x + s.to.x) / 2)} cy={f((s.from.y + s.to.y) / 2)} r={f(3.5 / scale)} class="tf-ghost-handle" stroke-width={f(1.2 / scale)}>
+            <title>Drag to add a corner here</title>
+          </circle>
+        );
+      })}
+      {edgeVertices(edge).map((k) => {
+        const q = edge.route.stops[k]!.point;
+        const r = 4 / scale;
+        return (
+          <rect key={`v${k}`} data-vertex={k} data-testid="vertex-handle" x={f(q.x - r)} y={f(q.y - r)} width={f(2 * r)} height={f(2 * r)} transform={`rotate(45 ${f(q.x)} ${f(q.y)})`} class="tf-vertex-handle" stroke-width={f(1.2 / scale)}>
+            <title>Drag to move this corner. Double-click to remove it.</title>
+          </rect>
         );
       })}
     </g>
@@ -528,6 +564,22 @@ interface EndDrag {
   ok: boolean;
 }
 
+/** Dragging a corner of the selected edge, or a ghost handle to add one. */
+interface VertexDrag {
+  kind: "vertex";
+  edgeId: string;
+  /** The corner being moved (a stop index), or else the segment a new corner goes on. */
+  stop: number | null;
+  seg: number | null;
+  pointer: Point;
+  origin: Point;
+  /** The points before and after it, to line up with. */
+  neighbours: Point[];
+  moved: boolean;
+  key: string;
+  last: { changes: Change[]; stop: number; layout: PictureLayout } | null;
+}
+
 /** Drawing a new edge from a node's connection handle. */
 interface ConnectDrag {
   kind: "connect";
@@ -569,6 +621,7 @@ export function Canvas() {
     | { kind: "pan"; client: Point; view: View; moved: boolean }
     | ResizeDrag
     | EndDrag
+    | VertexDrag
     | ConnectDrag
     | null
   >(null);
@@ -576,7 +629,7 @@ export function Canvas() {
   const hover = useSignal<string | null>(null);
   const edgeDrag = useSignal<EdgeDragView | null>(null);
   /** The edge context menu, at a position in the canvas pane. */
-  const menu = useSignal<{ edgeId: string; x: number; y: number } | null>(null);
+  const menu = useSignal<{ edgeId: string; x: number; y: number; at: EdgeMenuAt } | null>(null);
 
   // Track the canvas size.
   useEffect(() => {
@@ -659,6 +712,28 @@ export function Canvas() {
         return;
       }
       drag.current = { kind: "end", edgeId: edge.id, which, pointer: toModel(e), moved: false, target: null, key: "", ok: false };
+      svg.setPointerCapture(e.pointerId);
+      return;
+    }
+    // A corner of the selected edge, or a ghost handle to add one.
+    const vertexEl = target.closest("[data-vertex]");
+    const ghostEl = target.closest("[data-ghost]");
+    if (e.button === 0 && edge && (vertexEl || ghostEl)) {
+      const route = edge.route;
+      const pointer = toModel(e);
+      const segs = edge.segs.map((k) => route.segs[k]!);
+      if (vertexEl) {
+        const stop = Number(vertexEl.getAttribute("data-vertex"));
+        const before = segs.find((s) => s.b === stop);
+        const after = segs.find((s) => s.a === stop);
+        const neighbours = [before && route.stops[before.a]!.point, after && route.stops[after.b]!.point].filter((q): q is Point => !!q);
+        drag.current = { kind: "vertex", edgeId: edge.id, stop, seg: null, pointer, origin: route.stops[stop]!.point, neighbours, moved: false, key: "", last: null };
+      } else {
+        const seg = Number(ghostEl!.getAttribute("data-ghost"));
+        const s = route.segs[seg]!;
+        const origin = { x: (s.from.x + s.to.x) / 2, y: (s.from.y + s.to.y) / 2 };
+        drag.current = { kind: "vertex", edgeId: edge.id, stop: null, seg, pointer, origin, neighbours: [route.stops[s.a]!.point, route.stops[s.b]!.point], moved: false, key: "", last: null };
+      }
       svg.setPointerCapture(e.pointerId);
       return;
     }
@@ -844,6 +919,37 @@ export function Canvas() {
     edgeDrag.value = { target: d.target, ok: d.ok, ...(!d.ok && fixed ? { line: { from: fixed, to: p } } : {}) };
   };
 
+  /** Dragging a corner: snap it, write it, and show the edge as it would be. */
+  const vertexMove = (d: VertexDrag, e: PointerEvent) => {
+    const p = toModel(e);
+    if (!d.moved && Math.hypot(p.x - d.pointer.x, p.y - d.pointer.y) * view.value.scale < 3) return;
+    d.moved = true;
+    const l = baseLayout.value;
+    const edge = edges.value.find((x) => x.id === d.edgeId);
+    if (!l || !edge) return;
+    const raw = { x: d.origin.x + p.x - d.pointer.x, y: d.origin.y + p.y - d.pointer.y };
+    const snapped = e.altKey ? { point: raw, guides: [] } : snapWaypoint(l, edge, d.neighbours, raw, 7 / view.value.scale);
+    guides.value = { lines: snapped.guides, gaps: [] };
+    // Points are written in whole millimetres: only plan again when that changes.
+    const key = `${Math.round(snapped.point.x / MM_PT)}|${Math.round(snapped.point.y / MM_PT)}|${snapped.guides.length}`;
+    if (key === d.key) return;
+    d.key = key;
+    const r =
+      d.stop !== null
+        ? planWaypoint(text.value, currentPicture.value, d.edgeId, d.stop, snapped.point)
+        : planAddVertex(text.value, currentPicture.value, d.edgeId, d.seg!, snapped.point);
+    if (!r.ok) {
+      d.last = null;
+      previewLayout.value = null;
+      status.value = r.reason;
+      return;
+    }
+    const stop = d.stop ?? ("stop" in r ? (r.stop as number) : 0);
+    d.last = { changes: r.changes, stop, layout: r.layout };
+    previewLayout.value = r.layout;
+    status.value = cornerMessage(r.layout, d.edgeId, stop, d.stop !== null ? "Release to write" : "Release to add");
+  };
+
   /** Drawing a new edge: a line from the start to the pointer, or to the anchor it would attach to. */
   const connectMove = (d: ConnectDrag, e: PointerEvent) => {
     const p = toModel(e);
@@ -880,6 +986,10 @@ export function Canvas() {
     }
     if (d.kind === "connect") {
       connectMove(d, e);
+      return;
+    }
+    if (d.kind === "vertex") {
+      vertexMove(d, e);
       return;
     }
     if (d.kind === "pan") {
@@ -919,6 +1029,13 @@ export function Canvas() {
         previewEnd(d.edgeId, d.which, null);
         if (!d.target) status.value = "The end stays where it was: drop it on a node.";
       }
+      return;
+    }
+    if (d.kind === "vertex") {
+      previewLayout.value = null;
+      guides.value = { lines: [], gaps: [] };
+      if (!d.moved) return;
+      if (d.last) applyEdgeEdit(d.last.changes, "input.edge.vertex", cornerMessage(d.last.layout, d.edgeId, d.last.stop, d.stop !== null ? "Moved" : "Added"));
       return;
     }
     if (d.kind === "connect") {
@@ -988,6 +1105,14 @@ export function Canvas() {
     const l = baseLayout.value;
     if (!l) return;
     for (const el of document.elementsFromPoint(e.clientX, e.clientY)) {
+      // A corner of the selected edge goes.
+      const corner = el.closest("[data-vertex]")?.getAttribute("data-vertex");
+      const sel = selectedEdge.value;
+      if (corner && sel) {
+        e.preventDefault();
+        removeVertex(sel.id, Number(corner));
+        return;
+      }
       // A label on an edge.
       const labelId = el.closest("[data-label]")?.getAttribute("data-label");
       if (labelId) {
@@ -1006,8 +1131,8 @@ export function Canvas() {
   };
 
   /** Opens the edge menu at a point in the canvas pane (screen px from its top left). */
-  const openMenu = (edgeId: string, x: number, y: number) => {
-    menu.value = { edgeId, x, y };
+  const openMenu = (edgeId: string, x: number, y: number, at: Point, vertex: number | null = null) => {
+    menu.value = { edgeId, x, y, at: { at, vertex, scale: view.value.scale } };
   };
 
   /** Right-click an edge (or one of its labels) for its menu. */
@@ -1019,15 +1144,22 @@ export function Canvas() {
         const labelId = target.closest("[data-label]")?.getAttribute("data-label");
         return labelId ? edgeOfLabel(shownEdges.value, labelId)?.id : undefined;
       })() ??
-      (target.closest("[data-end]") ? selectedEdge.value?.id : undefined);
+      (target.closest("[data-end], [data-vertex], [data-ghost], [data-segment], [data-control]") ? selectedEdge.value?.id : undefined);
     if (!edgeId) return;
     e.preventDefault();
     selectFromCanvas({ kind: "edge", id: edgeId });
     const r = svgRef.current!.getBoundingClientRect();
-    openMenu(edgeId, e.clientX - r.left, e.clientY - r.top);
+    const corner = target.closest("[data-vertex]")?.getAttribute("data-vertex");
+    openMenu(edgeId, e.clientX - r.left, e.clientY - r.top, toModel(e), corner ? Number(corner) : null);
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
+    // Escape closes the menu even before it has taken the focus.
+    if (menu.value && e.key === "Escape") {
+      e.preventDefault();
+      menu.value = null;
+      return;
+    }
     // The menu key, or Shift+F10, opens the selected edge's menu at its middle.
     const edge = selectedEdge.value;
     if (edge && (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10"))) {
@@ -1035,7 +1167,7 @@ export function Canvas() {
       const { start, end } = edgeEnds(edge);
       const v = view.value;
       const mid = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
-      openMenu(edge.id, (mid.x - v.cx) * v.scale + size.value.w / 2, (v.cy - mid.y) * v.scale + size.value.h / 2);
+      openMenu(edge.id, (mid.x - v.cx) * v.scale + size.value.w / 2, (v.cy - mid.y) * v.scale + size.value.h / 2, mid);
       return;
     }
     if (e.key === "F2" && selectedIds.value.length) {
@@ -1189,6 +1321,7 @@ export function Canvas() {
       )}
       <g transform="scale(1 -1)" class="tf-overlay">
         {selEdge && <EdgeSelection edge={selEdge} scale={v.scale} />}
+        {selEdge && !selEdge.lock && !edgeDrag.value && <VertexHandles edge={selEdge} scale={v.scale} />}
         {selEdge && !selEdge.lock && !edgeDrag.value && <EndHandles edge={selEdge} scale={v.scale} />}
         {hoverNode && <ConnectHandles n={hoverNode} scale={v.scale} />}
         {edgeDrag.value && l && <EdgeDragOverlay view={edgeDrag.value} layout={l} scale={v.scale} />}
@@ -1241,6 +1374,7 @@ export function Canvas() {
         edge={menuEdge}
         x={menu.value.x}
         y={menu.value.y}
+        at={menu.value.at}
         onClose={() => {
           menu.value = null;
           svgRef.current?.focus({ preventScroll: true });

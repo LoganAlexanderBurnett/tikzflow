@@ -12,13 +12,14 @@
 // the path stays exactly where it was, and nothing else in the picture moves.
 import { analyzeDocument, type DocumentModel, layoutDocumentPicture } from "../model/document.ts";
 import { type Edge, pictureEdges } from "../model/edges.ts";
-import type { PictureSyntax } from "../model/syntax.ts";
+import type { PictureSyntax, Range } from "../model/syntax.ts";
 import type { LaidOutNode, LaidOutPath, PictureLayout, Route, RouteStop } from "../tikz/layout.ts";
 import { anchorPoint, type Point } from "../tikz/shapes.ts";
 import { applyLinear, applyMatrix, invert } from "../tikz/state.ts";
 import { CM, PT_PER_UNIT, trimNumber } from "../tikz/units.ts";
-import { applyChanges, type Change } from "./changes.ts";
-import { insertStatements, nodeAnchor, pathAnchor } from "./insert.ts";
+import { applyChanges, type Change, composeChanges } from "./changes.ts";
+import { afterTopItem, insertStatements, isTopLevelItem, nodeAnchor, pathAnchor } from "./insert.ts";
+import { lineEnd, lineStart, restOfLineBlank } from "./text.ts";
 import { nameForUnnamed, nameNodeChange, nameStyle, takenNames } from "./names.ts";
 import type { Guide } from "./snap.ts";
 import { definedStyleNames, nodeStyles, styleSites } from "./styles.ts";
@@ -80,7 +81,7 @@ function unitAxes(route: Route): { x: number; y: number } | null {
  * pt, rounded to `step` millimetres (whole millimetres unless a point is being
  * held where it was).
  */
-function relativeText(route: Route, offset: Point, prefix: "+" | "++", style: "dims" | "plain", step = 1): string | null {
+export function relativeText(route: Route, offset: Point, prefix: "+" | "++", style: "dims" | "plain", step = 1): string | null {
   const inv = invert(route.frame.matrix);
   if (!inv) return null;
   const [lx, ly] = applyLinear(inv, offset.x, offset.y);
@@ -99,7 +100,7 @@ function relativeText(route: Route, offset: Point, prefix: "+" | "++", style: "d
 }
 
 /** "(2.5,-1)": plain coordinates in the path's own units, to 0.01 of a unit. */
-function absoluteText(route: Route, p: Point, sep: string): string | null {
+export function absoluteText(route: Route, p: Point, sep: string): string | null {
   const inv = invert(route.frame.matrix);
   const axes = unitAxes(route);
   if (!inv) return null;
@@ -120,7 +121,7 @@ export function pathReferences(layout: PictureLayout, path: LaidOutPath): LaidOu
 }
 
 /** The x (centre, east, west) and y (centre, north, south) lines of a node a point can line up with. */
-function nodeLines(n: LaidOutNode): { xs: Array<{ at: number; ref: string }>; ys: Array<{ at: number; ref: string }> } {
+export function nodeLines(n: LaidOutNode): { xs: Array<{ at: number; ref: string }>; ys: Array<{ at: number; ref: string }> } {
   const c = n.shape.center;
   const at = (a: string) => anchorPoint(n.shape, a);
   const name = n.name!;
@@ -185,24 +186,46 @@ export interface PointCandidate {
  * pictures stay that way (as for nodes, D24).
  */
 export function waypointCandidates(doc: DocumentModel, picIndex: number, layout: PictureLayout, edge: Edge, index: number, p: Point): PointCandidate[] {
+  return pointCandidates(doc, picIndex, layout, edge, index - 1, p, edge.route.stops[index]);
+}
+
+/** Whether a stop is written as plain numbers, "(2,1)". */
+export function isPlainStop(s: RouteStop | undefined): boolean {
+  return !!s && !s.relative && !s.node && /^[\s\d.,+-]+$/.test(s.text);
+}
+
+/**
+ * Ways to write a point at `p` that comes right after stop `after` of the
+ * edge's route, best first. `replacing` is the stop it rewrites, if any: a
+ * "+" stays "+", and plain numbers stay plain. A new point is written with
+ * plain numbers when the points around it are (`plain`).
+ */
+export function pointCandidates(
+  doc: DocumentModel,
+  picIndex: number,
+  layout: PictureLayout,
+  edge: Edge,
+  after: number,
+  p: Point,
+  replacing?: RouteStop,
+  plain = false,
+): PointCandidate[] {
   const route = edge.route;
   const pic = doc.syntax.pictures[picIndex]!;
-  const stop = route.stops[index];
   const out: PointCandidate[] = [];
   const ends = [edge.source, edge.target].filter((x): x is string => !!x);
   const perp = perpendicularText(layout, edge.path, p, ends);
   if (perp) out.push({ text: perp, form: "perpendicular" });
-  const base = relativeBase(route, index);
-  const relative = base && relativeText(route, { x: p.x - base.x, y: p.y - base.y }, stop?.relative ?? "++", relativeStyle(doc.text, pic));
-  const sep = stop && /,\s/.test(stop.text) ? ", " : ",";
+  const base = relativeBase(route, after + 1);
+  const relative = base && relativeText(route, { x: p.x - base.x, y: p.y - base.y }, replacing?.relative ?? "++", relativeStyle(doc.text, pic));
+  const sep = replacing && /,\s/.test(replacing.text) ? ", " : ",";
   const absolute = absoluteText(route, p, sep);
-  const wasAbsolute = stop && !stop.relative && !stop.node && /^[\s\d.,+-]+$/.test(stop.text);
-  if (wasAbsolute) {
+  if (replacing ? isPlainStop(replacing) : plain) {
     if (absolute) out.push({ text: absolute, form: "absolute" });
     return out;
   }
   if (relative) out.push({ text: relative, form: "relative" });
-  if (absolute && !stop?.relative) out.push({ text: absolute, form: "absolute" });
+  if (absolute && !replacing?.relative) out.push({ text: absolute, form: "absolute" });
   return out;
 }
 
@@ -241,11 +264,18 @@ function layoutAfter(
   return { text: next, layout, path };
 }
 
+/** A point an edit leaves alone: where it must stay, and its code's range in the text before the edit. */
+interface Kept {
+  point: Point;
+  range: Range;
+}
+
 /**
  * Rewrites relative points after the edited ones that moved because the point
  * they are measured from moved, so they stay where they were (D45: editing
- * one point leaves the rest of the path alone). `keep` maps route stop
- * indices to where they must stay.
+ * one point leaves the rest of the path alone). `keep` maps stop indices
+ * after the edit to the points that must stay; `stops` is how many stops the
+ * path has after the edit.
  */
 function holdRelatives(
   text: string,
@@ -253,8 +283,9 @@ function holdRelatives(
   before: { doc: DocumentModel; layout: PictureLayout },
   pathId: string,
   changes: Change[],
-  keep: ReadonlyMap<number, Point>,
+  keep: ReadonlyMap<number, Kept>,
   style: "dims" | "plain",
+  stops: number,
 ): { changes: Change[]; text: string; layout: PictureLayout; path: LaidOutPath; held: Set<number> } | { reason: string } {
   let current = changes;
   const held = new Set<number>();
@@ -262,21 +293,19 @@ function holdRelatives(
     const after = layoutAfter(text, picIndex, before, pathId, current);
     if ("reason" in after) return after;
     const route = after.path.route!;
-    const oldRoute = pathAfter(before.layout, pathId)!.route!;
     const done = { ...after, changes: current, held };
-    if (route.stops.length !== oldRoute.stops.length) return done;
+    if (route.stops.length !== stops) return done;
     let fixed = false;
     for (const [k, want] of keep) {
       const s = route.stops[k]!;
-      const off = Math.hypot(s.point.x - want.x, s.point.y - want.y);
+      const off = Math.hypot(s.point.x - want.point.x, s.point.y - want.point.y);
       if (off <= (held.has(k) ? HOLD_TOLERANCE : KEEP_TOLERANCE)) continue;
       // Only a relative point can be held by rewriting it, once; anything else moved for another reason.
       const base = relativeBase(route, k);
-      const old = oldRoute.stops[k]!;
       if (!s.relative || !base || held.has(k)) return done;
-      const t = relativeText(route, { x: want.x - base.x, y: want.y - base.y }, s.relative, style, 0.1);
+      const t = relativeText(route, { x: want.point.x - base.x, y: want.point.y - base.y }, s.relative, style, 0.1);
       if (!t) return done;
-      current = [...current, { from: old.range.from, to: old.range.to, insert: t }];
+      current = [...current, { from: want.range.from, to: want.range.to, insert: t }];
       held.add(k);
       fixed = true;
       break;
@@ -284,6 +313,59 @@ function holdRelatives(
     if (!fixed) return done;
   }
   return { reason: "The points after this one couldn't be kept in place." };
+}
+
+/** An edit inside one path, for `editPath`. */
+export interface PathEdit {
+  changes: Change[];
+  /** Where each stop of the route goes: its index after the edit, or null if the edit removes or rewrites it. Default: unchanged. */
+  map?: (old: number) => number | null;
+  /** How many stops and segments the path has after the edit (default: as many as before). */
+  stops?: number;
+  segs?: number;
+  /** Stops (indices after the edit) that must land at a point, within `tolerance` (default: whole-millimetre rounding). */
+  wants?: ReadonlyArray<{ stop: number; want: Point; tolerance?: number }>;
+  /** A last check on the result: why it is wrong, or null. */
+  check?: (route: Route, layout: PictureLayout) => string | null;
+}
+
+/**
+ * Applies an edit inside `edge`'s path, holds the path's other points in
+ * place, and checks the result: no new syntax errors, nothing else in the
+ * picture moved, the path has the stops and segments it should, every point
+ * the edit leaves alone is where it was, and every point it writes lands
+ * where it should.
+ */
+export function editPath(text: string, picIndex: number, edge: Edge, edit: PathEdit): EditOutcome {
+  const doc = analyzeDocument(text);
+  const layout = layoutDocumentPicture(doc, picIndex);
+  const pic = doc.syntax.pictures[picIndex];
+  if (!layout || !pic) return { ok: false, reason: "There is no picture." };
+  if (edge.lock) return { ok: false, reason: `This edge can't be edited: ${edge.lock.message}.` };
+  const route = edge.route;
+  const map = edit.map ?? ((k: number) => k);
+  const keep = new Map<number, Kept>();
+  route.stops.forEach((s, k) => {
+    const n = map(k);
+    if (n !== null) keep.set(n, { point: s.point, range: s.range });
+  });
+  const stops = edit.stops ?? route.stops.length;
+  const before = { doc, layout };
+  const held = holdRelatives(text, picIndex, before, edge.path.id, edit.changes, keep, relativeStyle(text, pic), stops);
+  if ("reason" in held) return { ok: false, reason: held.reason };
+  const newRoute = held.path.route!;
+  if (newRoute.stops.length !== stops || newRoute.segs.length !== (edit.segs ?? route.segs.length)) return { ok: false, reason: "That would change how the path is put together, so it wasn't written." };
+  for (const [k, want] of keep) {
+    const s = newRoute.stops[k]!;
+    if (Math.hypot(s.point.x - want.point.x, s.point.y - want.point.y) > (held.held.has(k) ? HOLD_TOLERANCE : KEEP_TOLERANCE)) return { ok: false, reason: "That would move other points of the path, so it wasn't written." };
+  }
+  for (const w of edit.wants ?? []) {
+    const s = newRoute.stops[w.stop]!;
+    if (Math.hypot(s.point.x - w.want.x, s.point.y - w.want.y) > (w.tolerance ?? ROUND_TOLERANCE)) return { ok: false, reason: "That point couldn't be written where it was dropped." };
+  }
+  const problem = edit.check?.(newRoute, held.layout);
+  if (problem) return { ok: false, reason: problem };
+  return { ok: true, changes: held.changes, text: held.text, layout: held.layout, notes: [] };
 }
 
 export interface StopWrite {
@@ -303,37 +385,17 @@ export interface StopWrite {
  * starts from is the node itself and can't be rewritten here.
  */
 export function writeStops(text: string, picIndex: number, edge: Edge, writes: readonly StopWrite[]): EditOutcome {
-  const doc = analyzeDocument(text);
-  const layout = layoutDocumentPicture(doc, picIndex);
-  const pic = doc.syntax.pictures[picIndex];
-  if (!layout || !pic) return { ok: false, reason: "There is no picture." };
-  if (edge.lock) return { ok: false, reason: `This edge can't be edited: ${edge.lock.message}.` };
-  const route = edge.route;
   const changes: Change[] = [];
   for (const w of writes) {
-    const s = route.stops[w.stop];
+    const s = edge.route.stops[w.stop];
     if (!s || s.item < 0) return { ok: false, reason: "This end is the node the path starts from; change it in the code." };
     changes.push({ from: s.range.from, to: s.range.to, insert: w.text });
   }
-  const keep = new Map<number, Point>();
-  route.stops.forEach((s, k) => {
-    if (!writes.some((w) => w.stop === k)) keep.set(k, s.point);
+  return editPath(text, picIndex, edge, {
+    changes,
+    map: (k) => (writes.some((w) => w.stop === k) ? null : k),
+    wants: writes.flatMap((w) => (w.want ? [{ stop: w.stop, want: w.want, ...(w.tolerance !== undefined ? { tolerance: w.tolerance } : {}) }] : [])),
   });
-  const before = { doc, layout };
-  const held = holdRelatives(text, picIndex, before, edge.path.id, changes, keep, relativeStyle(text, pic));
-  if ("reason" in held) return { ok: false, reason: held.reason };
-  const newRoute = held.path.route!;
-  if (newRoute.stops.length !== route.stops.length || newRoute.segs.length !== route.segs.length) return { ok: false, reason: "That would change how the path is put together, so it wasn't written." };
-  for (const [k, want] of keep) {
-    const s = newRoute.stops[k]!;
-    if (Math.hypot(s.point.x - want.x, s.point.y - want.y) > (held.held.has(k) ? HOLD_TOLERANCE : KEEP_TOLERANCE)) return { ok: false, reason: "That would move other points of the path, so it wasn't written." };
-  }
-  for (const w of writes) {
-    if (!w.want) continue;
-    const s = newRoute.stops[w.stop]!;
-    if (Math.hypot(s.point.x - w.want.x, s.point.y - w.want.y) > (w.tolerance ?? ROUND_TOLERANCE)) return { ok: false, reason: "That point couldn't be written where it was dropped." };
-  }
-  return { ok: true, changes: held.changes, text: held.text, layout: held.layout, notes: [] };
 }
 
 /**
@@ -430,9 +492,79 @@ export function endBlocker(edge: Edge, which: "from" | "to"): string | null {
   if (edge.lock) return `This edge can't be edited: ${edge.lock.message}.`;
   const stop = endStop(edge, which);
   if (stop.item < 0) return "This edge starts at the node its code is written on (\\node ... edge); change that in the code.";
-  if (which === "from" && edge.sharedStart) return "This end is shared with the edge before it in the same \\draw, so moving it would move that edge too. Change it in the code.";
-  if (which === "to" && edge.sharedEnd) return "This end is shared with the edge after it in the same \\draw, so moving it would move that edge too. Change it in the code.";
+  const split = 'Right-click the edge and choose "Split into separate edges" to give each edge its own \\draw (arrow tips stay where they are), then move it.';
+  if (which === "from" && edge.sharedStart) return `This end is shared with the edge before it in the same \\draw, so moving it would move that edge too. ${split}`;
+  if (which === "to" && edge.sharedEnd) return `This end is shared with the edge after it in the same \\draw, so moving it would move that edge too. ${split}`;
   return null;
+}
+
+/** "x,y" for comparing where things are, to 0.01 pt. */
+const spot = (p: Point) => `${Math.round(p.x * 100)},${Math.round(p.y * 100)}`;
+
+/** Every node, label and path of a layout, as sorted lists: what a reordering of statements must leave unchanged. */
+function picture(l: PictureLayout): string {
+  const nodes = [...l.nodes, ...l.pathNodes].map((n) => `${n.name ?? ""}@${spot(n.shape.center)}`).sort();
+  const paths = l.paths.map((p) => p.d).sort();
+  return JSON.stringify([nodes, paths]);
+}
+
+/**
+ * Moves the statement holding `edge` to right after the top-level item that
+ * holds `node`, so the edge can refer to it (TikZ only knows nodes defined
+ * earlier). Only safe when the statement stands alone at the top level and
+ * defines no names other code uses; the picture must draw exactly the same.
+ */
+function planRelocate(text: string, picIndex: number, edge: Edge, node: LaidOutNode): { ok: true; changes: Change[]; text: string; edgeId: string } | { ok: false; reason: string } {
+  const doc = analyzeDocument(text);
+  const pic = doc.syntax.pictures[picIndex];
+  const layout = layoutDocumentPicture(doc, picIndex);
+  if (!pic || !layout) return { ok: false, reason: "There is no picture." };
+  const syn = edge.path.syntax;
+  const name = node.name ?? "That node";
+  const why = `${name} comes after this edge in the code, and TikZ can only refer to nodes defined earlier`;
+  if (syn.command === "\\node") return { ok: false, reason: `${why}. This edge is part of a \\node statement, so it can't be moved below it; change it in the code.` };
+  if (!isTopLevelItem(doc, pic, syn)) return { ok: false, reason: `${why}. The edge's code is inside a scope, so it can't be moved below it safely; change it in the code.` };
+  // Names the statement defines that other code uses would then be used before they exist.
+  const picText = text.slice(pic.from, pic.to);
+  const word = /[A-Za-z0-9_-]/;
+  for (const n of [...layout.nodes, ...layout.pathNodes]) {
+    if (!n.name || n.statement.from !== syn.from) continue;
+    for (let i = picText.indexOf(n.name); i >= 0; i = picText.indexOf(n.name, i + 1)) {
+      const at = pic.from + i;
+      if (at >= syn.from && at < syn.to) continue;
+      if (!word.test(picText[i - 1] ?? "") && !word.test(picText[i + n.name.length] ?? "")) {
+        return { ok: false, reason: `${why}. Moving the edge's code below it would also move ${n.name}, which other code uses; change it in the code.` };
+      }
+    }
+  }
+  const anchor = afterTopItem(doc, pic, node.statement.from);
+  if (!anchor) return { ok: false, reason: `${why}. The code around ${name} has a syntax error, so the edge's code can't be moved below it. Fix that first.` };
+  // The statement goes with its whole line, comment included, when nothing else is on it.
+  const ls = lineStart(text, syn.from);
+  const le = lineEnd(text, syn.to);
+  const alone = /^[ \t]*$/.test(text.slice(ls, syn.from)) && restOfLineBlank(text, syn.to);
+  const brk = text.indexOf("\n", le);
+  let del: Change;
+  let statement = text.slice(syn.from, syn.to);
+  if (alone && brk >= 0) {
+    del = { from: ls, to: brk + 1, insert: "" };
+    statement = text.slice(syn.from, le).replace(/[ \t]+$/, "");
+  } else {
+    let from = syn.from;
+    while (text[from - 1] === " " || text[from - 1] === "\t") from--;
+    del = { from, to: syn.to, insert: "" };
+  }
+  const ins = insertStatements(text, pic, anchor, [statement]);
+  if (ins.from < del.to) return { ok: false, reason: `${why}, and the edge's code can't be moved below it.` };
+  const changes = [del, ins];
+  const next = applyChanges(text, changes);
+  const doc2 = analyzeDocument(next);
+  const layout2 = layoutDocumentPicture(doc2, picIndex);
+  if (doc2.errors.length > doc.errors.length || !layout2 || picture(layout2) !== picture(layout)) {
+    return { ok: false, reason: `${why}, and moving the edge's code below it would change the picture. Change it in the code.` };
+  }
+  const newFrom = ins.from - (del.to - del.from) + ins.insert.indexOf(statement);
+  return { ok: true, changes, text: next, edgeId: edge.id.replace(/^path@\d+/, `path@${newFrom}`) };
 }
 
 /**
@@ -441,7 +573,7 @@ export function endBlocker(edge: Edge, which: "from" | "to"): string | null {
  * text changes. The node must be defined before the edge's code, as TikZ
  * requires.
  */
-export function planEnd(text: string, picIndex: number, edgeId: string, which: "from" | "to", target: EndTarget): EditOutcome {
+export function planEnd(text: string, picIndex: number, edgeId: string, which: "from" | "to", target: EndTarget): EditOutcome & { edgeId?: string } {
   const doc = analyzeDocument(text);
   const layout = layoutDocumentPicture(doc, picIndex);
   const edge = layout && findEdge(layout, edgeId);
@@ -453,7 +585,15 @@ export function planEnd(text: string, picIndex: number, edgeId: string, which: "
   const other = which === "from" ? edge.target : edge.source;
   if (other === node.id) return { ok: false, reason: "Both ends would be on the same node; drop it on another node." };
   if (!pathReferences(layout, edge.path).some((n) => n.id === node.id)) {
-    return { ok: false, reason: `${node.name ?? "That node"} comes after this edge in the code, and TikZ can only refer to nodes defined earlier. Move the edge's code below it first.` };
+    // A node defined later: move the edge's code below it first, when that's safe (owner, 2b steps 1–3).
+    if (!node.name || node.implicitName || !SIMPLE_NAME.test(node.name)) return { ok: false, reason: "That node has no name the code can refer to; give it one first." };
+    const moved = planRelocate(text, picIndex, edge, node);
+    if (!moved.ok) return moved;
+    const node2 = layoutDocumentPicture(analyzeDocument(moved.text), picIndex)?.nodes.find((n) => n.name === node.name && n.kind === "statement" && n.statement.from < moved.text.length);
+    if (!node2) return { ok: false, reason: "That end couldn't be attached there." };
+    const r = planEnd(moved.text, picIndex, moved.edgeId, which, { ...target, node: node2.id });
+    if (!r.ok) return r;
+    return { ...r, changes: composeChanges(text, moved.changes, r.changes), notes: [...r.notes, `moved the edge's code below ${node.name}, so it can refer to it`], edgeId: r.edgeId ?? moved.edgeId };
   }
   const t = endText(layout, target);
   const want = endPoint(layout, target);

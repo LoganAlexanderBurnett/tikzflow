@@ -210,3 +210,82 @@ test("a new edge dropped on an anchor keeps both anchors", async ({ page }) => {
   await page.mouse.up();
   expect(await code(page)).toBe(before.replace("\\draw[->] (base)  |- (stop);", "\\draw[->] (base)  |- (stop);\n  \\draw[->] (read.east) -- (base.north);"));
 });
+
+// ---------------------------------------------------------------- step 4: vertices
+
+test("dragging a ghost handle adds a corner, and double-clicking the corner removes it", async ({ page }) => {
+  const before = await code(page);
+  await selectEdge(page, 4); // rec → stop
+  const ghost = await centerOf(page, '[data-testid="ghost-handle"]');
+  await dragTo(page, ghost, { x: ghost.x + 60, y: ghost.y });
+  await expect(page.getByTestId("status")).toContainText("Release to add the corner");
+  await page.screenshot({ path: "test-results/m2b-ghost-drag.png" });
+  await page.mouse.up();
+  const after = await code(page);
+  expect(after).toMatch(/\\draw\[->\] \(rec\)   -- (\+\+)?\([^)]*\) -- \(stop\);/);
+  await expect(page.getByTestId("vertex-handle")).toHaveCount(1);
+  await expect(page.getByTestId("edge-mode")).toContainText("Straight pieces through points");
+  await page.screenshot({ path: "test-results/m2b-corner-added.png" });
+  // Double-click the corner: it goes.
+  await page.getByTestId("vertex-handle").dblclick();
+  expect(await code(page)).toBe(before);
+  await expect(page.getByTestId("status")).toContainText("Removed the corner.");
+  await page.keyboard.press("Control+z");
+  expect(await code(page)).toBe(after);
+});
+
+test("dragging a corner moves it, snapping level with the node before it", async ({ page }) => {
+  await setCode(page, "\\begin{tikzpicture}\n\\node[draw] (a) {A};\n\\node[draw] (b) at (4,-2) {B};\n\\draw[->] (a) -- ++(2,0.3) -- (b);\n\\end{tikzpicture}\n");
+  await expect(page.locator("path[data-edge]")).toHaveCount(1);
+  await selectEdge(page, 0);
+  const corner = await centerOf(page, '[data-testid="vertex-handle"]');
+  // Near a's centre line and b's: it snaps to both, so it becomes (b |- a).
+  const a = await nodeBox(page, "a");
+  const b = await nodeBox(page, "b");
+  await dragTo(page, corner, { x: b.x + b.width / 2 + 2, y: a.y + a.height / 2 + 2 });
+  await page.mouse.up();
+  expect(await code(page)).toContain("\\draw[->] (a) -- (b |- a) -- (b);");
+  await expect(page.getByTestId("status")).toContainText("Moved the corner: (b |- a).");
+});
+
+test("Straighten from the menu turns an orthogonal edge into a plain --", async ({ page }) => {
+  const before = await code(page);
+  const id = await selectEdge(page, 5); // base |- stop
+  const p = await onEdge(page, id, 0.3);
+  await page.mouse.click(p.x, p.y, { button: "right" });
+  await expect(page.getByTestId("menu-add-vertex")).toHaveAttribute("aria-disabled", "true");
+  await page.getByTestId("menu-straighten").click();
+  expect(await code(page)).toBe(before.replace("\\draw[->] (base)  |- (stop);", "\\draw[->] (base)  -- (stop);"));
+  await expect(page.getByTestId("edge-mode")).toContainText("Straight");
+});
+
+test("Add vertex here and Remove vertex from the menu", async ({ page }) => {
+  const before = await code(page);
+  const id = await selectEdge(page, 4);
+  const p = await onEdge(page, id, 0.5);
+  await page.mouse.click(p.x, p.y, { button: "right" });
+  await page.getByTestId("menu-add-vertex").click();
+  expect(await code(page)).toMatch(/\\draw\[->\] \(rec\)   -- (\+\+)?\([^)]*\) -- \(stop\);/);
+  await page.getByTestId("vertex-handle").click({ button: "right" });
+  await page.getByTestId("menu-remove-vertex").click();
+  expect(await code(page)).toBe(before);
+});
+
+test("a shared end points to Split into separate edges, which splits the \\draw", async ({ page }) => {
+  await setCode(page, "\\begin{tikzpicture}\n\\node[draw] (a) {A};\n\\node[draw] (b) at (3,0) {B};\n\\node[draw] (c) at (3,-2) {C};\n\\draw[->] (a) -- (b) -- (c);\n\\end{tikzpicture}\n");
+  await expect(page.locator("path[data-edge]")).toHaveCount(2);
+  const id = await selectEdge(page, 0);
+  await page.getByTestId("edge-end-to").click();
+  await expect(page.getByTestId("status")).toContainText("Split into separate edges");
+  const p = await onEdge(page, id, 0.5);
+  await page.mouse.click(p.x, p.y, { button: "right" });
+  await page.getByTestId("menu-split").click();
+  expect(await code(page)).toContain("\\draw[-] (a) -- (b);\n\\draw[->] (b) -- (c);");
+  await expect(page.getByTestId("edge-title")).toHaveText("a → b");
+  // Now the end moves on its own.
+  const end = await centerOf(page, '[data-testid="edge-end-to"]');
+  const c = await nodeBox(page, "c");
+  await dragTo(page, end, { x: c.x + c.width * 0.4, y: c.y + c.height * 0.5 });
+  await page.mouse.up();
+  expect(await code(page)).toContain("\\draw[-] (a) -- (c);\n\\draw[->] (b) -- (c);");
+});

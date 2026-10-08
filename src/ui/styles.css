@@ -975,6 +975,63 @@ button:disabled {
   opacity: 1;
 }
 
+/* Corners, ghost handles, segment handles and control points of the selected edge (M2b) */
+
+.tf-vertex-handle {
+  fill: var(--panel);
+  stroke: var(--accent);
+  cursor: move;
+}
+
+.tf-vertex-handle:hover {
+  fill: var(--accent);
+}
+
+.tf-ghost-handle {
+  fill: var(--panel);
+  stroke: var(--accent);
+  opacity: 0.55;
+  cursor: copy;
+}
+
+.tf-ghost-handle:hover {
+  fill: var(--accent-soft);
+  opacity: 1;
+}
+
+.tf-segment-handle {
+  fill: var(--panel);
+  stroke: var(--accent);
+}
+
+.tf-segment-handle.h {
+  cursor: ns-resize;
+}
+
+.tf-segment-handle.v {
+  cursor: ew-resize;
+}
+
+.tf-segment-handle:hover {
+  fill: var(--accent);
+}
+
+.tf-control-arm {
+  stroke: var(--accent);
+  fill: none;
+  pointer-events: none;
+}
+
+.tf-control-handle {
+  fill: var(--accent-soft);
+  stroke: var(--accent);
+  cursor: move;
+}
+
+.tf-control-handle:hover {
+  fill: var(--accent);
+}
+
 .tf-edge-drag {
   pointer-events: none;
 }
@@ -1046,6 +1103,12 @@ button:disabled {
 
 .tf-menu-more {
   color: var(--muted);
+}
+
+.tf-menu-sep {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--line);
 }
 
 .tf-menu-note {

@@ -6,7 +6,9 @@ import { EditorView } from "@codemirror/view";
 import { batch, computed, effect, signal } from "@preact/signals";
 import type { Change } from "../edit/changes.ts";
 import { defaultEntry, edgeHead, type PaletteEntry, paletteEntries, planCreate, type Placement } from "../edit/create.ts";
-import { type EndTarget, planConnect, planEnd } from "../edit/edges.ts";
+import { type EndTarget, findEdge, planConnect, planEnd } from "../edit/edges.ts";
+import { planSplit } from "../edit/split.ts";
+import { planAddVertex, planRemoveVertex, planStraighten } from "../edit/vertices.ts";
 import { draftOf, labelBlocker, labelledNode, labelProblem, planLabelEdit } from "../edit/label.ts";
 import { withLibraries } from "../edit/libraries.ts";
 import { formatDistance, planAttach, planPin } from "../edit/move.ts";
@@ -274,7 +276,7 @@ export function showReference(name: string, ranges: readonly Range[]): void {
  * text ("path@120:0"), which text inserted or removed before it moves.
  */
 export function mapPathId(id: string, changes: readonly Change[]): string {
-  return id.replace(/^(path@)(d+)/, (_m, pre: string, n: string) => {
+  return id.replace(/^(path@)(\d+)/, (_m, pre: string, n: string) => {
     const at = Number(n);
     let shift = 0;
     for (const c of changes) if (c.to <= at && !(c.from === at && c.to === at)) shift += c.insert.length - (c.to - c.from);
@@ -672,9 +674,10 @@ export function moveEnd(edgeId: string, which: "from" | "to", target: EndTarget)
     return false;
   }
   const other = which === "from" ? edge?.source : edge?.target;
-  applyEdit(r.changes, "input.edge.end");
+  const name = targetName(target);
   const what = which === "from" ? "start" : "end";
-  status.value = other && other !== target.node ? `Reconnected the ${what} to ${targetName(target)}.` : `Moved the ${what} to ${targetName(target)}.`;
+  const done = other && other !== target.node ? `Reconnected the ${what} to ${name}.` : `Moved the ${what} to ${name}.`;
+  applyEdgeEdit(r.changes, "input.edge.end", `${done}${r.notes.map((n) => ` Also ${n}.`).join("")}`, r.edgeId);
   return true;
 }
 
@@ -692,5 +695,73 @@ export function connectNodes(from: EndTarget, to: EndTarget): boolean {
   queueMicrotask(highlightSelection);
   const edge = edges.value.find((e) => e.id === r.edgeId);
   status.value = `Added an edge${edge ? ` ${edgeTitle(edge, baseLayout.value!)}` : ""}.${r.notes.map((n) => ` Also ${n}.`).join("")}`;
+  return true;
+}
+
+/** How a point of an edge is written now, for messages: "++(2cm,5mm)", "(b |- a)". */
+function stopText(l: PictureLayout, edgeId: string, stop: number): string {
+  const s = findEdge(l, edgeId)?.route.stops[stop];
+  return s ? `${s.relative ?? ""}(${s.text.trim()})` : "";
+}
+
+/** Applies an edge edit as one undoable step. The edge stays selected, as `edgeId` when the edit gave it a new id. */
+export function applyEdgeEdit(changes: Change[], label: string, message: string, edgeId?: string): void {
+  previewLayout.value = null;
+  guides.value = { lines: [], gaps: [] };
+  applyEdit(changes, label);
+  if (edgeId) {
+    selection.value = { kind: "edge", id: edgeId };
+    queueMicrotask(highlightSelection);
+  }
+  status.value = message;
+}
+
+/** The message for a corner written at stop `stop` of edge `edgeId`. */
+export function cornerMessage(l: PictureLayout, edgeId: string, stop: number, verb: string): string {
+  return `${verb} the corner: ${stopText(l, edgeId, stop)}.`;
+}
+
+/** "Add vertex here": a corner on segment `seg` of the edge at `p`. */
+export function addVertex(edgeId: string, seg: number, p: Point): boolean {
+  const r = planAddVertex(text.value, currentPicture.value, edgeId, seg, p);
+  if (!r.ok) {
+    status.value = r.reason;
+    return false;
+  }
+  applyEdgeEdit(r.changes, "input.edge.vertex", cornerMessage(r.layout, edgeId, r.stop, "Added"));
+  return true;
+}
+
+/** "Remove vertex", or a double-click on a corner. */
+export function removeVertex(edgeId: string, stop: number): boolean {
+  const r = planRemoveVertex(text.value, currentPicture.value, edgeId, stop);
+  if (!r.ok) {
+    status.value = r.reason;
+    return false;
+  }
+  applyEdgeEdit(r.changes, "input.edge.vertex", "Removed the corner.");
+  return true;
+}
+
+/** "Straighten": a plain "--" from end to end. */
+export function straightenEdge(edgeId: string): boolean {
+  const r = planStraighten(text.value, currentPicture.value, edgeId);
+  if (!r.ok) {
+    status.value = r.reason;
+    return false;
+  }
+  applyEdgeEdit(r.changes, "input.edge.straighten", "Straightened the edge.");
+  return true;
+}
+
+/** "Split into separate edges": one \draw per edge, arrow tips kept where they were. The same edge stays selected. */
+export function splitEdge(edgeId: string): boolean {
+  const r = planSplit(text.value, currentPicture.value, edgeId);
+  if (!r.ok) {
+    status.value = r.reason;
+    return false;
+  }
+  const index = Number(/:(\d+)$/.exec(edgeId)?.[1] ?? 0);
+  applyEdgeEdit(r.changes, "input.edge.split", `Split the \\draw into ${r.edgeIds.length} statements, one per edge. Each end can be moved on its own now.`, r.edgeIds[index]);
   return true;
 }

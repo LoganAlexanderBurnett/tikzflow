@@ -984,31 +984,42 @@ function clipAngle(pp: PathPoint, angleDeg: number): Point {
 function toSegment(a: PathPoint, b: PathPoint, st: State): Segment {
   const ca = a.point;
   const cb = b.point;
-  if (st.bend === undefined && st.out === undefined && st.in === undefined) {
+  if (st.out === undefined && st.in === undefined) {
     return { kind: "line", from: clip(a, cb), to: clip(b, ca) };
   }
   const base = (Math.atan2(cb.y - ca.y, cb.x - ca.x) * 180) / Math.PI;
+  // "bend left=30" is "out=30, in=150, relative". Relative angles are turned
+  // by the line between the centres to find the border points, and the
+  // control points are then measured from the line between those border
+  // points (tikzlibrarytopaths, \tikz@to@compute@relative).
+  const rel = st.toRelative ? { out: st.out ?? 0, in: st.in ?? 180 } : null;
   let outA: number;
   let inA: number;
-  if (st.bend) {
-    const k = st.bend.side === "left" ? 1 : -1;
-    outA = base + k * st.bend.angle;
-    inA = base + 180 - k * st.bend.angle;
+  let from: Point;
+  let to: Point;
+  if (rel) {
+    from = clipAngle(a, base + rel.out);
+    to = clipAngle(b, base + rel.in);
+    const chord = (Math.atan2(to.y - from.y, to.x - from.x) * 180) / Math.PI;
+    outA = chord + rel.out;
+    inA = chord + rel.in;
   } else {
     outA = st.out ?? base;
     inA = st.in ?? base + 180;
+    from = clipAngle(a, outA);
+    to = clipAngle(b, inA);
   }
-  const from = clipAngle(a, outA);
-  const to = clipAngle(b, inA);
-  const dist = Math.hypot(to.x - from.x, to.y - from.y) * 0.3915 * st.looseness;
+  const dist = Math.hypot(to.x - from.x, to.y - from.y) * 0.3915;
+  const d1 = dist * st.outLooseness;
+  const d2 = dist * st.inLooseness;
   const r1 = (outA * Math.PI) / 180;
   const r2 = (inA * Math.PI) / 180;
   return {
     kind: "curve",
     from,
     to,
-    c1: { x: from.x + Math.cos(r1) * dist, y: from.y + Math.sin(r1) * dist },
-    c2: { x: to.x + Math.cos(r2) * dist, y: to.y + Math.sin(r2) * dist },
+    c1: { x: from.x + Math.cos(r1) * d1, y: from.y + Math.sin(r1) * d1 },
+    c2: { x: to.x + Math.cos(r2) * d2, y: to.y + Math.sin(r2) * d2 },
   };
 }
 

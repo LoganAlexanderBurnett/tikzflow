@@ -3,7 +3,7 @@
 // state.unknown, never guessed at.
 import type { ColorTable } from "./colors.ts";
 import { indexTopLevel, type KeyValue, parseOptionString, stripBraces } from "./options.ts";
-import { type ArrowTip, multiply, type State } from "./state.ts";
+import { type ArrowTip, initialState, multiply, type State } from "./state.ts";
 import { CM, evalLength, evalNumber, evalQuantity, type FontUnits } from "./units.ts";
 
 export interface StyleEntry {
@@ -447,7 +447,7 @@ export function defaultTipWidth(kind: string, lw: number): number {
 }
 
 /** Splits an arrow key like "<->", "-{Stealth[]}", "latex-latex" into its two sides. */
-function arrowSides(key: string): [string, string] | null {
+export function arrowSides(key: string): [string, string] | null {
   let depth = 0;
   for (let i = 0; i < key.length; i++) {
     const ch = key[i]!;
@@ -456,6 +456,14 @@ function arrowSides(key: string): [string, string] | null {
     else if (ch === "-" && depth === 0) return [key.slice(0, i), key.slice(i + 1)];
   }
   return null;
+}
+
+/** Whether a key without a value is an arrow specification ("->", "<->", "-{Stealth[]}"), as the unknown-key handler reads it. */
+export function isArrowKey(key: string): boolean {
+  const sides = arrowSides(key);
+  if (!sides) return false;
+  const s = initialState();
+  return parseTip(sides[0], s) !== null && parseTip(sides[1], s) !== null;
 }
 
 function setArrows(s: State, key: string): boolean {
@@ -878,13 +886,21 @@ export function applyKey(s: State, kv: KeyValue, ctx: KeyContext, depth = 0): vo
       return;
     case "bend left":
     case "bend right": {
-      const a = value === undefined ? 30 : num(value);
+      // "bend left=a" also sets the bend angle; plain "bend left" uses it (tikzlibrarytopaths).
+      const a = value === undefined ? (s.bendAngle ?? 30) : num(value);
       if (a === null) return unknown();
-      s.bend = { side: key === "bend left" ? "left" : "right", angle: a };
+      if (value !== undefined) s.bendAngle = a;
+      s.out = key === "bend left" ? a : -a;
+      s.in = 180 - s.out;
+      s.toRelative = true;
       return;
     }
-    case "bend angle":
+    case "bend angle": {
+      const a = num(value);
+      if (a === null) return unknown();
+      s.bendAngle = a;
       return;
+    }
     case "out":
     case "in": {
       const a = num(value);
@@ -897,10 +913,14 @@ export function applyKey(s: State, kv: KeyValue, ctx: KeyContext, depth = 0): vo
     case "out looseness":
     case "in looseness": {
       const n = num(value);
-      if (n !== null) s.looseness = n;
+      if (n === null) return;
+      if (key !== "in looseness") s.outLooseness = n;
+      if (key !== "out looseness") s.inLooseness = n;
       return;
     }
     case "relative":
+      s.toRelative = value === undefined || value.trim() === "true";
+      return;
     case "distance":
     case "out distance":
     case "in distance":

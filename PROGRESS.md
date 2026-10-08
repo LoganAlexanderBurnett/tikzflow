@@ -10,7 +10,7 @@ Milestone 0 is done and was approved on 2026-10-07:
 
 **Milestone 2a (nodes and styles): done and approved (2026-10-07).** The owner tested it by hand; their answers are in DECISIONS.md D44 and "M2a review" below.
 
-**Now:** Milestone 2b (edges). The plan was approved on 2026-10-07 (D45). Steps 1–3 are done and waiting for the owner's review (report below), as they asked; step 4 hasn't been started. Milestone 2 was split into 2a and 2b, each with its own checkpoint (D32). The full list is in SPEC.md, "Milestone 2b". Also read the "Notes for later milestones" below.
+**Now:** Milestone 2b (edges). The plan was approved on 2026-10-07 (D45). Steps 1–3 were reviewed and approved (D49). Steps 4–6 are being done without a checkpoint between them, as the owner asked. Milestone 2 was split into 2a and 2b, each with its own checkpoint (D32). The full list is in SPEC.md, "Milestone 2b". Also read the "Notes for later milestones" below.
 
 ## M2b plan and status
 | Step | Content | Status |
@@ -18,7 +18,7 @@ Milestone 0 is done and was approved on 2026-10-07:
 | 1 | Edge model and selection; Tab names an unnamed parent (D44, D46) | Done |
 | 2 | Edge-editing core and waypoint emitter (D47) | Done |
 | 3 | Anchors: endpoint handles, reconnecting, change anchor, drawing new edges (D48) | Done |
-| 4 | Vertices: ghost handles, add/remove, Straighten | Not started |
+| 4 | Vertices: ghost handles, add/remove, Straighten; split a \draw, move an edge below a later node (D49, D50) | Done |
 | 5 | Orthogonal mode | Not started |
 | 6 | Curved mode | Not started |
 | 7 | Edge labels: add, slide (`pos=`), yes/no on decisions | Not started |

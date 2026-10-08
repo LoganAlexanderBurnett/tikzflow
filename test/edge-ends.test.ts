@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { applyChanges, diffRange } from "../src/edit/changes.ts";
 import { edgeHead } from "../src/edit/create.ts";
 import { endBlocker, findEdge, planConnect, planEnd } from "../src/edit/edges.ts";
+import { planSplit, splitBlocker } from "../src/edit/split.ts";
 import { analyzeDocument, layoutDocumentPicture } from "../src/model/document.ts";
 import { type Edge, pictureEdges } from "../src/model/edges.ts";
 import type { PictureLayout } from "../src/tikz/layout.ts";
@@ -57,16 +58,29 @@ describe("moving an end", () => {
     expect(drawLines(r.text)[0]).toMatch(/^\\draw\[->\] \(a\.north east\) -- \+\+\([^)]*\) \|- \(c\);$/);
   });
 
-  it("refuses a node defined after the edge, and says why", () => {
-    const text = `\\begin{tikzpicture}\n${NODES}\n\\draw (a) -- (b);\n\\node (d) at (0,-6) {D};\n\\end{tikzpicture}\n`;
+  it("moves the edge's code below a node defined after it", () => {
+    const text = `\\begin{tikzpicture}\n${NODES}\n\\draw[->] (a) -- (b); % to b\n\\node (d) at (0,-6) {D};\n\\draw (c) -- (d);\n\\end{tikzpicture}\n`;
     const l = layoutOf(text);
-    const r = planEnd(text, 0, pictureEdges(l)[0]!.id, "to", { node: id(l, "d") });
-    expect(r).toMatchObject({ ok: false, reason: expect.stringMatching(/comes after this edge/) });
+    const r = planEnd(text, 0, pictureEdges(l)[0]!.id, "to", { node: id(l, "d"), anchor: "north" });
+    if (!r.ok) throw new Error(r.reason);
+    expect(applyChanges(text, r.changes)).toBe(r.text);
+    expect(r.text).toBe(`\\begin{tikzpicture}\n${NODES}\n\\node (d) at (0,-6) {D};\n\\draw[->] (a) -- (d.north); % to b\n\\draw (c) -- (d);\n\\end{tikzpicture}\n`);
+    expect(findEdge(r.layout, r.edgeId!)).toMatchObject({ source: "a", target: "d" });
+    expect(r.notes.join(" ")).toMatch(/moved the edge's code below d/);
+  });
+
+  it("refuses to move the code when it defines a name used elsewhere, or sits in a scope", () => {
+    const named = `\\begin{tikzpicture}\n${NODES}\n\\draw (a) -- coordinate (m) (b);\n\\node (d) at (0,-6) {D};\n\\draw (m) -- (c);\n\\end{tikzpicture}\n`;
+    const l = layoutOf(named);
+    expect(planEnd(named, 0, pictureEdges(l)[0]!.id, "to", { node: id(l, "d") })).toMatchObject({ ok: false, reason: expect.stringMatching(/also move m, which other code uses/) });
+    const scoped = `\\begin{tikzpicture}\n${NODES}\n\\begin{scope}[red]\n\\draw (a) -- (b);\n\\end{scope}\n\\node (d) at (0,-6) {D};\n\\end{tikzpicture}\n`;
+    const l2 = layoutOf(scoped);
+    expect(planEnd(scoped, 0, pictureEdges(l2)[0]!.id, "to", { node: id(l2, "d") })).toMatchObject({ ok: false, reason: expect.stringMatching(/inside a scope/) });
   });
 
   it("refuses an end shared with the next edge, the node a \\node ... edge starts from, and both ends on one node", () => {
     const shared = edges(pic("\\draw (a) -- (b) -- (c);"));
-    expect(endBlocker(shared[0]!, "to")).toMatch(/shared with the edge after it/);
+    expect(endBlocker(shared[0]!, "to")).toMatch(/shared with the edge after it.*Split into separate edges/);
     expect(endBlocker(shared[1]!, "from")).toMatch(/shared with the edge before it/);
     expect(endBlocker(shared[0]!, "from")).toBeNull();
     const fromNode = edges(pic("\\node (d) at (0,-6) {D} edge (c);"))[0]!;
@@ -74,6 +88,67 @@ describe("moving an end", () => {
     const text = pic("\\draw (a) -- (b);");
     const l = layoutOf(text);
     expect(planEnd(text, 0, pictureEdges(l)[0]!.id, "to", { node: id(l, "a") })).toMatchObject({ ok: false });
+  });
+});
+
+describe("splitting a \\draw into separate edges", () => {
+  const split = (body: string) => {
+    const text = pic(body);
+    const r = planSplit(text, 0, edges(text)[0]!.id);
+    if (!r.ok) throw new Error(r.reason);
+    expect(applyChanges(text, r.changes)).toBe(r.text);
+    return r;
+  };
+
+  it("gives only the last piece the end tip", () => {
+    const r = split("\\draw[->] (a) -- (b) -- (c);");
+    expect(drawLines(r.text)).toEqual(["\\draw[-] (a) -- (b);", "\\draw[->] (b) -- (c);"]);
+    expect(r.edgeIds).toHaveLength(2);
+  });
+
+  it("keeps a start tip on the first piece and an end tip on the last", () => {
+    const r = split("\\draw[thick, {Latex[round]}-Stealth] (a) -- node {x} (b) node[right] {at b} -- (2,0) -- (c);");
+    expect(drawLines(r.text)).toEqual(["\\draw[thick, {Latex[round]}-] (a) -- node {x} (b) node[right] {at b};", "\\draw[thick, -Stealth] (b) -- (2,0) -- (c);"]);
+  });
+
+  it("turns off tips from a style on the pieces that lose them, and keeps paths with no tips as they are", () => {
+    const styled = `\\begin{tikzpicture}[flow/.style={->}]\n${NODES}\n\\draw[flow] (a) -- (b) -- (c);\n\\end{tikzpicture}\n`;
+    const r = planSplit(styled, 0, edges(styled)[0]!.id);
+    if (!r.ok) throw new Error(r.reason);
+    expect(drawLines(r.text)).toEqual(["\\draw[flow, -] (a) -- (b);", "\\draw[flow] (b) -- (c);"]);
+    expect(drawLines(split("\\draw (a) -- (b) (c) -- (a);").text)).toEqual(["\\draw (a) -- (b);", "\\draw (c) -- (a);"]);
+  });
+
+  it("refuses when tips on both ends come from a style, and paths with one edge", () => {
+    const styled = `\\begin{tikzpicture}[flow/.style={<->}]\n${NODES}\n\\draw[flow] (a) -- (b) -- (c);\n\\end{tikzpicture}\n`;
+    expect(planSplit(styled, 0, edges(styled)[0]!.id)).toMatchObject({ ok: false, reason: expect.stringMatching(/come from a style/) });
+    const one = pic("\\draw (a) -- (b);");
+    expect(planSplit(one, 0, edges(one)[0]!.id)).toMatchObject({ ok: false });
+  });
+
+  it("lets a shared end move after the split", () => {
+    const r = split("\\draw[->] (a) -- (b) -- (c);");
+    const e = findEdge(r.layout, r.edgeIds[0]!)!;
+    expect(endBlocker(e, "to")).toBeNull();
+  });
+
+  // The corpus has no \draw with more than one edge, so these cover the kinds of operation.
+  it("splits paths with corners, curves, orthogonal pieces and labels without changing how they look", () => {
+    const bodies = [
+      "\\draw[<->] (a) -- ++(1,0) |- node[pos=0.3] {x} (b) to[bend left] node[near end] {y} (c);",
+      "\\draw[-latex, dashed] (a.east) -| (b) .. controls +(0,-1) and +(1,0) .. (c.north);",
+      "\\draw[->] (a) -- (b) -- (c) -- (a);",
+      "\\draw (a) -- node {1} (b)\n  -- node {2} (c); % chain",
+    ];
+    for (const body of bodies) {
+      const text = pic(body);
+      const l = layoutOf(text);
+      const e = edges(text)[0]!;
+      expect(splitBlocker(e, l)).toBeNull();
+      const r = planSplit(text, 0, e.id);
+      if (!r.ok) throw new Error(`${body}: ${r.reason}`);
+      expect(r.edgeIds.length).toBe(pictureEdges(l).length);
+    }
   });
 });
 

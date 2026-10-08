@@ -201,10 +201,15 @@ export interface State {
   labels: string[];
   /** Path nodes: position along the segment. */
   pos?: number;
-  bend?: { side: "left" | "right"; angle: number };
+  /** "bend angle", which a plain "bend left" uses (30 by default). */
+  bendAngle?: number;
   out?: number;
   in?: number;
-  looseness: number;
+  /** "relative": out and in are measured from the line between the ends. */
+  toRelative?: boolean;
+  /** "out looseness" and "in looseness"; "looseness" sets both. */
+  outLooseness: number;
+  inLooseness: number;
   /** Keys the interpreter didn't understand, as written. */
   unknown: string[];
   /** Keys it understood but can't show natively (decorations, rotation). */
@@ -258,7 +263,8 @@ export function initialState(): State {
     xshift: 0,
     yshift: 0,
     labels: [],
-    looseness: 1,
+    outLooseness: 1,
+    inLooseness: 1,
     unknown: [],
     unrendered: [],
   };
@@ -286,7 +292,8 @@ export function itemCopy(s: State): State {
   c.fill = false;
   c.xshift = 0;
   c.yshift = 0;
-  c.looseness = 1;
+  c.outLooseness = 1;
+  c.inLooseness = 1;
   delete c.name;
   delete c.at;
   delete c.placement;
@@ -295,8 +302,8 @@ export function itemCopy(s: State): State {
   delete c.chainAt;
   delete c.join;
   delete c.pos;
-  delete c.bend;
   delete c.out;
   delete c.in;
+  delete c.toRelative;
   return c;
 }

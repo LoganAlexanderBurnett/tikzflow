@@ -1,11 +1,13 @@
-// The context menu for an edge (M2b). Step 3 has the anchor items; vertices,
-// modes and labels join it in later steps.
+// The context menu for an edge (M2b): corners, the edge's form, its anchors,
+// and splitting a \draw into separate edges. Labels join it in step 7.
 import { useSignal } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
 import { endBlocker, endStop } from "../edit/edges.ts";
-import type { Edge } from "../model/edges.ts";
-import { anchorPoint } from "../tikz/shapes.ts";
-import { baseLayout, moveEnd } from "./store.ts";
+import { splitBlocker } from "../edit/split.ts";
+import { edgeVertices, isEdgeOperation, nearestLineSegment } from "../edit/vertices.ts";
+import { type Edge, pathEdges } from "../model/edges.ts";
+import { anchorPoint, type Point } from "../tikz/shapes.ts";
+import { addVertex, baseLayout, moveEnd, removeVertex, splitEdge, straightenEdge } from "./store.ts";
 
 /** The compass, laid out as it points; the middle is the border ("automatic"). */
 const COMPASS: Array<string | null> = ["north west", "north", "north east", "west", null, "east", "south west", "south", "south east"];
@@ -91,8 +93,44 @@ function AnchorItem({ edge, which, open, onOpen, onDone }: { edge: Edge; which: 
   );
 }
 
+/** A menu item that does something, disabled with the reason as its tooltip. */
+function ActionItem({ label, why, run, testid, onHover }: { label: string; why: string | null; run: () => void; testid: string; onHover: () => void }) {
+  return (
+    <div
+      class={`tf-menu-item${why ? " disabled" : ""}`}
+      role="menuitem"
+      aria-disabled={!!why}
+      tabindex={-1}
+      title={why ?? undefined}
+      data-testid={testid}
+      onMouseEnter={onHover}
+      onFocus={onHover}
+      onClick={() => {
+        if (!why) run();
+      }}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && !why) {
+          e.preventDefault();
+          run();
+        }
+      }}
+    >
+      <span>{label}</span>
+    </div>
+  );
+}
+
+export interface EdgeMenuAt {
+  /** Where the menu was asked for, in the model (pt). */
+  at: Point;
+  /** The corner right-clicked, if one was (a stop index). */
+  vertex: number | null;
+  /** Screen px per pt, for how near the pointer has to be. */
+  scale: number;
+}
+
 /** The menu for `edge` at (x, y) in the canvas pane. */
-export function EdgeMenu({ edge, x, y, onClose }: { edge: Edge; x: number; y: number; onClose: () => void }) {
+export function EdgeMenu({ edge, x, y, at, onClose }: { edge: Edge; x: number; y: number; at: EdgeMenuAt; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   /** The item whose flyout is open: one at a time. */
   const open = useSignal<string | null>(null);
@@ -131,8 +169,53 @@ export function EdgeMenu({ edge, x, y, onClose }: { edge: Edge; x: number; y: nu
       onContextMenu={(e) => e.preventDefault()}
     >
       {edge.lock && <div class="tf-menu-note">This edge is kept as written; see the panel for why.</div>}
+      <CornerItems edge={edge} at={at} close={onClose} hover={() => (open.value = null)} />
+      <div class="tf-menu-sep" role="separator" />
       <AnchorItem edge={edge} which="from" open={open.value === "from"} onOpen={() => (open.value = "from")} onDone={onClose} />
       <AnchorItem edge={edge} which="to" open={open.value === "to"} onOpen={() => (open.value = "to")} onDone={onClose} />
+      <SplitItem edge={edge} close={onClose} hover={() => (open.value = null)} />
     </div>
+  );
+}
+
+/** Add vertex here, Remove vertex, Straighten. */
+function CornerItems({ edge, at, close, hover }: { edge: Edge; at: EdgeMenuAt; close: () => void; hover: () => void }) {
+  const locked = edge.lock ? "This edge is kept as written." : null;
+  const seg = nearestLineSegment(edge, at.at);
+  const addWhy =
+    locked ??
+    (isEdgeOperation(edge)
+      ? 'This edge is an "edge" operation, which joins its ends directly.'
+      : edge.mode === "orthogonal"
+        ? "This edge is orthogonal: drag a segment to slide it."
+        : !seg
+          ? "Corners go on straight edges: straighten this one first."
+          : null);
+  const corners = edgeVertices(edge);
+  // The corner right-clicked, or the one nearest the pointer (within 10 px).
+  const near = at.vertex ?? corners.find((k) => {
+    const q = edge.route.stops[k]!.point;
+    return Math.hypot(q.x - at.at.x, q.y - at.at.y) * at.scale <= 10;
+  });
+  const removeWhy = locked ?? (!corners.length ? "This edge has no corners." : near === undefined || near === null ? "Right-click a corner to remove it." : null);
+  const straight = edge.segs.length === 1 && edge.route.segs[edge.segs[0]!]!.kind === "line";
+  return (
+    <>
+      <ActionItem label="Add vertex here" why={addWhy} testid="menu-add-vertex" onHover={hover} run={() => (addVertex(edge.id, seg!.seg, seg!.point), close())} />
+      <ActionItem label="Remove vertex" why={removeWhy} testid="menu-remove-vertex" onHover={hover} run={() => (removeVertex(edge.id, near!), close())} />
+      <ActionItem label="Straighten" why={locked ?? (straight ? "It is already straight." : null)} testid="menu-straighten" onHover={hover} run={() => (straightenEdge(edge.id), close())} />
+    </>
+  );
+}
+
+/** "Split into separate edges", for a \draw with more than one edge. */
+function SplitItem({ edge, close, hover }: { edge: Edge; close: () => void; hover: () => void }) {
+  const layout = baseLayout.value;
+  if (!layout || pathEdges(edge.path, layout).length < 2) return null;
+  return (
+    <>
+      <div class="tf-menu-sep" role="separator" />
+      <ActionItem label="Split into separate edges" why={splitBlocker(edge, layout)} testid="menu-split" onHover={hover} run={() => (splitEdge(edge.id), close())} />
+    </>
   );
 }

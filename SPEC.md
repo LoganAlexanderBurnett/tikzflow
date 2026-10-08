@@ -111,6 +111,8 @@ New features:
 - Curved mode: emits `bend left/right`, `to[out=,in=]`, or `.. controls ..` with draggable control points.
 - Edge labels slide along the path and store `pos=`. Decision nodes get yes/no branch labels automatically.
 - Dragging an edge's endpoint onto a different node reconnects it. Dragging from a node's anchor to another node draws a new edge.
+  - An end shared by two edges of one `\draw` can't be dragged. A "Split into separate edges" context-menu action splits the path into separate `\draw` statements and keeps the arrow tips where they were (with `->`, only the last piece keeps the tip). The refusal message explains this option.
+  - An end dropped on a node defined later in the code moves the edge's `\draw` below that node when that is safe (the moved statement defines no nodes or coordinates used elsewhere); otherwise it is refused with a reason.
 - An edge properties panel: arrow direction and tips, dashed/dotted, colour and line width, with the same "this edge / its style" scope toggle as nodes.
 - Delete removes the selected nodes or edges. Deleting a node never leaves undefined references: nodes positioned relative to it are re-attached to whatever it was positioned against, or pinned at their current position if that isn't possible. Edges that would be left dangling are deleted too.
 - Defaults: "Make curved" writes a plain `bend left`; "Make orthogonal" uses a single-corner route (`|-` or `-|`) where it can.
@@ -183,3 +185,5 @@ Start with Milestone 0. Before writing code, give me a brief plan for the spike 
 - **2026-10-07, approving the Milestone 2b plan** (approved by the project owner; reasons in DECISIONS.md D44 and D45):
   - Added to 2b: reconnecting an edge by dragging its endpoint to another node, drawing a new edge from a node's anchor, an edge properties panel with edge-or-style scope, and Delete for nodes and edges, which re-attaches or pins dependent nodes and removes dangling edges.
   - Recorded the 2b defaults: plain `bend left` and single-corner orthogonal routes.
+- **2026-10-07, after Milestone 2b steps 1–3** (approved by the project owner; reasons in DECISIONS.md D49):
+  - Added to 2b: "Split into separate edges" for ends shared by two edges, and moving an edge's `\draw` below a node defined later when an end is dropped on it.

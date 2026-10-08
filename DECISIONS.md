@@ -658,3 +658,33 @@ Answers:
 - **Edge ids after an edit** follow the path through the changes (D46), so the edge stays selected after its end moves.
 
 **Why:** Anchors are what keeps an edge attached in TikZ: an end written as a node name moves with the node, with no extra code. Dropping on a node's middle gives the plainest code, `(a) -- (b)`, which is what most hand-written flowcharts use. An anchor is written only when it was asked for.
+
+## D49: Owner's answers on 2b steps 1–3 (2026-10-07)
+**Decision:** The owner tested steps 1–3 by hand (selecting edges, dragging ends to anchors, the anchor menu, drawing new edges) and answered the report's four questions:
+1. **Shared ends:** keep refusing the drag, but add **"Split into separate edges"** to the edge's context menu. It splits the path into separate `\draw` statements and keeps the arrow tips where they were (with `->`, only the last piece keeps the tip). The refusal message explains this option.
+2. **Ends on later-defined nodes:** move the edge's `\draw` below the target node when that is safe (the moved statement defines no nodes or coordinates used elsewhere); otherwise refuse with a reason.
+3. **New edges:** dropping on a node's middle writes `(a) -- (b)`, on an anchor dot both anchors. Approved.
+4. **Connection handles:** keep them on hover; it isn't too busy.
+
+Steps 4–6 are done without a checkpoint between them, as the owner asked.
+**Why:** The owner's answers to the decisions requested in the steps 1–3 report (PROGRESS.md).
+
+## D50: Corners, Straighten, splitting a \draw, and moving an edge below a node (M2b step 4, 2026-10-07)
+**Decision:**
+- **The edit core takes edits that add or remove points** (`editPath` in `src/edit/edges.ts`). An edit says where each old point goes (or that it goes), how many points and segments the path has after it, and where new points must land. Points it leaves alone must stay exactly where they were; relative points after an edited one are held as before (D47). `writeStops` is now a case of it.
+- **Corners** (`src/edit/vertices.ts`):
+  - **Ghost handles** sit in the middle of each straight segment of the selected edge (not on segments shorter than 24 px on screen). Dragging one adds a corner there, shown live and snapped like a waypoint (D47). "Add vertex here" in the menu does the same at the point clicked.
+  - **The new point** is written in emitter order (D47): a perpendicular coordinate when it lines up with two nodes, else `++(…)` from the point before it, else plain coordinates; plain numbers when the points around it are plain (TikZiT-style files). It is inserted before the segment's end, `(a) -- node {x} ++(2cm,5mm) -- (b)`, so the segment's labels stay on its first half; if they are nearer the end, it goes after the start instead.
+  - **Corner handles** are small diamonds. Dragging one moves it (`planWaypoint`); double-clicking it, or "Remove vertex", removes the point and the operation after it: `(a) -- (1,1) -- (b)` becomes `(a) -- (b)`. Labels and other nodes stay in the code. A corner next to a curve keeps the curve's operation.
+  - **Corners only go on straight segments.** Curved segments must be straightened first; orthogonal edges slide their segments instead (step 5). `edge` operations join their two ends directly and can't have corners.
+- **Straighten** goes back to a plain `--` (D45): the edge's corners and curve go, its labels, comments and both ends stay. `to[out=90, in=180, red]` keeps its other keys, `to[red]`. On an `edge` operation, only the curve keys are removed from its options.
+- **Rewriting the code between two ends** (`rewriteMiddle`) is shared with the orthogonal and curved modes: labels are kept (each after the step it belongs to), `%` comments are kept before the end's code, and the spacing around the operations is kept. It refuses code it can't safely rewrite: options in the middle of a path (they apply to all of it), an `edge` operation in the middle, or code it doesn't understand.
+- **Split into separate edges** (`src/edit/split.ts`, D49) is in the menu of any `\draw` with more than one edge. Each edge becomes its own statement, with the statement's options; a shared end is written again; nodes right after an end stay with the edge that ends there. **Arrow tips:** TikZ puts them on the last subpath, so each piece gets the tips it drew before. An arrow key written in the statement is rewritten per piece (`<->` becomes `<-` on the first piece and `->` on the last, `-` in between); tips from a style are turned off with `-` on pieces that lose them. A piece that would need only one of two tips coming from a style is refused. The split is checked: every edge must draw the same segments, tips, labels, colour and line as before.
+- **An end dropped on a node defined later** (D49) moves the edge's statement right below that node (after the top-level item holding it), with its comment, and then attaches the end. Refused, with the reason, for a statement inside a scope, a `\node ... edge` statement, or one that defines a name other code uses. The move alone must draw the same picture. One undo step; the status bar says the code was moved.
+- **Refusal messages for shared ends** point to "Split into separate edges".
+- **Menu order:** Add vertex here, Remove vertex, Straighten, (step 5–6 items), Change start/end anchor, Split into separate edges. Disabled items say why in their tooltip. Escape closes the menu even before it takes the focus.
+- **Fixed:** an edge or path stayed selected after an edit by its old position in the text, because `mapPathId`'s pattern had lost its backslash (`d+`), so edits before it lost the selection.
+
+**Interpreter fix (found while preparing step 6).** For `bend left` and `relative`, TikZ measures the control points' angles from the line between the two border points, not between the centres (`\tikz@to@compute@relative` in `tikzlibrarytopaths`). Bends were up to 0.6 pt off pdfTeX; the new probe `spike/engines/probes/p5-curves.tex` puts 12 curve points within 0.1 pt. The interpreter now also reads `out looseness`, `in looseness`, `relative` and `bend angle`, and `bend left=40` sets the bend angle for a later plain `bend left`, as in TikZ.
+
+**Why:** Corners written relative to their neighbours follow the nodes when they move. Keeping labels, comments and spacing through every rewrite follows the project's rule that only the bytes an edit is about change. Splitting and moving statements are checked by drawing the result, so a case the rules miss is refused rather than misedited.
