@@ -570,3 +570,34 @@ New features:
 The 2a question about a palette click with nothing selected (the node goes at the view's centre) wasn't answered; the behaviour stays as it is until it is.
 
 **Why:** The owner's answers to the decisions requested in the M2a report (PROGRESS.md).
+
+## D45: Milestone 2b plan, as approved (2026-10-07)
+**Decision:** The owner approved the 2b plan and its four assumptions, and answered its questions. Ten steps:
+
+| Step | Content |
+|---|---|
+| 1 | Edge model and selection. Leftover from 2a: Tab on an unnamed parent names it (D44). Edge geometry tied to the code, hit-testing, lock explanations; edge labels editable with the label box. |
+| 2 | Edge-editing core and the waypoint emitter, with snapping and fidelity probes where TikZ's behaviour is uncertain. |
+| 3 | Anchors: endpoint handles, dragging an end to another anchor or to **another node** (reconnecting), "Change start/end anchor", and **drawing a new edge** by dragging from a node's anchor to another node. |
+| 4 | Vertices: ghost handles, dragging and removing vertices, "Add vertex here", "Remove vertex", "Straighten". |
+| 5 | Orthogonal mode: "Make orthogonal" and sliding segments. |
+| 6 | Curved mode: "Make curved", bend angle, `out`/`in`, `.. controls ..`. |
+| 7 | Edge labels: "Add label here", sliding labels (`pos=`), automatic yes/no labels on decisions. |
+| 8 | **Edge properties panel**: arrow direction and tips, dashed/dotted, colour and line width, with the same "this edge / its style" scope toggle as nodes. |
+| 9 | **Delete** for nodes and edges. |
+| 10 | Context-menu polish and keyboard access, end-to-end scenario, golden edge edits, corpus sweep, docs, report, push. |
+
+Assumptions approved:
+- `\draw (a) -- (b) -- (c);` is two edges; editing one leaves the other's code alone. Each `edge` operation is its own edge.
+- Hand-written plain-coordinate waypoints aren't rewritten when a node moves. New waypoints are written so they follow their nodes.
+- An edge's current form sets its mode: `|-`/`-|` is orthogonal; `bend`, `out`/`in` or `controls` is curved; anything else is straight or a polyline. "Straighten" goes back to a plain `--`.
+- The first edge out of a decision is labelled "Yes" and the second "No", unless the figure already uses other wording.
+
+Answers:
+1. **Reconnecting by drag: yes.**
+2. **Edge properties panel: yes,** as in step 8.
+3. **Delete and new edges: yes to both.** Deleting a node must never leave undefined references. Nodes positioned relative to a deleted node are re-attached to whatever the deleted node was positioned against, or pinned at their current position if that isn't possible. Edges that would be left dangling are deleted.
+4. **Edge defaults:** "Make curved" writes a plain `bend left` (TikZ's 30°); "Make orthogonal" uses a single-corner route where it can.
+5. **Palette click with nothing selected:** the node goes at the centre of the view, written relationally where possible, like a drag. That is what D41 already does (a "point" placement, snapped and passed to the move planner), so nothing changes.
+
+**Why:** The owner's answers. Without delete and drawing edges between existing nodes, Tab and Enter would be the only ways to make an edge. The delete rule extends the project's "never leave code LaTeX can't compile" stance (D36) to removal.

@@ -10,7 +10,21 @@ Milestone 0 is done and was approved on 2026-10-07:
 
 **Milestone 2a (nodes and styles): done and approved (2026-10-07).** The owner tested it by hand; their answers are in DECISIONS.md D44 and "M2a review" below.
 
-**Now:** planning Milestone 2b (edges). The plan is waiting for the owner's approval; no 2b code has been written. Milestone 2 was split into 2a and 2b, each with its own checkpoint (D32). The full list is in SPEC.md, "Milestone 2b". Also read the "Notes for later milestones" below.
+**Now:** Milestone 2b (edges). The plan was approved on 2026-10-07 (D45); the owner asked for steps 1–3 first, then a stop. Milestone 2 was split into 2a and 2b, each with its own checkpoint (D32). The full list is in SPEC.md, "Milestone 2b". Also read the "Notes for later milestones" below.
+
+## M2b plan and status
+| Step | Content | Status |
+|---|---|---|
+| 1 | Edge model and selection; Tab names an unnamed parent (D44) | Not started |
+| 2 | Edge-editing core and waypoint emitter | Not started |
+| 3 | Anchors: endpoint handles, reconnecting, change anchor, drawing new edges | Not started |
+| 4 | Vertices: ghost handles, add/remove, Straighten | Not started |
+| 5 | Orthogonal mode | Not started |
+| 6 | Curved mode | Not started |
+| 7 | Edge labels: add, slide (`pos=`), yes/no on decisions | Not started |
+| 8 | Edge properties panel with edge-or-style scope | Not started |
+| 9 | Delete nodes and edges (re-attach or pin dependents, drop dangling edges) | Not started |
+| 10 | Context menu polish, end-to-end tests, goldens, sweep, docs, report, push | Not started |
 
 ## M2a review (2026-10-07)
 The owner tested all of 2a by hand: palette and keyboard creation, corner resizing, Match width and the style panel all work well. Answers to the report's questions (D44):
@@ -185,7 +199,7 @@ Not answered yet: whether a palette click with nothing selected should continue 
 | M0: Technical spike | Done, approved 2026-10-07 |
 | M1: Core loop | Done, approved 2026-10-07 |
 | M2a: Creating and editing nodes and styles | Done, approved 2026-10-07 |
-| M2b: Editing edges | Plan waiting for approval |
+| M2b: Editing edges | In progress (plan approved 2026-10-07) |
 | M3: Accurate preview and export | Not started |
 | M4: Layout and import | Not started |
 | M5: Polish and launch prep | Not started |
