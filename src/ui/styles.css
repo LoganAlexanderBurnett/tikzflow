@@ -1167,3 +1167,14 @@ button:disabled {
 .tf-actions {
   margin: 8px 0;
 }
+
+.tf-menu-check {
+  flex: none;
+  width: 14px;
+  margin-right: -4px;
+  color: var(--accent);
+}
+
+.tf-menu-text {
+  flex: 1;
+}

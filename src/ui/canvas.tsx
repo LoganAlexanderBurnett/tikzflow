@@ -1396,14 +1396,22 @@ export function Canvas() {
     }
   };
 
-  /** Opens the edge menu at a point in the canvas pane (screen px from its top left). */
+  /** Opens the edge menu at a point of the canvas (screen px from its top left). The menu is placed in the pane that holds it, which starts higher up. */
   const openMenu = (edgeId: string, x: number, y: number, at: Point, vertex: number | null = null) => {
-    menu.value = { edgeId, x, y, at: { at, vertex, scale: view.value.scale } };
+    const svg = svgRef.current;
+    const pane = svg?.closest(".tf-canvas-pane");
+    const s = svg?.getBoundingClientRect();
+    const p = pane?.getBoundingClientRect();
+    const dx = s && p ? s.left - p.left : 0;
+    const dy = s && p ? s.top - p.top : 0;
+    menu.value = { edgeId, x: x + dx, y: y + dy, at: { at, vertex, scale: view.value.scale } };
   };
 
   /** Right-click an edge (or one of its labels) for its menu. */
   const onContextMenu = (e: MouseEvent) => {
-    const target = e.target as Element;
+    // A node's connection handles sit over the edges that leave it: look through them to what is under the pointer.
+    const under = (e.target as Element).closest("[data-connect]") ? document.elementsFromPoint(e.clientX, e.clientY).find((el) => el.closest("[data-edge], [data-label]")) : undefined;
+    const target = under ?? (e.target as Element);
     const edgeId =
       target.closest("[data-edge]")?.getAttribute("data-edge") ??
       (() => {

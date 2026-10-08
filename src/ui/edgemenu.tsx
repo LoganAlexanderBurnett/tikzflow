@@ -1,14 +1,14 @@
 // The context menu for an edge (M2b): corners, the edge's form, its anchors,
 // splitting a \draw into separate edges, and adding a label.
 import { useSignal } from "@preact/signals";
-import { useEffect, useRef } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { edgeOpBlocker } from "../edit/edgeop.ts";
 import { deleteBlocker } from "../edit/delete.ts";
 import { addLabelBlocker } from "../edit/labels.ts";
 import { endBlocker, endStop } from "../edit/edges.ts";
 import { splitBlocker } from "../edit/split.ts";
 import { edgeVertices, isEdgeOperation, nearestLineSegment } from "../edit/vertices.ts";
-import { type Edge, pathEdges } from "../model/edges.ts";
+import type { Edge } from "../model/edges.ts";
 import { anchorPoint, type Point } from "../tikz/shapes.ts";
 import { curveBlocker } from "../edit/curves.ts";
 import { addVertex, deleteSelection, startAddLabel, baseLayout, makeCurved, makeOrthogonal, moveEnd, removeVertex, splitEdge, straightenEdge } from "./store.ts";
@@ -65,6 +65,10 @@ function AnchorItem({ edge, which, open, onOpen, onDone }: { edge: Edge; which: 
   const node = which === "from" ? edge.source : edge.target;
   const why = blocked ?? (node ? null : "This end is a point, not a node. Drag it onto a node to attach it.");
   const label = which === "from" ? "Change start anchor" : "Change end anchor";
+  const sub = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (sub.current) fitFlyout(sub.current);
+  }, [open, why]);
   return (
     <div
       class={`tf-menu-item has-sub${why ? " disabled" : ""}${open && !why ? " open" : ""}`}
@@ -89,7 +93,7 @@ function AnchorItem({ edge, which, open, onOpen, onDone }: { edge: Edge; which: 
         ▸
       </span>
       {!why && open && (
-        <div class="tf-submenu">
+        <div class="tf-submenu" ref={sub}>
           <AnchorPicker edge={edge} which={which} onDone={onDone} />
         </div>
       )}
@@ -97,15 +101,38 @@ function AnchorItem({ edge, which, open, onOpen, onDone }: { edge: Edge; which: 
   );
 }
 
-/** A menu item that does something, disabled with the reason as its tooltip. */
-function ActionItem({ label, why, run, testid, onHover }: { label: string; why: string | null; run: () => void; testid: string; onHover: () => void }) {
+/**
+ * A menu item that does something, disabled with the reason as its tooltip. With
+ * `checked` set it is one of a group of choices: ticked when it is the current
+ * one, and then it does nothing (D57).
+ */
+function ActionItem({
+  label,
+  why,
+  run,
+  testid,
+  onHover,
+  checked,
+  hint,
+}: {
+  label: string;
+  why: string | null;
+  run: () => void;
+  testid: string;
+  onHover: () => void;
+  checked?: boolean;
+  /** A tooltip for an item that is available. */
+  hint?: string;
+}) {
+  const choice = checked !== undefined;
   return (
     <div
       class={`tf-menu-item${why ? " disabled" : ""}`}
-      role="menuitem"
+      role={choice ? "menuitemradio" : "menuitem"}
+      aria-checked={choice ? checked : undefined}
       aria-disabled={!!why}
       tabindex={-1}
-      title={why ?? undefined}
+      title={why ?? hint}
       data-testid={testid}
       onMouseEnter={onHover}
       onFocus={onHover}
@@ -119,7 +146,12 @@ function ActionItem({ label, why, run, testid, onHover }: { label: string; why: 
         }
       }}
     >
-      <span>{label}</span>
+      {choice && (
+        <span class="tf-menu-check" aria-hidden="true">
+          {checked ? "✓" : ""}
+        </span>
+      )}
+      <span class="tf-menu-text">{label}</span>
     </div>
   );
 }
@@ -133,19 +165,78 @@ export interface EdgeMenuAt {
   scale: number;
 }
 
+/** How far a menu stays from the edge of the window. */
+const MARGIN = 8;
+
+/**
+ * Keeps a menu inside the window (D57): it opens upward and leftward when it
+ * would run past the bottom or the right edge, and scrolls when it is taller
+ * than the window. `x` and `y` are where it was asked for, in the coordinates of
+ * its positioned parent.
+ */
+function fitInWindow(menu: HTMLElement, x: number, y: number): void {
+  menu.style.maxHeight = "";
+  menu.style.overflowY = "";
+  menu.style.left = `${Math.round(x)}px`;
+  menu.style.top = `${Math.round(y)}px`;
+  const parent = menu.offsetParent?.getBoundingClientRect() ?? { left: 0, top: 0 };
+  const vw = document.documentElement.clientWidth;
+  const vh = document.documentElement.clientHeight;
+  const room = vh - 2 * MARGIN;
+  const tall = menu.offsetHeight > room;
+  menu.style.maxHeight = tall ? `${room}px` : "";
+  // Only a menu that has to scroll clips its flyouts, so only then.
+  menu.style.overflowY = tall ? "auto" : "";
+  const w = menu.offsetWidth;
+  const h = menu.offsetHeight;
+  let left = x;
+  let top = y;
+  if (parent.left + left + w > vw - MARGIN) left = x - w;
+  if (parent.top + top + h > vh - MARGIN) top = y - h;
+  left = Math.min(Math.max(left, MARGIN - parent.left), vw - MARGIN - w - parent.left);
+  top = Math.min(Math.max(top, MARGIN - parent.top), vh - MARGIN - h - parent.top);
+  menu.style.left = `${Math.round(left)}px`;
+  menu.style.top = `${Math.round(top)}px`;
+}
+
+/** Keeps a flyout inside the window: to the left of its item when there is no room on the right, and up when it would pass the bottom. */
+function fitFlyout(el: HTMLElement): void {
+  el.style.left = "";
+  el.style.right = "";
+  el.style.top = "";
+  el.style.marginLeft = "";
+  el.style.marginRight = "";
+  const vw = document.documentElement.clientWidth;
+  const vh = document.documentElement.clientHeight;
+  if (el.getBoundingClientRect().right > vw - MARGIN) {
+    el.style.left = "auto";
+    el.style.right = "100%";
+    el.style.marginLeft = "0";
+    el.style.marginRight = "2px";
+  }
+  const r = el.getBoundingClientRect();
+  const down = r.bottom - (vh - MARGIN);
+  if (down > 0) el.style.top = `${-5 - down}px`;
+  else if (r.top < MARGIN) el.style.top = `${-5 + (MARGIN - r.top)}px`;
+}
+
 /** The menu for `edge` at (x, y) in the canvas pane. */
 export function EdgeMenu({ edge, x, y, at, onClose }: { edge: Edge; x: number; y: number; at: EdgeMenuAt; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   /** The item whose flyout is open: one at a time. */
   const open = useSignal<string | null>(null);
+  useLayoutEffect(() => {
+    if (ref.current) fitInWindow(ref.current, x, y);
+  }, [edge.id, x, y]);
   useEffect(() => {
-    ref.current?.querySelector<HTMLElement>("[role=menuitem]:not([aria-disabled=true])")?.focus();
+    ref.current?.querySelector<HTMLElement>("[role^=menuitem]:not([aria-disabled=true])")?.focus();
     const away = (e: PointerEvent) => {
       if (!ref.current?.contains(e.target as Node)) onClose();
     };
     window.addEventListener("pointerdown", away, true);
     return () => window.removeEventListener("pointerdown", away, true);
   }, [edge.id]);
+  const hover = () => (open.value = null);
   return (
     <div
       ref={ref}
@@ -162,31 +253,34 @@ export function EdgeMenu({ edge, x, y, at, onClose }: { edge: Edge; x: number; y
         } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
           // Step between the menu's items.
           e.preventDefault();
-          const items = [...(ref.current?.querySelectorAll<HTMLElement>("[role=menuitem]") ?? [])];
+          const items = [...(ref.current?.querySelectorAll<HTMLElement>("[role^=menuitem]") ?? [])];
           const at = items.findIndex((i) => i.contains(document.activeElement));
           const next = items[(at + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length];
           next?.focus();
         } else if (e.key === "ArrowLeft") {
-          (document.activeElement?.closest("[role=menuitem]") as HTMLElement | null)?.focus();
+          (document.activeElement?.closest("[role^=menuitem]") as HTMLElement | null)?.focus();
         }
       }}
       onContextMenu={(e) => e.preventDefault()}
     >
       {edge.lock && <div class="tf-menu-note">This edge is kept as written; see the panel for why.</div>}
-      <CornerItems edge={edge} at={at} close={onClose} hover={() => (open.value = null)} />
-      <FormItems edge={edge} close={onClose} hover={() => (open.value = null)} />
-      <ActionItem label="Add label here" why={addLabelBlocker(edge)} testid="menu-add-label" onHover={() => (open.value = null)} run={() => (onClose(), startAddLabel(edge.id, at.at))} />
+      {/* The same items in the same order for every edge; the ones that don't apply say why (D57). */}
+      <CornerItems edge={edge} at={at} close={onClose} hover={hover} />
+      <div class="tf-menu-sep" role="separator" />
+      <FormItems edge={edge} close={onClose} hover={hover} />
+      <div class="tf-menu-sep" role="separator" />
+      <ActionItem label="Add label here" why={addLabelBlocker(edge)} testid="menu-add-label" onHover={hover} run={() => (onClose(), startAddLabel(edge.id, at.at))} />
       <div class="tf-menu-sep" role="separator" />
       <AnchorItem edge={edge} which="from" open={open.value === "from"} onOpen={() => (open.value = "from")} onDone={onClose} />
       <AnchorItem edge={edge} which="to" open={open.value === "to"} onOpen={() => (open.value = "to")} onDone={onClose} />
-      <SplitItem edge={edge} close={onClose} hover={() => (open.value = null)} />
+      <SplitItem edge={edge} close={onClose} hover={hover} />
       <div class="tf-menu-sep" role="separator" />
-      <ActionItem label="Delete edge" why={deleteBlocker(edge)} testid="menu-delete" onHover={() => (open.value = null)} run={() => (onClose(), deleteSelection())} />
+      <ActionItem label="Delete edge" why={deleteBlocker(edge)} testid="menu-delete" onHover={hover} run={() => (onClose(), deleteSelection())} />
     </div>
   );
 }
 
-/** Add vertex here, Remove vertex, Straighten. */
+/** Add vertex here, Remove vertex. */
 function CornerItems({ edge, at, close, hover }: { edge: Edge; at: EdgeMenuAt; close: () => void; hover: () => void }) {
   const locked = edge.lock ? "This edge is kept as written." : null;
   const seg = nearestLineSegment(edge, at.at);
@@ -195,9 +289,9 @@ function CornerItems({ edge, at, close, hover }: { edge: Edge; at: EdgeMenuAt; c
     (isEdgeOperation(edge) && edgeOpBlocker(edge)
       ? edgeOpBlocker(edge)
       : edge.mode === "orthogonal"
-        ? "This edge is orthogonal: drag a segment to slide it."
+        ? "Orthogonal edges have no free corners: drag a segment's bar to slide it, or make the edge straight first."
         : !seg
-          ? "Corners go on straight edges: straighten this one first."
+          ? "Corners go on straight lines: make this edge straight first."
           : null);
   const corners = edgeVertices(edge);
   // The corner right-clicked, or the one nearest the pointer (within 10 px).
@@ -205,48 +299,63 @@ function CornerItems({ edge, at, close, hover }: { edge: Edge; at: EdgeMenuAt; c
     const q = edge.route.stops[k]!.point;
     return Math.hypot(q.x - at.at.x, q.y - at.at.y) * at.scale <= 10;
   });
-  const removeWhy = locked ?? (!corners.length ? "This edge has no corners." : near === undefined || near === null ? "Right-click a corner to remove it." : null);
-  const straight = edge.segs.length === 1 && edge.route.segs[edge.segs[0]!]!.kind === "line";
+  const removeWhy = locked ?? (!corners.length ? "This edge has no corners to remove." : near === undefined || near === null ? "Right-click a corner to remove it." : null);
   return (
     <>
       <ActionItem label="Add vertex here" why={addWhy} testid="menu-add-vertex" onHover={hover} run={() => (addVertex(edge.id, seg!.seg, seg!.point), close())} />
       <ActionItem label="Remove vertex" why={removeWhy} testid="menu-remove-vertex" onHover={hover} run={() => (removeVertex(edge.id, near!), close())} />
-      <ActionItem label="Straighten" why={locked ?? (straight ? "It is already straight." : null)} testid="menu-straighten" onHover={hover} run={() => (straightenEdge(edge.id), close())} />
     </>
   );
 }
 
-/** Make orthogonal, Make curved. */
+/** The edge's form: straight, orthogonal or curved. The current one is ticked; the others are what the edge can be turned into. */
 function FormItems({ edge, close, hover }: { edge: Edge; close: () => void; hover: () => void }) {
   const locked = edge.lock ? "This edge is kept as written." : null;
   const a = edge.route.stops[edge.from]!.point;
   const b = edge.route.stops[edge.to]!.point;
   const lined = Math.abs(a.x - b.x) < 0.5 || Math.abs(a.y - b.y) < 0.5;
-  const orthoWhy =
-    locked ??
-    (isEdgeOperation(edge) && edgeOpBlocker(edge)
-      ? edgeOpBlocker(edge)
-      : edge.mode === "orthogonal"
-        ? "It is already orthogonal: drag a segment to slide it."
-        : lined && edge.mode === "straight"
-          ? "It already runs straight across or down."
-          : null);
+  const orthogonal = edge.mode === "orthogonal";
+  const curved = edge.mode === "curved";
+  const straight = edge.mode === "straight";
+  const opBlocked = isEdgeOperation(edge) ? edgeOpBlocker(edge) : null;
+  const orthoWhy = orthogonal ? null : (locked ?? opBlocked ?? (lined && straight ? "It already runs straight across or down, so an orthogonal route would be the same line." : null));
+  const curveWhy = curved ? null : curveBlocker(edge);
   return (
     <>
-      <ActionItem label="Make orthogonal" why={orthoWhy} testid="menu-orthogonal" onHover={hover} run={() => (makeOrthogonal(edge.id), close())} />
-      <ActionItem label="Make curved" why={curveBlocker(edge)} testid="menu-curved" onHover={hover} run={() => (makeCurved(edge.id), close())} />
+      <ActionItem
+        label="Straight"
+        checked={straight}
+        why={straight ? null : locked}
+        hint={straight ? "This edge is straight." : "Remove the corners and draw one straight line"}
+        testid="menu-straighten"
+        onHover={hover}
+        run={() => (straight ? close() : (straightenEdge(edge.id), close()))}
+      />
+      <ActionItem
+        label="Orthogonal"
+        checked={orthogonal}
+        why={orthoWhy}
+        hint={orthogonal ? "This edge is orthogonal: drag a segment's bar to slide it." : "Route the edge in horizontal and vertical pieces"}
+        testid="menu-orthogonal"
+        onHover={hover}
+        run={() => (orthogonal ? close() : (makeOrthogonal(edge.id), close()))}
+      />
+      <ActionItem
+        label="Curved"
+        checked={curved}
+        why={curveWhy}
+        hint={curved ? "This edge is curved: drag its control points to shape it." : "Draw the edge as a curve"}
+        testid="menu-curved"
+        onHover={hover}
+        run={() => (curved ? close() : (makeCurved(edge.id), close()))}
+      />
     </>
   );
 }
 
-/** "Split into separate edges", for a \draw with more than one edge. */
+/** "Split into separate edges": always listed; it says why when the \draw has only one edge. */
 function SplitItem({ edge, close, hover }: { edge: Edge; close: () => void; hover: () => void }) {
   const layout = baseLayout.value;
-  if (!layout || pathEdges(edge.path, layout).length < 2) return null;
-  return (
-    <>
-      <div class="tf-menu-sep" role="separator" />
-      <ActionItem label="Split into separate edges" why={splitBlocker(edge, layout)} testid="menu-split" onHover={hover} run={() => (splitEdge(edge.id), close())} />
-    </>
-  );
+  const why = layout ? splitBlocker(edge, layout) : "There is no picture.";
+  return <ActionItem label="Split into separate edges" why={why} testid="menu-split" onHover={hover} run={() => (splitEdge(edge.id), close())} />;
 }
