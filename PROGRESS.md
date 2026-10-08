@@ -8,7 +8,19 @@ Milestone 0 is done and was approved on 2026-10-07:
 - **Engine:** TikZJax, with our own build in Milestone 3 (D13, D15).
 - **Preview fonts:** always Computer Modern (D16).
 
-**Now:** Milestone 2a (nodes and styles) is done and waiting for your review: all 8 steps, report below. Milestone 2b (edges) is next and hasn't been started. The 2a plan was approved on 2026-10-07, with the owner's answers in D34. Milestone 2 was split into 2a and 2b, each with its own checkpoint (D32). The full list is in SPEC.md, "Milestone 2a". Also read the "Notes for later milestones" below.
+**Milestone 2a (nodes and styles): done and approved (2026-10-07).** The owner tested it by hand; their answers are in DECISIONS.md D44 and "M2a review" below.
+
+**Now:** planning Milestone 2b (edges). The plan is waiting for the owner's approval; no 2b code has been written. Milestone 2 was split into 2a and 2b, each with its own checkpoint (D32). The full list is in SPEC.md, "Milestone 2b". Also read the "Notes for later milestones" below.
+
+## M2a review (2026-10-07)
+The owner tested all of 2a by hand: palette and keyboard creation, corner resizing, Match width and the style panel all work well. Answers to the report's questions (D44):
+1. **Held-edge precision:** keep whole millimetres. Readability beats sub-millimetre accuracy.
+2. **Enter in the label box:** keep as is (it applies the label).
+3. **Tab on an unnamed parent:** name it automatically with the existing naming rules, in the same undo step. To be done at the start of 2b.
+4. **Factoring threshold:** keep.
+5. **Style editing as text:** sufficient.
+
+Not answered yet: whether a palette click with nothing selected should continue after the last node instead of using the view's centre. It stays as it is for now.
 
 ## Milestone 2a report (2026-10-07)
 ### How to try it
@@ -36,9 +48,9 @@ Milestone 0 is done and was approved on 2026-10-07:
 - I checked the layout of the palette, panel and label box in screenshots from Playwright's Edge. I didn't re-run `npm run fidelity`: the interpreter didn't change.
 
 ### Known limits
-- **A parent needs a name** to place a node relative to it. An unnamed node, or a locked one, gets a refusal with the reason. Naming it for you would be a small addition.
+- **A parent needs a name** to place a node relative to it. An unnamed node, or a locked one, gets a refusal with the reason. *(Owner, D44: unnamed parents get a name automatically; scheduled for the start of 2b.)*
 - **A palette click with nothing selected** drops the node at the middle of the view (snapped), and the first node of an empty picture goes at the origin. Click-with-selection and Tab are the connected paths.
-- **Held edge precision (D40):** up to 0.5 mm off when the node's position is relational, because shifts are whole millimetres.
+- **Held edge precision (D40):** up to 0.5 mm off when the node's position is relational, because shifts are whole millimetres. *(Owner, D44: accepted; whole millimetres stay.)*
 - **Style editing is text.** There's no structured key list, and no rename, for styles or nodes. Deleting nodes isn't in 2a.
 - **Factoring** only looks at node options, and suggests at most six sets.
 - **Palette dragging** uses HTML5 drag and drop. It's tested in Edge only, and there is no live preview while dragging from the palette; the node appears at the drop with its label box open.
@@ -172,8 +184,8 @@ Milestone 0 is done and was approved on 2026-10-07:
 |---|---|
 | M0: Technical spike | Done, approved 2026-10-07 |
 | M1: Core loop | Done, approved 2026-10-07 |
-| M2a: Creating and editing nodes and styles | Done, waiting for review |
-| M2b: Editing edges | Not started |
+| M2a: Creating and editing nodes and styles | Done, approved 2026-10-07 |
+| M2b: Editing edges | Plan waiting for approval |
 | M3: Accurate preview and export | Not started |
 | M4: Layout and import | Not started |
 | M5: Polish and launch prep | Not started |

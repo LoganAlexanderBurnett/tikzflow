@@ -558,3 +558,15 @@ New features:
 - **Not in 2a:** deleting nodes, renaming a style or a node, naming an unnamed parent for Tab, and structured (non-text) editing of a style's options. The properties panel's scope toggle already covers the common style edits.
 
 **Why:** These are the loose ends the end-to-end scenario (an empty picture built with the palette and the keyboard, `test/e2e/scratch.spec.ts`) turned up, and the places where the spec's "added or removed automatically" for libraries had to cover the new edits.
+
+## D44: Milestone 2a review: approvals and answers (2026-10-07)
+**Decision:** The owner tested all of Milestone 2a by hand (palette and keyboard creation, corner resizing, Match width, the style panel) and asked for the Milestone 2b plan. Answers to the 2a report's questions:
+1. **Held-edge precision (D40): keep whole millimetres.** Readable values beat sub-millimetre accuracy, so a held edge may stay up to 0.5 mm off when the position is relational.
+2. **Enter in the label box applies the label (D41): keep as is.**
+3. **Tab on an unnamed parent: name it automatically,** using the existing naming rules (D35), in the same undo step as the new node. This supersedes the "not in 2a" item in D43; it is done at the start of 2b.
+4. **Factoring threshold (D42): keep** (two nodes with three shared options, or three with two). The owner tested it and it works well.
+5. **Style editing as text (D42): sufficient.** No key-by-key editor.
+
+The 2a question about a palette click with nothing selected (the node goes at the view's centre) wasn't answered; the behaviour stays as it is until it is.
+
+**Why:** The owner's answers to the decisions requested in the M2a report (PROGRESS.md).
