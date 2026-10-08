@@ -34,8 +34,10 @@ class Kpathsea {
         } catch {
             found = '';
         }
+        // Only hits are cached: TeX writes files (the .aux) that it looked for
+        // earlier and didn't find.
         const result = found ? path.resolve(found.split('\n')[0]) : undefined;
-        this.cache.set(key, result);
+        if (result) this.cache.set(key, result);
         return result;
     }
 }
