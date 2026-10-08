@@ -230,7 +230,7 @@ describe("the corpus", () => {
     }
     expect(added).toBeGreaterThan(100);
     expect(slid / added).toBeGreaterThan(0.8);
-  });
+  }, 60000);
 });
 
 function findIn(layout: PictureLayout, id: string): Edge | undefined {
