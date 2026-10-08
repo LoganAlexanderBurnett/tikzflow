@@ -68,7 +68,11 @@ jobs:
           # The native kpathsea addon is replaced by a kpsewhich stand-in.
           npm pkg set dependencies.node-kpathsea=file:../engine/build/kpathsea-shim
           npm install --omit=dev --no-audit --no-fund
-          npm ls --omit=dev
+          npm ls --omit=dev || true
+
+      - name: Fix web2js's file loader
+        working-directory: web2js
+        run: node ../engine/build/patch-web2js.cjs library.js
 
       - name: Build tex.wasm
         working-directory: web2js

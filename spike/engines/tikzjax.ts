@@ -2,9 +2,15 @@
 // the threads.js message protocol directly, so no extra dependency is needed.
 
 import type { CompileResult, Engine, Job } from "./engine.ts";
-import { LIBRARIES, SAMPLE_JOB, type Probe } from "./sample.ts";
+import { LIBRARIES, SAMPLE_JOB, readProbe, type Probe } from "./sample.ts";
 
-const ROOT = "/vendor/tikzjax/package/dist";
+// `?build=ci` loads the engine built in CI (M3 step 1, D15) instead of the
+// published package: vendor/engine-ci/dist holds the package's worker and
+// fonts with our tex.wasm, core.dump and tex_files.
+const ROOT =
+  typeof location !== "undefined" && new URLSearchParams(location.search).get("build") === "ci"
+    ? "/vendor/engine-ci/dist"
+    : "/vendor/tikzjax/package/dist";
 
 type Reply =
   | { type: "init" }
@@ -93,7 +99,9 @@ export class TikzJax implements Engine {
     try {
       const svg = String(await this.#call("texify", job.body, dataset));
       const log = this.#consoleLines.join("\n");
-      return { ok: svg.includes("<svg"), output: { kind: "svg", svg }, log, probe: probeFromSvg(svg) };
+      // The CI engine's format uses pgf's dvisvgm driver, which dvi2html may
+      // not draw; the log's probe line still holds.
+      return { ok: svg.includes("<svg"), output: { kind: "svg", svg }, log, probe: probeFromSvg(svg) ?? readProbe(log) };
     } catch (e) {
       return { ok: false, output: { kind: "none" }, log: [...this.#consoleLines, String(e)].join("\n"), probe: null };
     }
