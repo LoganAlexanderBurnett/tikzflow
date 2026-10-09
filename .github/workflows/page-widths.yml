@@ -1,0 +1,37 @@
+# Measures the \textwidth and \columnwidth that LaTeX itself gives for the
+# document classes the Page panel knows (DECISIONS.md D73), in the same pinned
+# TeX Live 2026 image the engine is built from. The result is committed as
+# engine/page-widths/measured.jsonl and test/page.test.ts checks src/tikz/page.ts
+# against it. Runs when the cases or this file change on m3-engine-ci or trunk.
+name: Page widths
+
+on:
+  push:
+    branches: [m3-engine-ci, trunk]
+    paths:
+      - 'engine/page-widths/**'
+      - '.github/workflows/page-widths.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    container:
+      image: texlive/texlive@sha256:f1c4d2c23f297caee8654dc23eed022c854ca59e899e40666abbd45bab70dceb
+    steps:
+      - name: Check out tikzflow
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Measure
+        shell: bash
+        run: bash engine/page-widths/measure.sh page-widths.jsonl
+
+      - name: Keep the result
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: page-widths
+          path: page-widths.jsonl
