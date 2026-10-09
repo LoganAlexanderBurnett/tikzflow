@@ -57,7 +57,10 @@ const stage1 = Date.now();
 const preamble =
     // dvisvgm: graphics, xcolor and expl3 load their dvisvgm back ends.
     '\\documentclass[dvisvgm,margin=0pt]{standalone}\n' +
+    // pgfsys.sty turns the class option dvisvgm into pgfsys-dvisvgm.def, so
+    // the driver is set again just before pgf reads \pgfsysdriver.
     `\\def\\pgfsysdriver{${driver}}\n` +
+    `\\AddToHook{file/pgfsys.code.tex/before}{\\def\\pgfsysdriver{${driver}}}\n` +
     '\\usepackage[svgnames]{xcolor}\n' +
     '\\usepackage{tikz}\n\n' +
     '\\DeclareGraphicsExtensions{}\n';
@@ -68,6 +71,10 @@ library.setInput('\n&latex\n' + preamble, () => {
     const errors = texErrors();
     if (errors.length) {
         console.error(`\nDUMP FAILED: ${errors.length} TeX error(s) in the preamble:\n${errors.join('\n')}`);
+        process.exit(1);
+    }
+    if (!Object.keys(library.getUsedFiles()).some((name) => name.replace(/"/g, '').endsWith(driver))) {
+        console.error(`\nDUMP FAILED: pgf did not load the driver ${driver}`);
         process.exit(1);
     }
     fs.writeFileSync('core.dump', new Uint8Array(memory.buffer));
