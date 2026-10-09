@@ -15,7 +15,8 @@ export interface TexError {
   context: string;
 }
 
-const FILE_OPEN = /\(([^\s()]+?\.(?:tex|sty|cls|def|cfg|fd|clo|ldf|aux|dfu|cnf))(?=[\s()]|$)/g;
+/** "(file" as TeX prints it when it opens a file; the 2026 kernel quotes the name: ("file"). */
+const FILE_OPEN = /\("?([^\s()"]+?\.(?:tex|sty|cls|def|cfg|fd|clo|ldf|aux|dfu|cnf))"?(?=[\s()]|$)/g;
 
 /** The errors in a TeX log, in order. */
 export function parseTexLog(log: string): TexError[] {
