@@ -147,14 +147,22 @@ describe("class presets against LaTeX's own numbers", () => {
     for (const c of PRESET_CLASSES) expect(cases.some((m) => m.class === c), c).toBe(true);
   });
 
+  // acmcp with twocolumn gives LaTeX a text width of 114.9 pt after the title (a column less a gap: the
+  // class doesn't expect it), which isn't a page to draw on; the preset says "not known" instead.
+  const NOT_A_PAGE = new Set(["acmart[acmcp,twocolumn]"]);
   for (const m of cases) {
     it(`${m.class}[${m.options}]`, () => {
-      // What a figure sees is what LaTeX has once the title is set, where it was measured there.
-      const wantText = m.titleTextwidth ?? m.textwidth!;
-      const wantColumn = m.titleColumnwidth ?? m.columnwidth!;
+      if (NOT_A_PAGE.has(`${m.class}[${m.options}]`)) {
+        expect(pageGeometry(`\\documentclass[${m.options}]{${m.class}}`).classPreset).toBe(false);
+        return;
+      }
+      // What a figure sees: LaTeX's lengths at \begin{document}, except for acmart, whose two-column
+      // formats switch to two columns in \maketitle (revtex4-2's \maketitle leaves \columnwidth wide
+      // for the title block itself, so its title-time numbers are not the body's).
+      const afterTitle = m.class === "acmart";
+      const wantText = afterTitle ? m.titleTextwidth! : m.textwidth!;
+      const wantColumn = afterTitle ? m.titleColumnwidth! : m.columnwidth!;
       const g = pageGeometry(`\\documentclass${m.options ? `[${m.options}]` : ""}{${m.class}}`);
-      // acmart's two-column formats are only right once measured after a title; a format with no such measurement is not a preset yet.
-      if (m.class === "acmart" && m.titleColumnwidth === undefined && !g.classPreset) return;
       expect(g.classPreset, "known class").toBe(true);
       expect(g.textWidth).toBeCloseTo(wantText, 1);
       expect(g.columnWidth).toBeCloseTo(wantColumn, 1);

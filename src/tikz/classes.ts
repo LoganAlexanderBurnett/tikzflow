@@ -122,25 +122,31 @@ export function classPage(cls: string, o: ClassOptions): ClassPage | null {
 }
 
 /**
- * IEEEtran: a fixed text block, two columns unless `onecolumn` or a peer-review option; the
- * `compsoc` option widens it a little and `conference,compsoc` narrows it to 7 in. With `draftcls`
- * and one column the text is what the paper leaves after 1 in margins.
+ * IEEEtran: a fixed text block, two columns unless `onecolumn` or a peer-review option. `compsoc` widens
+ * it a little and `conference,compsoc` narrows it to 7 in (and, on A4, to 489.1 pt). With `draftcls` (or
+ * `draft`) the text is what the paper leaves after 1 in margins.
  */
 function ieee(o: ClassOptions): ClassPage {
-  const one = o.has("onecolumn") || o.has("peerreview") || o.has("peerreviewca");
-  const columns: 1 | 2 = one ? 1 : 2;
-  if (o.has("draftcls") && o.has("onecolumn")) {
+  const columns: 1 | 2 = o.has("onecolumn") || o.has("peerreview") || o.has("peerreviewca") ? 1 : 2;
+  const how = `${columns === 2 ? ", two columns" : ", one column"}`;
+  if (o.has("draftcls") || o.has("draftclsnofoot") || o.has("draft")) {
     const [pw, ph] = PAPERS[o.paper ?? "letterpaper"]!;
     const paperWidth = o.landscape ? ph : pw;
-    return { paperWidth, textWidth: paperWidth - inch(2), columns: 1, columnSep: 12, note: "IEEEtran, draftcls, one column: the paper less 1 in margins" };
+    return { paperWidth, textWidth: paperWidth - inch(2), columns, columnSep: 12, note: `IEEEtran draftcls${how}: the paper less 1 in margins` };
   }
+  const compsoc = o.has("compsoc");
+  const conference = o.has("conference");
   let textWidth = 516;
   let columnSep = 12;
-  if (o.has("compsoc")) {
-    textWidth = o.has("conference") ? 505.89 : 517.935;
-    columnSep = o.has("conference") ? 18.0675 : 12.045;
+  if (compsoc && conference) {
+    // 7 in on letter; A4 gives less.
+    textWidth = o.paper === "a4paper" ? 489.10287 : 505.89;
+    columnSep = 18.06749;
+  } else if (compsoc) {
+    textWidth = 517.935;
+    columnSep = 12.045;
   }
-  return { paperWidth: null, textWidth, columns, columnSep, note: `IEEEtran${o.has("compsoc") ? " compsoc" : ""}${columns === 2 ? ", two columns" : ", one column"}` };
+  return { paperWidth: null, textWidth, columns, columnSep, note: `IEEEtran${compsoc ? " compsoc" : ""}${conference && compsoc ? " conference" : ""}${how}` };
 }
 
 /**
@@ -160,18 +166,32 @@ function revtex(o: ClassOptions): ClassPage {
   };
 }
 
-/** acmart's formats that set the page in one column, from `format=` or the format name as an option. */
-const ACM_ONE_COLUMN: Record<string, number> = { manuscript: 430.00462, acmsmall: 395.8225, acmlarge: 452.295, acmcp: 395.8225 };
-
 /**
- * acmart: the text width of the single-column formats. The two-column formats (sigconf, sigplan,
- * sigchi, acmtog, acmengage) switch to two columns after the title, so their column width isn't
- * the one LaTeX has at egin{document}; it is only known once measured after a title
- * (engine/page-widths), and a format not listed is not guessed.
+ * acmart's formats: the text width, and whether the format sets two columns. As measured after a title
+ * (acmart switches to two columns there; at \begin{document} LaTeX still has one), so a figure in the
+ * body sees these. The options `twocolumn` and `onecolumn` don't change a two-column format.
  */
+const ACM_FORMATS: Record<string, { textWidth: number; columns: 1 | 2; columnSep: number }> = {
+  manuscript: { textWidth: 430.00462, columns: 1, columnSep: 10 },
+  acmsmall: { textWidth: 395.8225, columns: 1, columnSep: 10 },
+  acmlarge: { textWidth: 452.295, columns: 1, columnSep: 10 },
+  acmcp: { textWidth: 317.8225, columns: 1, columnSep: 10 },
+  "sigchi-a": { textWidth: 408.96999, columns: 1, columnSep: 20 },
+  acmtog: { textWidth: 510.295, columns: 2, columnSep: 24 },
+  sigconf: { textWidth: 506.295, columns: 2, columnSep: 24 },
+  sigplan: { textWidth: 505.89, columns: 2, columnSep: 24 },
+  sigchi: { textWidth: 506.295, columns: 2, columnSep: 24 },
+  acmengage: { textWidth: 506.295, columns: 2, columnSep: 24 },
+};
+
 function acm(o: ClassOptions): ClassPage | null {
-  const format = o.value("format") ?? ["manuscript", "acmsmall", "acmlarge", "acmcp", "sigconf", "sigplan", "sigchi", "sigchi-a", "acmtog", "acmengage"].find((f) => o.has(f)) ?? "manuscript";
-  const width = ACM_ONE_COLUMN[format];
-  if (width === undefined || o.has("twocolumn")) return null;
-  return { paperWidth: null, textWidth: width, columns: 1, columnSep: 18, note: `acmart ${format}` };
+  const format = o.value("format") ?? Object.keys(ACM_FORMATS).find((f) => o.has(f)) ?? "manuscript";
+  const f = ACM_FORMATS[format];
+  if (!f) return null;
+  // `twocolumn` splits a one-column format. acmcp with it gives a nonsense width after the title: not guessed.
+  if (f.columns === 1 && o.has("twocolumn")) {
+    if (format === "acmcp") return null;
+    return { paperWidth: null, ...f, columns: 2, note: `acmart ${format}, two columns` };
+  }
+  return { paperWidth: null, ...f, note: `acmart ${format}${f.columns === 2 ? ", two columns" : ""}` };
 }

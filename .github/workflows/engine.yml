@@ -7,7 +7,8 @@ name: Engine
 
 on:
   push:
-    branches: [m3-engine-ci]
+    # Milestone 3 ended with the merge into trunk (D75); the work branch's trigger moved here.
+    branches: [trunk]
     tags: ['engine-*']
 
 permissions:
@@ -18,8 +19,9 @@ defaults:
     shell: bash
 
 env:
-  # Keep in step with jobs.build.container.image (a container image can't be
-  # read from env). TeX Live 2026 "latest" (scheme-full), linux/amd64, as
+  # The image's name on Docker Hub, recorded in the manifest. jobs.build.container.image is the
+  # same digest pulled through Google's mirror (mirror.gcr.io), because Docker Hub's anonymous
+  # pull limit kept failing runs (a container image can't be read from env). TeX Live 2026 "latest" (scheme-full), linux/amd64, as
   # published on 2026-10-04.
   TL_IMAGE: texlive/texlive@sha256:f1c4d2c23f297caee8654dc23eed022c854ca59e899e40666abbd45bab70dceb
   WEB2JS_REPO: drgrice1/web2js
@@ -35,7 +37,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     container:
-      image: texlive/texlive@sha256:f1c4d2c23f297caee8654dc23eed022c854ca59e899e40666abbd45bab70dceb
+      image: mirror.gcr.io/texlive/texlive@sha256:f1c4d2c23f297caee8654dc23eed022c854ca59e899e40666abbd45bab70dceb
     steps:
       - name: TeX Live snapshot
         run: |
