@@ -125,4 +125,22 @@ test.describe("with the TeX engine", () => {
     await state.click();
     await expect(page.getByTestId("tex-errors")).toContainText("In the imported preamble, line 3");
   });
+
+  test("a class the preview doesn't have is replaced by article's with a note, not an error banner (D73)", async ({ page }) => {
+    await page.goto("/");
+    await setCode(page, "\\begin{tikzpicture}\n\\node[draw] (a) {\\state{A}};\n\\end{tikzpicture}\n");
+    await openPanel(page);
+    // \journal is something the ANS class would define; the preview doesn't have the class.
+    await page.getByTestId("page-preamble").fill("\\documentclass[11pt]{ans}\n\\usepackage{amsmath}\n\\journal{Annals}\n\\newcommand{\\state}[1]{\\textbf{#1}}\n");
+    const state = page.getByTestId("preview-state");
+    await expect(state).toHaveText("TeX preview: notes", { timeout: 15_000 });
+    await expect(page.getByTestId("tex-banner")).toHaveCount(0);
+    await expect(page.getByTestId("compiled-picture")).toBeAttached();
+    await page.getByTestId("page-panel").getByRole("button", { name: "Close" }).click();
+    await state.click();
+    const notes = page.getByTestId("preview-notices");
+    await expect(notes).toContainText("The ans class isn't available in the preview");
+    await expect(notes).toContainText("keeps your packages and macros");
+    await expect(notes).toContainText("Line 3 of your preamble");
+  });
 });
