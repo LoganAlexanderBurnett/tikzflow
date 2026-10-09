@@ -8,6 +8,7 @@ import { useRef } from "preact/hooks";
 import { describeWidth, type PageGeometry } from "../tikz/page.ts";
 import { evalLength, PT_PER_UNIT } from "../tikz/units.ts";
 import { customWidth, figureWidth, guide, guideOn, guideWidth, importedPreamble, pageInfo, pagePreamble, setGuide, setImportedPreamble } from "./page.ts";
+import { applyPreset, deletePreset, savePreset, setTypedWidths, typedColumn, typedLength, typedText, widthPresets } from "./pagesettings.ts";
 
 const f = (v: number) => Math.round(v * 100) / 100;
 
@@ -134,6 +135,8 @@ function PagePanel({ onClose, info, at }: { onClose: () => void; info: PageGeome
         )}
       </section>
 
+      <TypedWidths />
+
       <section>
         <h4>Guide on the canvas</h4>
         <label class="row">
@@ -171,5 +174,86 @@ function PagePanel({ onClose, info, at }: { onClose: () => void; info: PageGeome
         )}
       </section>
     </div>
+  );
+}
+
+/**
+ * Widths typed by hand (D73): for a class whose page TikZFlow doesn't know, such as the user's own. They
+ * win over the preamble in the quick preview, the TeX preview and the guide, and can be saved under a
+ * name, so they are entered once.
+ */
+function TypedWidths() {
+  const name = useSignal("");
+  const chosen = useSignal("");
+  const textOk = typedText.value.trim() === "" || typedLength(typedText.value) !== null;
+  const columnOk = typedColumn.value.trim() === "" || typedLength(typedColumn.value) !== null;
+  const presets = widthPresets.value;
+  const canSave = name.value.trim() !== "" && textOk && columnOk && (typedText.value.trim() !== "" || typedColumn.value.trim() !== "");
+  return (
+    <section data-testid="page-typed">
+      <h4>Type the widths yourself</h4>
+      <p class="note">
+        For a class TikZFlow doesn't know (your own, say). What you type wins over the preamble, in both previews and in the guide. Leave a box empty to use what the preamble says.
+      </p>
+      <div class="choices">
+        <label>
+          <code>\textwidth</code>{" "}
+          <input type="text" size={10} placeholder="5.2in, 15cm, 450pt" value={typedText.value} class={textOk ? "" : "bad"} onInput={(e) => setTypedWidths({ text: (e.target as HTMLInputElement).value })} data-testid="typed-text" />
+        </label>
+        <label>
+          <code>\columnwidth</code>{" "}
+          <input type="text" size={10} placeholder="same as the text" value={typedColumn.value} class={columnOk ? "" : "bad"} onInput={(e) => setTypedWidths({ column: (e.target as HTMLInputElement).value })} data-testid="typed-column" />
+        </label>
+      </div>
+      {(!textOk || !columnOk) && <p class="note bad">That isn't a length TikZFlow reads (try 3.4in, 8.5cm or 252pt).</p>}
+      <div class="row" data-testid="preset-save">
+        <input type="text" size={14} placeholder="Name, e.g. ANS" value={name.value} onInput={(e) => (name.value = (e.target as HTMLInputElement).value)} data-testid="preset-name" aria-label="Name for these widths" />
+        <button
+          disabled={!canSave}
+          onClick={() => {
+            if (savePreset(name.value)) {
+              chosen.value = name.value.trim();
+              name.value = "";
+            }
+          }}
+          data-testid="preset-save-button"
+        >
+          Save as preset
+        </button>
+      </div>
+      {presets.length > 0 && (
+        <div class="row" data-testid="preset-list">
+          <select
+            value={chosen.value}
+            onChange={(e) => {
+              chosen.value = (e.target as HTMLSelectElement).value;
+              if (chosen.value) applyPreset(chosen.value);
+            }}
+            data-testid="preset-select"
+            aria-label="Saved widths"
+          >
+            <option value="">Saved widths…</option>
+            {presets.map((p) => (
+              <option value={p.name}>
+                {p.name}: {[p.text && `text ${p.text}`, p.column && `column ${p.column}`].filter(Boolean).join(", ")}
+              </option>
+            ))}
+          </select>
+          {chosen.value && (
+            <button
+              class="link"
+              onClick={() => {
+                deletePreset(chosen.value);
+                chosen.value = "";
+              }}
+              data-testid="preset-delete"
+            >
+              Delete this preset
+            </button>
+          )}
+        </div>
+      )}
+      <p class="note">Presets stay in this browser.</p>
+    </section>
   );
 }

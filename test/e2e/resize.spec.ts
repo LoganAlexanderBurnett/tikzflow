@@ -1,5 +1,5 @@
 // Milestone 2a step 4: resizing nodes by dragging their handles.
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, test } from "./base.ts";
 
 async function code(page: Page): Promise<string> {
   return page.evaluate(() => {

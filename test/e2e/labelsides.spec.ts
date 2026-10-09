@@ -1,7 +1,7 @@
 // Which side of its edge a label sits on (D57): new labels are written with
 // auto, "Flip side" turns one over, and a left/right/above/below that would
 // sit on the line becomes auto when the label is dragged.
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, test } from "./base.ts";
 
 async function code(page: Page): Promise<string> {
   return page.evaluate(() => {

@@ -7,6 +7,7 @@
 // beamer). For any other class the widths are unknown until the file sets them
 // or the user types one. Every width says where it came from.
 
+import { classPage, PAPERS, readClassOptions } from "./classes.ts";
 import { DEFAULT_PAGE, evalLength, type PageLengths, PT_PER_UNIT } from "./units.ts";
 
 export interface PageGeometry {
@@ -23,24 +24,11 @@ export interface PageGeometry {
   notes: string[];
   /** The widths follow from a class's defaults rather than from lengths the file sets. */
   estimated: boolean;
+  /** The class is one whose page this module knows (article, report, book, beamer and the journal presets of D73). */
+  classPreset: boolean;
 }
 
-const mm = (v: number) => (v * PT_PER_UNIT.mm!);
-const inch = (v: number) => v * PT_PER_UNIT.in!;
-
-/** Paper widths, pt: width then height. */
-const PAPERS: Record<string, [number, number]> = {
-  a4paper: [mm(210), mm(297)],
-  a5paper: [mm(148), mm(210)],
-  b5paper: [mm(176), mm(250)],
-  letterpaper: [inch(8.5), inch(11)],
-  legalpaper: [inch(8.5), inch(14)],
-  executivepaper: [inch(7.25), inch(10.5)],
-};
-
-/** Text width of the standard classes' 10, 11 and 12pt files (size10.clo and the others), pt. */
-const BASE_TEXT_WIDTH: Record<string, number> = { "10": 345, "11": 360, "12": 390 };
-const STANDARD_CLASSES = new Set(["article", "report", "book"]);
+const mm = (v: number) => v * PT_PER_UNIT.mm!;
 
 /** Beamer's paper widths by aspect ratio, pt; its text is the paper less 1 cm each side. */
 const BEAMER_PAPER: Record<string, number> = { "43": mm(128), "169": mm(160), "1610": mm(160) };
@@ -176,27 +164,27 @@ export function pageLengths(g: PageGeometry | null): PageLengths {
 export function pageGeometry(source: string, typed: WidthOverride = {}): PageGeometry {
   const end = source.indexOf("\\begin{document}");
   const s = stripComments(end < 0 ? source : source.slice(0, end));
-  const g: PageGeometry = { documentClass: null, paperWidth: null, textWidth: null, columnWidth: null, columns: 1, notes: [], estimated: true };
+  const g: PageGeometry = { documentClass: null, paperWidth: null, textWidth: null, columnWidth: null, columns: 1, notes: [], estimated: true, classPreset: false };
 
   const cls = /\\documentclass\s*(?:\[([^\]]*)\])?\s*\{([^}]*)\}/.exec(s);
   const options = (cls?.[1] ?? "").split(",").map((o) => o.trim()).filter(Boolean);
   g.documentClass = cls ? cls[2]!.trim() : null;
-  const size = /^(10|11|12)pt$/.exec(options.find((o) => /^(10|11|12)pt$/.test(o)) ?? "")?.[1] ?? "10";
   g.columns = options.includes("twocolumn") ? 2 : 1;
   const paperName = options.find((o) => o in PAPERS) ?? "letterpaper";
   let columnSep = 10;
 
   // The class's own defaults.
-  if (g.documentClass && STANDARD_CLASSES.has(g.documentClass)) {
-    const [pw, ph] = PAPERS[paperName]!;
-    g.paperWidth = options.includes("landscape") ? ph : pw;
-    const available = g.paperWidth - inch(2);
-    const base = BASE_TEXT_WIDTH[size]!;
-    const full = g.columns === 2 ? 2 * base : base;
-    // size10.clo and the others: the base width if the paper is wider than it needs, else what the paper leaves, to whole points.
-    g.textWidth = available > full ? full : Math.floor(available);
-    g.notes.push(`${g.documentClass}, ${size}pt, ${paperName.replace("paper", "")}${g.columns === 2 ? ", two columns" : ""}: the class gives a text width of ${describeWidth(g.textWidth)}`);
+  const co = readClassOptions(options);
+  const preset = g.documentClass && g.documentClass !== "beamer" ? classPage(g.documentClass, co) : null;
+  if (preset) {
+    g.classPreset = true;
+    g.paperWidth = preset.paperWidth;
+    g.textWidth = preset.textWidth;
+    g.columns = preset.columns;
+    columnSep = preset.columnSep;
+    g.notes.push(`${preset.note}: the class gives a text width of ${describeWidth(preset.textWidth)}`);
   } else if (g.documentClass === "beamer") {
+    g.classPreset = true;
     const ratio = options.map((o) => /^aspectratio=(\d+)$/.exec(o)?.[1]).find(Boolean) ?? "43";
     const paper = BEAMER_PAPER[ratio];
     if (paper) {
@@ -205,7 +193,7 @@ export function pageGeometry(source: string, typed: WidthOverride = {}): PageGeo
       g.notes.push(`beamer, aspect ratio ${ratio === "43" ? "4:3" : ratio === "169" ? "16:9" : "16:10"}: slides ${trim1(paper / PT_PER_UNIT.mm!)} mm wide with 1 cm margins give a text width of ${describeWidth(g.textWidth)}`);
     } else g.notes.push(`beamer with aspect ratio ${ratio}: its slide width isn't known here`);
   } else if (g.documentClass) {
-    g.notes.push(`The ${g.documentClass} class's page isn't known here: set a width below, or say it in the preamble (\\setlength{\\textwidth}{…}, geometry)`);
+    g.notes.push(`The ${g.documentClass} class's page isn't known here, so the preview uses article's. Type its widths below (you can save them under a name), or say them in the preamble (\\setlength{\\textwidth}{…}, geometry)`);
   }
   if (g.paperWidth === null && paperName in PAPERS && options.some((o) => o in PAPERS)) g.paperWidth = PAPERS[paperName]![0];
 

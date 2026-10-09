@@ -1,7 +1,7 @@
 // Milestone 2a step 2: errors, undefined references, locked-node fixes,
 // coordinate markers and the undrawable-option marker, in the browser.
 import { join } from "node:path";
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, test } from "./base.ts";
 
 const corpus = (name: string) => join(import.meta.dirname, "..", "..", "corpus", name);
 

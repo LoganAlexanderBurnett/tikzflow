@@ -36,7 +36,7 @@ describe.skipIf(!have)(`the engine (${tag})`, () => {
   });
 
   async function compile(text: string, imported: string | null = null) {
-    const input = buildCompileInput(analyzeDocument(text), 0, (f) => files.has(f), imported)!;
+    const input = buildCompileInput(analyzeDocument(text), 0, (f) => files.has(f), imported === null ? undefined : { imported })!;
     new Uint8Array(memory.buffer).set(dump);
     const run = await runTex(module, memory, {
       terminal: "input.tex\n\\end\n",
@@ -110,7 +110,7 @@ describe.skipIf(!have)(`the engine (${tag})`, () => {
     // A fault in the imported text is placed there.
     const broken = await compile(bare, "\\newcommand{\\state}[1]{\\textbf{#1}}\n\\nosuchcommand\n");
     const e = broken.errors.find((x) => x.message === "Undefined control sequence.")!;
-    expect(locate(broken.input, e.line!)).toEqual({ in: "preamble", line: 2 });
+    expect(locate(broken.input, e.line!)).toMatchObject({ in: "preamble", line: 2 });
   });
 
   it("gives figures the paper's column width (D71)", async () => {

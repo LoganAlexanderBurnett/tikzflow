@@ -1,4 +1,6 @@
 // Milestone 3 step 10 (D71): the page widths a preamble implies.
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { describeWidth, pageGeometry } from "../src/tikz/page.ts";
 import { PT_PER_UNIT } from "../src/tikz/units.ts";
@@ -91,12 +93,22 @@ describe("other classes", () => {
     expect(pageGeometry("\\documentclass[aspectratio=169]{beamer}").textWidth).toBeCloseTo(398.34, 1);
   });
 
-  it("a class it doesn't know has no width until the file sets one", () => {
-    const g = pageGeometry("\\documentclass[conference]{IEEEtran}");
+  it("a class it doesn't know has no width until the file sets one or one is typed", () => {
+    const g = pageGeometry("\\documentclass[ans,11pt]{ans}");
     expect(g.textWidth).toBeNull();
     expect(g.columnWidth).toBeNull();
-    expect(g.notes.join("\n")).toContain("IEEEtran class's page isn't known");
-    expect(pageGeometry("\\documentclass{IEEEtran}\n\\setlength{\\columnwidth}{252pt}").columnWidth).toBe(252);
+    expect(g.classPreset).toBe(false);
+    expect(g.notes.join("\n")).toContain("ans class's page isn't known");
+    expect(pageGeometry("\\documentclass{ans}\n\\setlength{\\columnwidth}{252pt}").columnWidth).toBe(252);
+    const typed = pageGeometry("\\documentclass{ans}", { textWidth: 400, columnWidth: 190 });
+    expect([typed.textWidth, typed.columnWidth]).toEqual([400, 190]);
+    // Only a text width typed: one column is as wide as the text.
+    expect(pageGeometry("\\documentclass{ans}", { textWidth: 400 }).columnWidth).toBe(400);
+  });
+
+  it("typed widths win over what a known class gives", () => {
+    const g = pageGeometry("\\documentclass[3p]{elsarticle}", { columnWidth: 200 });
+    expect([g.textWidth, g.columnWidth]).toEqual([468, 200]);
   });
 
   it("no preamble at all says nothing", () => {
@@ -108,4 +120,44 @@ describe("other classes", () => {
 
 it("describes a width in the units people use", () => {
   expect(describeWidth(252)).toBe("252 pt (88.6 mm, 3.49 in)");
+});
+
+// The presets are tested against what LaTeX itself printed for each class and option list in the
+// pinned TeX Live 2026 image (engine/page-widths/measured.jsonl, made by .github/workflows/page-widths.yml).
+interface Measured {
+  class: string;
+  options: string;
+  ok: boolean;
+  textwidth?: number;
+  columnwidth?: number;
+  titleTextwidth?: number;
+  titleColumnwidth?: number;
+}
+const measured = readFileSync(join(import.meta.dirname, "..", "engine", "page-widths", "measured.jsonl"), "utf8")
+  .trim()
+  .split("\n")
+  .map((l) => JSON.parse(l) as Measured)
+  .filter((m) => m.ok);
+/** Classes whose page this module knows. The others in the measurements (amsart) aren't presets. */
+const PRESET_CLASSES = new Set(["article", "report", "book", "elsarticle", "IEEEtran", "revtex4-2", "acmart", "llncs"]);
+
+describe("class presets against LaTeX's own numbers", () => {
+  const cases = measured.filter((m) => PRESET_CLASSES.has(m.class));
+  it("has measurements for every preset class", () => {
+    for (const c of PRESET_CLASSES) expect(cases.some((m) => m.class === c), c).toBe(true);
+  });
+
+  for (const m of cases) {
+    it(`${m.class}[${m.options}]`, () => {
+      // What a figure sees is what LaTeX has once the title is set, where it was measured there.
+      const wantText = m.titleTextwidth ?? m.textwidth!;
+      const wantColumn = m.titleColumnwidth ?? m.columnwidth!;
+      const g = pageGeometry(`\\documentclass${m.options ? `[${m.options}]` : ""}{${m.class}}`);
+      // acmart's two-column formats are only right once measured after a title; a format with no such measurement is not a preset yet.
+      if (m.class === "acmart" && m.titleColumnwidth === undefined && !g.classPreset) return;
+      expect(g.classPreset, "known class").toBe(true);
+      expect(g.textWidth).toBeCloseTo(wantText, 1);
+      expect(g.columnWidth).toBeCloseTo(wantColumn, 1);
+    });
+  }
 });

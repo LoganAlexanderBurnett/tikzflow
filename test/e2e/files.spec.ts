@@ -2,7 +2,7 @@
 // the browser, opening and saving a file in place (with the File System Access
 // pickers replaced by fakes: a real picker needs a person), the download
 // fallback, and a link that carries the code.
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, test } from "./base.ts";
 
 const FIGURE = ["\\begin{tikzpicture}", "\\node[draw] (a) at (0,0) {Mine};", "\\node[draw] (b) at (3,0) {B};", "\\draw[->] (a) -- (b);", "\\end{tikzpicture}", ""].join("\n");
 const OTHER = ["\\begin{tikzpicture}", "\\node[draw] (z) at (0,0) {Other};", "\\end{tikzpicture}", ""].join("\n");
@@ -11,7 +11,7 @@ type Store = { replaceDocument: (t: string, n: string | null, e: string) => void
 const store = (page: Page) => page.evaluate(() => (window as unknown as { tikzflow: { store: Store } }).tikzflow.store.text.value);
 
 async function setCode(page: Page, text: string, name: string | null = null) {
-  await page.evaluate(([t, n]) => (window as unknown as { tikzflow: { store: Store } }).tikzflow.store.replaceDocument(t!, n, "utf-8"), [text, name]);
+  await page.evaluate(([t, n]) => (window as unknown as { tikzflow: { store: Store } }).tikzflow.store.replaceDocument(t!, n ?? null, "utf-8"), [text, name]);
 }
 
 /** Fakes for the pickers: a file to open, and every file written, by name. */

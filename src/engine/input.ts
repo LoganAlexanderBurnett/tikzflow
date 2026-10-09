@@ -8,7 +8,7 @@
 
 import type { DocumentModel } from "../model/document.ts";
 import type { PictureSyntax } from "../model/syntax.ts";
-import { type PageGeometry, pageGeometry } from "../tikz/page.ts";
+import { effectivePage, NO_PAGE_SETTINGS, ownPreamble, type PageSettings, pageLengths } from "../tikz/page.ts";
 
 /** A piece of input.tex copied from the source: input lines [inputLine, inputLine + lines) are source lines from sourceLine on. */
 export interface LineSegment {
@@ -17,6 +17,8 @@ export interface LineSegment {
   lines: number;
   /** The lines come from the imported preamble (D71), not from the code. */
   in?: "preamble";
+  /** The lines are the preamble (the code's or the imported one), where a class the preview replaces can leave things undefined (D73). */
+  preamble?: true;
 }
 
 export interface CompileInput {
@@ -31,6 +33,12 @@ export interface CompileInput {
   blocks: Map<string, { from: number; to: number }>;
   /** The document is a beamer presentation: its theme's fonts aren't in the preview (D69). */
   beamer: boolean;
+  /**
+   * The document class isn't one the preview has (article, report, book, standalone, beamer): the format's
+   * own class stands in, with the preamble's packages and macros kept (D73). `known` says the page widths
+   * are still those of the class (a preset); otherwise they are article's unless typed.
+   */
+  substitutedClass: { name: string; known: boolean } | null;
 }
 
 /**
@@ -55,6 +63,9 @@ const BUILT_IN = new Set(["tikz", "pgf", "xcolor", "color", "graphics", "graphic
 const SKIPPED = new Set(["hyperref", "geometry", "fullpage", "showframe", "preview", "tikzexternal", "microtype", "babel", "polyglossia", "csquotes"]);
 
 /** Font size commands for the class options 11pt and 12pt (size11.clo, size12.clo): the format is 10pt. */
+/** Classes the preview typesets with as they are: the format's own (standalone, on article's base) and the ones of the same page. Any other class is replaced (D73). */
+const ENGINE_CLASSES = new Set(["article", "report", "book", "standalone", "beamer"]);
+
 const SIZES: Record<string, Array<[string, string, string]>> = {
   "11": [
     ["tiny", "6", "7"], ["scriptsize", "8", "9.5"], ["footnotesize", "9", "11"], ["small", "10", "12"],
@@ -81,10 +92,12 @@ const USEPACKAGE = /\\(?:usepackage|RequirePackage)\s*(\[[^\]]*\])?\s*\{([^}]*)\
 
 /**
  * Builds input.tex for picture `index` of `doc`. `available(name)` says
- * whether the engine has a file (`foo.sty`). `imported` is the preamble of
- * the paper the figure goes in (D71): used when the code has no preamble of its own.
+ * whether the engine has a file (`foo.sty`). `page` holds the preamble of the
+ * paper the figure goes in (D71), used when the code has no preamble of its
+ * own, and the widths the user typed (D73).
  */
-export function buildCompileInput(doc: DocumentModel, index: number, available: (file: string) => boolean, imported: string | null = null): CompileInput | null {
+export function buildCompileInput(doc: DocumentModel, index: number, available: (file: string) => boolean, page: PageSettings = NO_PAGE_SETTINGS): CompileInput | null {
+  const imported = page.imported;
   const pic = doc.syntax.pictures[index];
   if (!pic) return null;
   const text = doc.text;
@@ -93,17 +106,16 @@ export function buildCompileInput(doc: DocumentModel, index: number, available: 
   const unavailable: string[] = [];
   const fontPackages: string[] = [];
   let beamer = false;
-  /** What the preamble in use says about the page (D71). */
-  const used: { page: PageGeometry | null } = { page: null };
+  let substitutedClass: CompileInput["substitutedClass"] = null;
   let line = 1;
   const emit = (s: string) => {
     parts.push(s);
     line += countLines(s) - 1;
   };
   /** Copies `src`[from, to) on fresh lines, recording where it came from. */
-  const copy = (src: string, from: number, to: number, body = src.slice(from, to), where?: "preamble") => {
+  const copy = (src: string, from: number, to: number, body = src.slice(from, to), where?: "preamble", isPreamble = false) => {
     emit("\n");
-    segments.push({ inputLine: line, sourceLine: lineOf(src, from), lines: countLines(body.replace(/\n$/, "")), ...(where ? { in: where } : {}) });
+    segments.push({ inputLine: line, sourceLine: lineOf(src, from), lines: countLines(body.replace(/\n$/, "")), ...(where ? { in: where } : {}), ...(isPreamble ? { preamble: true as const } : {}) });
     emit(body);
     emit("\n");
   };
@@ -152,8 +164,9 @@ export function buildCompileInput(doc: DocumentModel, index: number, available: 
       const blank = all.replace(/[^\n]/g, "");
       return keep.length ? `\\usepackage${opts ?? ""}{${keep.join(",")}}${blank}` : `\\relax${blank}`;
     });
-    copy(src, from, begin, preamble, where);
-    used.page = pageGeometry(src.slice(0, begin));
+    copy(src, from, begin, preamble, where, true);
+    const name = cls?.[2]!.trim();
+    if (name && !ENGINE_CLASSES.has(name)) substitutedClass = { name, known: effectivePage(src.slice(0, begin), NO_PAGE_SETTINGS)?.classPreset === true };
   };
 
   const CLASS = /\\documentclass\s*(?:\[([^\]]*)\])?\s*\{([^}]*)\}/;
@@ -177,16 +190,17 @@ export function buildCompileInput(doc: DocumentModel, index: number, available: 
 
   emit("\n\\begin{document}");
   // The format's class is standalone, which has no page: give the lengths a figure may use
-  // (`text width=\columnwidth`) the values the preamble implies, as the width guide shows them (D71).
-  // After \begin{document}, which sets \columnwidth again.
+  // (`text width=\columnwidth`) the values the page has, the same ones the quick preview reads (D71, D73):
+  // the preamble in use with the typed widths over it, article's where nothing says. After
+  // \begin{document}, which sets \columnwidth again.
   const pt = (v: number) => `${Math.round(v * 100000) / 100000}pt`;
-  const page = used.page;
-  if (page?.textWidth != null) emit(`\\setlength{\\textwidth}{${pt(page.textWidth)}}`);
-  if (page?.columnWidth != null) emit(`\\setlength{\\columnwidth}{${pt(page.columnWidth)}}\\setlength{\\linewidth}{${pt(page.columnWidth)}}`);
+  const lengths = pageLengths(effectivePage(ownPreamble(text, pic.from), page));
+  emit(`\\setlength{\\textwidth}{${pt(lengths.textWidth)}}`);
+  emit(`\\setlength{\\columnwidth}{${pt(lengths.columnWidth)}}\\setlength{\\linewidth}{${pt(lengths.columnWidth)}}`);
   const { body, blocks } = markBlocks(text, pic);
   copy(text, pic.from, pic.to, body);
   emit("\\end{document}\n");
-  return { tex: parts.join(""), segments, unavailable, fontPackages, blocks, beamer };
+  return { tex: parts.join(""), segments, unavailable, fontPackages, blocks, beamer, substitutedClass };
 }
 
 /** The picture's text with each locked block between `tikzflow:begin`/`end` specials, on the same lines. */
@@ -216,9 +230,9 @@ export function sourceLine(input: Pick<CompileInput, "segments">, inputLine: num
 }
 
 /** Where input.tex's line `inputLine` came from: the code, or a line of the imported preamble. */
-export function locate(input: Pick<CompileInput, "segments">, inputLine: number): { in: "code" | "preamble"; line: number } | null {
+export function locate(input: Pick<CompileInput, "segments">, inputLine: number): { in: "code" | "preamble"; line: number; preamble: boolean } | null {
   for (const s of input.segments) {
-    if (inputLine >= s.inputLine && inputLine < s.inputLine + s.lines) return { in: s.in ?? "code", line: s.sourceLine + inputLine - s.inputLine };
+    if (inputLine >= s.inputLine && inputLine < s.inputLine + s.lines) return { in: s.in ?? "code", line: s.sourceLine + inputLine - s.inputLine, preamble: s.preamble === true };
   }
   return null;
 }

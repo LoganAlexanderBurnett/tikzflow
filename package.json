@@ -28,7 +28,8 @@
     "layout:bench": "node scripts/layout-bench.ts",
     "golden:review": "node scripts/golden-review.ts",
     "dvicheck": "node scripts/dvicheck.ts",
-    "pdfcheck": "node scripts/pdfcheck.ts"
+    "pdfcheck": "node scripts/pdfcheck.ts",
+    "check:dist": "node scripts/check-dist.ts"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",

@@ -11,7 +11,7 @@ import type { CompileOutcome } from "../engine/protocol.ts";
 import { engineBase } from "../engine/release.ts";
 import type { Range } from "../model/syntax.ts";
 import { prefetchEngine } from "./offline.ts";
-import { importedPreamble } from "./page.ts";
+import { pageSettings } from "./pagesettings.ts";
 import { currentPicture, doc, overrides, previewLayout, revealInCode, text } from "./store.ts";
 
 /** "accurate": TeX's picture when it is ready; "quick": the native drawing only. Kept per viewer. */
@@ -67,16 +67,34 @@ export interface PreviewError extends TexError {
   sourceLine: number | null;
   /** The line of the imported preamble (D71) it happened on, if it was there. */
   preambleLine: number | null;
+  /** It happened in the preamble (the code's or the imported one). */
+  inPreamble: boolean;
 }
 
-/** Errors of the latest compile, mapped to the source (they may be of an older version of the code). */
-export const previewErrors = computed<PreviewError[]>(() => {
+/** Every error of the latest compile, mapped to the source (they may be of an older version of the code). */
+const allErrors = computed<PreviewError[]>(() => {
   const c = compiled.value;
   if (!c || previewMode.value !== "accurate") return [];
   return c.outcome.errors.map((e) => {
     const at = e.file === "input.tex" && e.line !== null ? locate(c.input, e.line) : null;
-    return { ...e, sourceLine: at?.in === "code" ? at.line : null, preambleLine: at?.in === "preamble" ? at.line : null };
+    return { ...e, sourceLine: at?.in === "code" ? at.line : null, preambleLine: at?.in === "preamble" ? at.line : null, inPreamble: at?.preamble === true };
   });
+});
+
+/**
+ * Errors in the preamble of a document whose class the preview replaces (D73): they are most likely
+ * something the class defines (\journal, \address…), which the preview can't know. They are shown as notes, not
+ * as errors, so a paper in an unknown class doesn't open with a banner.
+ */
+const classErrors = computed<PreviewError[]>(() => {
+  const c = compiled.value;
+  return c?.input.substitutedClass ? allErrors.value.filter((e) => e.inPreamble) : [];
+});
+
+/** Errors of the latest compile that are the user's to fix. */
+export const previewErrors = computed<PreviewError[]>(() => {
+  const hidden = new Set(classErrors.value);
+  return allErrors.value.filter((e) => !hidden.has(e));
 });
 
 /**
@@ -97,6 +115,18 @@ export const previewNotices = computed<string[]>(() => {
   }
   if (c.input.fontPackages.length) {
     out.push(`Your preamble loads ${list(c.input.fontPackages)}. The preview always typesets in Computer Modern, so text widths may differ from your document.`);
+  }
+  const sub = c.input.substitutedClass;
+  if (sub) {
+    out.push(
+      sub.known
+        ? `The preview doesn't load the ${sub.name} class: it takes the page widths ${sub.name} gives and keeps your packages and macros, but not the class's own fonts, spacing or commands.`
+        : `The ${sub.name} class isn't available in the preview, so it uses article's page (or the widths you typed in the Page panel) and keeps your packages and macros.`,
+    );
+    for (const e of classErrors.value) {
+      const detail = e.context ? ` (${e.context.trim().split("\n")[0]})` : "";
+      out.push(`Line ${e.preambleLine ?? e.sourceLine ?? "?"} of your preamble: ${e.message.replace(/\.$/, "")}${detail}. The ${sub.name} class probably defines it; the preview ignores it.`);
+    }
   }
   if (c.input.beamer) {
     out.push("This is a Beamer document. The preview typesets in Computer Modern Sans, not your theme's fonts (Beamer's default sans serif usually differs), so text widths may differ from your slides.");
@@ -156,7 +186,7 @@ export async function compileForExport(): Promise<Compiled | { error: string }> 
   const have = compiled.peek();
   if (have && have.text === t && have.picture === picture && have.outcome.svg) return have;
   const available = new Set(index.texFiles);
-  const input = buildCompileInput(doc.peek(), picture, (f) => available.has(f), importedPreamble.peek());
+  const input = buildCompileInput(doc.peek(), picture, (f) => available.has(f), pageSettings.peek());
   if (!input) return { error: "There is no picture to export." };
   const outcome = await c.compile(input.tex);
   if (!outcome) return { error: "The code changed while TeX was compiling. Try again." };
@@ -188,7 +218,7 @@ export function startPreview(base = engineBase(new URLSearchParams(location.sear
     if (!c || !available || previewMode.peek() !== "accurate") return;
     const t = text.peek();
     const picture = currentPicture.peek();
-    const input = buildCompileInput(doc.peek(), picture, (f) => available!.has(f), importedPreamble.peek());
+    const input = buildCompileInput(doc.peek(), picture, (f) => available!.has(f), pageSettings.peek());
     if (!input) {
       compiling.value = false;
       return;
@@ -219,7 +249,7 @@ export function startPreview(base = engineBase(new URLSearchParams(location.sear
   const stop = effect(() => {
     void text.value;
     void currentPicture.value;
-    void importedPreamble.value;
+    void pageSettings.value;
     if (previewMode.value !== "accurate") return;
     selectedBlock.value = null;
     compiling.value = true;

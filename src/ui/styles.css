@@ -1393,6 +1393,16 @@ button.tf-preview-state.busy {
   gap: 2px;
   margin: 4px 0;
 }
+.tf-page-panel .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 6px 0;
+}
+.tf-page-panel select {
+  max-width: 100%;
+}
 .tf-width-guide {
   stroke: #2563eb;
   fill: #2563eb;

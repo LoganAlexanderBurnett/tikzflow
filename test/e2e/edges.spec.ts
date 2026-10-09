@@ -1,5 +1,5 @@
 // Milestone 2b: selecting and working on edges.
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, test } from "./base.ts";
 
 async function code(page: Page): Promise<string> {
   return page.evaluate(() => {

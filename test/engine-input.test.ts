@@ -141,7 +141,7 @@ describe("an imported preamble (D71)", () => {
     "Ignored text.",
     "\\end{document}",
   ].join("\n");
-  const withImported = (text: string, imported: string | null) => buildCompileInput(analyzeDocument(text), 0, available, imported)!;
+  const withImported = (text: string, imported: string | null) => buildCompileInput(analyzeDocument(text), 0, available, imported === null ? undefined : { imported })!;
 
   it("goes in front of a bare picture, treated like a preamble in the code", () => {
     const input = withImported(BARE, IMPORTED);
@@ -161,9 +161,9 @@ describe("an imported preamble (D71)", () => {
     const input = withImported(BARE, IMPORTED);
     const line = input.tex.split("\n").findIndex((l) => l.includes("\\newcommand{\\state}")) + 1;
     expect(sourceLine(input, line)).toBeNull();
-    expect(locate(input, line)).toEqual({ in: "preamble", line: 4 });
+    expect(locate(input, line)).toMatchObject({ in: "preamble", line: 4, preamble: true });
     const node = input.tex.split("\n").findIndex((l) => l.includes("\\node[draw]")) + 1;
-    expect(locate(input, node)).toEqual({ in: "code", line: 2 });
+    expect(locate(input, node)).toMatchObject({ in: "code", line: 2, preamble: false });
   });
 
   it("is ignored when the code has a preamble of its own", () => {
@@ -178,14 +178,30 @@ describe("an imported preamble (D71)", () => {
     expect(input.tex).toContain("\\newcommand{\\state}[1]{#1}");
   });
 
-  it("sets the page lengths the preamble implies, in the code's own preamble too, and not for a class it doesn't know", () => {
+  it("sets the page lengths the preamble implies, in the code's own preamble too, and article's for a class it doesn't know (D73)", () => {
     // 11pt, two columns, letter: 469 pt of text, columns 10 pt apart.
     const input = withImported(BARE, IMPORTED);
     expect(input.tex).toContain("\\setlength{\\textwidth}{469pt}");
     expect(input.tex).toContain("\\setlength{\\columnwidth}{229.5pt}\\setlength{\\linewidth}{229.5pt}");
     expect(build(DOC).tex).toContain("\\setlength{\\textwidth}{390pt}");
-    expect(withImported(BARE, "\\documentclass{IEEEtran}\n").tex).not.toContain("\\setlength{\\textwidth}");
-    expect(withImported(BARE, null).tex).not.toContain("\\setlength{\\textwidth}");
+    // A preset class: its own widths. A class it doesn't know, and no preamble at all: article's.
+    expect(withImported(BARE, "\\documentclass{IEEEtran}\n").tex).toContain("\\setlength{\\columnwidth}{252pt}");
+    expect(withImported(BARE, "\\documentclass{ans}\n").tex).toContain("\\setlength{\\textwidth}{345pt}");
+    expect(withImported(BARE, null).tex).toContain("\\setlength{\\textwidth}{345pt}");
+  });
+
+  it("puts typed widths over the preamble's, and says when a class is replaced (D73)", () => {
+    const typed = buildCompileInput(analyzeDocument(BARE), 0, available, { imported: "\\documentclass{ans}\n\\newcommand{\\state}[1]{\\mathbf{#1}}\n", textWidth: 400, columnWidth: 190 })!;
+    expect(typed.tex).toContain("\\setlength{\\textwidth}{400pt}");
+    expect(typed.tex).toContain("\\setlength{\\columnwidth}{190pt}\\setlength{\\linewidth}{190pt}");
+    expect(typed.tex).toContain("\\newcommand{\\state}");
+    expect(typed.substitutedClass).toEqual({ name: "ans", known: false });
+    expect(withImported(BARE, "\\documentclass{elsarticle}\n").substitutedClass).toEqual({ name: "elsarticle", known: true });
+    expect(withImported(BARE, "\\documentclass{article}\n").substitutedClass).toBeNull();
+    expect(withImported(BARE, null).substitutedClass).toBeNull();
+    // Typed widths alone, with no preamble.
+    const only = buildCompileInput(analyzeDocument(BARE), 0, available, { imported: "", textWidth: 300 })!;
+    expect(only.tex).toContain("\\setlength{\\textwidth}{300pt}");
   });
 
   it("changes nothing when there is none", () => {
