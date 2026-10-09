@@ -40,7 +40,7 @@ describe("the compile input", () => {
     expect(input.fontPackages).toEqual(["fontenc", "lmodern"]);
     // The document's text isn't compiled, only the picture.
     expect(input.tex).not.toContain("Some text.");
-    expect(input.tex).toMatch(/\\begin\{document\}\n\\begin\{tikzpicture\}[\s\S]*\\end\{tikzpicture\}\n\\end\{document\}\n$/);
+    expect(input.tex).toMatch(/\\begin\{document\}(\\setlength\{\\\w+\}\{[\d.]+pt\})*\n\\begin\{tikzpicture\}[\s\S]*\\end\{tikzpicture\}\n\\end\{document\}\n$/);
     // 12pt: the font sizes of size12.clo.
     expect(input.tex).toContain("\\renewcommand\\normalsize{\\@setfontsize\\normalsize{12}{14.5}}");
   });
@@ -176,6 +176,16 @@ describe("an imported preamble (D71)", () => {
     const input = withImported(BARE, "\\usepackage{booktabs}\n\\newcommand{\\state}[1]{#1}");
     expect(input.tex).toContain("\\usepackage{booktabs}");
     expect(input.tex).toContain("\\newcommand{\\state}[1]{#1}");
+  });
+
+  it("sets the page lengths the preamble implies, in the code's own preamble too, and not for a class it doesn't know", () => {
+    // 11pt, two columns, letter: 469 pt of text, columns 10 pt apart.
+    const input = withImported(BARE, IMPORTED);
+    expect(input.tex).toContain("\\setlength{\\textwidth}{469pt}");
+    expect(input.tex).toContain("\\setlength{\\columnwidth}{229.5pt}\\setlength{\\linewidth}{229.5pt}");
+    expect(build(DOC).tex).toContain("\\setlength{\\textwidth}{390pt}");
+    expect(withImported(BARE, "\\documentclass{IEEEtran}\n").tex).not.toContain("\\setlength{\\textwidth}");
+    expect(withImported(BARE, null).tex).not.toContain("\\setlength{\\textwidth}");
   });
 
   it("changes nothing when there is none", () => {

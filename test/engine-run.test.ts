@@ -112,6 +112,15 @@ describe.skipIf(!have)(`the engine (${tag})`, () => {
     expect(locate(broken.input, e.line!)).toEqual({ in: "preamble", line: 2 });
   });
 
+  it("gives figures the paper's column width (D71)", async () => {
+    const bare = "\\begin{tikzpicture}\n\\node[draw, text width=\\columnwidth] (a) {A};\n\\end{tikzpicture}\n";
+    const r = await compile(bare, "\\documentclass[twocolumn,a4paper]{article}\n");
+    expect(r.errors).toEqual([]);
+    // The node is a column (221 pt) of text plus its inner separation on each side.
+    const [x0, , x1] = r.svg!.picture!.tikz;
+    expect(x1 - x0).toBeCloseTo(221 + 2 * 3.3333 + 0.4, 0);
+  });
+
   it("marks a locked block's output", async () => {
     const r = await compile("\\begin{tikzpicture}\n\\foreach \\i in {1,2,3} \\draw (\\i,0) circle (2pt);\n\\node at (0,0) {A};\n\\end{tikzpicture}\n");
     expect(r.errors).toEqual([]);

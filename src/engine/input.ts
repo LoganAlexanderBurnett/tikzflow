@@ -8,6 +8,7 @@
 
 import type { DocumentModel } from "../model/document.ts";
 import type { PictureSyntax } from "../model/syntax.ts";
+import { type PageGeometry, pageGeometry } from "../tikz/page.ts";
 
 /** A piece of input.tex copied from the source: input lines [inputLine, inputLine + lines) are source lines from sourceLine on. */
 export interface LineSegment {
@@ -67,6 +68,7 @@ const SIZES: Record<string, Array<[string, string, string]>> = {
   ],
 };
 
+const pt = (v: number) => `${Math.round(v * 100000) / 100000}pt`;
 const lineOf = (text: string, offset: number) => {
   let n = 1;
   for (let i = text.indexOf("\n"); i >= 0 && i < offset; i = text.indexOf("\n", i + 1)) n++;
@@ -91,6 +93,8 @@ export function buildCompileInput(doc: DocumentModel, index: number, available: 
   const unavailable: string[] = [];
   const fontPackages: string[] = [];
   let beamer = false;
+  /** What the preamble in use says about the page (D71). */
+  const used: { page: PageGeometry | null } = { page: null };
   let line = 1;
   const emit = (s: string) => {
     parts.push(s);
@@ -149,6 +153,7 @@ export function buildCompileInput(doc: DocumentModel, index: number, available: 
       return keep.length ? `\\usepackage${opts ?? ""}{${keep.join(",")}}${blank}` : `\\relax${blank}`;
     });
     copy(src, from, begin, preamble, where);
+    used.page = pageGeometry(src.slice(0, begin));
   };
 
   const CLASS = /\\documentclass\s*(?:\[([^\]]*)\])?\s*\{([^}]*)\}/;
@@ -171,6 +176,13 @@ export function buildCompileInput(doc: DocumentModel, index: number, available: 
   }
 
   emit("\n\\begin{document}");
+  // The format's class is standalone, which has no page: give the lengths a figure may use
+  // (`text width=\columnwidth`) the values the preamble implies, as the width guide shows them (D71).
+  // After \begin{document}, which sets \columnwidth again.
+  const pt = (v: number) => `${Math.round(v * 100000) / 100000}pt`;
+  const page = used.page;
+  if (page?.textWidth != null) emit(`\\setlength{\\textwidth}{${pt(page.textWidth)}}`);
+  if (page?.columnWidth != null) emit(`\\setlength{\\columnwidth}{${pt(page.columnWidth)}}\\setlength{\\linewidth}{${pt(page.columnWidth)}}`);
   const { body, blocks } = markBlocks(text, pic);
   copy(text, pic.from, pic.to, body);
   emit("\\end{document}\n");
