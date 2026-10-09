@@ -5,7 +5,8 @@ import { describe, expect, it } from "vitest";
 import { applyChanges } from "../src/edit/changes.ts";
 import { planMakeCurved } from "../src/edit/curves.ts";
 import { planEnd, planWaypoint } from "../src/edit/edges.ts";
-import { fixLabelSides, labelGeometry } from "../src/edit/labels.ts";
+import { fixLabelSides, labelGeometry, labelsOnTheirLine, planFlipLabel, planLabelBesideLine } from "../src/edit/labels.ts";
+import { planMove } from "../src/edit/move.ts";
 import { planMakeOrthogonal } from "../src/edit/orthogonal.ts";
 import { planStraighten } from "../src/edit/vertices.ts";
 import { analyzeDocument, layoutDocumentPicture } from "../src/model/document.ts";
@@ -175,5 +176,43 @@ describe("dragging part of the edge (D65)", () => {
     if (!r.ok) throw new Error(r.reason);
     expect(statements(r.text)[0]).toContain("node[pos=0.5, above] {x}");
     expect(r.notes).toEqual([]);
+  });
+});
+
+// D65: moving a node doesn't rewrite labels; a label its line now runs through is marked, with two fixes.
+describe("labels on their own line (D65)", () => {
+  const LEVEL = "\\node[draw] (a) at (0,0) {A};\n\\node[draw] (b) at (4,0) {B};";
+  const text = pic(LEVEL, "\\draw (a) -- node[above] {x} (b);");
+
+  it("moving a node leaves the label as written, and the label is then marked", () => {
+    expect(labelsOnTheirLine(layoutOf(text))).toEqual([]);
+    const moved = planMove(text, 0, "b", { x: 0, y: -4 * 28.452756 })!;
+    expect(moved).not.toBeNull();
+    expect(moved.text).toContain("node[above] {x}");
+    const marks = labelsOnTheirLine(layoutOf(moved.text));
+    expect(marks).toHaveLength(1);
+  });
+
+  it("offers auto on the label's side, and Flip on the other", () => {
+    const upright = pic("\\node[draw] (a) at (0,0) {A};\n\\node[draw] (b) at (0,-4) {B};", "\\draw (a) -- node[above] {x} (b);");
+    const [mark] = labelsOnTheirLine(layoutOf(upright));
+    const beside = planLabelBesideLine(upright, 0, mark!.labelId);
+    if (!beside.ok) throw new Error(beside.reason);
+    expect(statements(beside.text)).toEqual(["\\draw (a) -- node[auto] {x} (b);"]);
+    expect(labelsOnTheirLine(beside.layout)).toEqual([]);
+    const flip = planFlipLabel(upright, 0, mark!.labelId);
+    if (!flip.ok) throw new Error(flip.reason);
+    expect(labelsOnTheirLine(flip.layout)).toEqual([]);
+  });
+
+  it("leaves out sloped labels, labels without a side key, and locks; refuses auto for a distance", () => {
+    const upright = (label: string) => pic("\\node[draw] (a) at (0,0) {A};\n\\node[draw] (b) at (0,-4) {B};", `\\draw (a) -- node[${label}] {x} (b);`);
+    expect(labelsOnTheirLine(layoutOf(upright("above, sloped")))).toEqual([]);
+    expect(labelsOnTheirLine(layoutOf(upright("pos=0.5")))).toEqual([]);
+    const dist = upright("above=1mm");
+    const [mark] = labelsOnTheirLine(layoutOf(dist));
+    expect(mark).toBeDefined();
+    const r = planLabelBesideLine(dist, 0, mark!.labelId);
+    expect(r.ok).toBe(false);
   });
 });

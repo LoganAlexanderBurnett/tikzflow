@@ -445,6 +445,48 @@ export function planFlipLabel(text: string, picIndex: number, labelId: string): 
   return { ok: true, changes, text: next, layout: layout2, edgeId: edge.id, labelId: moved.id, written, ...(placed ? { placed: true as const } : {}) };
 }
 
+// ---------------------------------------------------------------- labels on their own line (D65)
+
+/**
+ * Labels the line of their own edge cuts through although they are written
+ * with a side key (`above`, `left=2mm`, …): the ones a node move or a hand
+ * edit left on the line. The canvas marks them; moving a node never rewrites
+ * them (D65). Sloped labels and labels placed against a node are left out.
+ */
+export function labelsOnTheirLine(layout: PictureLayout): Array<{ labelId: string; edgeId: string }> {
+  const out: Array<{ labelId: string; edgeId: string }> = [];
+  for (const edge of pictureEdges(layout)) {
+    if (edge.lock) continue;
+    for (const label of edge.labels) {
+      if (label.rotate !== undefined) continue;
+      const sides = ownSides(label);
+      if (!sides.length || sides.some((x) => x.item.value !== undefined && /(^|\s)of(\s|$)/.test(x.item.value))) continue;
+      const g = labelGeometry(edge, label);
+      if (g && g.overlap > OVERLAP) out.push({ labelId: label.id, edgeId: edge.id });
+    }
+  }
+  return out;
+}
+
+/**
+ * The warning marker's other fix: the label's side key becomes `auto` or
+ * `auto, swap` on the side the key pointed to, by the rule of D57 (Flip puts
+ * it on the other side). Refused for keys with a distance, which `auto` would lose.
+ */
+export function planLabelBesideLine(text: string, picIndex: number, labelId: string): LabelFlipped {
+  const layout = layoutDocumentPicture(analyzeDocument(text), picIndex);
+  const label = layout?.pathNodes.find((n) => n.id === labelId);
+  const edge = layout && edgeOfLabel(pictureEdges(layout), labelId);
+  if (!layout || !label || !edge) return { ok: false, reason: "There is no such label." };
+  if (ownSides(label).some((x) => x.item.value !== undefined)) {
+    return { ok: false, reason: "This label's side key has a distance, which auto would lose. Use Flip side, or change it in the code." };
+  }
+  const fix = planAutoSide(text, picIndex, layout, labelId, 0);
+  if (!fix) return { ok: false, reason: "This label couldn't be put beside the line with auto without changing the drawing." };
+  const moved = fix.layout.pathNodes.find((n) => n.syntax.from === label.syntax.from);
+  return { ok: true, changes: fix.changes, text: fix.text, layout: fix.layout, edgeId: edge.id, labelId: moved?.id ?? labelId, written: fix.written };
+}
+
 // ---------------------------------------------------------------- Yes/No on decisions
 
 /** The pairs of branch labels the editor knows, in the order it writes them. */

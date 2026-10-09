@@ -9,6 +9,8 @@ import { Inspector } from "./inspector.tsx";
 import { Palette } from "./palette.tsx";
 import { editorExtensions } from "./editor.ts";
 import { SAMPLE } from "./sample.ts";
+import { startPreview } from "./preview.ts";
+import { PreviewStatus, PreviewToggle } from "./previewstatus.tsx";
 import {
   attachEditor,
   currentPicture,
@@ -104,6 +106,7 @@ function Summary() {
             {s.unresolved.length} undefined {s.unresolved.length === 1 ? "name" : "names"}
           </button>
         )}
+        <PreviewStatus />
         {details > 0 && (
           <button class="more" onClick={() => (open.value = !open.value)}>
             {open.value ? "Hide details" : "Details"}
@@ -149,7 +152,7 @@ function Summary() {
           {kept.length > 0 && (
             <section>
               <h3>Kept as-is</h3>
-              <p>These blocks stay exactly as written. The native preview doesn't draw them yet; the accurate TeX preview will.</p>
+              <p>These blocks stay exactly as written. The quick preview doesn't draw them; the TeX preview does, and clicking one there shows its code.</p>
               <ul>
                 {kept.map(([k, n]) => (
                   <li>
@@ -177,7 +180,7 @@ function Summary() {
           {s.unknownKeys.length > 0 && (
             <section>
               <h3>Options the preview ignores</h3>
-              <p>They are kept in the code and will show in the accurate preview.</p>
+              <p>They are kept in the code and show in the TeX preview.</p>
               <p class="keys">{s.unknownKeys.map((k) => `${k.key}${k.count > 1 ? ` ×${k.count}` : ""}`).join(", ")}</p>
             </section>
           )}
@@ -250,6 +253,7 @@ function Toolbar() {
           </select>
         </label>
       )}
+      <PreviewToggle />
       <button onClick={() => fitRequests.value++} title="Fit the picture to the canvas">
         Fit
       </button>
@@ -279,6 +283,9 @@ export function App() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  // The accurate preview: the TeX engine in a worker (D68).
+  useEffect(() => startPreview(), []);
 
   // Drop a file anywhere to open it.
   useEffect(() => {

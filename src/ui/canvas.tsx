@@ -28,6 +28,9 @@ import { anchorPoint, outline, type Point } from "../tikz/shapes.ts";
 import { PT_PER_UNIT } from "../tikz/units.ts";
 import type { Shading } from "../tikz/state.ts";
 import { katexMacros, labelHtml } from "./labelHtml.ts";
+import { CompiledPicture } from "./compiled.tsx";
+import { labelFix, LabelFixMenu, LabelWarnings } from "./labelwarning.tsx";
+import { pickBlock, selectedBlock, showingCompiled } from "./preview.ts";
 import {
   activeScope,
   applyEdgeEdit,
@@ -836,6 +839,14 @@ export function Canvas() {
     const pathEl = target.closest("[data-path]");
     const svg = svgRef.current!;
     svg.focus({ preventScroll: true });
+    // A label its line runs through (D65): its fixes.
+    const warnEl = target.closest("[data-label-warning]");
+    if (e.button === 0 && warnEl) {
+      // The popover is placed in the stage that holds the canvas.
+      const pane = svg.parentElement?.getBoundingClientRect();
+      labelFix.value = { labelId: warnEl.getAttribute("data-label-warning")!, x: e.clientX - (pane?.left ?? 0) + 8, y: e.clientY - (pane?.top ?? 0) + 8 };
+      return;
+    }
     // An end of the selected edge: drag it to another anchor or node.
     const endEl = target.closest("[data-end]");
     const edge = selectedEdge.value;
@@ -983,6 +994,15 @@ export function Canvas() {
       selectFromCanvas({ kind: "path", id: pathEl.getAttribute("data-path")! });
       return;
     }
+    // A locked block TeX drew (a loop, a matrix, …): show its code.
+    const blockEl = target.closest("[data-block]");
+    if (e.button === 0 && blockEl) {
+      selectFromCanvas(null);
+      pickBlock(blockEl.getAttribute("data-block")!);
+      status.value = "Kept as written: the editor can't change this block visually, so TeX draws it. Its code is selected.";
+      return;
+    }
+    selectedBlock.value = null;
     drag.current = { kind: "pan", client: { x: e.clientX, y: e.clientY }, view: view.value, moved: false };
     svg.setPointerCapture(e.pointerId);
   };
@@ -1565,6 +1585,9 @@ export function Canvas() {
       data-testid="canvas"
     >
       <defs>{gradients}</defs>
+      <CompiledPicture scale={v.scale} />
+      {/* With TeX's picture shown, the native drawing stays only to answer the pointer (D68). */}
+      <g class={`tf-native${showingCompiled.value ? " ghost" : ""}`} data-testid="native-drawing">
       {items.map((it) =>
         it.kind === "node" ? (
           <g key={it.n.id}>
@@ -1605,6 +1628,7 @@ export function Canvas() {
           )}
         </g>
       ))}
+      </g>
       {l?.nodes.map((n) =>
         n.kind === "coordinate" ? (
           <CoordinateMark key={`mark-${n.id}`} n={n} scale={v.scale} selected={selIds.includes(n.id)} unused={unusedCoords.value.has(n.id)} />
@@ -1620,6 +1644,7 @@ export function Canvas() {
         {selEdge && !selEdge.lock && !edgeDrag.value && <EndHandles edge={selEdge} scale={v.scale} />}
         {hoverNode && <ConnectHandles n={hoverNode} scale={v.scale} />}
         {edgeDrag.value && l && <EdgeDragOverlay view={edgeDrag.value} layout={l} scale={v.scale} />}
+        <LabelWarnings scale={v.scale} hidden={!!overrides.value.size || !!previewLayout.value || !!edgeDrag.value || !!labelEdit.value} />
         {selected.map((n) => (
           <rect
             x={f(n.shape.center.x - n.shape.hw - 3 / v.scale)}
@@ -1663,6 +1688,7 @@ export function Canvas() {
         ))}
       </g>
     </svg>
+    <LabelFixMenu onClose={() => svgRef.current?.focus({ preventScroll: true })} />
     <LabelEditor view={v} size={size.value} onDone={() => svgRef.current?.focus({ preventScroll: true })} />
     {menu.value && menuEdge && (
       <EdgeMenu

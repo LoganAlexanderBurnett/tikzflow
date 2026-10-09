@@ -11,7 +11,7 @@ import { planMakeCurved } from "../edit/curves.ts";
 import { planMakeOrthogonal } from "../edit/orthogonal.ts";
 import { planSplit } from "../edit/split.ts";
 import { planAddVertex, planRemoveVertex, planStraighten } from "../edit/vertices.ts";
-import { fixLabelSides, planAddLabel, planFlipLabel } from "../edit/labels.ts";
+import { fixLabelSides, labelsOnTheirLine, planAddLabel, planFlipLabel, planLabelBesideLine } from "../edit/labels.ts";
 import { type DeleteTarget, planDelete } from "../edit/delete.ts";
 import { type EdgeEdit, type EdgeScope, planEdgeProperty, planSplitAndApply } from "../edit/edgeprops.ts";
 import { draftOf, labelBlocker, labelledNode, labelProblem, planLabelEdit } from "../edit/label.ts";
@@ -528,6 +528,24 @@ export function flipLabel(labelId: string): boolean {
   }
   pickedLabel.value = { edgeId: r.edgeId, labelId: r.labelId };
   applyEdgeEdit(r.changes, "input.edge.label.flip", r.placed ? `The label sat on the line; it is beside it now: ${r.written}` : `Flipped the label to the other side of the edge: ${r.written}`, r.edgeId);
+  return true;
+}
+
+/** Labels their own line cuts through (after a node move, say): the canvas marks them (D65). */
+export const labelWarnings = computed(() => {
+  const l = baseLayout.value;
+  return l ? labelsOnTheirLine(l) : [];
+});
+
+/** The marker's fix that keeps the label's side: its side key becomes auto (D65). */
+export function putLabelBesideLine(labelId: string): boolean {
+  const r = planLabelBesideLine(text.value, currentPicture.value, labelId);
+  if (!r.ok) {
+    status.value = r.reason;
+    return false;
+  }
+  pickedLabel.value = { edgeId: r.edgeId, labelId: r.labelId };
+  applyEdgeEdit(r.changes, "input.edge.label.beside", `The label is beside the line now: ${r.written}.`, r.edgeId);
   return true;
 }
 

@@ -1201,3 +1201,109 @@ button:disabled {
   padding: 1px 6px;
   font-size: 12px;
 }
+
+/* The accurate preview (D68): TeX's picture under a native drawing that only answers the pointer. */
+.tf-compiled-layer {
+  pointer-events: none;
+}
+.tf-native {
+  transition: opacity 120ms;
+}
+.tf-native.ghost .tf-node > *,
+.tf-native.ghost .tf-path > path:not(.tf-path-halo):not(.tf-path-hit),
+.tf-native.ghost .tf-label-box {
+  opacity: 0;
+}
+/* A block kept as written that TeX drew: outlined on hover, clickable to show its code. */
+.tf-block-hit {
+  fill: transparent;
+  stroke: transparent;
+  pointer-events: all;
+  cursor: pointer;
+}
+.tf-block-hit:hover {
+  stroke: var(--lock);
+}
+.tf-block-hit.picked {
+  stroke: var(--lock);
+  fill: var(--opaque);
+}
+
+.tf-preview {
+  position: relative;
+}
+.tf-preview-state {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+button.tf-preview-state.errors {
+  color: #b91c1c;
+}
+button.tf-preview-state.busy {
+  opacity: 0.75;
+}
+.tf-preview-details {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 30;
+  width: min(460px, 70vw);
+  max-height: 50vh;
+  overflow: auto;
+  padding: 8px 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  font-size: 13px;
+}
+.tf-preview-details h3 {
+  font-size: 13px;
+  margin: 6px 0 2px;
+}
+.tf-preview-details p {
+  margin: 0 0 4px;
+  color: var(--muted);
+}
+.tf-preview-details ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.tf-preview-details code {
+  margin-left: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.tf-preview-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+
+/* A label its own line runs through (D65). */
+.tf-label-warning {
+  cursor: pointer;
+}
+.tf-label-warning circle {
+  fill: #fef3c7;
+  stroke: var(--lock);
+}
+.tf-label-warning path {
+  stroke: var(--lock);
+  stroke-linecap: round;
+}
+.tf-label-fix .tf-menu-note {
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.tf-label-fix .tf-menu-item {
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
