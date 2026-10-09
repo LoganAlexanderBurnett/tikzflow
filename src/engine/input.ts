@@ -26,6 +26,8 @@ export interface CompileInput {
   fontPackages: string[];
   /** Locked blocks of the picture, marked in the output: marker id → source range. */
   blocks: Map<string, { from: number; to: number }>;
+  /** The document is a beamer presentation: its theme's fonts aren't in the preview (D69). */
+  beamer: boolean;
 }
 
 /**
@@ -85,6 +87,7 @@ export function buildCompileInput(doc: DocumentModel, index: number, available: 
   const segments: LineSegment[] = [];
   const unavailable: string[] = [];
   const fontPackages: string[] = [];
+  let beamer = false;
   let line = 1;
   const emit = (s: string) => {
     parts.push(s);
@@ -110,7 +113,10 @@ export function buildCompileInput(doc: DocumentModel, index: number, available: 
       for (const [cmd, s, b] of SIZES[size]!) emit(`\\renewcommand\\${cmd}{\\@setfontsize\\${cmd}{${s}}{${b}}}`);
       emit("\\makeatother\\normalsize");
     }
-    if (cls[2]!.trim() === "beamer") emit("\n\\renewcommand\\familydefault{\\sfdefault}\\normalfont");
+    if (cls[2]!.trim() === "beamer") {
+      beamer = true;
+      emit("\n\\renewcommand\\familydefault{\\sfdefault}\\normalfont");
+    }
     // The preamble, verbatim from the line after \documentclass, with unusable
     // packages taken out of their \usepackage lines.
     const eol = text.indexOf("\n", cls.index + cls[0].length);
@@ -152,7 +158,7 @@ export function buildCompileInput(doc: DocumentModel, index: number, available: 
   const { body, blocks } = markBlocks(text, pic);
   copy(pic.from, pic.to, body);
   emit("\\end{document}\n");
-  return { tex: parts.join(""), segments, unavailable, fontPackages, blocks };
+  return { tex: parts.join(""), segments, unavailable, fontPackages, blocks, beamer };
 }
 
 /** The picture's text with each locked block between `tikzflow:begin`/`end` specials, on the same lines. */

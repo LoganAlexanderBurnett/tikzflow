@@ -3,7 +3,7 @@
 // fonts). And the toolbar switch between the accurate and the quick preview.
 
 import { useSignal } from "@preact/signals";
-import { compiled, compiling, engineState, freshCompiled, previewErrors, previewMode, previewNotices, setPreviewMode, showPreviewError } from "./preview.ts";
+import { compiled, compiling, engineState, freshCompiled, previewErrors, previewMode, previewNotices, setPreviewMode, shownErrors, showPreviewError } from "./preview.ts";
 
 export function PreviewStatus() {
   const open = useSignal(false);
@@ -69,6 +69,31 @@ export function PreviewStatus() {
         </div>
       )}
     </span>
+  );
+}
+
+/**
+ * Over the canvas while TeX's picture is shown and TeX reported errors: the picture may be badly wrong
+ * (undefined nodes sit at the origin, so lines shoot there), and the quick preview is one click away.
+ */
+export function TexBanner() {
+  const errors = shownErrors.value;
+  if (!errors.length) return null;
+  const first = errors.find((e) => e.sourceLine !== null);
+  return (
+    <div class="tf-tex-banner" role="status" data-testid="tex-banner">
+      <span>
+        LaTeX found {errors.length} {errors.length === 1 ? "error" : "errors"} and would stop at the first; this picture shows what it drew anyway.
+      </span>
+      {first && (
+        <button onClick={() => showPreviewError(first)} data-testid="tex-banner-first">
+          Show the first error
+        </button>
+      )}
+      <button onClick={() => setPreviewMode("quick", false)} data-testid="tex-banner-quick" title="Switch back to the editor's own drawing; the TeX preview box in the toolbar brings TeX's picture back">
+        Show the quick preview
+      </button>
+    </div>
   );
 }
 

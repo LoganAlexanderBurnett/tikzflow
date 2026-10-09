@@ -10,7 +10,7 @@ import { Palette } from "./palette.tsx";
 import { editorExtensions } from "./editor.ts";
 import { SAMPLE } from "./sample.ts";
 import { startPreview } from "./preview.ts";
-import { PreviewStatus, PreviewToggle } from "./previewstatus.tsx";
+import { PreviewStatus, PreviewToggle, TexBanner } from "./previewstatus.tsx";
 import {
   attachEditor,
   currentPicture,
@@ -331,6 +331,7 @@ export function App() {
           <Summary />
           <Palette />
           <div class="tf-stage">
+            <TexBanner />
             <Canvas />
             <Inspector />
           </div>

@@ -127,8 +127,32 @@ test.describe("with the TeX engine", () => {
     await expect(notes).toContainText("loads lmodern");
     await errors.getByRole("button", { name: "Line 8" }).click();
     expect(await selectedCode(page)).toBe("\\node[draw] at (2,0) {\\oops B};");
-    // What TeX could draw is still shown.
+    // What TeX could draw is still shown, under a banner that says it is not to be trusted.
     await expect(page.getByTestId("compiled-picture")).toBeAttached();
+    await expect(page.getByTestId("tex-banner")).toContainText("LaTeX found 1 error and would stop at the first; this picture shows what it drew anyway.");
+  });
+
+  test("the error banner switches back to the quick preview for this visit only", async ({ page }) => {
+    await page.goto("/");
+    await setCode(page, PICTURE.replace("{B}", "{\\oops B}"));
+    const banner = page.getByTestId("tex-banner");
+    await expect(banner).toBeVisible({ timeout: 15_000 });
+    await page.getByTestId("tex-banner-quick").click();
+    await expect(banner).toHaveCount(0);
+    await expect(page.getByTestId("compiled-picture")).toHaveCount(0);
+    await expect(page.getByTestId("preview-toggle")).not.toBeChecked();
+    // Not remembered: a new visit starts with TeX's picture again.
+    await page.reload();
+    await expect(page.getByTestId("preview-toggle")).toBeChecked();
+  });
+
+  test("a Beamer document gets a note about fonts", async ({ page }) => {
+    await page.goto("/");
+    await setCode(page, ["\\documentclass{beamer}", "\\usepackage{tikz}", "\\begin{document}", "\\begin{frame}", "\\begin{tikzpicture}", "\\node[draw] (a) {A};", "\\end{tikzpicture}", "\\end{frame}", "\\end{document}", ""].join("\n"));
+    const state = page.getByTestId("preview-state");
+    await expect(state).toHaveText("TeX preview: notes", { timeout: 15_000 });
+    await state.click();
+    await expect(page.getByTestId("preview-notices")).toContainText("Beamer document");
   });
 
   test("the switch turns the TeX preview off and on, and is remembered", async ({ page }) => {

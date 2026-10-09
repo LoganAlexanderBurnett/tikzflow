@@ -24,8 +24,10 @@ function storedMode(): PreviewMode {
   }
 }
 export const previewMode = signal<PreviewMode>(storedMode());
-export function setPreviewMode(m: PreviewMode): void {
+/** `remember` false changes the mode for this visit only (the banner's switch back, M3 step 8 follow-up). */
+export function setPreviewMode(m: PreviewMode, remember = true): void {
   previewMode.value = m;
+  if (!remember) return;
   try {
     localStorage.setItem(MODE_KEY, m);
   } catch {
@@ -70,6 +72,13 @@ export const previewErrors = computed<PreviewError[]>(() => {
   return c.outcome.errors.map((e) => ({ ...e, sourceLine: e.file === "input.tex" && e.line !== null ? sourceLine(c.input, e.line) : null }));
 });
 
+/**
+ * The errors of the compile whose picture is on the canvas. TeX carries on past them, so the picture
+ * can be badly wrong (an undefined node is placed at the origin and lines shoot there): the banner
+ * says so, next to a way back to the quick preview.
+ */
+export const shownErrors = computed<PreviewError[]>(() => (showingCompiled.value ? previewErrors.value : []));
+
 /** Things the user should know about the latest compile: left-out packages, fonts, missing files. */
 export const previewNotices = computed<string[]>(() => {
   const c = compiled.value;
@@ -81,6 +90,9 @@ export const previewNotices = computed<string[]>(() => {
   }
   if (c.input.fontPackages.length) {
     out.push(`Your preamble loads ${list(c.input.fontPackages)}. The preview always typesets in Computer Modern, so text widths may differ from your document.`);
+  }
+  if (c.input.beamer) {
+    out.push("This is a Beamer document. The preview typesets in Computer Modern Sans, not your theme's fonts (Beamer's default sans serif usually differs), so text widths may differ from your slides.");
   }
   // Packages and classes only: TeX and TikZ look for many optional files (configurations,
   // tikzlibrary… before pgflibrary…), and not finding those is normal.
