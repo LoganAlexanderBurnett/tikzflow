@@ -1,6 +1,7 @@
 # Measures the \textwidth and \columnwidth that LaTeX itself gives for the
 # document classes the Page panel knows (DECISIONS.md D73), in the same pinned
-# TeX Live 2026 image the engine is built from. The result is committed as
+# TeX Live 2026 image the engine is built from (pulled through Google's Docker Hub mirror, by the same digest, because
+# Docker Hub's anonymous pull limit kept failing the job). The result is committed as
 # engine/page-widths/measured.jsonl and test/page.test.ts checks src/tikz/page.ts
 # against it. Runs when the cases or this file change on m3-engine-ci or trunk.
 name: Page widths
@@ -21,7 +22,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     container:
-      image: texlive/texlive@sha256:f1c4d2c23f297caee8654dc23eed022c854ca59e899e40666abbd45bab70dceb
+      image: mirror.gcr.io/texlive/texlive@sha256:f1c4d2c23f297caee8654dc23eed022c854ca59e899e40666abbd45bab70dceb
     steps:
       - name: Check out tikzflow
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
