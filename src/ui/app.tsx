@@ -3,14 +3,15 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { useSignal } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
-import { decode, encode, UnencodableError } from "../source/encoding.ts";
 import { Canvas } from "./canvas.tsx";
 import { Inspector } from "./inspector.tsx";
 import { Palette } from "./palette.tsx";
 import { editorExtensions } from "./editor.ts";
+import { initialText, openFile, openWithPicker, previousWork, restorePrevious, saveFile, saveFileAs, savedText, canSaveInPlace, download } from "./files.ts";
 import { SAMPLE } from "./sample.ts";
 import { offlineState } from "./offline.ts";
 import { ExportButton } from "./exportpanel.tsx";
+import { ShareButton } from "./sharepanel.tsx";
 import { PageButton } from "./pagepanel.tsx";
 import { startPreview } from "./preview.ts";
 import { PreviewStatus, PreviewToggle, TexBanner } from "./previewstatus.tsx";
@@ -18,7 +19,6 @@ import {
   attachEditor,
   currentPicture,
   doc,
-  encoding,
   fileName,
   fitRequests,
   onEditorChange,
@@ -44,7 +44,7 @@ function CodePane() {
     const view = new EditorView({
       parent: host.current!,
       state: EditorState.create({
-        doc: SAMPLE,
+        doc: initialText(),
         extensions: editorExtensions({ onChange: onEditorChange, onCursor: onEditorCursor }),
       }),
     });
@@ -53,30 +53,6 @@ function CodePane() {
     return () => view.destroy();
   }, []);
   return <div class="tf-code" ref={host} data-testid="code" />;
-}
-
-async function openFile(file: File) {
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  const { text: t, encoding: enc } = decode(bytes);
-  replaceDocument(t, file.name, enc);
-  status.value = `Opened ${file.name}${enc !== "utf-8" ? ` (${enc})` : ""}.`;
-}
-
-function download() {
-  let bytes: Uint8Array;
-  try {
-    bytes = encode(text.value, encoding.value);
-  } catch (e) {
-    if (!(e instanceof UnencodableError)) throw e;
-    status.value = `This file is ${e.encoding}, which can't hold a character at offset ${e.offset}. Saved as UTF-8 instead.`;
-    bytes = encode(text.value, "utf-8");
-  }
-  const blob = new Blob([bytes as BlobPart], { type: "application/x-tex" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = fileName.value ?? "diagram.tex";
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
 function Summary() {
@@ -221,7 +197,16 @@ function Toolbar() {
   return (
     <header class="tf-toolbar">
       <span class="brand">TikZFlow</span>
-      <button onClick={() => input.current?.click()} title="Open a .tex file">
+      <button
+        onClick={() => {
+          // Where the browser can, the file stays linked so Save writes back to it; elsewhere a file chooser.
+          void openWithPicker().then((handled) => {
+            if (!handled) input.current?.click();
+          });
+        }}
+        title="Open a .tex file"
+        data-testid="open-button"
+      >
         Open…
       </button>
       <input
@@ -235,7 +220,15 @@ function Toolbar() {
           (e.target as HTMLInputElement).value = "";
         }}
       />
-      <button onClick={download} title="Download the code as a .tex file">
+      <button onClick={() => void saveFile()} title={canSaveInPlace() ? "Save to the file (Ctrl+S)" : "Download the code as a .tex file (Ctrl+S)"} data-testid="save-button">
+        Save
+      </button>
+      {canSaveInPlace() && (
+        <button onClick={() => void saveFileAs()} title="Save to a new file" data-testid="save-as-button">
+          Save as…
+        </button>
+      )}
+      <button onClick={download} title="Download the code as a .tex file" data-testid="download-button">
         Download
       </button>
       <button onClick={() => replaceDocument(SAMPLE, null, "utf-8")} title="Replace the code with the sample flowchart">
@@ -270,11 +263,20 @@ function Toolbar() {
       <PreviewToggle />
       <PageButton />
       <ExportButton />
+      <ShareButton />
       <button onClick={() => fitRequests.value++} title="Fit the picture to the canvas">
         Fit
       </button>
       <OfflineNote />
-      <span class="file">{fileName.value ?? ""}</span>
+      {previousWork.value && (
+        <button onClick={() => void restorePrevious()} title="Bring back the work that was on screen before the last file or link was opened" data-testid="restore-previous">
+          Restore previous work
+        </button>
+      )}
+      <span class="file" data-testid="file-name" title={fileName.value ? (text.value === savedText.value ? "Saved" : "Changed since it was opened or saved. Your work is also kept in this browser.") : "Kept in this browser as you type; Save writes a file"}>
+        {fileName.value ?? ""}
+        {text.value !== savedText.value && fileName.value ? " ●" : ""}
+      </span>
     </header>
   );
 }
@@ -286,6 +288,12 @@ export function App() {
   // Undo and redo work when the canvas has focus too.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Save works everywhere, the code pane included.
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        void saveFile();
+        return;
+      }
       const inEditor = (e.target as Element | null)?.closest?.(".cm-editor, textarea, input, select");
       if (inEditor || !(e.ctrlKey || e.metaKey)) return;
       const k = e.key.toLowerCase();
