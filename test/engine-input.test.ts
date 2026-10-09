@@ -1,6 +1,6 @@
 // M3 step 7 (D67): what the accurate preview compiles, and reading TeX's log.
 import { describe, expect, it } from "vitest";
-import { buildCompileInput, sourceLine } from "../src/engine/input.ts";
+import { buildCompileInput, locate, sourceLine } from "../src/engine/input.ts";
 import { parseTexLog, texAborted } from "../src/engine/log.ts";
 import { cleanName } from "../src/engine/texlib.ts";
 import { analyzeDocument } from "../src/model/document.ts";
@@ -127,5 +127,58 @@ describe("file names TeX asks for", () => {
     expect(cleanName("TeXfonts:cmr10.tfm")).toBe("cmr10.tfm");
     expect(cleanName("./input.tex\0\0")).toBe("input.tex");
     expect(cleanName("{foo.tex}junk")).toBe("foo.tex");
+  });
+});
+
+describe("an imported preamble (D71)", () => {
+  const BARE = ["\\begin{tikzpicture}", "\\node[draw] (a) {\\state{A}};", "\\end{tikzpicture}", ""].join("\n");
+  const IMPORTED = [
+    "\\documentclass[11pt,twocolumn]{article}",
+    "\\usepackage{amsmath}",
+    "\\usepackage{lmodern,nosuchpkg}",
+    "\\newcommand{\\state}[1]{\\mathbf{#1}}",
+    "\\begin{document}",
+    "Ignored text.",
+    "\\end{document}",
+  ].join("\n");
+  const withImported = (text: string, imported: string | null) => buildCompileInput(analyzeDocument(text), 0, available, imported)!;
+
+  it("goes in front of a bare picture, treated like a preamble in the code", () => {
+    const input = withImported(BARE, IMPORTED);
+    expect(input.tex).toContain("\\newcommand{\\state}[1]{\\mathbf{#1}}");
+    expect(input.tex).toContain("\\usepackage{amsmath}");
+    expect(input.tex).not.toContain("\\documentclass");
+    expect(input.tex).not.toContain("Ignored text");
+    expect(input.tex).not.toContain("lmodern");
+    expect(input.tex).not.toContain("nosuchpkg");
+    expect(input.fontPackages).toEqual(["lmodern"]);
+    expect(input.unavailable).toEqual(["nosuchpkg"]);
+    // 11pt: the font sizes of size11.clo.
+    expect(input.tex).toContain("\\renewcommand\\normalsize{\\@setfontsize\\normalsize{10.95}{13.6}}");
+  });
+
+  it("maps its lines to the imported text, not to the code", () => {
+    const input = withImported(BARE, IMPORTED);
+    const line = input.tex.split("\n").findIndex((l) => l.includes("\\newcommand{\\state}")) + 1;
+    expect(sourceLine(input, line)).toBeNull();
+    expect(locate(input, line)).toEqual({ in: "preamble", line: 4 });
+    const node = input.tex.split("\n").findIndex((l) => l.includes("\\node[draw]")) + 1;
+    expect(locate(input, node)).toEqual({ in: "code", line: 2 });
+  });
+
+  it("is ignored when the code has a preamble of its own", () => {
+    const input = withImported(DOC, IMPORTED);
+    expect(input.tex).not.toContain("\\state");
+    expect(input.tex).toContain("\\tikzset{box/.style={draw}}");
+  });
+
+  it("is taken whole when it has no \\documentclass or \\begin{document}", () => {
+    const input = withImported(BARE, "\\usepackage{booktabs}\n\\newcommand{\\state}[1]{#1}");
+    expect(input.tex).toContain("\\usepackage{booktabs}");
+    expect(input.tex).toContain("\\newcommand{\\state}[1]{#1}");
+  });
+
+  it("changes nothing when there is none", () => {
+    expect(withImported(BARE, "  \n").tex).toBe(withImported(BARE, null).tex);
   });
 });

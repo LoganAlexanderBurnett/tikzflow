@@ -1335,3 +1335,71 @@ button.tf-preview-state.busy {
   text-align: left;
   cursor: pointer;
 }
+
+/* The page panel and the width guide (D71). */
+.tf-page-panel {
+  position: fixed;
+  z-index: 40;
+  width: min(440px, 92vw);
+  max-height: 80vh;
+  overflow: auto;
+  padding: 8px 14px 12px;
+  background: var(--panel);
+  color: var(--fg, inherit);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+  font-size: 13px;
+}
+.tf-page-panel .head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.tf-page-panel h3 {
+  margin: 4px 0;
+  font-size: 14px;
+}
+.tf-page-panel h4 {
+  margin: 10px 0 4px;
+  font-size: 13px;
+}
+.tf-page-panel textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+}
+.tf-page-panel ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.tf-page-panel p {
+  margin: 4px 0;
+}
+.tf-page-panel .note {
+  color: var(--muted);
+}
+.tf-page-panel .bad {
+  color: #b91c1c;
+}
+.tf-page-panel input.bad {
+  border-color: #b91c1c;
+}
+.tf-page-panel .choices {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 4px 0;
+}
+.tf-width-guide {
+  stroke: #2563eb;
+  fill: #2563eb;
+}
+.tf-width-guide line {
+  fill: none;
+}
+.tf-width-guide.over {
+  stroke: #dc2626;
+  fill: #dc2626;
+}

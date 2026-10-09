@@ -10,6 +10,7 @@ import { Palette } from "./palette.tsx";
 import { editorExtensions } from "./editor.ts";
 import { SAMPLE } from "./sample.ts";
 import { offlineState } from "./offline.ts";
+import { PageButton } from "./pagepanel.tsx";
 import { startPreview } from "./preview.ts";
 import { PreviewStatus, PreviewToggle, TexBanner } from "./previewstatus.tsx";
 import {
@@ -266,6 +267,7 @@ function Toolbar() {
         </label>
       )}
       <PreviewToggle />
+      <PageButton />
       <button onClick={() => fitRequests.value++} title="Fit the picture to the canvas">
         Fit
       </button>

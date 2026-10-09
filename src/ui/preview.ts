@@ -5,12 +5,13 @@
 
 import { computed, effect, signal } from "@preact/signals";
 import { EngineClient, type EngineState } from "../engine/client.ts";
-import { buildCompileInput, type CompileInput, sourceLine } from "../engine/input.ts";
+import { buildCompileInput, type CompileInput, locate } from "../engine/input.ts";
 import type { TexError } from "../engine/log.ts";
 import type { CompileOutcome } from "../engine/protocol.ts";
 import { engineBase } from "../engine/release.ts";
 import type { Range } from "../model/syntax.ts";
 import { prefetchEngine } from "./offline.ts";
+import { importedPreamble } from "./page.ts";
 import { currentPicture, doc, overrides, previewLayout, revealInCode, text } from "./store.ts";
 
 /** "accurate": TeX's picture when it is ready; "quick": the native drawing only. Kept per viewer. */
@@ -64,13 +65,18 @@ export const showingCompiled = computed(() => !!freshCompiled.value?.outcome.svg
 /** A TeX error with the line of the user's code it happened on, if it was in the user's code. */
 export interface PreviewError extends TexError {
   sourceLine: number | null;
+  /** The line of the imported preamble (D71) it happened on, if it was there. */
+  preambleLine: number | null;
 }
 
 /** Errors of the latest compile, mapped to the source (they may be of an older version of the code). */
 export const previewErrors = computed<PreviewError[]>(() => {
   const c = compiled.value;
   if (!c || previewMode.value !== "accurate") return [];
-  return c.outcome.errors.map((e) => ({ ...e, sourceLine: e.file === "input.tex" && e.line !== null ? sourceLine(c.input, e.line) : null }));
+  return c.outcome.errors.map((e) => {
+    const at = e.file === "input.tex" && e.line !== null ? locate(c.input, e.line) : null;
+    return { ...e, sourceLine: at?.in === "code" ? at.line : null, preambleLine: at?.in === "preamble" ? at.line : null };
+  });
 });
 
 /**
@@ -155,7 +161,7 @@ export function startPreview(base = engineBase(new URLSearchParams(location.sear
     if (!c || !available || previewMode.peek() !== "accurate") return;
     const t = text.peek();
     const picture = currentPicture.peek();
-    const input = buildCompileInput(doc.peek(), picture, (f) => available!.has(f));
+    const input = buildCompileInput(doc.peek(), picture, (f) => available!.has(f), importedPreamble.peek());
     if (!input) {
       compiling.value = false;
       return;
@@ -186,6 +192,7 @@ export function startPreview(base = engineBase(new URLSearchParams(location.sear
   const stop = effect(() => {
     void text.value;
     void currentPicture.value;
+    void importedPreamble.value;
     if (previewMode.value !== "accurate") return;
     selectedBlock.value = null;
     compiling.value = true;

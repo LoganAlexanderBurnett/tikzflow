@@ -46,6 +46,8 @@ export function PreviewStatus() {
                       <button class="link" onClick={() => showPreviewError(e)}>
                         Line {e.sourceLine}
                       </button>
+                    ) : e.preambleLine !== null ? (
+                      <span class="where">In the imported preamble, line {e.preambleLine}</span>
                     ) : (
                       <span class="where">{e.file && e.file !== "input.tex" ? `In ${e.file}` : "In the preview's setup"}</span>
                     )}

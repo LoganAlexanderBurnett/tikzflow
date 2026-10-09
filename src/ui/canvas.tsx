@@ -29,6 +29,7 @@ import { PT_PER_UNIT } from "../tikz/units.ts";
 import type { Shading } from "../tikz/state.ts";
 import { katexMacros, labelHtml } from "./labelHtml.ts";
 import { CompiledPicture } from "./compiled.tsx";
+import { WidthGuide } from "./pagepanel.tsx";
 import { labelFix, LabelFixMenu, LabelWarnings } from "./labelwarning.tsx";
 import { pickBlock, selectedBlock, showingCompiled } from "./preview.ts";
 import {
@@ -1585,6 +1586,7 @@ export function Canvas() {
       data-testid="canvas"
     >
       <defs>{gradients}</defs>
+      {l && <WidthGuide cx={(l.bounds.minX + l.bounds.maxX) / 2} y0={-v.cy - h / 2 / v.scale} y1={-v.cy + h / 2 / v.scale} scale={v.scale} />}
       <CompiledPicture scale={v.scale} />
       {/* With TeX's picture shown, the native drawing stays only to answer the pointer (D68). */}
       <g class={`tf-native${showingCompiled.value ? " ghost" : ""}`} data-testid="native-drawing">

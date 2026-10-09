@@ -8,7 +8,7 @@ import { gunzipSync } from "node:zlib";
 import { beforeAll, describe, expect, it } from "vitest";
 import { dviFonts, dviToSvg } from "../src/engine/dvisvg.ts";
 import type { FontData } from "../src/engine/fontdata.ts";
-import { buildCompileInput, sourceLine } from "../src/engine/input.ts";
+import { buildCompileInput, locate, sourceLine } from "../src/engine/input.ts";
 import { parseTexLog } from "../src/engine/log.ts";
 import type { EngineIndex } from "../src/engine/protocol.ts";
 import { PAGES, runTex } from "../src/engine/texlib.ts";
@@ -34,8 +34,8 @@ describe.skipIf(!have)(`the engine (${tag})`, () => {
     memory = new WebAssembly.Memory({ initial: PAGES, maximum: PAGES });
   });
 
-  async function compile(text: string) {
-    const input = buildCompileInput(analyzeDocument(text), 0, (f) => files.has(f))!;
+  async function compile(text: string, imported: string | null = null) {
+    const input = buildCompileInput(analyzeDocument(text), 0, (f) => files.has(f), imported)!;
     new Uint8Array(memory.buffer).set(dump);
     const run = await runTex(module, memory, {
       terminal: "input.tex\n\\end\n",
@@ -94,6 +94,22 @@ describe.skipIf(!have)(`the engine (${tag})`, () => {
     expect(r.input.unavailable).toEqual(["nosuchpackage"]);
     expect(r.errors).toEqual([]);
     expect(r.svg!.glyphs).toBe(1);
+  });
+
+  it("uses an imported preamble for a bare picture, and puts its errors on its own lines (D71)", async () => {
+    const bare = "\\begin{tikzpicture}\n\\node[draw] (a) {\\state{A}\\ B};\n\\end{tikzpicture}\n";
+    const imported = "\\documentclass[11pt]{article}\n\\usepackage{amsmath}\n\\newcommand{\\state}[1]{\\textbf{#1}}\n\\begin{document}\n\\end{document}\n";
+    const r = await compile(bare, imported);
+    expect(r.errors).toEqual([]);
+    expect(r.run.read).toContain("amsmath.sty");
+    expect(r.svg!.glyphs).toBe(2);
+    // Without it the macro is undefined, in the code's own line.
+    const without = await compile(bare);
+    expect(without.errors.map((e) => e.message)).toEqual(["Undefined control sequence."]);
+    // A fault in the imported text is placed there.
+    const broken = await compile(bare, "\\newcommand{\\state}[1]{\\textbf{#1}}\n\\nosuchcommand\n");
+    const e = broken.errors.find((x) => x.message === "Undefined control sequence.")!;
+    expect(locate(broken.input, e.line!)).toEqual({ in: "preamble", line: 2 });
   });
 
   it("marks a locked block's output", async () => {

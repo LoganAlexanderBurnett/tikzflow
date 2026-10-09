@@ -14,6 +14,8 @@ export interface LineSegment {
   inputLine: number;
   sourceLine: number;
   lines: number;
+  /** The lines come from the imported preamble (D71), not from the code. */
+  in?: "preamble";
 }
 
 export interface CompileInput {
@@ -77,9 +79,10 @@ const USEPACKAGE = /\\(?:usepackage|RequirePackage)\s*(\[[^\]]*\])?\s*\{([^}]*)\
 
 /**
  * Builds input.tex for picture `index` of `doc`. `available(name)` says
- * whether the engine has a file (`foo.sty`).
+ * whether the engine has a file (`foo.sty`). `imported` is the preamble of
+ * the paper the figure goes in (D71): used when the code has no preamble of its own.
  */
-export function buildCompileInput(doc: DocumentModel, index: number, available: (file: string) => boolean): CompileInput | null {
+export function buildCompileInput(doc: DocumentModel, index: number, available: (file: string) => boolean, imported: string | null = null): CompileInput | null {
   const pic = doc.syntax.pictures[index];
   if (!pic) return null;
   const text = doc.text;
@@ -93,10 +96,10 @@ export function buildCompileInput(doc: DocumentModel, index: number, available: 
     parts.push(s);
     line += countLines(s) - 1;
   };
-  /** Copies source text [from, to) on fresh lines, recording where it came from. */
-  const copy = (from: number, to: number, body = text.slice(from, to)) => {
+  /** Copies `src`[from, to) on fresh lines, recording where it came from. */
+  const copy = (src: string, from: number, to: number, body = src.slice(from, to), where?: "preamble") => {
     emit("\n");
-    segments.push({ inputLine: line, sourceLine: lineOf(text, from), lines: countLines(body.replace(/\n$/, "")) });
+    segments.push({ inputLine: line, sourceLine: lineOf(src, from), lines: countLines(body.replace(/\n$/, "")), ...(where ? { in: where } : {}) });
     emit(body);
     emit("\n");
   };
@@ -104,24 +107,26 @@ export function buildCompileInput(doc: DocumentModel, index: number, available: 
   // Errors don't stop TeX: it carries on and the log says what went wrong (D15 item 5).
   emit("\\scrollmode\\errorcontextlines=5\\relax");
 
-  const cls = /\\documentclass\s*(?:\[([^\]]*)\])?\s*\{([^}]*)\}/.exec(text);
-  const begin = cls ? text.indexOf("\\begin{document}", cls.index) : -1;
-  if (cls && begin > cls.index && begin < pic.from) {
-    const size = /\b(11|12)pt\b/.exec(cls[1] ?? "")?.[1];
-    if (size) {
-      emit("\n\\makeatletter");
-      for (const [cmd, s, b] of SIZES[size]!) emit(`\\renewcommand\\${cmd}{\\@setfontsize\\${cmd}{${s}}{${b}}}`);
-      emit("\\makeatother\\normalsize");
+  /**
+   * A preamble: the class's font sizes, then the text before \begin{document} (from the line after
+   * \documentclass), verbatim, with unusable packages taken out of their \usepackage lines.
+   */
+  const usePreamble = (src: string, cls: RegExpExecArray | null, begin: number, where?: "preamble") => {
+    if (cls) {
+      const size = /\b(11|12)pt\b/.exec(cls[1] ?? "")?.[1];
+      if (size) {
+        emit("\n\\makeatletter");
+        for (const [cmd, s, b] of SIZES[size]!) emit(`\\renewcommand\\${cmd}{\\@setfontsize\\${cmd}{${s}}{${b}}}`);
+        emit("\\makeatother\\normalsize");
+      }
+      if (cls[2]!.trim() === "beamer") {
+        beamer = true;
+        emit("\n\\renewcommand\\familydefault{\\sfdefault}\\normalfont");
+      }
     }
-    if (cls[2]!.trim() === "beamer") {
-      beamer = true;
-      emit("\n\\renewcommand\\familydefault{\\sfdefault}\\normalfont");
-    }
-    // The preamble, verbatim from the line after \documentclass, with unusable
-    // packages taken out of their \usepackage lines.
-    const eol = text.indexOf("\n", cls.index + cls[0].length);
-    const from = eol < 0 || eol > begin ? begin : eol + 1;
-    const preamble = text.slice(from, begin).replace(USEPACKAGE, (all, opts: string | undefined, list: string) => {
+    const eol = cls ? src.indexOf("\n", cls.index + cls[0].length) : -1;
+    const from = !cls ? 0 : eol < 0 || eol > begin ? begin : eol + 1;
+    const preamble = src.slice(from, begin).replace(USEPACKAGE, (all, opts: string | undefined, list: string) => {
       const names = list.split(",").map((s) => s.trim()).filter(Boolean);
       const keep = names.filter((n) => {
         if (BUILT_IN.has(n)) return true;
@@ -143,7 +148,18 @@ export function buildCompileInput(doc: DocumentModel, index: number, available: 
       const blank = all.replace(/[^\n]/g, "");
       return keep.length ? `\\usepackage${opts ?? ""}{${keep.join(",")}}${blank}` : `\\relax${blank}`;
     });
-    copy(from, begin, preamble);
+    copy(src, from, begin, preamble, where);
+  };
+
+  const CLASS = /\\documentclass\s*(?:\[([^\]]*)\])?\s*\{([^}]*)\}/;
+  const cls = CLASS.exec(text);
+  const begin = cls ? text.indexOf("\\begin{document}", cls.index) : -1;
+  if (cls && begin > cls.index && begin < pic.from) usePreamble(text, cls, begin);
+  else if (imported?.trim()) {
+    // A bare picture, with the preamble of the paper it goes in (D71): treated the same, kept apart from the code.
+    const icls = CLASS.exec(imported);
+    const ibegin = imported.indexOf("\\begin{document}", icls?.index ?? 0);
+    usePreamble(imported, icls, ibegin < 0 ? imported.length : ibegin, "preamble");
   }
 
   // Definitions outside the picture and outside the preamble (a bare picture's \tikzset, or a body's \definecolor).
@@ -151,12 +167,12 @@ export function buildCompileInput(doc: DocumentModel, index: number, available: 
   for (const item of doc.syntax.preamble) {
     if (item.range.from >= pic.from) break;
     if (item.range.from < preambleEnd) continue;
-    copy(item.range.from, item.range.to);
+    copy(text, item.range.from, item.range.to);
   }
 
   emit("\n\\begin{document}");
   const { body, blocks } = markBlocks(text, pic);
-  copy(pic.from, pic.to, body);
+  copy(text, pic.from, pic.to, body);
   emit("\\end{document}\n");
   return { tex: parts.join(""), segments, unavailable, fontPackages, blocks, beamer };
 }
@@ -181,10 +197,16 @@ function markBlocks(text: string, pic: PictureSyntax): { body: string; blocks: M
   return { body: body + text.slice(at, pic.to), blocks };
 }
 
-/** The source line of input.tex's line `inputLine`, or null for a line the preview added. */
+/** The line of the code that input.tex's line `inputLine` was copied from, or null for a line the preview added or one from the imported preamble. */
 export function sourceLine(input: Pick<CompileInput, "segments">, inputLine: number): number | null {
+  const at = locate(input, inputLine);
+  return at?.in === "code" ? at.line : null;
+}
+
+/** Where input.tex's line `inputLine` came from: the code, or a line of the imported preamble. */
+export function locate(input: Pick<CompileInput, "segments">, inputLine: number): { in: "code" | "preamble"; line: number } | null {
   for (const s of input.segments) {
-    if (inputLine >= s.inputLine && inputLine < s.inputLine + s.lines) return s.sourceLine + inputLine - s.inputLine;
+    if (inputLine >= s.inputLine && inputLine < s.inputLine + s.lines) return { in: s.in ?? "code", line: s.sourceLine + inputLine - s.inputLine };
   }
   return null;
 }
