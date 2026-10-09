@@ -1337,7 +1337,8 @@ button.tf-preview-state.busy {
 }
 
 /* The page panel and the width guide (D71). */
-.tf-page-panel {
+.tf-page-panel,
+.tf-export-panel {
   position: fixed;
   z-index: 40;
   width: min(440px, 92vw);
@@ -1402,4 +1403,54 @@ button.tf-preview-state.busy {
 .tf-width-guide.over {
   stroke: #dc2626;
   fill: #dc2626;
+}
+
+.tf-export-panel {
+  width: min(400px, 92vw);
+}
+.tf-export-panel .head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.tf-export-panel h3 {
+  margin: 4px 0;
+  font-size: 14px;
+}
+.tf-export-panel h4 {
+  margin: 10px 0 4px;
+  font-size: 13px;
+}
+.tf-export-panel p {
+  margin: 4px 0;
+}
+.tf-export-panel .note {
+  color: var(--muted);
+}
+.tf-export-panel .row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0;
+  flex-wrap: wrap;
+}
+.tf-export-panel .what {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+}
+.tf-export-panel .bad {
+  color: #b91c1c;
+  border-color: #b91c1c;
+}
+.tf-export-panel .status {
+  min-height: 1.4em;
+  margin-top: 10px;
+}
+.tf-export-panel .status.warn {
+  color: #92400e;
+}
+.tf-export-panel .status.error {
+  color: #b91c1c;
 }

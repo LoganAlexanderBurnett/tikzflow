@@ -137,6 +137,33 @@ export function pickBlock(id: string): void {
 }
 
 let client: EngineClient | null = null;
+
+/**
+ * TeX's picture of the code as it is now, for exporting: the compile on the canvas if it is of this code,
+ * else a fresh one (also when the TeX preview is switched off). Gives the reason when there is none.
+ */
+export async function compileForExport(): Promise<Compiled | { error: string }> {
+  const c = client;
+  if (!c) return { error: "The TeX engine isn't running." };
+  let index;
+  try {
+    index = await c.ready();
+  } catch {
+    return { error: "The TeX engine isn't available here (npm run fetch-engines -- engine), so there is no TeX picture to export." };
+  }
+  const t = text.peek();
+  const picture = currentPicture.peek();
+  const have = compiled.peek();
+  if (have && have.text === t && have.picture === picture && have.outcome.svg) return have;
+  const available = new Set(index.texFiles);
+  const input = buildCompileInput(doc.peek(), picture, (f) => available.has(f), importedPreamble.peek());
+  if (!input) return { error: "There is no picture to export." };
+  const outcome = await c.compile(input.tex);
+  if (!outcome) return { error: "The code changed while TeX was compiling. Try again." };
+  const result: Compiled = { text: t, picture, input, outcome };
+  if (!outcome.svg) return { error: outcome.aborted ? "TeX gave up before it drew the picture." : "TeX didn't draw anything for this picture." };
+  return result;
+}
 const DEBOUNCE_MS = 250;
 
 /** Starts the engine and compiles the code whenever it settles. Returns a function that stops it. */

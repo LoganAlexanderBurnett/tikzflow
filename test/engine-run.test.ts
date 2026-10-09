@@ -12,6 +12,7 @@ import { buildCompileInput, locate, sourceLine } from "../src/engine/input.ts";
 import { parseTexLog } from "../src/engine/log.ts";
 import type { EngineIndex } from "../src/engine/protocol.ts";
 import { PAGES, runTex } from "../src/engine/texlib.ts";
+import { standaloneTex } from "../src/export/tex.ts";
 import { analyzeDocument } from "../src/model/document.ts";
 
 const tag = process.env.TIKZFLOW_ENGINE ?? (JSON.parse(readFileSync(join(import.meta.dirname, "..", "engine", "release.json"), "utf8")) as { tag: string }).tag;
@@ -119,6 +120,18 @@ describe.skipIf(!have)(`the engine (${tag})`, () => {
     // The node is a column (221 pt) of text plus its inner separation on each side.
     const [x0, , x1] = r.svg!.picture!.tikz;
     expect(x1 - x0).toBeCloseTo(221 + 2 * 3.3333 + 0.4, 0);
+  });
+
+  it("compiles the standalone export of a picture, which draws what the picture did (D72)", async () => {
+    const bare = "\\usetikzlibrary{positioning}\n\\tikzset{box/.style={draw}}\n\\begin{tikzpicture}\n\\node[box] (a) {\\state{A}};\n\\node[box, right=of a] (b) {B};\n\\end{tikzpicture}\n";
+    const imported = "\\documentclass{article}\n\\newcommand{\\state}[1]{\\textbf{#1}}\n";
+    const direct = await compile(bare, imported);
+    const exported = standaloneTex(analyzeDocument(bare), 0, imported)!;
+    const again = await compile(exported.text);
+    expect(direct.errors).toEqual([]);
+    expect(again.errors).toEqual([]);
+    expect(again.svg!.glyphs).toBe(direct.svg!.glyphs);
+    expect(again.svg!.picture!.tikz).toEqual(direct.svg!.picture!.tikz);
   });
 
   it("marks a locked block's output", async () => {

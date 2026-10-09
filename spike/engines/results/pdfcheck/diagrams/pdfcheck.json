@@ -1,0 +1,358 @@
+{
+  "set": "diagrams",
+  "browser": "msedge 154.0.4258.62",
+  "date": "2026-10-09T18:01:44.782Z",
+  "results": [
+    {
+      "name": "01-fills",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          241,
+          68.7
+        ],
+        "testSizePt": [
+          241,
+          69
+        ],
+        "offsetPt": [
+          0,
+          -0.3
+        ],
+        "inkPixels": 68047,
+        "missing": 245,
+        "extra": 121,
+        "color": 0,
+        "mismatchPct": 0.5
+      },
+      "warnings": [],
+      "pdfBytes": 2679,
+      "svgBytes": 7638,
+      "ms": 3.8
+    },
+    {
+      "name": "02-line-styles",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          229.3,
+          91.7
+        ],
+        "testSizePt": [
+          229.3,
+          91.7
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 26621,
+        "missing": 23,
+        "extra": 507,
+        "color": 0,
+        "mismatchPct": 2
+      },
+      "warnings": [],
+      "pdfBytes": 933,
+      "svgBytes": 2242,
+      "ms": 1.1
+    },
+    {
+      "name": "03-opacity",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          190,
+          99
+        ],
+        "testSizePt": [
+          190,
+          98.7
+        ],
+        "offsetPt": [
+          0.3,
+          0
+        ],
+        "inkPixels": 82542,
+        "missing": 76,
+        "extra": 0,
+        "color": 15,
+        "mismatchPct": 0.1
+      },
+      "warnings": [],
+      "pdfBytes": 3545,
+      "svgBytes": 8865,
+      "ms": 2.3
+    },
+    {
+      "name": "04-arrow-tips",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          227,
+          70
+        ],
+        "testSizePt": [
+          227,
+          70
+        ],
+        "offsetPt": [
+          0,
+          -0.3
+        ],
+        "inkPixels": 17947,
+        "missing": 26,
+        "extra": 9,
+        "color": 0,
+        "mismatchPct": 0.2
+      },
+      "warnings": [],
+      "pdfBytes": 1429,
+      "svgBytes": 5555,
+      "ms": 1.5
+    },
+    {
+      "name": "05-fit-backgrounds",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          200,
+          70.7
+        ],
+        "testSizePt": [
+          200,
+          70.3
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 44937,
+        "missing": 16,
+        "extra": 7,
+        "color": 0,
+        "mismatchPct": 0.1
+      },
+      "warnings": [],
+      "pdfBytes": 3824,
+      "svgBytes": 12209,
+      "ms": 2.2
+    },
+    {
+      "name": "06-clipping",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          232.7,
+          57
+        ],
+        "testSizePt": [
+          232.7,
+          56.7
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 53529,
+        "missing": 19,
+        "extra": 0,
+        "color": 1,
+        "mismatchPct": 0
+      },
+      "warnings": [],
+      "pdfBytes": 2150,
+      "svgBytes": 6436,
+      "ms": 1.5
+    },
+    {
+      "name": "07-rounded-corners",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          227.3,
+          122.7
+        ],
+        "testSizePt": [
+          227.3,
+          122.7
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 73238,
+        "missing": 0,
+        "extra": 1,
+        "color": 0,
+        "mismatchPct": 0
+      },
+      "warnings": [],
+      "pdfBytes": 3600,
+      "svgBytes": 11380,
+      "ms": 2
+    },
+    {
+      "name": "08-node-shapes",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          230.3,
+          143
+        ],
+        "testSizePt": [
+          230,
+          143
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 37280,
+        "missing": 0,
+        "extra": 0,
+        "color": 0,
+        "mismatchPct": 0
+      },
+      "warnings": [],
+      "pdfBytes": 5053,
+      "svgBytes": 17478,
+      "ms": 2.8
+    },
+    {
+      "name": "09-matrix",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          146.7,
+          46
+        ],
+        "testSizePt": [
+          146.7,
+          46
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 19361,
+        "missing": 0,
+        "extra": 0,
+        "color": 0,
+        "mismatchPct": 0
+      },
+      "warnings": [],
+      "pdfBytes": 3016,
+      "svgBytes": 10759,
+      "ms": 1.9
+    },
+    {
+      "name": "10-flowchart",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          171.3,
+          195
+        ],
+        "testSizePt": [
+          171.3,
+          195
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 88084,
+        "missing": 6,
+        "extra": 14,
+        "color": 0,
+        "mismatchPct": 0
+      },
+      "warnings": [],
+      "pdfBytes": 4857,
+      "svgBytes": 16328,
+      "ms": 2.5
+    },
+    {
+      "name": "11-text-and-math",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          181.3,
+          176.3
+        ],
+        "testSizePt": [
+          181.3,
+          176.3
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 45874,
+        "missing": 366,
+        "extra": 337,
+        "color": 0,
+        "mismatchPct": 1.5
+      },
+      "warnings": [],
+      "pdfBytes": 13755,
+      "svgBytes": 40585,
+      "ms": 4.8
+    },
+    {
+      "name": "12-transforms",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          228,
+          116.7
+        ],
+        "testSizePt": [
+          227.7,
+          116.7
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 23423,
+        "missing": 0,
+        "extra": 0,
+        "color": 0,
+        "mismatchPct": 0
+      },
+      "warnings": [],
+      "pdfBytes": 3161,
+      "svgBytes": 9434,
+      "ms": 1.8
+    },
+    {
+      "name": "13-curves-and-nesting",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          202.7,
+          85.7
+        ],
+        "testSizePt": [
+          202.7,
+          85.3
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 21256,
+        "missing": 66,
+        "extra": 26,
+        "color": 0,
+        "mismatchPct": 0.4
+      },
+      "warnings": [],
+      "pdfBytes": 2611,
+      "svgBytes": 3411,
+      "ms": 1.7
+    }
+  ]
+}

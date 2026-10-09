@@ -12,7 +12,7 @@ Milestone 0 is done and was approved on 2026-10-07:
 
 **Milestone 2b (edges): done and approved (2026-10-08).** The owner tested all of it, and the fixes of D57, by hand. Their answers are in DECISIONS.md D58 and "M2b review" below. SPEC.md's revisions log now covers D53–D58.
 
-**Milestone 3 (accurate preview and export): in progress on the `m3-engine-ci` branch.** Step 1, the CI feasibility check (D15, D59), passed and the owner approved it (D60). Steps 2–5, the four fixes from the M2b review (D58 items 4–7), are done (D61–D64). The owner's decision on step 4's limit is D65. Steps 6–8 are done (D66–D68): the TeX preview works in the app; see "M3 steps 6–8" below. Step 9 is next. The owner's standing answers:
+**Milestone 3 (accurate preview and export): in progress on the `m3-engine-ci` branch.** Step 1, the CI feasibility check (D15, D59), passed and the owner approved it (D60). Steps 2–5, the four fixes from the M2b review (D58 items 4–7), are done (D61–D64). The owner's decision on step 4's limit is D65. Steps 6–8 are done (D66–D68): the TeX preview works in the app; see "M3 steps 6–8" below. Steps 9–11 are done (D70–D72, with D69's fixes): offline use, the page, and export; see "M3 steps 9–11" below. Step 12 is next. The owner's standing answers:
 - `gh` is logged in with a token for this repo only (Contents, Actions, Workflows: read/write). Report any missing permission instead of working around it.
 - Engine files are published as GitHub Releases and fetched by hash. The TL2026 Docker image is pinned by digest.
 - Push the `m3-engine-ci` branch when needed. Show the download list before CI downloads anything new.
@@ -31,12 +31,46 @@ Also read "Notes for later milestones" below.
 | 6 | Our own driver from `pgfsys-dvisvgm.def`; ~~`dvi2html` adapted~~ our own DVI-to-SVG converter (D66, a departure to review); boxes, bp units | Done |
 | 7 | Our worker and files: missing-package warning, bytes, caching, `\scrollmode`, log, error lines, packages, `_headers`, `.gz` serving, fetch the release by hash | Done (D67) |
 | 8 | Accurate preview in the app; locked blocks drawn and selectable; errors; font notice; minimum stroke; label marker (D65) | Done (D68) |
-| 9 | Service worker, offline | Not started |
-| 10 | Importing the preamble, column-width guide | Not started |
-| 11 | Export: `.tex`, snippet, SVG, PNG, PDF | Not started |
+| 9 | Service worker, offline | Done (D70) |
+| 10 | Importing the preamble, column-width guide | Done (D71) |
+| 11 | Export: `.tex`, snippet, SVG, PNG, PDF | Done (D72) |
 | 12 | Save and open: IndexedDB autosave, File System Access API, fallback | Not started |
 | 13 | Share links in the URL hash | Not started |
 | 14 | End-to-end tests, goldens, docs, report, push, Cloudflare Pages checks | Not started |
+
+## M3 steps 9–11: offline, the page, export (2026-10-09)
+Done in one go on `m3-engine-ci`, as the owner asked, with a commit after each step. The owner's answers on steps 6–8 and two bugs from their testing are in too (D69). No new engine release was published: the pinned one is still `engine-2026-10-09`. Old releases are untouched.
+
+### How to try it
+`npm run dev`, open http://localhost:5173. (Offline use only exists in a built app: see the last item.)
+- **Banner over a TeX picture with errors (D69).** Write `{\oops B}` in a node's text: a banner says "LaTeX found 1 error and would stop at the first; this picture shows what it drew anyway", with **Show the first error** and **Show the quick preview** (this visit only; the toolbar's TeX preview box brings TeX's picture back).
+- **Beamer note (D69).** Paste a document with `\documentclass{beamer}`: the bar says "TeX preview: notes".
+- **Page (step 10, D71).** Toolbar **Page**. Paste a paper's preamble, say `\documentclass[twocolumn,a4paper]{article}`: it lists what it says about the width (column 221 pt, text 452 pt), and the canvas shows two dashed lines one column apart, centred on the figure, red with "the figure is N mm too wide" when it doesn't fit. Try a bare picture using `\state{A}` with `\newcommand{\state}[1]{\mathbf{#1}}` in the preamble: TeX's picture needs the import. A full document's own preamble is used when the code has one. A typed width ("3.4in") works with no preamble.
+- **Export (step 11, D72).** Toolbar **Export**: standalone `.tex`, snippet (Download or Copy), and SVG, PDF and PNG of TeX's picture (margin, 72–600 dpi, transparent). Open the PDF and SVG in any viewer.
+- **Offline (step 9, D70).** `npm run build`, `npx vite preview`, open the app, wait for "Works offline" in the toolbar (about 7 MB of the engine is fetched in the background), then switch the network off and reload. Or `npm run test:offline`.
+
+### What works
+- **Step 9, offline (D70).** A service worker (`src/sw/sw.ts`, compiled by a Vite plugin) caches the app whole at install and the engine's files as they are fetched; the rest of the engine is fetched in the background after the first picture, so after one visit every package and font is there. Pages load network-first (4 s) so a deploy shows on the next load. Caches of old builds and old engine tags are deleted. Only in production builds.
+- **Step 10, the page (D71).** Imported preamble for the TeX preview (errors placed on its lines), page widths worked out like TeX does for article, report, book, Beamer, geometry and `\setlength` (`src/tikz/page.ts`), the guide, and the TeX preview getting the same `\textwidth`/`\columnwidth` (so `text width=\columnwidth` is a column wide).
+- **Step 11, export (D72).** The two `.tex` forms, and SVG, PDF and PNG from TeX's drawing. The PDF converter is ours: against pdf.js's drawing of the PDF, the 13 comparison diagrams and 25 corpus pictures differ from the SVG by 0–2% of ink pixels (`npm run pdfcheck`).
+- **Fixes (D69).** The banner; the Beamer note; a new node never lands on another node: the search for a free spot now steps by the node's own size and tries 24 places, and a last check refuses a result exactly on another node.
+
+### Tests
+- **Vitest:** 992 tests in 33 files (was 932 in 29). New: `test/page.test.ts` (16), `test/svg2pdf.test.ts` (15), `test/export.test.ts` (13), `test/create-overlap.test.ts` (7), imported-preamble and page-length cases in `test/engine-input.test.ts` and `test/engine-run.test.ts` (the standalone export compiled by TeX gives the same picture).
+- **Playwright:** 117 tests in Edge (was 101), all passing: `test/e2e/page.spec.ts` (6), `test/e2e/export.spec.ts` (8), banner and Beamer cases in `preview.spec.ts` (2). Plus `npm run test:offline`: 3 tests against a production build (not part of `npm run test:e2e`).
+- `npm run typecheck` and `npm run build` pass; `npm run pdfcheck` (diagrams and corpus) is above.
+
+### Decisions for you
+1. **The background fetch of the whole engine (D70).** After the first visit the app fetches the other ~7 MB of the engine so that every package works offline, not only those the first visit used. The alternative is lazy only (a package not used on the first visit would fail offline). It is one call, `prefetchEngine`, in `startPreview`. Keep?
+2. **Classes whose width is unknown (D71).** Page widths are worked out for article, report, book and Beamer; for IEEEtran, acmart, revtex and the like the panel says it doesn't know and asks for a typed width. I would rather show nothing than a guess. Do you want presets for particular classes (give me the ones you use)?
+3. **Quick preview and `\textwidth` (D71).** The quick preview still reads `\textwidth` and `\columnwidth` inside the picture as 345 pt; the TeX preview now uses the page's values. Fixing it means passing the page through the interpreter. Worth doing in this milestone?
+4. **The Enter-sibling bug (D69).** I couldn't reproduce stacking with the current code (the seven `right=6mm of latent` nodes are in `corpus/self-hybrid-surrogate.tex` as committed with the M1 review, before Tab and Enter existed). I fixed what I found (a search that ran out and jumped in oversized steps) and added a last check. If you still see stacking, tell me the exact steps (which node was selected, what was typed).
+
+### Known limits
+- **PDF:** `<image>`, patterns, filters and masks aren't converted (the engine can't produce them anyway); group opacity is applied to each shape. One picture per file.
+- **Export of a figure whose TeX run had errors** shows what TeX drew; the status says so.
+- **Imported preamble:** styles and macros defined only there aren't known to the quick preview or the editing tools (D71).
+- **Service worker:** Cloudflare Pages behaviour (headers, `.gz`) is untested until step 14. Updates show on the next load, not live.
 
 ## M3 steps 6–8: the TeX preview (2026-10-09)
 Done in one go on `m3-engine-ci`, as the owner asked, with commits along the way. The owner's decision on step 4's limit (D65) is in too: dragging a corner, curve handle, segment or end converts overlapping label sides like a form change; moving a node doesn't, and a marker shows instead.
