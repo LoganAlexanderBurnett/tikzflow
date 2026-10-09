@@ -184,15 +184,18 @@ function planAutoSide(text: string, picIndex: number, layout: PictureLayout, lab
 }
 
 /**
- * After an edit that changes the form of an edge (Straight, Orthogonal,
- * Curved, D58 item 6): a label written `above`, `left` and so on that the new
- * line cuts through, and that the old line didn't, gets `auto` or `auto, swap`
- * instead, on the side it was on, by the same rule as sliding a label (D57).
- * Labels are matched to their old selves by their text in the code. Returns
- * `outcome` (made from `text`) with the fixes added to its changes, in one set
- * against `text`; a refused outcome is returned as it is.
+ * After an edit that changes the line of one edge: its form (Straight,
+ * Orthogonal, Curved, D58 item 6), or a drag of one of its corners, curve
+ * handles, segments or ends (D65): a label written `above`, `left` and so on
+ * that the new line cuts through, and that the old line didn't, gets `auto` or
+ * `auto, swap` instead, on the side it was on, by the same rule as sliding a
+ * label (D57). Labels are matched to their old selves by their text in the
+ * code. Returns `outcome` (made from `text`) with the fixes added to its
+ * changes, in one set against `text`; a refused outcome is returned as it is.
+ * Only labels of the edited edge are looked at: moving a node never rewrites
+ * labels (D65).
  */
-export function fixLabelSides(text: string, picIndex: number, edgeId: string, outcome: EditOutcome): EditOutcome {
+export function fixLabelSides<T extends EditOutcome>(text: string, picIndex: number, edgeId: string, outcome: T): T {
   if (!outcome.ok) return outcome;
   const layout0 = layoutDocumentPicture(analyzeDocument(text), picIndex);
   const edge0 = layout0 && findEdge(layout0, edgeId);
@@ -221,7 +224,7 @@ export function fixLabelSides(text: string, picIndex: number, edgeId: string, ou
     const [from, to] = fix.written.split(" → ");
     notes.push(`wrote the label ${words} as ${to} instead of ${from}, so it stays beside the line`);
   }
-  return { ...outcome, changes, text: cur, layout, notes };
+  return { ...outcome, changes, text: cur, layout, notes } as T;
 }
 
 /** A label's text in a few words, for messages. */

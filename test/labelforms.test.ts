@@ -1,10 +1,11 @@
 // Milestone 3 step 4 (D58 item 6, D63): changing an edge's form (Straight,
-// Orthogonal, Curved) turns a label side key that the new line cuts through
+// Orthogonal, Curved), or dragging part of it (D65), turns a label side key that the new line cuts through
 // into `auto`, by the same rule as sliding a label (D57).
 import { describe, expect, it } from "vitest";
 import { applyChanges } from "../src/edit/changes.ts";
 import { planMakeCurved } from "../src/edit/curves.ts";
-import { labelGeometry } from "../src/edit/labels.ts";
+import { planEnd, planWaypoint } from "../src/edit/edges.ts";
+import { fixLabelSides, labelGeometry } from "../src/edit/labels.ts";
 import { planMakeOrthogonal } from "../src/edit/orthogonal.ts";
 import { planStraighten } from "../src/edit/vertices.ts";
 import { analyzeDocument, layoutDocumentPicture } from "../src/model/document.ts";
@@ -139,5 +140,40 @@ describe("every corpus edge", () => {
       }
     }
     expect(checked).toBeGreaterThan(20);
+  });
+});
+
+// D65: dragging a corner, a curve handle, a segment or an end edits that edge,
+// so its labels get the same treatment, in the same edit. Moving a node does not.
+describe("dragging part of the edge (D65)", () => {
+  const CM = 28.452756;
+
+  it("puts a label beside the line when a moved corner turns its segment", () => {
+    const text = pic(WIDE, "\\draw (a) -- node[pos=0.5, above] {x} (4,0) -- (b);");
+    const edge = edgesOf(text)[0]!;
+    const r = fixLabelSides(text, 0, edge.id, planWaypoint(text, 0, edge.id, 1, { x: 0, y: -3 * CM }));
+    if (!r.ok) throw new Error(r.reason);
+    expect(applyChanges(text, r.changes)).toBe(r.text);
+    expect(statements(r.text)[0]).toContain("node[pos=0.5, auto] {x}");
+    expect(r.notes.join(" ")).toContain('wrote the label "x" as auto instead of above');
+    const e2 = pictureEdges(r.layout)[0]!;
+    expect(labelGeometry(e2, e2.labels[0]!)!.overlap).toBeLessThan(1.5);
+  });
+
+  it("does it when an end is moved to another node", () => {
+    const text = pic(`${WIDE}\n\\node[draw] (c) at (0,-4) {C};`, "\\draw (a) -- node[pos=0.5, above] {x} (b);");
+    const edge = edgesOf(text)[0]!;
+    const r = fixLabelSides(text, 0, edge.id, planEnd(text, 0, edge.id, "to", { node: "c" }));
+    if (!r.ok) throw new Error(r.reason);
+    expect(statements(r.text)).toEqual(["\\draw (a) -- node[pos=0.5, auto] {x} (c);"]);
+  });
+
+  it("leaves a label alone when the drag keeps it beside the line", () => {
+    const text = pic(WIDE, "\\draw (a) -- node[pos=0.5, above] {x} (4,0) -- (b);");
+    const edge = edgesOf(text)[0]!;
+    const r = fixLabelSides(text, 0, edge.id, planWaypoint(text, 0, edge.id, 1, { x: 4 * CM, y: 1 * CM }));
+    if (!r.ok) throw new Error(r.reason);
+    expect(statements(r.text)[0]).toContain("node[pos=0.5, above] {x}");
+    expect(r.notes).toEqual([]);
   });
 });

@@ -15,7 +15,7 @@ import { END_ANCHORS, endBlocker, type EndTarget, planWaypoint, snapWaypoint } f
 import { type CurveHandle, curveForm, curveMiddle, curveSegments, planCurve } from "../edit/curves.ts";
 import { orthoPolyline, planSlide, snapSlide } from "../edit/orthogonal.ts";
 import { edgeOpBlocker } from "../edit/edgeop.ts";
-import { planSlideLabel, slideBlocker } from "../edit/labels.ts";
+import { fixLabelSides, planSlideLabel, slideBlocker } from "../edit/labels.ts";
 import { edgeVertices, isEdgeOperation, planAddVertex } from "../edit/vertices.ts";
 import { EdgeMenu, type EdgeMenuAt } from "./edgemenu.tsx";
 import { pictureEnv } from "../model/document.ts";
@@ -41,6 +41,7 @@ import {
   connectNodes,
   createFromKeyboard,
   deleteSelection,
+  alsoNotes,
   moveEnd,
   previewEnd,
   dropFromPalette,
@@ -681,7 +682,7 @@ interface SlideDrag {
   origin: number;
   moved: boolean;
   key: string;
-  last: { changes: Change[]; text: string; layout: PictureLayout } | null;
+  last: { changes: Change[]; text: string; layout: PictureLayout; notes: readonly string[] } | null;
 }
 
 /** Sliding a label along its edge. */
@@ -708,7 +709,7 @@ interface ControlDrag {
   origin: Point;
   moved: boolean;
   key: string;
-  last: { changes: Change[]; text: string; layout: PictureLayout } | null;
+  last: { changes: Change[]; text: string; layout: PictureLayout; notes: readonly string[] } | null;
 }
 
 /** Drawing a new edge from a node's connection handle. */
@@ -1105,10 +1106,15 @@ export function Canvas() {
     const key = `${Math.round(snapped.point.x / MM_PT)}|${Math.round(snapped.point.y / MM_PT)}|${snapped.guides.length}`;
     if (key === d.key) return;
     d.key = key;
-    const r =
+    // A label the new line would cut through goes beside it, in the same edit (D65).
+    const r = fixLabelSides(
+      text.value,
+      currentPicture.value,
+      d.edgeId,
       d.stop !== null
         ? planWaypoint(text.value, currentPicture.value, d.edgeId, d.stop, snapped.point)
-        : planAddVertex(text.value, currentPicture.value, d.edgeId, d.seg!, snapped.point);
+        : planAddVertex(text.value, currentPicture.value, d.edgeId, d.seg!, snapped.point),
+    );
     if (!r.ok) {
       d.last = null;
       previewLayout.value = null;
@@ -1136,14 +1142,14 @@ export function Canvas() {
     const key = `${Math.round(snapped.value / MM_PT)}|${snapped.guides.length}`;
     if (key === d.key) return;
     d.key = key;
-    const r = planSlide(text.value, currentPicture.value, d.edgeId, d.piece, snapped.value);
+    const r = fixLabelSides(text.value, currentPicture.value, d.edgeId, planSlide(text.value, currentPicture.value, d.edgeId, d.piece, snapped.value));
     if (!r.ok) {
       d.last = null;
       previewLayout.value = null;
       status.value = r.reason;
       return;
     }
-    d.last = { changes: r.changes, text: r.text, layout: r.layout };
+    d.last = { changes: r.changes, text: r.text, layout: r.layout, notes: r.notes };
     previewLayout.value = r.layout;
     status.value = `Release to write ${edgeCode(r.text, r.layout, d.edgeId)}`;
   };
@@ -1179,14 +1185,14 @@ export function Canvas() {
     const key = `${Math.round(at.x / MM_PT)}|${Math.round(at.y / MM_PT)}|${e.altKey}`;
     if (key === d.key) return;
     d.key = key;
-    const r = planCurve(text.value, currentPicture.value, d.edgeId, d.seg, d.handle, at, !e.altKey);
+    const r = fixLabelSides(text.value, currentPicture.value, d.edgeId, planCurve(text.value, currentPicture.value, d.edgeId, d.seg, d.handle, at, !e.altKey));
     if (!r.ok) {
       d.last = null;
       previewLayout.value = null;
       status.value = r.reason;
       return;
     }
-    d.last = { changes: r.changes, text: r.text, layout: r.layout };
+    d.last = { changes: r.changes, text: r.text, layout: r.layout, notes: r.notes };
     previewLayout.value = r.layout;
     status.value = `Release to write ${edgeCode(r.text, r.layout, d.edgeId)}`;
   };
@@ -1293,19 +1299,19 @@ export function Canvas() {
     if (d.kind === "slide") {
       previewLayout.value = null;
       guides.value = { lines: [], gaps: [] };
-      if (d.moved && d.last) applyEdgeEdit(d.last.changes, "input.edge.slide", `Slid the segment: ${edgeCode(d.last.text, d.last.layout, d.edgeId)}`);
+      if (d.moved && d.last) applyEdgeEdit(d.last.changes, "input.edge.slide", `Slid the segment: ${edgeCode(d.last.text, d.last.layout, d.edgeId)}${alsoNotes(d.last.notes)}`);
       return;
     }
     if (d.kind === "control") {
       previewLayout.value = null;
-      if (d.moved && d.last) applyEdgeEdit(d.last.changes, "input.edge.curve", `Reshaped the curve: ${edgeCode(d.last.text, d.last.layout, d.edgeId)}`);
+      if (d.moved && d.last) applyEdgeEdit(d.last.changes, "input.edge.curve", `Reshaped the curve: ${edgeCode(d.last.text, d.last.layout, d.edgeId)}${alsoNotes(d.last.notes)}`);
       return;
     }
     if (d.kind === "vertex") {
       previewLayout.value = null;
       guides.value = { lines: [], gaps: [] };
       if (!d.moved) return;
-      if (d.last) applyEdgeEdit(d.last.changes, "input.edge.vertex", `${cornerMessage(d.last.layout, d.last.edgeId ?? d.edgeId, d.last.stop, d.stop !== null ? "Moved" : "Added")}${d.last.notes.map((n) => ` Also ${n}.`).join("")}`, d.last.edgeId);
+      if (d.last) applyEdgeEdit(d.last.changes, "input.edge.vertex", `${cornerMessage(d.last.layout, d.last.edgeId ?? d.edgeId, d.last.stop, d.stop !== null ? "Moved" : "Added")}${alsoNotes(d.last.notes)}`, d.last.edgeId);
       return;
     }
     if (d.kind === "connect") {

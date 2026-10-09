@@ -11,7 +11,7 @@ import { planMakeCurved } from "../edit/curves.ts";
 import { planMakeOrthogonal } from "../edit/orthogonal.ts";
 import { planSplit } from "../edit/split.ts";
 import { planAddVertex, planRemoveVertex, planStraighten } from "../edit/vertices.ts";
-import { planAddLabel, planFlipLabel } from "../edit/labels.ts";
+import { fixLabelSides, planAddLabel, planFlipLabel } from "../edit/labels.ts";
 import { type DeleteTarget, planDelete } from "../edit/delete.ts";
 import { type EdgeEdit, type EdgeScope, planEdgeProperty, planSplitAndApply } from "../edit/edgeprops.ts";
 import { draftOf, labelBlocker, labelledNode, labelProblem, planLabelEdit } from "../edit/label.ts";
@@ -730,16 +730,26 @@ export function previewEnd(edgeId: string, which: "from" | "to", target: EndTarg
     previewLayout.value = null;
     return null;
   }
-  const r = planEnd(text.value, currentPicture.value, edgeId, which, target);
+  const r = planEndWithLabels(edgeId, which, target);
   previewLayout.value = r.ok ? r.layout : null;
   return r.ok ? null : r.reason;
+}
+
+/** An end moved, with labels the new line would cut through put beside it in the same edit (D65). */
+function planEndWithLabels(edgeId: string, which: "from" | "to", target: EndTarget) {
+  return fixLabelSides(text.value, currentPicture.value, edgeId, planEnd(text.value, currentPicture.value, edgeId, which, target));
+}
+
+/** " Also …." for each note of an edit, for the status bar. */
+export function alsoNotes(notes: readonly string[]): string {
+  return notes.map((n) => ` Also ${n}.`).join("");
 }
 
 /** Attaches an end of edge `edgeId` to `target` (another anchor, the border, or another node), as one undoable step. */
 export function moveEnd(edgeId: string, which: "from" | "to", target: EndTarget): boolean {
   previewLayout.value = null;
   const edge = edges.value.find((e) => e.id === edgeId);
-  const r = planEnd(text.value, currentPicture.value, edgeId, which, target);
+  const r = planEndWithLabels(edgeId, which, target);
   if (!r.ok) {
     status.value = r.reason;
     return false;
@@ -748,7 +758,7 @@ export function moveEnd(edgeId: string, which: "from" | "to", target: EndTarget)
   const name = targetName(target);
   const what = which === "from" ? "start" : "end";
   const done = other && other !== target.node ? `Reconnected the ${what} to ${name}.` : `Moved the ${what} to ${name}.`;
-  applyEdgeEdit(r.changes, "input.edge.end", `${done}${r.notes.map((n) => ` Also ${n}.`).join("")}`, r.edgeId);
+  applyEdgeEdit(r.changes, "input.edge.end", `${done}${alsoNotes(r.notes)}`, r.edgeId);
   return true;
 }
 
@@ -794,23 +804,23 @@ export function cornerMessage(l: PictureLayout, edgeId: string, stop: number, ve
 
 /** "Add vertex here": a corner on segment `seg` of the edge at `p`. */
 export function addVertex(edgeId: string, seg: number, p: Point): boolean {
-  const r = planAddVertex(text.value, currentPicture.value, edgeId, seg, p);
+  const r = fixLabelSides(text.value, currentPicture.value, edgeId, planAddVertex(text.value, currentPicture.value, edgeId, seg, p));
   if (!r.ok) {
     status.value = r.reason;
     return false;
   }
-  applyEdgeEdit(r.changes, "input.edge.vertex", `${cornerMessage(r.layout, r.edgeId ?? edgeId, r.stop, "Added")}${r.notes.map((n) => ` Also ${n}.`).join("")}`, r.edgeId);
+  applyEdgeEdit(r.changes, "input.edge.vertex", `${cornerMessage(r.layout, r.edgeId ?? edgeId, r.stop, "Added")}${alsoNotes(r.notes)}`, r.edgeId);
   return true;
 }
 
 /** "Remove vertex", or a double-click on a corner. */
 export function removeVertex(edgeId: string, stop: number): boolean {
-  const r = planRemoveVertex(text.value, currentPicture.value, edgeId, stop);
+  const r = fixLabelSides(text.value, currentPicture.value, edgeId, planRemoveVertex(text.value, currentPicture.value, edgeId, stop));
   if (!r.ok) {
     status.value = r.reason;
     return false;
   }
-  applyEdgeEdit(r.changes, "input.edge.vertex", "Removed the corner.");
+  applyEdgeEdit(r.changes, "input.edge.vertex", `Removed the corner.${alsoNotes(r.notes)}`);
   return true;
 }
 

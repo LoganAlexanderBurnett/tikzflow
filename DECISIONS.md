@@ -869,3 +869,10 @@ Items 4–7 are scheduled as small steps early in Milestone 3, right after the e
 - Still refused, with the reason: labels placed relative to a node (`above=of c`), labels of locked edges, and labels the layout can't place along a segment.
 
 **Why:** The owner's answer (D58 item 7): the edit the user evidently wants, instead of a refusal. A label on the line is the case where a person most needs it beside the line.
+
+## D65: Owner's decision on the limit of step 4: drags of an edge, not node moves (2026-10-09)
+**Decision:** The owner's answer to D63's known limit (form changes only):
+1. **Dragging a corner or a curve handle edits that edge,** so the label side-key conversion of D63 applies there too, in the same undo step. Implemented by passing the planned edit through `fixLabelSides` (now generic over the outcome type) at the call sites: corner drags and ghost-handle drags (`planWaypoint`, `planAddVertex`), curve handles (`planCurve`), and, by the same reasoning (each edits one edge's line), sliding an orthogonal segment (`planSlide`), moving an end (`planEnd`, also from the anchor menu) and Remove vertex. The live preview while dragging shows the converted label, and the status bar names it as for form changes. The planners themselves stay pure: Delete also calls `planWaypoint` to rewrite corners, and that is not a drag of the edge.
+2. **Moving a node must not rewrite labels on other edges.** Instead, a subtle warning marker shows on any label whose line cuts through it, with a one-click fix (Flip / `auto`). Scheduled for step 8, with the preview work.
+
+**Why:** The owner's decision. A drag of an edge is an edit of that edge, so it should leave the edge's labels readable, like a form change. A node move edits a node, and silently rewriting the labels of every edge attached to it would be a surprise; a marker tells the user and lets them choose.
