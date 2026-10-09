@@ -29,7 +29,8 @@
     "golden:review": "node scripts/golden-review.ts",
     "dvicheck": "node scripts/dvicheck.ts",
     "pdfcheck": "node scripts/pdfcheck.ts",
-    "check:dist": "node scripts/check-dist.ts"
+    "check:dist": "node scripts/check-dist.ts",
+    "build:pages": "npm run fetch-engines -- engine && npm run build && npm run check:dist"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",
