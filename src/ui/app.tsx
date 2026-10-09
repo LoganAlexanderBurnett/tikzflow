@@ -209,8 +209,8 @@ function OfflineNote() {
   const s = offlineState.value;
   if (s.kind === "none") return null;
   return (
-    <span class="tf-offline" data-testid="offline-state" title="The app and the TeX engine are kept in this browser, so they work without a connection. Nothing leaves your computer.">
-      {s.kind === "ready" ? "Works offline" : `Saving for offline: ${Math.round((100 * s.done) / s.total)}%`}
+    <span class="tf-offline" data-testid="offline-state" title={s.kind === "saving-data" ? "This connection is metered or saving data, so the TeX engine's packages and fonts are kept only as pictures use them, not all at once. Nothing leaves your computer." : "The app and the TeX engine are kept in this browser, so they work without a connection. Nothing leaves your computer."}>
+      {s.kind === "ready" ? "Works offline" : s.kind === "saving-data" ? "Offline: kept as used" : `Saving for offline: ${Math.round((100 * s.done) / s.total)}%`}
     </span>
   );
 }

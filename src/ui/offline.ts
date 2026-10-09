@@ -7,7 +7,9 @@ import { signal } from "@preact/signals";
 import type { EngineIndex } from "../engine/protocol.ts";
 
 /** What the toolbar says about offline use: nothing, how far the background fetch is, or done. */
-export type OfflineState = { kind: "none" } | { kind: "preparing"; done: number; total: number } | { kind: "ready" };
+export type OfflineState = { kind: "none" } | { kind: "preparing"; done: number; total: number } | { kind: "ready" }
+  /** A data-saving or metered connection: only the files a picture uses are kept (D73). */
+  | { kind: "saving-data" };
 export const offlineState = signal<OfflineState>({ kind: "none" });
 
 /** Registers the service worker. Does nothing in development, where it would get in the way of hot reloads. */
@@ -19,6 +21,22 @@ export function registerServiceWorker(): void {
 }
 
 const CONCURRENCY = 4;
+
+interface NetworkInformation {
+  saveData?: boolean;
+  type?: string;
+  effectiveType?: string;
+}
+
+/**
+ * Whether the connection says the whole engine should not be fetched in the background (D73): the
+ * browser reports data saving, a cellular connection (the closest thing the Network Information API
+ * has to "metered"), or a very slow one. Lazy fetching on use still works.
+ */
+export function skipBackgroundFetch(connection: NetworkInformation | undefined): boolean {
+  if (!connection) return false;
+  return connection.saveData === true || connection.type === "cellular" || connection.effectiveType === "slow-2g" || connection.effectiveType === "2g";
+}
 /** Wait before starting, so the first picture and the app's own requests come first. */
 const START_DELAY_MS = 2000;
 
@@ -27,13 +45,15 @@ let started = false;
 /**
  * Fetches every file of the engine at `base` that isn't cached yet (the
  * service worker stores what passes through it), a few at a time and at low
- * priority. Skipped when the browser asks for less data use, or when there is
- * no service worker to keep the files.
+ * priority. Skipped on a data-saving, metered or very slow connection (the owner's
+ * answer, D73), or when there is no service worker to keep the files.
  */
 export async function prefetchEngine(base: string, index: EngineIndex): Promise<void> {
   if (started || !import.meta.env.PROD || !("serviceWorker" in navigator)) return;
-  const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
-  if (connection?.saveData) return;
+  if (skipBackgroundFetch((navigator as Navigator & { connection?: NetworkInformation }).connection)) {
+    offlineState.value = { kind: "saving-data" };
+    return;
+  }
   started = true;
   try {
     await navigator.serviceWorker.ready;

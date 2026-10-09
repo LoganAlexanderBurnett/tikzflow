@@ -30,6 +30,7 @@ import type { Encoding } from "../source/encoding.ts";
 import type { LaidOutNode, LaidOutPath, PictureLayout } from "../tikz/layout.ts";
 import type { Point } from "../tikz/shapes.ts";
 import { fromCanvas, setHighlight, setOpaque } from "./editor.ts";
+import { pageSettings } from "./pagesettings.ts";
 
 /** What the pointer or the cursor is on: a node, an edge, or a path that has no edges the editor models. */
 export type Hit = { kind: "node"; id: string } | { kind: "edge"; id: string } | { kind: "path"; id: string };
@@ -59,7 +60,11 @@ export const pictureCount = computed(() => doc.value.syntax.pictures.length);
 export const currentPicture = computed(() => Math.min(pictureIndex.value, Math.max(0, pictureCount.value - 1)));
 
 /** The layout as the text describes it. */
-export const baseLayout = computed<PictureLayout | null>(() => layoutDocumentPicture(doc.value, currentPicture.value));
+export const baseLayout = computed<PictureLayout | null>(() => {
+  // The page the figure goes on sets what \textwidth means (D73): a change of settings draws it again.
+  void pageSettings.value;
+  return layoutDocumentPicture(doc.value, currentPicture.value);
+});
 
 /** The picture as it would be laid out with the resize or creation in progress applied. */
 export const previewLayout = signal<PictureLayout | null>(null);
@@ -70,6 +75,7 @@ export const layout = computed<PictureLayout | null>(() => {
   if (preview) return preview;
   const o = overrides.value;
   if (!o.size) return baseLayout.value;
+  void pageSettings.value;
   return layoutDocumentPicture(doc.value, currentPicture.value, o);
 });
 

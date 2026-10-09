@@ -7,7 +7,7 @@
 // beamer). For any other class the widths are unknown until the file sets them
 // or the user types one. Every width says where it came from.
 
-import { evalLength, PT_PER_UNIT } from "./units.ts";
+import { DEFAULT_PAGE, evalLength, type PageLengths, PT_PER_UNIT } from "./units.ts";
 
 export interface PageGeometry {
   /** The document class, if the preamble has a \documentclass line. */
@@ -125,8 +125,55 @@ export function describeWidth(pt: number): string {
   return `${trim1(pt)} pt (${trim1(pt / PT_PER_UNIT.mm!)} mm, ${Math.round((pt / PT_PER_UNIT.in!) * 100) / 100} in)`;
 }
 
-/** Reads the page widths a preamble implies. `preamble` may be a whole document: only what comes before \begin{document} counts. */
-export function pageGeometry(source: string): PageGeometry {
+/** Widths the user typed (D73); they win over whatever the preamble says. */
+export interface WidthOverride {
+  textWidth?: number | null;
+  columnWidth?: number | null;
+}
+
+/** What the Page panel holds: the imported preamble and the typed widths. */
+export interface PageSettings extends WidthOverride {
+  imported: string;
+}
+
+export const NO_PAGE_SETTINGS: PageSettings = { imported: "", textWidth: null, columnWidth: null };
+
+/** The preamble of a document that has one before the picture at `picFrom` (a \documentclass … \begin{document}), or null. */
+export function ownPreamble(text: string, picFrom: number): string | null {
+  const cls = /\\documentclass/.exec(text);
+  const begin = cls ? text.indexOf("\\begin{document}", cls.index) : -1;
+  return cls && begin > cls.index && begin < picFrom ? text.slice(0, begin) : null;
+}
+
+/**
+ * What the page is for a picture: the preamble in use (the code's own, else the imported one) with the
+ * typed widths over it. Null when there is no preamble and no typed width. The one place the quick
+ * preview, the width guide and the TeX preview all take their widths from (D73).
+ */
+export function effectivePage(own: string | null, settings: PageSettings): PageGeometry | null {
+  const source = own ?? (settings.imported.trim() ? settings.imported : null);
+  const typed = settings.textWidth != null || settings.columnWidth != null;
+  if (source === null && !typed) return null;
+  // Every planner builds an environment, so the last answer is kept.
+  if (last && last.source === source && last.text === settings.textWidth && last.column === settings.columnWidth) return last.page;
+  const page = pageGeometry(source ?? "", settings);
+  last = { source, text: settings.textWidth, column: settings.columnWidth, page };
+  return page;
+}
+let last: { source: string | null; text: number | null | undefined; column: number | null | undefined; page: PageGeometry } | null = null;
+
+/** The lengths a picture sees on this page: what is known, else article's (the class the preview substitutes). */
+export function pageLengths(g: PageGeometry | null): PageLengths {
+  if (!g) return DEFAULT_PAGE;
+  const textWidth = g.textWidth ?? g.columnWidth ?? DEFAULT_PAGE.textWidth;
+  return { textWidth, columnWidth: g.columnWidth ?? textWidth, paperWidth: g.paperWidth ?? DEFAULT_PAGE.paperWidth };
+}
+
+/**
+ * Reads the page widths a preamble implies. `preamble` may be a whole document: only what comes before
+ * \begin{document} counts. `typed` widths come last and win.
+ */
+export function pageGeometry(source: string, typed: WidthOverride = {}): PageGeometry {
   const end = source.indexOf("\\begin{document}");
   const s = stripComments(end < 0 ? source : source.slice(0, end));
   const g: PageGeometry = { documentClass: null, paperWidth: null, textWidth: null, columnWidth: null, columns: 1, notes: [], estimated: true };
@@ -250,6 +297,18 @@ export function pageGeometry(source: string): PageGeometry {
     const v = evalValue(f.value);
     if (v !== null) set(f.name, v, f.add, f.text);
     else g.notes.push(`${f.text} couldn't be read, so it is ignored`);
+  }
+
+  // Widths the user typed: they win (D73).
+  if (typed.textWidth != null) {
+    g.textWidth = typed.textWidth;
+    g.estimated = false;
+    g.notes.push(`You typed a text width of ${describeWidth(typed.textWidth)}`);
+  }
+  if (typed.columnWidth != null) {
+    explicitColumn = typed.columnWidth;
+    g.estimated = false;
+    g.notes.push(`You typed a column width of ${describeWidth(typed.columnWidth)}`);
   }
 
   // The column: the whole text on one column, what two columns leave on two.

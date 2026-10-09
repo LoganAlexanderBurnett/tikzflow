@@ -4,11 +4,11 @@
 // of the code in the code pane.
 
 import { computed, signal } from "@preact/signals";
-import { type PageGeometry, pageGeometry } from "../tikz/page.ts";
+import { effectivePage, ownPreamble, type PageGeometry } from "../tikz/page.ts";
 import { evalLength } from "../tikz/units.ts";
+import { importedPreamble, pageSettings } from "./pagesettings.ts";
 import { baseLayout, currentPicture, doc, text } from "./store.ts";
 
-const PREAMBLE_KEY = "tikzflow.preamble";
 const GUIDE_KEY = "tikzflow.guide";
 
 function read(key: string): string | null {
@@ -27,12 +27,7 @@ function write(key: string, value: string): void {
   }
 }
 
-/** The preamble of the paper, as pasted. Used when the code has no preamble of its own. */
-export const importedPreamble = signal(read(PREAMBLE_KEY) ?? "");
-export function setImportedPreamble(t: string): void {
-  importedPreamble.value = t;
-  write(PREAMBLE_KEY, t);
-}
+export { importedPreamble, setImportedPreamble } from "./pagesettings.ts";
 
 export type GuideWidth = "column" | "text" | "custom";
 interface GuideSettings {
@@ -61,19 +56,15 @@ export function setGuide(patch: Partial<GuideSettings>): void {
 
 /** The preamble the page widths and the TeX preview use: the code's own when it has one, else the imported one. */
 export const pagePreamble = computed<{ text: string; from: "code" | "imported" } | null>(() => {
-  const t = text.value;
   const pic = doc.value.syntax.pictures[currentPicture.value];
-  const cls = /\\documentclass/.exec(t);
-  const begin = cls ? t.indexOf("\\begin{document}", cls.index) : -1;
-  if (cls && begin > cls.index && (!pic || begin < pic.from)) return { text: t.slice(0, begin), from: "code" };
+  const own = ownPreamble(text.value, pic ? pic.from : Infinity);
+  if (own !== null) return { text: own, from: "code" };
   const imported = importedPreamble.value;
   return imported.trim() ? { text: imported, from: "imported" } : null;
 });
 
-export const pageInfo = computed<PageGeometry | null>(() => {
-  const p = pagePreamble.value;
-  return p ? pageGeometry(p.text) : null;
-});
+/** What the page is for the current picture: the preamble in use with the typed widths over it (D73). */
+export const pageInfo = computed<PageGeometry | null>(() => effectivePage(pagePreamble.value?.from === "code" ? pagePreamble.value.text : null, pageSettings.value));
 
 /** The width the guide shows, pt, and what it is called; null when there is none or it is off. */
 export const guide = computed<{ width: number; name: string } | null>(() => {

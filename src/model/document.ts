@@ -7,6 +7,7 @@ import { ColorTable } from "../tikz/colors.ts";
 import { builtinStyles } from "../tikz/keys.ts";
 import { type LayoutEnv, layoutPicture, type PictureLayout } from "../tikz/layout.ts";
 import type { KeyValue } from "../tikz/options.ts";
+import { effectivePage, NO_PAGE_SETTINGS, ownPreamble, type PageSettings, pageLengths } from "../tikz/page.ts";
 import { fontSizes, type SizeTable } from "../tikz/state.ts";
 import type { Point } from "../tikz/shapes.ts";
 import { type DocumentSyntax, documentSyntax, type PictureSyntax, type Range } from "./syntax.ts";
@@ -37,6 +38,20 @@ export function analyzeDocument(text: string): DocumentModel {
     },
   });
   return { text, tree, syntax: documentSyntax(tree, text), errorCount: errors.length, errors };
+}
+
+/**
+ * The viewer's page settings (the imported preamble and typed widths, D73), read by pictureEnv for
+ * pictures whose code has no preamble of its own. Module state, like the page lengths of units.ts: the
+ * planners that check their edits by drawing build their environments here, and must see the same page
+ * as the canvas. The UI sets it whenever the Page panel changes.
+ */
+let pageSettings: PageSettings = NO_PAGE_SETTINGS;
+export function setPageSettings(p: PageSettings): void {
+  pageSettings = p;
+}
+export function getPageSettings(): PageSettings {
+  return pageSettings;
 }
 
 /** Styles, colours, macros and settings defined before `pic`. */
@@ -71,6 +86,8 @@ export function pictureEnv(doc: DocumentModel, pic: PictureSyntax): LayoutEnv {
   const env: LayoutEnv = { styles, colors, macros, settings, font: classFont(before) };
   // Only a document with a preamble says which libraries it loads.
   if (/\\documentclass|\\usetikzlibrary/.test(before)) env.libraries = librariesBefore(doc, pic);
+  const page = effectivePage(ownPreamble(doc.text, pic.from), pageSettings);
+  if (page) env.page = pageLengths(page);
   return env;
 }
 

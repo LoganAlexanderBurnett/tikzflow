@@ -34,16 +34,47 @@ export interface Quantity {
 
 type Token = { kind: "num"; value: number; unit?: string } | { kind: "op"; op: string };
 
+/** The page's lengths, pt (D73): what \textwidth, \columnwidth, \linewidth and \paperwidth are in the picture. */
+export interface PageLengths {
+  textWidth: number;
+  columnWidth: number;
+  paperWidth: number;
+}
+
+/** Article, 10pt, A4: what a picture with no preamble, or one that says nothing about its page, gets. */
+export const DEFAULT_PAGE: PageLengths = { textWidth: 345, columnWidth: 345, paperWidth: 597.50787 };
+
+/**
+ * The page the lengths below refer to. The layout sets it from the document it draws (layoutPicture), so
+ * the quick preview, the planners that check their edits by drawing, and the TeX preview all read
+ * \textwidth the same way. Module state because evalLength is called from everywhere; one document is
+ * drawn at a time and every drawing sets it first.
+ */
+let page: PageLengths = DEFAULT_PAGE;
+export function setPageLengths(p: PageLengths | null): void {
+  page = p ?? DEFAULT_PAGE;
+}
+
 /** Macros whose value is a known length. */
-const KNOWN_LENGTHS: Record<string, number> = {
-  "\\pgflinewidth": 0.4,
-  "\\baselineskip": 12,
-  "\\textwidth": 345,
-  "\\linewidth": 345,
-  "\\columnwidth": 345,
-  "\\paperwidth": 597.50787,
-  "\\fill": 0,
-};
+function knownLength(name: string): number | undefined {
+  switch (name) {
+    case "\\pgflinewidth":
+      return 0.4;
+    case "\\baselineskip":
+      return 12;
+    case "\\textwidth":
+      return page.textWidth;
+    case "\\linewidth":
+    case "\\columnwidth":
+      return page.columnWidth;
+    case "\\paperwidth":
+      return page.paperWidth;
+    case "\\fill":
+      return 0;
+    default:
+      return undefined;
+  }
+}
 
 function tokenize(s: string, font: FontUnits): Token[] | null {
   const out: Token[] = [];
@@ -71,8 +102,9 @@ function tokenize(s: string, font: FontUnits): Token[] | null {
       } else {
         // A length macro right after a number multiplies it: "0.5\pgflinewidth".
         const cs = /^\s*(\\[a-zA-Z]+)/.exec(rest);
-        if (cs && cs[1]! in KNOWN_LENGTHS) {
-          out.push(t, { kind: "op", op: "*" }, { kind: "num", value: KNOWN_LENGTHS[cs[1]!]!, unit: "pt" });
+        const known = cs ? knownLength(cs[1]!) : undefined;
+        if (cs && known !== undefined) {
+          out.push(t, { kind: "op", op: "*" }, { kind: "num", value: known, unit: "pt" });
           i += cs[0].length;
           continue;
         }
@@ -85,8 +117,9 @@ function tokenize(s: string, font: FontUnits): Token[] | null {
       i += cs[0].length;
       continue;
     }
-    if (cs && cs[0] in KNOWN_LENGTHS) {
-      out.push({ kind: "num", value: KNOWN_LENGTHS[cs[0]]!, unit: "pt" });
+    const known = cs ? knownLength(cs[0]) : undefined;
+    if (cs && known !== undefined) {
+      out.push({ kind: "num", value: known, unit: "pt" });
       i += cs[0].length;
       continue;
     }
