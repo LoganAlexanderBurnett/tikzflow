@@ -266,6 +266,21 @@ function swiftlatexTexlive(): Plugin {
   };
 }
 
+/** The headers of the `/*` block of public/_headers (D75), so `vite preview` serves what Cloudflare Pages will. */
+function pageHeaders(): Record<string, string> {
+  const out: Record<string, string> = {};
+  let inBlock = false;
+  for (const line of readFileSync(join(import.meta.dirname, "public", "_headers"), "utf8").split(/\r?\n/)) {
+    if (!line.trim() || line.startsWith("#")) continue;
+    if (!/^\s/.test(line)) inBlock = line.trim() === "/*";
+    else if (inBlock) {
+      const i = line.indexOf(":");
+      out[line.slice(0, i).trim()] = line.slice(i + 1).trim();
+    }
+  }
+  return out;
+}
+
 export default defineConfig({
   plugins: [rawVendor(), engineFiles(), serviceWorker(), swiftlatexTexlive()],
   oxc: { jsx: { runtime: "automatic", importSource: "preact" } },
@@ -277,6 +292,7 @@ export default defineConfig({
       "Cross-Origin-Embedder-Policy": "require-corp",
     },
   },
+  preview: { headers: pageHeaders() },
   test: {
     include: ["spike/**/*.test.ts", "src/**/*.test.ts", "test/**/*.test.ts"],
   },

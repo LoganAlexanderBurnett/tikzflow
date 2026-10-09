@@ -1,8 +1,22 @@
-# Cloudflare Pages response headers (D67).
+# Cloudflare Pages response headers (D67, D75).
+#
+# Every page: the app is client-side only (CLAUDE.md), so the browser is told to refuse anything but
+# this site's own files: no script, style, font, image, request or worker from another host, and no
+# frames or forms. 'wasm-unsafe-eval' lets the TeX engine's WebAssembly compile; blob: and data:
+# cover the exports (SVG, PNG, PDF) and the engine worker. `vite preview` (and so
+# `npm run test:offline`) sends the same headers, read from this file by vite.config.ts.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' blob: data:; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+
+# The service worker is checked for a new version on every visit.
+/sw.js
+  Cache-Control: no-cache
+
 # The engine's files live under /engine/<release tag>/, so a new release has
 # new URLs and the old files can be cached for good. The worker reads the
 # .gz files itself and also accepts them already inflated, so it doesn't
 # matter whether a server adds Content-Encoding to them.
 /engine/*
   Cache-Control: public, max-age=31536000, immutable
-  X-Content-Type-Options: nosniff
