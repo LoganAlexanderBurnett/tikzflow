@@ -39,7 +39,7 @@ Also read "Notes for later milestones" below.
 | 14 | End-to-end tests, goldens, docs, report, push, Cloudflare Pages checks | Done (D75) |
 
 ## Milestone 3 report: accurate preview and export (2026-10-09)
-All of Milestone 3 is done on `m3-engine-ci` and merged into `trunk` (D60). This section covers the last stretch: the owner's answers to the step 9–11 questions (D73), and steps 12–14 (D74, D75). Steps 1–11 are reported below, in "M3 steps 9–11", "M3 steps 6–8", "M3 steps 2–5" and "M3 step 1".
+All of Milestone 3 is done on `m3-engine-ci` and merged into `trunk` (merge commit 35a8d3d, pushed; D60). The engine workflow's trigger now watches `trunk`, and both workflows passed on that push (the engine build and the page-widths measurement, each pulling the pinned image through `mirror.gcr.io`). This section covers the last stretch: the owner's answers to the step 9–11 questions (D73), and steps 12–14 (D74, D75). Steps 1–11 are reported below, in "M3 steps 9–11", "M3 steps 6–8", "M3 steps 2–5" and "M3 step 1".
 
 ### How to try it
 `npm run fetch-engines -- engine` once (10.8 MB from this repo's release, checked by hash), then `npm run dev`, open http://localhost:5173.
