@@ -9,6 +9,7 @@ import { Inspector } from "./inspector.tsx";
 import { Palette } from "./palette.tsx";
 import { editorExtensions } from "./editor.ts";
 import { SAMPLE } from "./sample.ts";
+import { offlineState } from "./offline.ts";
 import { startPreview } from "./preview.ts";
 import { PreviewStatus, PreviewToggle, TexBanner } from "./previewstatus.tsx";
 import {
@@ -201,6 +202,17 @@ function Summary() {
   );
 }
 
+/** Says when the app is being saved for offline use, and when it is. */
+function OfflineNote() {
+  const s = offlineState.value;
+  if (s.kind === "none") return null;
+  return (
+    <span class="tf-offline" data-testid="offline-state" title="The app and the TeX engine are kept in this browser, so they work without a connection. Nothing leaves your computer.">
+      {s.kind === "ready" ? "Works offline" : `Saving for offline: ${Math.round((100 * s.done) / s.total)}%`}
+    </span>
+  );
+}
+
 function Toolbar() {
   const input = useRef<HTMLInputElement>(null);
   const count = pictureCount.value;
@@ -257,6 +269,7 @@ function Toolbar() {
       <button onClick={() => fitRequests.value++} title="Fit the picture to the canvas">
         Fit
       </button>
+      <OfflineNote />
       <span class="file">{fileName.value ?? ""}</span>
     </header>
   );

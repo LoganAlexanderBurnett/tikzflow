@@ -1,7 +1,8 @@
 import { cpSync, createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { extname, join, normalize, sep } from "node:path";
 import { gzipSync } from "node:zlib";
-import type { Plugin } from "vite";
+import { type Plugin, transformWithOxc } from "vite";
 import { defineConfig } from "vitest/config";
 
 const vendorRoot = join(import.meta.dirname, "vendor");
@@ -153,6 +154,41 @@ function engineFiles(): Plugin {
   };
 }
 
+/**
+ * The service worker (D70): src/sw/sw.ts compiled to dist/sw.js with the list
+ * of the build's own files (everything but the engine, which the worker caches
+ * as it is fetched), a version made from their contents, and the engine's tag.
+ */
+function serviceWorker(): Plugin {
+  let outDir = "dist";
+  let building = false;
+  const files = (dir: string, prefix = ""): string[] =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? files(join(dir, e.name), `${prefix}${e.name}/`) : [`${prefix}${e.name}`]));
+  return {
+    name: "tikzflow-service-worker",
+    apply: "build",
+    configResolved(config) {
+      outDir = join(config.root, config.build.outDir);
+      building = !process.env.VITEST;
+    },
+    async closeBundle() {
+      if (!building) return;
+      const shell = files(outDir)
+        // KaTeX ships each font as woff2, woff and ttf; every browser that runs the engine takes the woff2.
+        .filter((f) => !f.startsWith("engine/") && !f.startsWith("_") && f !== "sw.js" && !f.startsWith(".vite/") && !/\.(woff|ttf)$/.test(f))
+        .sort();
+      const hash = createHash("sha256");
+      for (const f of shell) hash.update(f).update(readFileSync(join(outDir, f)));
+      const release = JSON.parse(readFileSync(join(import.meta.dirname, "engine", "release.json"), "utf8")) as { tag: string };
+      const source = readFileSync(join(import.meta.dirname, "src", "sw", "sw.ts"), "utf8");
+      const { code } = await transformWithOxc(source, "sw.ts", { target: "es2022" });
+      const header = `const __SHELL__ = ${JSON.stringify(["./", ...shell])};\nconst __VERSION__ = ${JSON.stringify(hash.digest("hex").slice(0, 16))};\nconst __ENGINE_TAG__ = ${JSON.stringify(release.tag)};\n`;
+      // A classic script: the empty `export {}` that keeps the source a module goes.
+      writeFileSync(join(outDir, "sw.js"), header + code.replace(/^export \{\};?\s*$/m, ""));
+    },
+  };
+}
+
 // kpathsea file-format numbers SwiftLaTeX sends, and the suffix each implies
 // when the requested name has none.
 const KPSE_SUFFIX: Record<string, string> = {
@@ -231,7 +267,7 @@ function swiftlatexTexlive(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [rawVendor(), engineFiles(), swiftlatexTexlive()],
+  plugins: [rawVendor(), engineFiles(), serviceWorker(), swiftlatexTexlive()],
   oxc: { jsx: { runtime: "automatic", importSource: "preact" } },
   server: {
     watch: { ignored: ["**/vendor/**"] },

@@ -850,6 +850,10 @@ These come from the M0 review. The full reasoning is in DECISIONS.md D15 and D16
 7. *Done (D66, D68).* **Units and hairlines:** place the SVG with the 72/72.27 correction (or emit bp), and enforce a minimum visible stroke width in the preview.
 8. **PDF export:** `.tex` export is the primary output. For quick PDF exports, prefer converting the preview SVG to PDF in the browser. Don't ship busytex for this. Decide the details in Milestone 3.
 
+### Milestone 5: owner requirements on top of SPEC.md (2026-10-09, D69)
+- **Stop the engine worker while the tab is hidden** (it holds about 330 MB) and start it again when the tab is shown.
+- **Keep the previous TeX picture visible until the new compile is ready,** instead of showing the native drawing for 0.1–0.3 s on every edit.
+
 ### Milestone 5: license audit items
 - **web2js's license files disagree** (found 2026-10-08, M3 step 1). `drgrice1/web2js` (commit `0114ef5`, used to build `tex.wasm` in CI) declares `"license": "GPL-3.0"` in `package.json`. Its `LICENSE.md` names "Math-expression", apparently pasted from another project, and offers GPL-3.0 or Apache-2.0. GitHub reports the license as NOASSERTION. web2js itself is only a build tool. But its `library.js` runtime and the TikZJax worker code adapted from it in step 7 ship in the app, so the audit must settle their license, upstream (kisonecat/web2js) included.
 

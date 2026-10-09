@@ -4,11 +4,13 @@ import { render } from "preact";
 import { App } from "./ui/app.tsx";
 import { calibrateBaselines } from "./ui/labelHtml.ts";
 import { decode } from "./source/encoding.ts";
+import { registerServiceWorker } from "./ui/offline.ts";
 import * as store from "./ui/store.ts";
 
 const { fitRequests } = store;
 
 render(<App />, document.getElementById("app")!);
+registerServiceWorker();
 
 // A handle for end-to-end tests and debugging, in development builds only.
 if (import.meta.env.DEV) {

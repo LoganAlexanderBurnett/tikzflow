@@ -10,6 +10,7 @@ import type { TexError } from "../engine/log.ts";
 import type { CompileOutcome } from "../engine/protocol.ts";
 import { engineBase } from "../engine/release.ts";
 import type { Range } from "../model/syntax.ts";
+import { prefetchEngine } from "./offline.ts";
 import { currentPicture, doc, overrides, previewLayout, revealInCode, text } from "./store.ts";
 
 /** "accurate": TeX's picture when it is ready; "quick": the native drawing only. Kept per viewer. */
@@ -143,6 +144,7 @@ export function startPreview(base = engineBase(new URLSearchParams(location.sear
     (index) => {
       available = new Set(index.texFiles);
       schedule();
+      void prefetchEngine(base, index);
     },
     () => {},
   );

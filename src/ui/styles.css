@@ -1275,6 +1275,12 @@ button.tf-preview-state.busy {
   font-size: 12px;
   color: var(--muted);
 }
+.tf-offline {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
 /* Over the canvas when TeX's picture is shown despite errors. */
 .tf-tex-banner {
   position: absolute;
