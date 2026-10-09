@@ -210,3 +210,7 @@ Start with Milestone 0. Before writing code, give me a brief plan for the spike 
   - Added to the start of Milestone 3: removing a deleted node from a `fit=` list, "Split and apply" for arrow tips, `auto` labels after a form change, and Flip on a label with no side key.
 - **2026-10-09, after Milestone 3 steps 2–5** (decided by the project owner; reasons in DECISIONS.md D65):
   - Dragging an edge's corners, curve handles, segments or ends also turns an overlapping label side key into `auto`. Moving a node doesn't; overlapping labels get a warning marker with a one-click fix instead.
+- **2026-10-09, the owner's answers on Milestone 3 steps 9–11** (decided by the project owner; reasons in DECISIONS.md D73):
+  - The engine's files are fetched in the background after the first visit, except on a data-saving or metered connection.
+  - The Page panel knows the page of article, report, book, Beamer, elsarticle, IEEEtran, revtex4-2, acmart and llncs (from their options, checked against widths measured with LaTeX itself), takes typed text and column widths that win over the preamble, and saves them under a name per viewer. A class it doesn't know is replaced by article's page in the TeX preview, with a note.
+  - `\textwidth`, `\columnwidth` and `\linewidth` in the quick preview follow the same page as the TeX preview.
