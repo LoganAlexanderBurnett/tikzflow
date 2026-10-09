@@ -1,0 +1,688 @@
+{
+  "set": "corpus",
+  "browser": "msedge 154.0.4258.62",
+  "date": "2026-10-09T18:01:35.337Z",
+  "results": [
+    {
+      "name": "se-102785-foreach-scope",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          407.3,
+          130
+        ],
+        "testSizePt": [
+          407,
+          130
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 70382,
+        "missing": 164,
+        "extra": 343,
+        "color": 3,
+        "mismatchPct": 0.7
+      },
+      "warnings": [],
+      "pdfBytes": 13741,
+      "svgBytes": 38019,
+      "ms": 9
+    },
+    {
+      "name": "se-142618-ext-libraries",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          205.7,
+          74.3
+        ],
+        "testSizePt": [
+          206,
+          74.3
+        ],
+        "offsetPt": [
+          -0.3,
+          0
+        ],
+        "inkPixels": 119516,
+        "missing": 33,
+        "extra": 2,
+        "color": 0,
+        "mismatchPct": 0
+      },
+      "warnings": [],
+      "pdfBytes": 19796,
+      "svgBytes": 61655,
+      "ms": 13.8
+    },
+    {
+      "name": "se-178617-matrix-arrows",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          688,
+          536.3
+        ],
+        "testSizePt": [
+          688,
+          536.3
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 426372,
+        "missing": 0,
+        "extra": 0,
+        "color": 0,
+        "mismatchPct": 0
+      },
+      "warnings": [],
+      "pdfBytes": 52799,
+      "svgBytes": 142023,
+      "ms": 28.8
+    },
+    {
+      "name": "se-194593-styled-colors",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          325.3,
+          206.3
+        ],
+        "testSizePt": [
+          325,
+          206.3
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 113540,
+        "missing": 65,
+        "extra": 4,
+        "color": 212,
+        "mismatchPct": 0.2
+      },
+      "warnings": [],
+      "pdfBytes": 5476,
+      "svgBytes": 17574,
+      "ms": 2.6
+    },
+    {
+      "name": "se-218730-arrow-labels",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          498.7,
+          562
+        ],
+        "testSizePt": [
+          498.7,
+          562
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 648919,
+        "missing": 171,
+        "extra": 143,
+        "color": 256,
+        "mismatchPct": 0.1
+      },
+      "warnings": [],
+      "pdfBytes": 22252,
+      "svgBytes": 75162,
+      "ms": 10.8
+    },
+    {
+      "name": "se-263754-chains",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          534,
+          530
+        ],
+        "testSizePt": [
+          534,
+          530
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 242791,
+        "missing": 0,
+        "extra": 0,
+        "color": 0,
+        "mismatchPct": 0
+      },
+      "warnings": [],
+      "pdfBytes": 17648,
+      "svgBytes": 66276,
+      "ms": 13.6
+    },
+    {
+      "name": "se-30929-mixed-absolute",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          413.7,
+          170.3
+        ],
+        "testSizePt": [
+          414,
+          170.3
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 104904,
+        "missing": 0,
+        "extra": 0,
+        "color": 0,
+        "mismatchPct": 0
+      },
+      "warnings": [],
+      "pdfBytes": 6394,
+      "svgBytes": 26727,
+      "ms": 3.7
+    },
+    {
+      "name": "se-338616-positioning-edges",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          493,
+          492
+        ],
+        "testSizePt": [
+          493,
+          492
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 283934,
+        "missing": 3847,
+        "extra": 1369,
+        "color": 0,
+        "mismatchPct": 1.8
+      },
+      "warnings": [],
+      "pdfBytes": 10263,
+      "svgBytes": 41802,
+      "ms": 5.5
+    },
+    {
+      "name": "se-349800-wide-39-nodes",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          554.7,
+          346.3
+        ],
+        "testSizePt": [
+          554.7,
+          346.3
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 608717,
+        "missing": 1444,
+        "extra": 1224,
+        "color": 0,
+        "mismatchPct": 0.4
+      },
+      "warnings": [],
+      "pdfBytes": 31166,
+      "svgBytes": 103848,
+      "ms": 18.5
+    },
+    {
+      "name": "se-350521-perp-coordinates",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          199.3,
+          189
+        ],
+        "testSizePt": [
+          199.3,
+          188.7
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 48537,
+        "missing": 119,
+        "extra": 88,
+        "color": 0,
+        "mismatchPct": 0.4
+      },
+      "warnings": [],
+      "pdfBytes": 6423,
+      "svgBytes": 20101,
+      "ms": 3.3
+    },
+    {
+      "name": "se-382997-chains-indented",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          361.3,
+          565
+        ],
+        "testSizePt": [
+          361.3,
+          565
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 207398,
+        "missing": 0,
+        "extra": 0,
+        "color": 0,
+        "mismatchPct": 0
+      },
+      "warnings": [],
+      "pdfBytes": 22926,
+      "svgBytes": 72508,
+      "ms": 11.1
+    },
+    {
+      "name": "se-421789-complicated-fit",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          615.7,
+          418.7
+        ],
+        "testSizePt": [
+          615.7,
+          418.7
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 307134,
+        "missing": 797,
+        "extra": 211,
+        "color": 0,
+        "mismatchPct": 0.3
+      },
+      "warnings": [],
+      "pdfBytes": 23384,
+      "svgBytes": 103648,
+      "ms": 17.1
+    },
+    {
+      "name": "se-503226-custom-shape-matrix",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          397.3,
+          188.3
+        ],
+        "testSizePt": [
+          397.3,
+          188.3
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 94927,
+        "missing": 0,
+        "extra": 0,
+        "color": 0,
+        "mismatchPct": 0
+      },
+      "warnings": [],
+      "pdfBytes": 6849,
+      "svgBytes": 35393,
+      "ms": 5.6
+    },
+    {
+      "name": "se-62804-tikzstyle-resizebox",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          208,
+          387.7
+        ],
+        "testSizePt": [
+          208,
+          387.3
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 208382,
+        "missing": 0,
+        "extra": 0,
+        "color": 0,
+        "mismatchPct": 0
+      },
+      "warnings": [],
+      "pdfBytes": 12219,
+      "svgBytes": 38041,
+      "ms": 4.1
+    },
+    {
+      "name": "se-679521-decorations",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          336.3,
+          320.3
+        ],
+        "testSizePt": [
+          336.3,
+          320.3
+        ],
+        "offsetPt": [
+          0,
+          0.3
+        ],
+        "inkPixels": 66029,
+        "missing": 137,
+        "extra": 187,
+        "color": 0,
+        "mismatchPct": 0.5
+      },
+      "warnings": [],
+      "pdfBytes": 6408,
+      "svgBytes": 30087,
+      "ms": 3.6
+    },
+    {
+      "name": "se-730217-algorithm",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          536.7,
+          629.3
+        ],
+        "testSizePt": [
+          536.3,
+          629.3
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 834637,
+        "missing": 2145,
+        "extra": 1159,
+        "color": 0,
+        "mismatchPct": 0.4
+      },
+      "warnings": [],
+      "pdfBytes": 18613,
+      "svgBytes": 70829,
+      "ms": 12.1
+    },
+    {
+      "name": "se-78697-tikzset-classic",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          218.3,
+          403.3
+        ],
+        "testSizePt": [
+          218.3,
+          403
+        ],
+        "offsetPt": [
+          0,
+          0.3
+        ],
+        "inkPixels": 188790,
+        "missing": 550,
+        "extra": 307,
+        "color": 0,
+        "mismatchPct": 0.5
+      },
+      "warnings": [],
+      "pdfBytes": 7176,
+      "svgBytes": 29182,
+      "ms": 4.3
+    },
+    {
+      "name": "self-bare-crlf",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          143.3,
+          80.3
+        ],
+        "testSizePt": [
+          143,
+          80.3
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 8491,
+        "missing": 11,
+        "extra": 1,
+        "color": 0,
+        "mismatchPct": 0.1
+      },
+      "warnings": [],
+      "pdfBytes": 3461,
+      "svgBytes": 9378,
+      "ms": 1.4
+    },
+    {
+      "name": "self-bom-crlf-unicode",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          67.7,
+          23
+        ],
+        "testSizePt": [
+          67.7,
+          23
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 8975,
+        "missing": 0,
+        "extra": 0,
+        "color": 0,
+        "mismatchPct": 0
+      },
+      "warnings": [],
+      "pdfBytes": 4170,
+      "svgBytes": 12227,
+      "ms": 1.7
+    },
+    {
+      "name": "self-broken",
+      "ok": false,
+      "log": "#2->#1\n                            \n\\pgf@let@token ->\\let \n                      \\tikz@signal@path =\\tikz@signal@path \\pgfutil@ifnextch...\n\n\\pgf@let@token ->\\path \n                       [draw]\nl.14   \\draw\n            [->, thick (m-2-1) -- node {\\yes} (x); % ERROR: unclosed option ...\n(That was another \\errmessage.)\n\n)\nRunaway argument?\n->, thick (m-2-1) -- node {\\yes } (x); \\node (y) at (4,-2) {Y \\draw (\\ETC.\n! File ended while scanning use of \\pgfutil@next.\n<inserted text> \n                \\par \n<*> input.tex\n             \nI suspect you have forgotten a `}', causing me\nto read past where you wanted me to stop.\nI'll try to recover; but if the error is serious,\nyou'd better type `E' or `X' now and fix your file.\n\n\n*\\end\n\n*\n! Emergency stop.\n<*> \\end\n        \nEnd of file on the terminal!\n\n",
+      "warnings": []
+    },
+    {
+      "name": "self-document",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          205.3,
+          221
+        ],
+        "testSizePt": [
+          205.3,
+          221
+        ],
+        "offsetPt": [
+          0,
+          0.3
+        ],
+        "inkPixels": 102203,
+        "missing": 42,
+        "extra": 39,
+        "color": 0,
+        "mismatchPct": 0.1
+      },
+      "warnings": [],
+      "pdfBytes": 6197,
+      "svgBytes": 20490,
+      "ms": 2.2
+    },
+    {
+      "name": "self-figure-multi",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          194.7,
+          118
+        ],
+        "testSizePt": [
+          194.7,
+          118
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 70075,
+        "missing": 6,
+        "extra": 0,
+        "color": 0,
+        "mismatchPct": 0
+      },
+      "warnings": [],
+      "pdfBytes": 5320,
+      "svgBytes": 16081,
+      "ms": 2
+    },
+    {
+      "name": "self-hybrid-surrogate",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          1230.3,
+          249
+        ],
+        "testSizePt": [
+          1230.3,
+          249
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 617922,
+        "missing": 7154,
+        "extra": 5122,
+        "color": 3,
+        "mismatchPct": 2
+      },
+      "warnings": [],
+      "pdfBytes": 44289,
+      "svgBytes": 127615,
+      "ms": 18.4
+    },
+    {
+      "name": "self-latin1",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          199.3,
+          16
+        ],
+        "testSizePt": [
+          199.3,
+          16
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 13851,
+        "missing": 0,
+        "extra": 0,
+        "color": 0,
+        "mismatchPct": 0
+      },
+      "warnings": [],
+      "pdfBytes": 3745,
+      "svgBytes": 10797,
+      "ms": 1.8
+    },
+    {
+      "name": "self-tikzit",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          0.3,
+          0.3
+        ],
+        "testSizePt": [
+          0.3,
+          0.3
+        ],
+        "offsetPt": [
+          -2,
+          -2
+        ],
+        "inkPixels": 18,
+        "missing": 0,
+        "extra": 0,
+        "color": 0,
+        "mismatchPct": 0
+      },
+      "warnings": [],
+      "pdfBytes": 596,
+      "svgBytes": 240,
+      "ms": 0.7
+    },
+    {
+      "name": "self-tikzstyle-paths",
+      "ok": true,
+      "stats": {
+        "refSizePt": [
+          207.7,
+          140.3
+        ],
+        "testSizePt": [
+          207.3,
+          140
+        ],
+        "offsetPt": [
+          0,
+          0
+        ],
+        "inkPixels": 29899,
+        "missing": 232,
+        "extra": 248,
+        "color": 0,
+        "mismatchPct": 1.6
+      },
+      "warnings": [],
+      "pdfBytes": 4359,
+      "svgBytes": 14729,
+      "ms": 2.1
+    }
+  ]
+}

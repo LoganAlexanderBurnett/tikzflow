@@ -1,5 +1,5 @@
 // Milestone 2a step 6: the palette and keyboard-driven creation.
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, test } from "./base.ts";
 
 async function code(page: Page): Promise<string> {
   return page.evaluate(() => {

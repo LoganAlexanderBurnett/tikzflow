@@ -1,7 +1,7 @@
 // Milestone 2a, start to finish: build a small flowchart from an empty picture
 // with the palette and the keyboard, restyle it, and check the code reads as
 // if it was written by hand.
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, test } from "./base.ts";
 
 type Store = { editorView: () => { dispatch(s: unknown): void; state: { doc: { length: number; toString(): string } } } };
 

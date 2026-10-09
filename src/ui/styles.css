@@ -1201,3 +1201,266 @@ button:disabled {
   padding: 1px 6px;
   font-size: 12px;
 }
+
+/* The accurate preview (D68): TeX's picture under a native drawing that only answers the pointer. */
+.tf-compiled-layer {
+  pointer-events: none;
+}
+.tf-native {
+  transition: opacity 120ms;
+}
+.tf-native.ghost .tf-node > *,
+.tf-native.ghost .tf-path > path:not(.tf-path-halo):not(.tf-path-hit),
+.tf-native.ghost .tf-label-box {
+  opacity: 0;
+}
+/* A block kept as written that TeX drew: outlined on hover, clickable to show its code. */
+.tf-block-hit {
+  fill: transparent;
+  stroke: transparent;
+  pointer-events: all;
+  cursor: pointer;
+}
+.tf-block-hit:hover {
+  stroke: var(--lock);
+}
+.tf-block-hit.picked {
+  stroke: var(--lock);
+  fill: var(--opaque);
+}
+
+.tf-preview {
+  position: relative;
+}
+.tf-preview-state {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+button.tf-preview-state.errors {
+  color: #b91c1c;
+}
+button.tf-preview-state.busy {
+  opacity: 0.75;
+}
+.tf-preview-details {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 30;
+  width: min(460px, 70vw);
+  max-height: 50vh;
+  overflow: auto;
+  padding: 8px 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  font-size: 13px;
+}
+.tf-preview-details h3 {
+  font-size: 13px;
+  margin: 6px 0 2px;
+}
+.tf-preview-details p {
+  margin: 0 0 4px;
+  color: var(--muted);
+}
+.tf-preview-details ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.tf-preview-details code {
+  margin-left: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.tf-offline {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* Over the canvas when TeX's picture is shown despite errors. */
+.tf-tex-banner {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  z-index: 6;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  max-width: calc(100% - 330px);
+  padding: 6px 10px;
+  background: #fef3c7;
+  color: #78350f;
+  border: 1px solid var(--lock);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  font-size: 13px;
+}
+.tf-tex-banner button {
+  font-size: 12px;
+}
+.tf-preview-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+
+/* A label its own line runs through (D65). */
+.tf-label-warning {
+  cursor: pointer;
+}
+.tf-label-warning circle {
+  fill: #fef3c7;
+  stroke: var(--lock);
+}
+.tf-label-warning path {
+  stroke: var(--lock);
+  stroke-linecap: round;
+}
+.tf-label-fix .tf-menu-note {
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.tf-label-fix .tf-menu-item {
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* The page panel and the width guide (D71). */
+.tf-page-panel,
+.tf-export-panel {
+  position: fixed;
+  z-index: 40;
+  width: min(440px, 92vw);
+  max-height: 80vh;
+  overflow: auto;
+  padding: 8px 14px 12px;
+  background: var(--panel);
+  color: var(--fg, inherit);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+  font-size: 13px;
+}
+.tf-page-panel .head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.tf-page-panel h3 {
+  margin: 4px 0;
+  font-size: 14px;
+}
+.tf-page-panel h4 {
+  margin: 10px 0 4px;
+  font-size: 13px;
+}
+.tf-page-panel textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+}
+.tf-page-panel ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.tf-page-panel p {
+  margin: 4px 0;
+}
+.tf-page-panel .note {
+  color: var(--muted);
+}
+.tf-page-panel .bad {
+  color: #b91c1c;
+}
+.tf-page-panel input.bad {
+  border-color: #b91c1c;
+}
+.tf-page-panel .choices {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 4px 0;
+}
+.tf-page-panel .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 6px 0;
+}
+.tf-page-panel select {
+  max-width: 100%;
+}
+.tf-width-guide {
+  stroke: #2563eb;
+  fill: #2563eb;
+}
+.tf-width-guide line {
+  fill: none;
+}
+.tf-width-guide.over {
+  stroke: #dc2626;
+  fill: #dc2626;
+}
+
+.tf-export-panel {
+  width: min(400px, 92vw);
+}
+.tf-export-panel .head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.tf-export-panel h3 {
+  margin: 4px 0;
+  font-size: 14px;
+}
+.tf-export-panel h4 {
+  margin: 10px 0 4px;
+  font-size: 13px;
+}
+.tf-export-panel p {
+  margin: 4px 0;
+}
+.tf-export-panel .note {
+  color: var(--muted);
+}
+.tf-export-panel .row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0;
+  flex-wrap: wrap;
+}
+.tf-export-panel .what {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+}
+.tf-export-panel .bad {
+  color: #b91c1c;
+  border-color: #b91c1c;
+}
+.tf-export-panel .status {
+  min-height: 1.4em;
+  margin-top: 10px;
+}
+.tf-export-panel .status.warn {
+  color: #92400e;
+}
+.tf-export-panel .status.error {
+  color: #b91c1c;
+}

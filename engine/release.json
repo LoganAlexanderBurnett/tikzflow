@@ -1,0 +1,10 @@
+{
+  "repository": "LoganAlexanderBurnett/tikzflow",
+  "tag": "engine-2026-10-09",
+  "assets": {
+    "engine.tar": {
+      "bytes": 10844160,
+      "sha256": "00679e720f51bfc57b183b5a2bbb632bd2f4eb51b59af5905ada0505b96aa04d"
+    }
+  }
+}

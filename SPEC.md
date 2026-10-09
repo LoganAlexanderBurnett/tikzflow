@@ -121,7 +121,7 @@ New features:
 Fixes from testing Milestone 2b, done early (after the engine feasibility check):
 - Deleting a node that is in another node's `fit` removes it from the `fit=` list. Only the fit's last member is refused.
 - The edge panel offers "Split and apply" when an arrow tip is set on one edge of a `\draw` with several edges.
-- Changing an edge's form (straight, orthogonal, curved) turns a label side key that would then overlap the line into `auto`, by the same rule as dragging a label.
+- Changing an edge's form (straight, orthogonal, curved) turns a label side key that would then overlap the line into `auto`, by the same rule as dragging a label. Dragging one of the edge's corners, curve handles, segments or ends does the same, in the same undo step. Moving a node never rewrites labels; a label that its line cuts through instead shows a subtle warning marker with a one-click fix (Flip / `auto`).
 - "Flip label side" on a label with no side key writes `auto`.
 
 Features:
@@ -208,3 +208,9 @@ Start with Milestone 0. Before writing code, give me a brief plan for the spike 
 - **2026-10-08, the Milestone 2b review** (approved by the project owner; reasons in DECISIONS.md D58):
   - No Yes/No is added when a decision's first branch is unlabelled.
   - Added to the start of Milestone 3: removing a deleted node from a `fit=` list, "Split and apply" for arrow tips, `auto` labels after a form change, and Flip on a label with no side key.
+- **2026-10-09, after Milestone 3 steps 2–5** (decided by the project owner; reasons in DECISIONS.md D65):
+  - Dragging an edge's corners, curve handles, segments or ends also turns an overlapping label side key into `auto`. Moving a node doesn't; overlapping labels get a warning marker with a one-click fix instead.
+- **2026-10-09, the owner's answers on Milestone 3 steps 9–11** (decided by the project owner; reasons in DECISIONS.md D73):
+  - The engine's files are fetched in the background after the first visit, except on a data-saving or metered connection.
+  - The Page panel knows the page of article, report, book, Beamer, elsarticle, IEEEtran, revtex4-2, acmart and llncs (from their options, checked against widths measured with LaTeX itself), takes typed text and column widths that win over the preamble, and saves them under a name per viewer. A class it doesn't know is replaced by article's page in the TeX preview, with a note.
+  - `\textwidth`, `\columnwidth` and `\linewidth` in the quick preview follow the same page as the TeX preview.

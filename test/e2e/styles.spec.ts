@@ -1,5 +1,5 @@
 // Milestone 2a step 7: the style panel, factoring repeated options, and matching sizes.
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, test } from "./base.ts";
 
 type Store = { editorView: () => { dispatch(s: unknown): void; state: { doc: { length: number; toString(): string } } } };
 

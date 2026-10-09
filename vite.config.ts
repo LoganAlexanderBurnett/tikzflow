@@ -1,7 +1,8 @@
-import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { extname, join, normalize, sep } from "node:path";
 import { gzipSync } from "node:zlib";
-import type { Plugin } from "vite";
+import { type Plugin, transformWithOxc } from "vite";
 import { defineConfig } from "vitest/config";
 
 const vendorRoot = join(import.meta.dirname, "vendor");
@@ -105,6 +106,89 @@ function rawVendor(): Plugin {
   };
 }
 
+/**
+ * The accurate preview's engine (D67): vendor/engine/<tag>/ (from `npm run
+ * fetch-engines`, or a CI run staged with scripts/stage-engine-ci.ts) served
+ * as /engine/<tag>/ byte for byte, and copied into the build. Its .gz files
+ * must reach the worker gzipped: no Content-Encoding, ever (D12).
+ */
+function engineFiles(): Plugin {
+  const engineRoot = join(vendorRoot, "engine");
+  let outDir = "dist";
+  let building = false;
+  return {
+    name: "tikzflow-engine-files",
+    configResolved(config) {
+      outDir = join(config.root, config.build.outDir);
+      building = config.command === "build" && !process.env.VITEST;
+    },
+    configureServer(server) {
+      server.middlewares.use("/engine", (req, res, next) => {
+        const path = normalize(join(engineRoot, decodeURIComponent((req.url ?? "/").split("?")[0]!)));
+        if (!path.startsWith(engineRoot + sep)) return next();
+        // Not an engine folder (the repo's own engine/release.json, imported by the app): Vite's.
+        const folder = path.slice(engineRoot.length + 1).split(sep)[0]!;
+        if (!existsSync(join(engineRoot, folder)) || !statSync(join(engineRoot, folder)).isDirectory()) return next();
+        if (!existsSync(path) || !statSync(path).isFile()) {
+          res.statusCode = 404;
+          res.end();
+          return;
+        }
+        res.setHeader("Content-Type", TYPES[extname(path)] ?? "application/octet-stream");
+        res.setHeader("Content-Length", statSync(path).size);
+        res.setHeader("Cache-Control", "no-cache");
+        res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+        createReadStream(path).pipe(res);
+      });
+    },
+    closeBundle() {
+      if (!building) return;
+      const release = JSON.parse(readFileSync(join(import.meta.dirname, "engine", "release.json"), "utf8")) as { tag: string };
+      const from = join(engineRoot, release.tag);
+      if (!existsSync(join(from, "index.json"))) {
+        this.warn(`The engine ${release.tag} isn't in vendor/engine: the build has no accurate preview. Run npm run fetch-engines -- engine first.`);
+        return;
+      }
+      cpSync(from, join(outDir, "engine", release.tag), { recursive: true });
+    },
+  };
+}
+
+/**
+ * The service worker (D70): src/sw/sw.ts compiled to dist/sw.js with the list
+ * of the build's own files (everything but the engine, which the worker caches
+ * as it is fetched), a version made from their contents, and the engine's tag.
+ */
+function serviceWorker(): Plugin {
+  let outDir = "dist";
+  let building = false;
+  const files = (dir: string, prefix = ""): string[] =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? files(join(dir, e.name), `${prefix}${e.name}/`) : [`${prefix}${e.name}`]));
+  return {
+    name: "tikzflow-service-worker",
+    apply: "build",
+    configResolved(config) {
+      outDir = join(config.root, config.build.outDir);
+      building = !process.env.VITEST;
+    },
+    async closeBundle() {
+      if (!building) return;
+      const shell = files(outDir)
+        // KaTeX ships each font as woff2, woff and ttf; every browser that runs the engine takes the woff2.
+        .filter((f) => !f.startsWith("engine/") && !f.startsWith("_") && f !== "sw.js" && !f.startsWith(".vite/") && !/\.(woff|ttf)$/.test(f))
+        .sort();
+      const hash = createHash("sha256");
+      for (const f of shell) hash.update(f).update(readFileSync(join(outDir, f)));
+      const release = JSON.parse(readFileSync(join(import.meta.dirname, "engine", "release.json"), "utf8")) as { tag: string };
+      const source = readFileSync(join(import.meta.dirname, "src", "sw", "sw.ts"), "utf8");
+      const { code } = await transformWithOxc(source, "sw.ts", { target: "es2022" });
+      const header = `const __SHELL__ = ${JSON.stringify(["./", ...shell])};\nconst __VERSION__ = ${JSON.stringify(hash.digest("hex").slice(0, 16))};\nconst __ENGINE_TAG__ = ${JSON.stringify(release.tag)};\n`;
+      // A classic script: the empty `export {}` that keeps the source a module goes.
+      writeFileSync(join(outDir, "sw.js"), header + code.replace(/^export \{\};?\s*$/m, ""));
+    },
+  };
+}
+
 // kpathsea file-format numbers SwiftLaTeX sends, and the suffix each implies
 // when the requested name has none.
 const KPSE_SUFFIX: Record<string, string> = {
@@ -182,8 +266,23 @@ function swiftlatexTexlive(): Plugin {
   };
 }
 
+/** The headers of the `/*` block of public/_headers (D75), so `vite preview` serves what Cloudflare Pages will. */
+function pageHeaders(): Record<string, string> {
+  const out: Record<string, string> = {};
+  let inBlock = false;
+  for (const line of readFileSync(join(import.meta.dirname, "public", "_headers"), "utf8").split(/\r?\n/)) {
+    if (!line.trim() || line.startsWith("#")) continue;
+    if (!/^\s/.test(line)) inBlock = line.trim() === "/*";
+    else if (inBlock) {
+      const i = line.indexOf(":");
+      out[line.slice(0, i).trim()] = line.slice(i + 1).trim();
+    }
+  }
+  return out;
+}
+
 export default defineConfig({
-  plugins: [rawVendor(), swiftlatexTexlive()],
+  plugins: [rawVendor(), engineFiles(), serviceWorker(), swiftlatexTexlive()],
   oxc: { jsx: { runtime: "automatic", importSource: "preact" } },
   server: {
     watch: { ignored: ["**/vendor/**"] },
@@ -193,6 +292,7 @@ export default defineConfig({
       "Cross-Origin-Embedder-Policy": "require-corp",
     },
   },
+  preview: { headers: pageHeaders() },
   test: {
     include: ["spike/**/*.test.ts", "src/**/*.test.ts", "test/**/*.test.ts"],
   },

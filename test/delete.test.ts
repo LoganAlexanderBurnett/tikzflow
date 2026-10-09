@@ -7,6 +7,7 @@ import { analyzeDocument, layoutDocumentPicture } from "../src/model/document.ts
 import { pictureEdges } from "../src/model/edges.ts";
 import { unresolvedReferences } from "../src/model/references.ts";
 import type { PictureLayout } from "../src/tikz/layout.ts";
+import { shapeBounds } from "../src/tikz/shapes.ts";
 import { corpusNames, loadCorpusFile } from "./corpus.ts";
 
 const head = "\\begin{tikzpicture}[node distance=10mm]\n";
@@ -151,11 +152,59 @@ describe("deleting nodes", () => {
     expect(body(r.text)).toBe("\\node[draw] (a) at (0,0) {A};");
   });
 
-  it("refuses names used in code the editor keeps as written, and fits", () => {
+  it("refuses names used in code the editor keeps as written", () => {
     const loop = pic("\\node[draw] (a) at (0,0) {A};\n\\foreach \\i in {1,2} { \\draw (a) -- (\\i,1); }");
     if (layoutOf(loop).opaque.length) expect(refused(loop, { kind: "nodes", ids: [node(loop, "a").id] })).toMatch(/kept as written|keeps as written/);
-    const fit = pic("\\node[draw] (a) at (0,0) {A};\n\\node[draw] (b) at (2,0) {B};\n\\node[draw, fit=(a) (b)] (box) {};");
-    expect(refused(fit, { kind: "nodes", ids: [node(fit, "a").id] })).toMatch(/fit/);
+  });
+
+  describe("a node in the fit of another (D58 item 4)", () => {
+    const abc = "\\node[draw] (a) at (0,0) {A};\n\\node[draw] (b) at (2,0) {B};\n\\node[draw] (c) at (4,0) {C};\n";
+
+    it("leaves the fit list, and the fitted node shrinks", () => {
+      const three = pic(`${abc}\\node[draw, fit=(a) (b) (c)] (box) {};`);
+      const widthOf = (t: string) => {
+        const b = shapeBounds(layoutOf(t).nodes.find((n) => n.name === "box")!.shape);
+        return b.maxX - b.minX;
+      };
+      for (const [gone, left] of [["a", "fit=(b) (c)"], ["b", "fit=(a) (c)"], ["c", "fit=(a) (b)"]] as const) {
+        const r = delNode(three, gone);
+        expect(body(r.text)).toContain(left);
+        expect(r.notes.join(" ")).toContain(`${gone} left the fit of box`);
+        expect(r.message).toMatch(/Deleted/);
+        // The middle node doesn't change the box; an end node does.
+        if (gone === "b") expect(widthOf(r.text)).toBeCloseTo(widthOf(three), 6);
+        else expect(widthOf(r.text)).toBeLessThan(widthOf(three));
+      }
+    });
+
+    it("takes several at once, with their spacing, inside braces too", () => {
+      const braced = pic(`${abc}\\node[draw, fit={(a)  (b)(c)}] (box) {};`);
+      expect(body(delNode(braced, "b", "c").text)).toContain("fit={(a)}");
+      expect(body(delNode(braced, "a", "b").text)).toContain("fit={(c)}");
+      expect(body(delNode(braced, "a").text)).toContain("fit={(b)(c)}");
+    });
+
+    it("changes nothing else in the statement", () => {
+      const text = pic("\\node[draw] (a) at (0,0) {A};\n\\node[draw] (b) at (2,0) {B};\n\\node[draw, fit = (a)  (b), inner sep=5pt, dashed] (box) {}; % group");
+      const r = delNode(text, "b");
+      expect(body(r.text)).toBe("\\node[draw] (a) at (0,0) {A};\n\\node[draw, fit = (a), inner sep=5pt, dashed] (box) {}; % group");
+    });
+
+    it("is refused only for the last members, naming them", () => {
+      const two = pic("\\node[draw] (a) at (0,0) {A};\n\\node[draw] (b) at (2,0) {B};\n\\node[draw, fit=(a) (b)] (box) {};");
+      expect(refused(two, { kind: "nodes", ids: [node(two, "a").id, node(two, "b").id] })).toMatch(/a, b are the last nodes that box fits around/);
+      const one = pic("\\node[draw] (a) at (0,0) {A};\n\\node[draw, fit=(a)] (box) {};");
+      expect(refused(one, { kind: "nodes", ids: [node(one, "a").id] })).toMatch(/a is the last node that box fits around/);
+      // Taking the fitted node along is fine.
+      expect(body(delNode(two, "a", "b", "box").text)).toBe("");
+    });
+
+    it("re-attaches a node placed against the deleted member, and keeps the fit", () => {
+      const text = pic(`${abc}\\node[draw, fit=(a) (b)] (box) {};\n\\node[draw, below=of b] (d) {D};`);
+      const r = delNode(text, "b");
+      expect(body(r.text)).toContain("fit=(a)");
+      expect(r.text).not.toMatch(/of b\b/);
+    });
   });
 
   it("refuses a node written inside a path", () => {

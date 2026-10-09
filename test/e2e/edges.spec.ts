@@ -1,5 +1,5 @@
 // Milestone 2b: selecting and working on edges.
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, test } from "./base.ts";
 
 async function code(page: Page): Promise<string> {
   return page.evaluate(() => {
@@ -549,14 +549,50 @@ test("Delete removes the selected edge, from the key, the menu and the panel", a
   expect(id).toBeTruthy();
 });
 
-test("a deletion that would leave a dangling reference is refused with the reason", async ({ page }) => {
+test("deleting a node in a fit takes it out of the list; the last member is refused with the reason", async ({ page }) => {
+  const select = (id: string) => page.evaluate((n) => (window as unknown as { tikzflow: { store: { selectNodes: (ids: string[]) => void } } }).tikzflow.store.selectNodes([n]), id);
   await setCode(page, "\\begin{tikzpicture}\n\\node[draw] (a) at (0,0) {A};\n\\node[draw] (b) at (2,0) {B};\n\\node[draw, fit=(a) (b)] (box) {};\n\\end{tikzpicture}\n");
   const before = await code(page);
-  await page.evaluate(() => (window as unknown as { tikzflow: { store: { selectNodes: (ids: string[]) => void } } }).tikzflow.store.selectNodes(["a"]));
+  await select("a");
   await page.locator("svg.tf-canvas").focus();
   await page.keyboard.press("Delete");
+  expect(await code(page)).toBe("\\begin{tikzpicture}\n\\node[draw] (b) at (2,0) {B};\n\\node[draw, fit=(b)] (box) {};\n\\end{tikzpicture}\n");
+  await expect(page.getByTestId("status")).toContainText("left the fit of box");
+  await page.keyboard.press("Control+z");
   expect(await code(page)).toBe(before);
-  await expect(page.getByTestId("status")).toContainText("part of the fit");
+  // Now b is the last member.
+  await setCode(page, "\\begin{tikzpicture}\n\\node[draw] (b) at (2,0) {B};\n\\node[draw, fit=(b)] (box) {};\n\\end{tikzpicture}\n");
+  const single = await code(page);
+  await select("b");
+  await page.locator("svg.tf-canvas").focus();
+  await page.keyboard.press("Delete");
+  expect(await code(page)).toBe(single);
+  await expect(page.getByTestId("status")).toContainText("last node that box fits around");
+});
+
+test("a tip on one edge of a multi-edge \\draw is offered Split and apply, in one undo step", async ({ page }) => {
+  const start = "\\begin{tikzpicture}\n\\node[draw] (a) at (0,0) {A};\n\\node[draw] (b) at (3,0) {B};\n\\node[draw] (c) at (3,-3) {C};\n\\draw[thick] (a) -- (b) -- (c);\n\\end{tikzpicture}\n";
+  await setCode(page, start);
+  await expect(page.getByTestId("summary-headline")).toContainText("3 nodes and 2 edges");
+  await selectEdge(page, 0);
+  await page.getByTestId("edge-arrow-forward").click();
+  // Nothing is written yet: the panel explains and asks.
+  expect(await code(page)).toBe(start);
+  const card = page.getByTestId("edge-split-apply-card");
+  await expect(card).toContainText("several edges");
+  await page.getByTestId("edge-split-cancel").click();
+  await expect(card).toHaveCount(0);
+  expect(await code(page)).toBe(start);
+
+  await page.getByTestId("edge-arrow-forward").click();
+  await page.getByTestId("edge-split-apply").click();
+  expect(await code(page)).toBe("\\begin{tikzpicture}\n\\node[draw] (a) at (0,0) {A};\n\\node[draw] (b) at (3,0) {B};\n\\node[draw] (c) at (3,-3) {C};\n\\draw[thick, ->] (a) -- (b);\n\\draw[thick] (b) -- (c);\n\\end{tikzpicture}\n");
+  await expect(page.getByTestId("status")).toContainText("after splitting the path");
+  // The same edge stays selected, and it is its own path now.
+  await expect(page.getByTestId("edge-title")).toHaveText("a → b");
+  await expect(page.getByTestId("edge-arrow-forward")).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("Control+z");
+  expect(await code(page)).toBe(start);
 });
 
 test("a new node out of a decision gets its Yes label", async ({ page }) => {

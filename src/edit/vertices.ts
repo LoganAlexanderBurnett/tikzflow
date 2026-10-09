@@ -10,6 +10,7 @@ import type { Point } from "../tikz/shapes.ts";
 import { type Change, composeChanges } from "./changes.ts";
 import { planEdgeToLine } from "./edgeop.ts";
 import { editPath, type EditOutcome, findEdge, isPlainStop, POINT_EPS, pointCandidates, type PointForm } from "./edges.ts";
+import { fixLabelSides } from "./labels.ts";
 import { removeItems } from "./optionEdits.ts";
 import { eolNear, indentAt, indentUnit } from "./text.ts";
 
@@ -363,6 +364,10 @@ function straightOp(text: string, it: PathItemSyntax, list: OptionList | undefin
  * `edge` operation loses its curve keys instead.
  */
 export function planStraighten(text: string, picIndex: number, edgeId: string): EditOutcome {
+  return fixLabelSides(text, picIndex, edgeId, straighten(text, picIndex, edgeId));
+}
+
+function straighten(text: string, picIndex: number, edgeId: string): EditOutcome {
   const { layout, edge } = edgeIn(text, picIndex, edgeId);
   if (!layout || !edge) return { ok: false, reason: "There is no such edge." };
   if (edge.lock) return { ok: false, reason: `This edge can't be edited: ${edge.lock.message}.` };

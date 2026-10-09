@@ -38,7 +38,7 @@ function topLevel(s: string, needle: string): number {
 }
 
 /** The groups in balanced parentheses in `s`: "(a) (b.east)" gives ["a", "b.east"], with offsets. */
-function parenGroups(s: string): Array<{ text: string; at: number }> {
+export function parenGroups(s: string): Array<{ text: string; at: number }> {
   const out: Array<{ text: string; at: number }> = [];
   let depth = 0;
   let start = -1;

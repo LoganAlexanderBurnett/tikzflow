@@ -9,13 +9,13 @@ import { segPoint } from "../tikz/layout.ts";
 import type { Point } from "../tikz/shapes.ts";
 import type { OptionItem } from "../model/syntax.ts";
 import { applyChanges, type Change, composeChanges } from "./changes.ts";
-import { findEdge } from "./edges.ts";
+import { type EditOutcome, findEdge } from "./edges.ts";
 import { labelProblem } from "./label.ts";
 import { findItems, formatOption, nodeTarget, removeItems, setOption } from "./optionEdits.ts";
 
 export type LabelAdded = { ok: true; changes: Change[]; text: string; layout: PictureLayout; edgeId: string; labelId: string; written: string } | { ok: false; reason: string };
 export type LabelSlid = { ok: true; changes: Change[]; text: string; layout: PictureLayout; pos: number; written: string } | { ok: false; reason: string };
-export type LabelFlipped = { ok: true; changes: Change[]; text: string; layout: PictureLayout; edgeId: string; labelId: string; written: string } | { ok: false; reason: string };
+export type LabelFlipped = { ok: true; changes: Change[]; text: string; layout: PictureLayout; edgeId: string; labelId: string; written: string; /** The label was on the line and is beside it now, rather than turned over. */ placed?: true } | { ok: false; reason: string };
 
 const near = (a: Point, b: Point, eps = 0.05) => Math.hypot(a.x - b.x, a.y - b.y) <= eps;
 
@@ -166,6 +166,8 @@ function planAutoSide(text: string, picIndex: number, layout: PictureLayout, lab
   const g = label && edge && labelGeometry(edge, label);
   // Only a label the slide made worse: one that already sat on a sloping line the same way is the author's choice.
   if (!label || !g || g.overlap <= OVERLAP || g.overlap <= before + 1) return null;
+  // The layout doesn't turn a `sloped` label's anchors with the line, so where it sits can't be judged.
+  if (label.rotate !== undefined) return null;
   const sides = ownSides(label);
   if (!sides.length || sides.some((x) => x.item.value !== undefined)) return null;
   const keys = autoSide(g.angle, sum(sides.map((x) => sideVector(x.item.key))));
@@ -179,6 +181,57 @@ function planAutoSide(text: string, picIndex: number, layout: PictureLayout, lab
   const g2 = made && edge2 && labelGeometry(edge2, made);
   if (!g2 || g2.overlap > OVERLAP) return null;
   return { changes, text: next, layout: layout2, written: `${sides.map((x) => x.item.key).join(", ")} → ${keys}` };
+}
+
+/**
+ * After an edit that changes the line of one edge: its form (Straight,
+ * Orthogonal, Curved, D58 item 6), or a drag of one of its corners, curve
+ * handles, segments or ends (D65): a label written `above`, `left` and so on
+ * that the new line cuts through, and that the old line didn't, gets `auto` or
+ * `auto, swap` instead, on the side it was on, by the same rule as sliding a
+ * label (D57). Labels are matched to their old selves by their text in the
+ * code. Returns `outcome` (made from `text`) with the fixes added to its
+ * changes, in one set against `text`; a refused outcome is returned as it is.
+ * Only labels of the edited edge are looked at: moving a node never rewrites
+ * labels (D65).
+ */
+export function fixLabelSides<T extends EditOutcome>(text: string, picIndex: number, edgeId: string, outcome: T): T {
+  if (!outcome.ok) return outcome;
+  const layout0 = layoutDocumentPicture(analyzeDocument(text), picIndex);
+  const edge0 = layout0 && findEdge(layout0, edgeId);
+  if (!layout0 || !edge0 || !edge0.labels.length) return outcome;
+  const was = new Map<string, number[]>();
+  for (const l of edge0.labels) {
+    const key = text.slice(l.syntax.from, l.syntax.to);
+    was.set(key, [...(was.get(key) ?? []), labelGeometry(edge0, l)?.overlap ?? 0]);
+  }
+  const edge1 = findEdge(outcome.layout, outcome.edgeId ?? edgeId);
+  if (!edge1) return outcome;
+  // Each label of the new edge with how much the old line cut into it (unmatched ones are left alone).
+  const todo = edge1.labels.map((l) => ({ from: l.syntax.from, before: was.get(outcome.text.slice(l.syntax.from, l.syntax.to))?.shift() ?? Infinity }));
+  let { changes, text: cur, layout } = outcome;
+  const notes = [...outcome.notes];
+  // Last label first, so the offsets of the others stay valid.
+  for (const t of todo.sort((a, b) => b.from - a.from)) {
+    const label = layout.pathNodes.find((n) => n.syntax.from === t.from);
+    if (!label || t.before === Infinity) continue;
+    const fix = planAutoSide(cur, picIndex, layout, label.id, t.before);
+    if (!fix) continue;
+    const words = labelWords(cur, label);
+    changes = composeChanges(text, changes, fix.changes);
+    cur = fix.text;
+    layout = fix.layout;
+    const [from, to] = fix.written.split(" → ");
+    notes.push(`wrote the label ${words} as ${to} instead of ${from}, so it stays beside the line`);
+  }
+  return { ...outcome, changes, text: cur, layout, notes } as T;
+}
+
+/** A label's text in a few words, for messages. */
+function labelWords(text: string, label: LaidOutNode): string {
+  const inner = label.syntax.label?.inner;
+  const flat = inner ? text.slice(inner.from, inner.to).replace(/\s+/g, " ").trim() : "";
+  return `"${flat.length > 24 ? `${flat.slice(0, 23)}…` : flat}"`;
 }
 
 /** What `t` is written as: snapped to quarters, else to hundredths (Alt) or twentieths. */
@@ -323,7 +376,6 @@ export function flipBlocker(layout: PictureLayout, labelId: string): string | nu
   if (edge.lock) return `This edge can't be edited: ${edge.lock.message}.`;
   const g = labelGeometry(edge, label);
   if (!g) return "This label isn't placed along a segment of its edge.";
-  if (Math.hypot(g.offset.x, g.offset.y) < 1) return "This label sits on the line itself, so it has no side to flip.";
   return null;
 }
 
@@ -331,7 +383,9 @@ export function flipBlocker(layout: PictureLayout, labelId: string): string | nu
  * Puts a label on the other side of its edge. A label written with `auto`
  * gets `swap` added, or removed if it had one; one written `above` or `left`
  * gets the opposite key (a label the line cuts through gets `auto` instead,
- * on the side its key didn't point to). The result must be the label's mirror
+ * on the side its key didn't point to). A label with no side key at all sits
+ * on the line: it gets `auto` (or `auto, swap`), the side TikZ uses for a
+ * level or upright line (D64). Otherwise the result must be the label's mirror
  * image about its point on the edge, or nothing is written (D57).
  */
 export function planFlipLabel(text: string, picIndex: number, labelId: string): LabelFlipped {
@@ -348,6 +402,7 @@ export function planFlipLabel(text: string, picIndex: number, labelId: string): 
   let changes: Change[] | null;
   let written: string;
   let toAuto = false;
+  let placed = false;
   if (sides.length) {
     if (sides.some((x) => x.item.value !== undefined && /(^|\s)of(\s|$)/.test(x.item.value))) return { ok: false, reason: "This label is placed relative to a node, so it can't be flipped here. Change it in the code." };
     if (g.overlap > OVERLAP && sides.every((x) => x.item.value === undefined)) {
@@ -361,6 +416,13 @@ export function planFlipLabel(text: string, picIndex: number, labelId: string): 
       changes = sides.map((x, i) => ({ from: x.item.from, to: x.item.to, insert: flipped[i]! }));
       written = sides.map((x, i) => `${text.slice(x.item.from, x.item.to)} → ${flipped[i]}`).join(", ");
     }
+  } else if (Math.hypot(g.offset.x, g.offset.y) < 1) {
+    // No side key, and nothing beside the line: the label sits on it, with no side to flip. `auto` puts it beside it (D64).
+    const keys = autoSide(g.angle, { x: 0, y: 0 });
+    changes = setOption(text, target, () => false, keys);
+    written = `added ${keys}`;
+    toAuto = true;
+    placed = true;
   } else {
     // `auto` (on the label, its path or a style): `swap` turns it over.
     const has = findItems(target, (i) => i.key === "swap").length > 0;
@@ -380,7 +442,49 @@ export function planFlipLabel(text: string, picIndex: number, labelId: string): 
   if (toAuto ? g2.overlap > OVERLAP : !near(g2.offset, { x: -g.offset.x, y: -g.offset.y }, 0.5)) {
     return { ok: false, reason: "This label has no side to flip: it isn't written beside the line with auto, above, below, left or right." };
   }
-  return { ok: true, changes, text: next, layout: layout2, edgeId: edge.id, labelId: moved.id, written };
+  return { ok: true, changes, text: next, layout: layout2, edgeId: edge.id, labelId: moved.id, written, ...(placed ? { placed: true as const } : {}) };
+}
+
+// ---------------------------------------------------------------- labels on their own line (D65)
+
+/**
+ * Labels the line of their own edge cuts through although they are written
+ * with a side key (`above`, `left=2mm`, …): the ones a node move or a hand
+ * edit left on the line. The canvas marks them; moving a node never rewrites
+ * them (D65). Sloped labels and labels placed against a node are left out.
+ */
+export function labelsOnTheirLine(layout: PictureLayout): Array<{ labelId: string; edgeId: string }> {
+  const out: Array<{ labelId: string; edgeId: string }> = [];
+  for (const edge of pictureEdges(layout)) {
+    if (edge.lock) continue;
+    for (const label of edge.labels) {
+      if (label.rotate !== undefined) continue;
+      const sides = ownSides(label);
+      if (!sides.length || sides.some((x) => x.item.value !== undefined && /(^|\s)of(\s|$)/.test(x.item.value))) continue;
+      const g = labelGeometry(edge, label);
+      if (g && g.overlap > OVERLAP) out.push({ labelId: label.id, edgeId: edge.id });
+    }
+  }
+  return out;
+}
+
+/**
+ * The warning marker's other fix: the label's side key becomes `auto` or
+ * `auto, swap` on the side the key pointed to, by the rule of D57 (Flip puts
+ * it on the other side). Refused for keys with a distance, which `auto` would lose.
+ */
+export function planLabelBesideLine(text: string, picIndex: number, labelId: string): LabelFlipped {
+  const layout = layoutDocumentPicture(analyzeDocument(text), picIndex);
+  const label = layout?.pathNodes.find((n) => n.id === labelId);
+  const edge = layout && edgeOfLabel(pictureEdges(layout), labelId);
+  if (!layout || !label || !edge) return { ok: false, reason: "There is no such label." };
+  if (ownSides(label).some((x) => x.item.value !== undefined)) {
+    return { ok: false, reason: "This label's side key has a distance, which auto would lose. Use Flip side, or change it in the code." };
+  }
+  const fix = planAutoSide(text, picIndex, layout, labelId, 0);
+  if (!fix) return { ok: false, reason: "This label couldn't be put beside the line with auto without changing the drawing." };
+  const moved = fix.layout.pathNodes.find((n) => n.syntax.from === label.syntax.from);
+  return { ok: true, changes: fix.changes, text: fix.text, layout: fix.layout, edgeId: edge.id, labelId: moved?.id ?? labelId, written: fix.written };
 }
 
 // ---------------------------------------------------------------- Yes/No on decisions

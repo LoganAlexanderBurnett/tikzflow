@@ -19,5 +19,5 @@
     "jsx": "react-jsx",
     "jsxImportSource": "preact"
   },
-  "include": ["spike", "src", "test", "scripts", "*.ts"]
+  "include": ["spike", "src", "test", "scripts", "engine", "*.ts"]
 }

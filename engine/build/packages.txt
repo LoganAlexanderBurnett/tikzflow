@@ -1,0 +1,59 @@
+# TeX Live packages whose files the accurate preview can load (D67), one per
+# line. CI copies every file each one installs under texmf-dist/tex, resolved
+# by name with kpsewhich as TeX would, from the same TeX Live snapshot as the
+# format. A \usepackage of anything else is left out of the compile, with a
+# notice in the app. Fonts come from engine/build/fonts.ts.
+
+# LaTeX itself, the classes' size options, expl3's back ends. In TeX Live 2026
+# l3backend is part of l3kernel, mhsetup of mathtools, bm and array of tools,
+# and LaTeX's own fonts come from fonts.ts.
+latex
+l3kernel
+l3packages
+firstaid
+
+# pgf and TikZ: every library, so any \usetikzlibrary works
+pgf
+pgfplots
+tikz-cd
+tikz-3dplot
+tcolorbox
+environ
+trimspaces
+
+# Mathematics
+amsmath
+amsfonts
+amscls
+mathtools
+siunitx
+translations
+cancel
+xfrac
+
+# Common helpers
+tools
+etoolbox
+xkeyval
+kvoptions
+kvsetkeys
+kvdefinekeys
+ltxcmds
+infwarerr
+pdftexcmds
+iftex
+etexcmds
+xstring
+ifmtarg
+graphics
+graphics-def
+graphics-cfg
+xcolor
+colortbl
+booktabs
+multirow
+makecell
+varwidth
+standalone
+enumitem
+listings

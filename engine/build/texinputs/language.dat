@@ -1,0 +1,10 @@
+% Hyphenation patterns loaded into the engine's format: English only, as in
+% TikZJax's format. Found ahead of TeX Live's own language.dat through
+% TEXINPUTS when the format is dumped (engine/build/dump.cjs). The same lines
+% as TeX Live's language.us.
+english		hyphen.tex
+=usenglish
+=USenglish
+=american
+dumylang	dumyhyph.tex
+nohyphenation	zerohyph.tex

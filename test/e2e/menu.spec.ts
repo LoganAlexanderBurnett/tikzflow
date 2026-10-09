@@ -1,7 +1,7 @@
 // The edge context menu (D57): the same items in the same order on every edge,
 // the current form ticked, a reason on every disabled item, and the menu kept
 // inside the window.
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, test } from "./base.ts";
 
 async function setCode(page: Page, text: string) {
   await page.evaluate((t) => {

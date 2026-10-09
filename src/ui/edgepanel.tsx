@@ -28,7 +28,7 @@ import { type Edge, edgeTitle, pathEdges } from "../model/edges.ts";
 import { describeMode, explainEdge, explainPath } from "../model/explain.ts";
 import { ColorPicker, Swatch } from "./colorpicker.tsx";
 import { flipBlocker } from "../edit/labels.ts";
-import { applyEdgeProperty, baseLayout, currentPicture, deleteSelection, doc, flipLabel, pickLabel, selectedEdge, selectedLabelId, selection, startLabelEdit } from "./store.ts";
+import { applyEdgeProperty, baseLayout, currentPicture, deleteSelection, doc, flipLabel, pickLabel, selectedEdge, selectedLabelId, selection, splitAndApplyArrow, startLabelEdit } from "./store.ts";
 
 /** The label's TeX on one line, cut short. */
 function labelText(source: string): string {
@@ -61,6 +61,8 @@ function EdgeProperties({ edge }: { edge: Edge }) {
   const layout = baseLayout.value;
   const scopeName = useSignal<string | null>(null);
   const open = useSignal<string | null>(null);
+  /** An arrow edit waiting for the owner of the path to say whether to split it (D62). */
+  const pending = useSignal<{ edit: EdgeEdit; done: string } | null>(null);
   if (!pic || !layout || edge.lock) return null;
   const sites = styleSites(d, pic);
   const styles = edgeStyleNames(d, pic, edge);
@@ -76,6 +78,10 @@ function EdgeProperties({ edge }: { edge: Edge }) {
     return env.colors.parse(e);
   };
   const apply = (edit: EdgeEdit, done: string, extra: Change[] = []) => {
+    if (arrowBlock && edit.kind === "arrow") {
+      pending.value = { edit, done };
+      return;
+    }
     if (applyEdgeProperty(edge.id, scope, edit, extra, done)) open.value = null;
   };
   const stroke = edge.path.stroke;
@@ -106,8 +112,7 @@ function EdgeProperties({ edge }: { edge: Edge }) {
             <button
               class={`tf-toggle${props.direction === dir.value ? " on" : ""}`}
               aria-pressed={props.direction === dir.value}
-              disabled={!!arrowBlock}
-              title={arrowBlock ?? dir.title}
+              title={arrowBlock ? `${dir.title}. This path has several edges, so you will be asked whether to split it.` : dir.title}
               data-testid={`edge-arrow-${dir.value}`}
               onClick={() => apply({ kind: "arrow", direction: dir.value }, "Changed the arrow of the edge")}
             >
@@ -120,8 +125,8 @@ function EdgeProperties({ edge }: { edge: Edge }) {
             class="tf-wide"
             aria-label="Arrow tip"
             data-testid="edge-tip"
-            disabled={!!arrowBlock || props.direction === "none"}
-            title={arrowBlock ?? (props.direction === "none" ? "Choose a direction first" : "The shape of the tip. Default is the figure's own (>) tip.")}
+            disabled={props.direction === "none"}
+            title={props.direction === "none" ? "Choose a direction first" : "The shape of the tip. Default is the figure's own (>) tip."}
             value={props.tip === "custom" ? "custom" : props.tip}
             onChange={(e) => apply({ kind: "arrow", tip: (e.target as HTMLSelectElement).value as TipName }, "Changed the arrow tip of the edge")}
           >
@@ -132,7 +137,25 @@ function EdgeProperties({ edge }: { edge: Edge }) {
           </select>
         </div>
         {props.arrowVia && <span class="tf-note">The arrow comes from the {props.arrowVia} style{style ? "" : "; a change here is written on the edge itself."}</span>}
-        {arrowBlock && <span class="tf-note">{arrowBlock}</span>}
+        {arrowBlock && !pending.value && <span class="tf-note">{arrowBlock}</span>}
+        {arrowBlock && pending.value && (
+          <div class="tf-note tf-split-apply" data-testid="edge-split-apply-card" role="alert">
+            <p>Arrow tips belong to the whole path, and this path has several edges. Split it into one statement per edge, then change this edge only?</p>
+            <button
+              class="tf-small"
+              data-testid="edge-split-apply"
+              onClick={() => {
+                const p = pending.value!;
+                if (splitAndApplyArrow(edge.id, p.edit, p.done)) pending.value = null;
+              }}
+            >
+              Split and apply
+            </button>{" "}
+            <button class="tf-small" data-testid="edge-split-cancel" onClick={() => (pending.value = null)}>
+              Cancel
+            </button>
+          </div>
+        )}
       </div>
 
       <div class="tf-prop">

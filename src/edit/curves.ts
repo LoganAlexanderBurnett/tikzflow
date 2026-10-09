@@ -12,6 +12,7 @@ import { anchorPoint, type Point } from "../tikz/shapes.ts";
 import { trimNumber } from "../tikz/units.ts";
 import type { Change } from "./changes.ts";
 import { absoluteText, editPath, type EditOutcome, findEdge, relativeStyle, relativeText } from "./edges.ts";
+import { fixLabelSides } from "./labels.ts";
 import { CURVE_KEYS, edgeMiddle, isEdgeOperation, opOptions, rewriteMiddle } from "./vertices.ts";
 
 const DEG = 180 / Math.PI;
@@ -61,6 +62,10 @@ function endAt(layout: PictureLayout, s: RouteStop, deg: number): Point {
  * in its own options.
  */
 export function planMakeCurved(text: string, picIndex: number, edgeId: string): EditOutcome {
+  return fixLabelSides(text, picIndex, edgeId, makeCurved(text, picIndex, edgeId));
+}
+
+function makeCurved(text: string, picIndex: number, edgeId: string): EditOutcome {
   const { layout, edge } = edgeIn(text, picIndex, edgeId);
   if (!layout || !edge) return { ok: false, reason: "There is no such edge." };
   if (edge.lock) return { ok: false, reason: `This edge can't be edited: ${edge.lock.message}.` };

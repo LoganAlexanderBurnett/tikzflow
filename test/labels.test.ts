@@ -323,10 +323,42 @@ describe("flipping a label to the other side (D57)", () => {
     expect(again.ok && geometry(again.text).side).toBe(-geometry(r.text).side);
   });
 
-  it("refuses a label on the line, or on a locked edge, with the reason", () => {
+  it("writes auto for a label with no side key, which sits on the line (D58 item 7, D64)", () => {
     const bare = pic("\\draw (a) -- node[pos=0.3] {x} (b);");
-    expect(flipBlocker(layoutOf(bare), layoutOf(bare).pathNodes[0]!.id)).toMatch(/sits on the line/);
-    expect(flip(bare)).toMatchObject({ ok: false });
+    expect(geometry(bare).overlap).toBeGreaterThan(1.5);
+    expect(flipBlocker(layoutOf(bare), layoutOf(bare).pathNodes[0]!.id)).toBeNull();
+    const r = flip(bare);
+    expect(r.ok && lines(r.text)).toEqual(["\\draw (a) -- node[pos=0.3, auto] {x} (b);"]);
+    expect(r.ok && r.placed).toBe(true);
+    expect(r.ok && geometry(r.text).overlap).toBeLessThan(1);
+    // Flipping again is an ordinary flip: swap.
+    const again = flip(r.ok ? r.text : "");
+    expect(again.ok && lines(again.text)).toEqual(["\\draw (a) -- node[pos=0.3, auto, swap] {x} (b);"]);
+    expect(again.ok && again.placed).toBeUndefined();
+  });
+
+  it("writes auto for a label with no options at all, and on every kind of line", () => {
+    const none = pic("\\draw (a) -- node {x} (b);");
+    const r = flip(none);
+    expect(r.ok && lines(r.text)).toEqual(["\\draw (a) -- node[auto] {x} (b);"]);
+    for (const body of ["\\draw (a) |- node[pos=0.8] {x} (b);", "\\draw (a) to[bend left] node {x} (b);", "\\draw (a) edge node {x} (b);"]) {
+      const text = pic(body);
+      const f = flip(text);
+      expect(f.ok, body).toBe(true);
+      if (f.ok) expect(geometry(f.text).overlap, body).toBeLessThan(1.5);
+    }
+  });
+
+  it("puts the label on the side TikZ's auto gives: above a level line, right of an upright one", () => {
+    const level = `\\begin{tikzpicture}\n\\node[draw] (a) at (0,0) {A};\n\\node[draw] (d) at (4,0) {D};\n\\draw (a) -- node {x} (d);\n\\end{tikzpicture}\n`;
+    const r = flip(level);
+    expect(r.ok && geometry(r.text).offset.y).toBeGreaterThan(0);
+    const upright = `\\begin{tikzpicture}\n\\node[draw] (a) at (0,0) {A};\n\\node[draw] (d) at (0,-3) {D};\n\\draw (a) -- node {x} (d);\n\\end{tikzpicture}\n`;
+    const u = flip(upright);
+    expect(u.ok && geometry(u.text).offset.x).toBeGreaterThan(0);
+  });
+
+  it("still refuses a label placed relative to a node, with the reason", () => {
     const relative = pic("\\draw (a) -- node[above=of c] {x} (b);");
     expect(flip(relative)).toMatchObject({ ok: false });
   });

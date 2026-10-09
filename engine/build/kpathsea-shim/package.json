@@ -1,0 +1,8 @@
+{
+    "name": "node-kpathsea",
+    "version": "0.0.0-tikzflow",
+    "description": "kpsewhich-based stand-in for kisonecat/node-kpathsea, used only to build the TeX engine in CI",
+    "license": "GPL-3.0-or-later",
+    "main": "index.js",
+    "private": true
+}

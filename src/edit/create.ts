@@ -396,15 +396,18 @@ export function planCreate(text: string, picIndex: number, req: CreateRequest): 
       break;
     }
   }
-  // Every side is taken: line up beyond the node in the way, then shift along the flow's cross axis.
+  // Every side is taken: shift along the side's cross axis, by the new node's own extent plus a
+  // gap, to one side then the other, until a spot is free. Never settles for a spot that is taken.
   if (!chosen) {
     const dir = sibling ? perpendicular : flow;
-    const cross = dir === "below" || dir === "above" ? "xshift" : "yshift";
+    const across = dir === "below" || dir === "above";
+    const cross = across ? "xshift" : "yshift";
     const probe = tryRelation(`${dir}=of ${parentName}`, dir);
-    const step = "reason" in probe ? 0 : probe.node.shape.hw * 2 + 14;
-    for (let k = 1; k <= 8 && !chosen; k++) {
+    const extent = "reason" in probe ? 0 : across ? probe.node.shape.hw * 2 : probe.node.shape.hh * 2;
+    const step = Math.max(extent + 14, 20);
+    for (let k = 1; k <= 24 && !chosen; k++) {
       const sign = k % 2 ? 1 : -1;
-      const relation = `${dir}=of ${parentName}, ${cross}=${mm(sign * Math.ceil(k / 2) * (cross === "xshift" ? step : (step / 2)))}`;
+      const relation = `${dir}=of ${parentName}, ${cross}=${mm(sign * Math.ceil(k / 2) * step)}`;
       const r = consider(relation, dir);
       if (typeof r === "object") return { ok: false, reason: r.reason };
       if (r) chosen = relation;
@@ -427,5 +430,8 @@ function finish(text: string, picIndex: number, changes: Change[], name: string,
   const made = check(text, picIndex, changes, name);
   if (!made) return { ok: false, reason: "The new node couldn't be written." };
   if (made.node.lock) return { ok: false, reason: `The new node would be locked (${made.node.locked}).` };
+  // A last guard (the owner's rule): a new node never lands on another node's position.
+  const under = made.layout.nodes.find((n) => n.id !== made.node.id && n.kind === "statement" && !n.lock && Math.abs(n.shape.center.x - made.node.shape.center.x) < 0.5 && Math.abs(n.shape.center.y - made.node.shape.center.y) < 0.5);
+  if (under) return { ok: false, reason: `The new node would sit exactly on ${under.name ?? "another node"}; move something out of the way first.` };
   return { ok: true, changes, text: made.text, layout: made.layout, id: made.node.id, name, written, notes };
 }

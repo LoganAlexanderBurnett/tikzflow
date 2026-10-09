@@ -8,12 +8,13 @@ import type { OptionItem, OptionList, PathItemSyntax, PictureSyntax } from "../m
 import { arrowSides, isArrowKey } from "../tikz/keys.ts";
 import type { LaidOutPath, PictureLayout } from "../tikz/layout.ts";
 import type { KeyValue } from "../tikz/options.ts";
-import { applyChanges, type Change } from "./changes.ts";
+import { applyChanges, type Change, composeChanges } from "./changes.ts";
 import { findEdge } from "./edges.ts";
 import { ensureLibraries } from "./libraries.ts";
 import { appendItem, findItems, formatOption, type OptionTarget, removeItems } from "./optionEdits.ts";
 import { bodyKeys, itemKv, usesStyle } from "./properties.ts";
 import { definedStyleNames, styleChain, styleSites, styleTarget, type StyleSite } from "./styles.ts";
+import { planSplit } from "./split.ts";
 import { opOptions } from "./vertices.ts";
 
 export type Direction = "none" | "forward" | "backward" | "both";
@@ -224,7 +225,7 @@ export function styleEdgeUsers(doc: DocumentModel, pic: PictureSyntax, layout: P
 export function edgeScopeBlocker(edge: Edge, layout: PictureLayout, edit?: EdgeEdit): string | null {
   if (edge.lock) return `This edge can't be edited: ${edge.lock.message}.`;
   if (edit?.kind === "arrow" && !edge.path.id.includes("/edge") && pathEdges(edge.path, layout).length > 1) {
-    return "Arrow tips belong to the whole path, and this path has several edges. Use Split into separate edges first.";
+    return "Arrow tips belong to the whole path, and this path has several edges. Use Split and apply, or Split into separate edges first.";
   }
   return null;
 }
@@ -408,4 +409,32 @@ function misread(edit: EdgeEdit, scope: EdgeScope["kind"], path: LaidOutPath, pa
     if (path.tips.length !== n) return "The arrow tips didn't come out as asked.";
   }
   return null;
+}
+
+// ---------------------------------------------------------------- split and apply
+
+export type SplitApplyOutcome = { ok: true; changes: Change[]; text: string; layout: PictureLayout; notes: string[]; edgeId: string } | { ok: false; reason: string };
+
+/**
+ * "Split and apply" (D58 item 5, D62): an arrow edit for one edge of a `\draw`
+ * with several edges. The path is split into one statement per edge (D49,
+ * D50), which keeps every tip where it was, and then the edit is made to this
+ * edge's own statement. The two steps are returned as one set of changes, so
+ * they undo together. `edgeId` is the edge in the new text.
+ */
+export function planSplitAndApply(text: string, picIndex: number, edgeId: string, edit: EdgeEdit): SplitApplyOutcome {
+  if (edit.kind !== "arrow") return { ok: false, reason: "Only arrow tips need the path split first." };
+  const split = planSplit(text, picIndex, edgeId);
+  if (!split.ok) return { ok: false, reason: split.reason };
+  const index = Number(/:(\d+)$/.exec(edgeId)?.[1] ?? 0);
+  const newId = split.edgeIds[index];
+  if (!newId) return { ok: false, reason: "The edge couldn't be found after splitting the path." };
+  const notes = [`split the \\draw into ${split.edgeIds.length} statements, one per edge`];
+  const applied = planEdgeProperty(split.text, picIndex, newId, { kind: "edge" }, edit);
+  if (!applied.ok) return { ok: false, reason: `The path was not split. ${applied.reason}` };
+  // The split may already give the edge the tip asked for (it keeps every tip where it was).
+  const unchanged = applied.text === split.text;
+  if (unchanged) notes.push("the edge already had that arrow");
+  const changes = unchanged ? split.changes : composeChanges(text, split.changes, applied.changes);
+  return { ok: true, changes, text: applied.text, layout: applied.layout, notes: [...notes, ...applied.notes], edgeId: newId };
 }

@@ -1,7 +1,7 @@
 // Milestone 2a step 2: errors, undefined references, locked-node fixes,
 // coordinate markers and the undrawable-option marker, in the browser.
 import { join } from "node:path";
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, test } from "./base.ts";
 
 const corpus = (name: string) => join(import.meta.dirname, "..", "..", "corpus", name);
 
@@ -98,6 +98,9 @@ test("dragging a node locked by an undefined reference pins it where it is dropp
     w.tikzflow.store.replaceDocument(t, null, "utf-8");
   }, doc);
   await expect(page.getByTestId("summary-headline")).toHaveText("1 node of 2 and 0 edges editable");
+  // The view fits late on a fresh load (fonts, then the work kept in the browser); fit it now so the node holds still.
+  await page.getByRole("button", { name: "Fit" }).click();
+  await page.waitForTimeout(300);
   const box = await page.locator('g[data-node="c"] path').first().boundingBox();
   if (!box) throw new Error("c not drawn");
   const from = { x: box.x + box.width / 2, y: box.y + box.height / 2 };

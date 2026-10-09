@@ -1,0 +1,177 @@
+# Builds the accurate-preview engine (DECISIONS.md D15): TikZJax's TeX
+# compiled to WebAssembly with web2js, and our own format dumped from a pinned
+# TeX Live snapshot. Then compiles the Milestone 0 sample with it and checks
+# the pgf version and the libraries. A tag `engine-*` also publishes the
+# files as a GitHub Release, which `npm run fetch-engines` fetches by hash.
+name: Engine
+
+on:
+  push:
+    # Milestone 3 ended with the merge into trunk (D75); the work branch's trigger moved here.
+    branches: [trunk]
+    tags: ['engine-*']
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  # The image's name on Docker Hub, recorded in the manifest. jobs.build.container.image is the
+  # same digest pulled through Google's mirror (mirror.gcr.io), because Docker Hub's anonymous
+  # pull limit kept failing runs (a container image can't be read from env). TeX Live 2026 "latest" (scheme-full), linux/amd64, as
+  # published on 2026-10-04.
+  TL_IMAGE: texlive/texlive@sha256:f1c4d2c23f297caee8654dc23eed022c854ca59e899e40666abbd45bab70dceb
+  WEB2JS_REPO: drgrice1/web2js
+  WEB2JS_COMMIT: 0114ef5905dc387b70e72c654bcedd3b52b29fad
+  PGF_VERSION: 3.1.12
+  NODE_VERSION: 24.21.0
+  # The PGF driver the format is dumped with: ours, built on pgf's
+  # pgfsys-dvisvgm.def (engine/build/texinputs, D66).
+  PGF_DRIVER: pgfsys-tikzflow.def
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    container:
+      image: mirror.gcr.io/texlive/texlive@sha256:f1c4d2c23f297caee8654dc23eed022c854ca59e899e40666abbd45bab70dceb
+    steps:
+      - name: TeX Live snapshot
+        run: |
+          head -n 1 /usr/local/texlive/*/release-texlive.txt
+          tlmgr --version
+          command -v tie tangle kpsewhich
+          rev=$(kpsewhich pgf.revision.tex)
+          echo "$rev"
+          grep -F "pgfversion{${PGF_VERSION}}" "$rev" || { echo "::error::pgf in this image is not ${PGF_VERSION}"; exit 1; }
+
+      - name: Check out tikzflow
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check out web2js
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ env.WEB2JS_REPO }}
+          ref: ${{ env.WEB2JS_COMMIT }}
+          path: web2js
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install web2js's build dependencies
+        working-directory: web2js
+        run: |
+          # The native kpathsea addon is replaced by a kpsewhich stand-in.
+          npm pkg set dependencies.node-kpathsea=file:../engine/build/kpathsea-shim
+          npm install --omit=dev --no-audit --no-fund
+          npm ls --omit=dev || true
+
+      - name: Report missing files as missing (loader and \filesize)
+        run: node engine/build/patch-web2js.cjs web2js
+
+      - name: Build tex.wasm
+        working-directory: web2js
+        run: |
+          npm run build:parser
+          time npm run build:wasm
+          time npm run build:asyncify-wasm
+          ls -l tex.p tex.pool out.wasm tex.wasm
+
+      - name: Fix the clock
+        # TeX's date and time in the format come from the commit, so a rebuild
+        # of the same commit gives the same core.dump (D66).
+        env:
+          COMMIT_TIME: ${{ github.event.head_commit.timestamp }}
+        run: echo "SOURCE_DATE_EPOCH=$(date -d "${COMMIT_TIME:-1970-01-01T00:00:00Z}" +%s)" >> "$GITHUB_ENV"
+
+      - name: Dump the format
+        run: |
+          mkdir -p work
+          cd work
+          export WEB2JS_DIR="$GITHUB_WORKSPACE/web2js"
+          export TEXINPUTS="$GITHUB_WORKSPACE/engine/build/texinputs//:"
+          node ../engine/build/dump.cjs "$PGF_DRIVER" | tee dump-terminal.txt
+          cp "$WEB2JS_DIR/tex.wasm" .
+          ls -l core.dump latex.fmt
+
+      - name: Compile the sample
+        run: |
+          node engine/build/sample.ts write work
+          cd work
+          export WEB2JS_DIR="$GITHUB_WORKSPACE/web2js"
+          node ../engine/build/compile.cjs sample.tex core.dump | tee sample-terminal.txt
+
+      - name: Check the sample
+        run: node engine/build/sample.ts check work/sample.log work/latex.log "$PGF_VERSION" work/versions.json
+
+      - name: Fonts for the DVI converter
+        run: node engine/build/fonts.ts "$(kpsewhich -var-value TEXMFDIST)" work/fonts-build
+
+      - name: Packages the preview can load
+        run: node engine/build/packages.ts engine/build/packages.txt work/fonts-build work/packages
+
+      - name: Reference diagrams (our engine's DVI, the real dvisvgm's SVG)
+        run: |
+          dvisvgm --version
+          node engine/build/references.ts write work/ref
+          cd work/ref
+          export WEB2JS_DIR="$GITHUB_WORKSPACE/web2js"
+          for f in *.tex; do
+            n="${f%.tex}"
+            node ../../engine/build/compile.cjs "$f" ../core.dump > "$n-terminal.txt" 2>&1 || echo "::warning::$n did not compile cleanly"
+            if [ -s "$n.dvi" ]; then
+              dvisvgm --no-fonts --output="$n.dvisvgm.svg" "$n.dvi" > "$n-dvisvgm.txt" 2>&1 || echo "::warning::dvisvgm failed on $n"
+            fi
+          done
+          ls -l
+
+      - name: Pack
+        if: ${{ !cancelled() }}
+        run: |
+          mkdir -p out/logs
+          cp work/*.log work/*-terminal.txt out/logs/ 2>/dev/null || true
+          cp work/sample.tex work/sample.dvi out/logs/ 2>/dev/null || true
+          if [ -f work/versions.json ]; then
+            if [[ "$GITHUB_REF" == refs/tags/engine-* ]]; then version="$GITHUB_REF_NAME"; else version="ci-$GITHUB_RUN_ID"; fi
+            node engine/build/pack.ts work out "$version"
+          fi
+
+      - name: Upload
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: engine
+          # engine.tar holds the served folder; out/engine itself is thousands of small files.
+          path: |
+            out/
+            !out/engine/
+          retention-days: 30
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/engine-')
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: engine
+          path: out
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --prerelease \
+            --title "Engine $GITHUB_REF_NAME" \
+            --notes "TeX engine and format for the accurate preview, built by run $GITHUB_RUN_ID from $GITHUB_SHA. Hashes and versions are in manifest.json." \
+            out/engine.tar out/manifest.json

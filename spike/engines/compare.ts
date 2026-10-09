@@ -1,51 +1,36 @@
-// Renders every diagram in ./diagrams with busytex (reference, PDF via pdf.js)
-// and TikZJax (SVG, raw and with fixBoxStroke), rasterises both at the same
-// scale, and diffs them. Results are published on window.__compare for
-// scripts/compare-engines.ts.
-// Usage: /spike/engines/compare.html[?only=09-matrix]
+// Renders every diagram in ./diagrams with busytex (reference, PDF via pdf.js),
+// TikZJax (SVG, raw and with fixBoxStroke) and our own engine (M3, D66, D67:
+// tex.wasm with our format and driver, our DVI to SVG), rasterises them at
+// the same scale, and diffs each against the reference. Results are published
+// on window.__compare for scripts/compare-engines.ts.
+// Usage: /spike/engines/compare.html[?only=09-matrix][&engines=ours,tikzjax][&engine=<folder under /engine/>]
 
 import * as pdfjs from "pdfjs-dist";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
+import { EngineClient } from "../../src/engine/client.ts";
+import { engineBase } from "../../src/engine/release.ts";
 import { Busytex } from "./busytex.ts";
 import type { Job } from "./engine.ts";
+import { composite, type DiffStats, diff, rasterSvg, SCALE, toCanvas, trim } from "./imagediff.ts";
 import { fixBoxStroke, TikzJax } from "./tikzjax.ts";
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
-/** Pixels per TeX point. */
-const SCALE = 3;
-/**
- * Max per-channel difference, after blurring, still counted as a match. The
- * blur makes antialiasing differences on thin lines negligible, while a
- * missing or extra 0.4pt line (about 1.2px here) still exceeds it.
- */
-const TOLERANCE = 40;
-/** Alignment search range in px (about ±2pt). */
-const MAX_SHIFT = 6;
-
-export interface DiffStats {
-  /** Trimmed ink box size in pt: reference vs test. */
-  refSizePt: [number, number];
-  testSizePt: [number, number];
-  /** Best alignment of test relative to reference, in pt. */
-  offsetPt: [number, number];
-  inkPixels: number;
-  missing: number;
-  extra: number;
-  color: number;
-  /** (missing + extra + color) / ink pixels, in percent. */
-  mismatchPct: number;
-}
+export type { DiffStats };
 
 export interface DiagramResult {
   name: string;
   busytexOk: boolean;
-  tikzjaxOk: boolean;
+  tikzjaxOk?: boolean;
+  oursOk?: boolean;
   busytexLog?: string;
   tikzjaxLog?: string;
+  oursLog?: string;
   raw?: DiffStats;
   fixed?: DiffStats;
-  /** PNG data URL: reference | TikZJax (fixed) | diff (fixed) | diff (raw). */
+  ours?: DiffStats;
+  oursMs?: number;
+  /** PNG data URL: reference | each engine | its diff. */
   composite?: string;
 }
 
@@ -69,6 +54,17 @@ function jobFor(source: string): Job {
   };
 }
 
+/** Our engine's input.tex for a job: what follows the format's preamble. */
+function oursInput(job: Job): string {
+  return [
+    "\\scrollmode\n\\usepackage{amsmath}\n",
+    job.libraries.length ? `\\usetikzlibrary{${job.libraries.join(",")}}\n` : "",
+    "\\begin{document}\n",
+    job.body,
+    "\\end{document}\n",
+  ].join("");
+}
+
 // ------------------------------------------------------------- rasterising
 
 async function rasterPdf(pdf: Uint8Array): Promise<HTMLCanvasElement> {
@@ -85,219 +81,19 @@ async function rasterPdf(pdf: Uint8Array): Promise<HTMLCanvasElement> {
   return canvas;
 }
 
-const fontCache = new Map<string, string>();
-async function fontFace(family: string): Promise<string> {
-  if (!fontCache.has(family)) {
-    const res = await fetch(`/vendor/tikzjax/package/dist/fonts/${family}.woff2`);
-    const bytes = new Uint8Array(await res.arrayBuffer());
-    let bin = "";
-    for (const b of bytes) bin += String.fromCharCode(b);
-    fontCache.set(family, `@font-face{font-family:${family};src:url(data:font/woff2;base64,${btoa(bin)}) format('woff2');}`);
-  }
-  return fontCache.get(family)!;
-}
-
-/** Draws TikZJax's SVG as an image, with its web fonts embedded so text renders. */
-async function rasterSvg(svg: string): Promise<HTMLCanvasElement> {
-  const families = [...new Set([...svg.matchAll(/font-family="([^"]+)"/g)].map((m) => m[1]!))];
-  const css = (await Promise.all(families.map(fontFace))).join("");
-  // TikZJax's coordinates are TeX points (1/72.27 in) but it labels width and
-  // height as CSS pt (1/72 in), so taken literally the output is 0.375% too
-  // large. Convert to big points so it matches the PDF.
-  const TEX_PT = 72 / 72.27;
-  const w = Number.parseFloat(/width="([\d.]+)pt"/.exec(svg)?.[1] ?? "100") * TEX_PT;
-  const h = Number.parseFloat(/height="([\d.]+)pt"/.exec(svg)?.[1] ?? "100") * TEX_PT;
-  const sized = svg
-    .replace(/width="[\d.]+pt"/, `width="${w * SCALE}"`)
-    .replace(/height="[\d.]+pt"/, `height="${h * SCALE}"`)
-    .replace(/(<svg[^>]*>)/, `$1<style>${css}</style>`);
-  const img = new Image();
-  img.src = URL.createObjectURL(new Blob([sized], { type: "image/svg+xml" }));
-  await img.decode();
-  // Give embedded fonts a moment; the first paint can use a fallback.
-  await new Promise((r) => setTimeout(r, 50));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.ceil(w * SCALE);
-  canvas.height = Math.ceil(h * SCALE);
-  const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = "#fff";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-  URL.revokeObjectURL(img.src);
-  return canvas;
-}
-
-// ------------------------------------------------------------- diffing
-
-interface Trimmed {
-  data: Uint8ClampedArray;
-  w: number;
-  h: number;
-}
-
-const isInk = (d: Uint8ClampedArray, i: number) =>
-  Math.max(255 - d[i]!, 255 - d[i + 1]!, 255 - d[i + 2]!) > 12;
-
-/** Crops a canvas to the bounding box of its non-white pixels. */
-function trim(canvas: HTMLCanvasElement): Trimmed {
-  const ctx = canvas.getContext("2d")!;
-  const { data, width, height } = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  let x0 = width, y0 = height, x1 = -1, y1 = -1;
-  for (let y = 0; y < height; y++)
-    for (let x = 0; x < width; x++)
-      if (isInk(data, (y * width + x) * 4)) {
-        if (x < x0) x0 = x;
-        if (x > x1) x1 = x;
-        if (y < y0) y0 = y;
-        if (y > y1) y1 = y;
-      }
-  if (x1 < 0) return { data: new Uint8ClampedArray(4), w: 1, h: 1 };
-  const w = x1 - x0 + 1, h = y1 - y0 + 1;
-  return { data: ctx.getImageData(x0, y0, w, h).data, w, h };
-}
-
-/** A padded RGB float image, blurred with two 3x3 box passes (≈ Gaussian σ≈1px). */
-interface Blurred {
-  rgb: Float32Array;
-  w: number;
-  h: number;
-}
-
-const PAD = MAX_SHIFT + 2;
-
-function blur(t: Trimmed): Blurred {
-  const w = t.w + PAD * 2, h = t.h + PAD * 2;
-  let src = new Float32Array(w * h * 3).fill(255);
-  for (let y = 0; y < t.h; y++)
-    for (let x = 0; x < t.w; x++) {
-      const i = (y * t.w + x) * 4, o = ((y + PAD) * w + x + PAD) * 3;
-      src[o] = t.data[i]!;
-      src[o + 1] = t.data[i + 1]!;
-      src[o + 2] = t.data[i + 2]!;
-    }
-  for (let pass = 0; pass < 2; pass++) {
-    const dst = new Float32Array(src.length).fill(255);
-    for (let y = 1; y < h - 1; y++)
-      for (let x = 1; x < w - 1; x++)
-        for (let c = 0; c < 3; c++) {
-          let s = 0;
-          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) s += src[((y + dy) * w + x + dx) * 3 + c]!;
-          dst[(y * w + x) * 3 + c] = s / 9;
-        }
-    src = dst;
-  }
-  return { rgb: src, w, h };
-}
-
-function at(b: Blurred, x: number, y: number, c: number): number {
-  if (x < 0 || y < 0 || x >= b.w || y >= b.h) return 255;
-  return b.rgb[(y * b.w + x) * 3 + c]!;
-}
-
-const inkAt = (b: Blurred, x: number, y: number) =>
-  Math.max(255 - at(b, x, y, 0), 255 - at(b, x, y, 1), 255 - at(b, x, y, 2)) > 12;
-
-function mismatchAt(a: Blurred, b: Blurred, x: number, y: number, dx: number, dy: number): boolean {
-  for (let c = 0; c < 3; c++) if (Math.abs(at(a, x, y, c) - at(b, x - dx, y - dy, c)) > TOLERANCE) return true;
-  return false;
-}
-
-/** Diffs two trimmed images at the alignment (within ±MAX_SHIFT) that matches best. */
-function diff(refT: Trimmed, testT: Trimmed): { stats: DiffStats; image: ImageData } {
-  const ref = blur(refT), test = blur(testT);
-  const w = Math.max(ref.w, test.w), h = Math.max(ref.h, test.h);
-  // Coarse alignment search on a sparse grid.
-  let best = { dx: 0, dy: 0, n: Infinity };
-  for (let dy = -MAX_SHIFT; dy <= MAX_SHIFT; dy++)
-    for (let dx = -MAX_SHIFT; dx <= MAX_SHIFT; dx++) {
-      let n = 0;
-      for (let y = 0; y < h; y += 3) for (let x = 0; x < w; x += 3) if (mismatchAt(ref, test, x, y, dx, dy)) n++;
-      if (n < best.n) best = { dx, dy, n };
-    }
-  const image = new ImageData(w, h);
-  let ink = 0, missing = 0, extra = 0, color = 0;
-  for (let y = 0; y < h; y++)
-    for (let x = 0; x < w; x++) {
-      const aInk = inkAt(ref, x, y), bInk = inkAt(test, x - best.dx, y - best.dy);
-      const o = (y * w + x) * 4;
-      // Background: a faded copy of the reference.
-      const g = aInk ? 200 : 255;
-      image.data.set([g, g, g, 255], o);
-      if (!aInk && !bInk) continue;
-      ink++;
-      if (!mismatchAt(ref, test, x, y, best.dx, best.dy)) continue;
-      const aDark = 765 - at(ref, x, y, 0) - at(ref, x, y, 1) - at(ref, x, y, 2);
-      const bDark = 765 - at(test, x - best.dx, y - best.dy, 0) - at(test, x - best.dx, y - best.dy, 1) - at(test, x - best.dx, y - best.dy, 2);
-      if (aDark - bDark > TOLERANCE * 2) {
-        missing++;
-        image.data.set([230, 30, 30, 255], o);
-      } else if (bDark - aDark > TOLERANCE * 2) {
-        extra++;
-        image.data.set([30, 80, 230, 255], o);
-      } else {
-        color++;
-        image.data.set([240, 150, 0, 255], o);
-      }
-    }
-  const pt = (px: number) => Math.round((px / SCALE) * 10) / 10;
-  return {
-    stats: {
-      refSizePt: [pt(refT.w), pt(refT.h)],
-      testSizePt: [pt(testT.w), pt(testT.h)],
-      offsetPt: [pt(best.dx), pt(best.dy)],
-      inkPixels: ink,
-      missing,
-      extra,
-      color,
-      mismatchPct: ink ? Math.round(((missing + extra + color) / ink) * 1000) / 10 : 0,
-    },
-    image,
-  };
-}
-
-function toCanvas(t: Trimmed | ImageData): HTMLCanvasElement {
-  const c = document.createElement("canvas");
-  const img = t instanceof ImageData ? t : new ImageData(new Uint8ClampedArray(t.data), t.w, t.h);
-  c.width = img.width;
-  c.height = img.height;
-  c.getContext("2d")!.putImageData(img, 0, 0);
-  return c;
-}
-
-/** Lays panels out side by side with captions. */
-function composite(panels: Array<[string, HTMLCanvasElement]>): HTMLCanvasElement {
-  const pad = 16, caption = 22;
-  const h = Math.max(...panels.map(([, c]) => c.height)) + caption + pad * 2;
-  const w = panels.reduce((s, [, c]) => s + c.width + pad, pad);
-  const out = document.createElement("canvas");
-  out.width = w;
-  out.height = h;
-  const ctx = out.getContext("2d")!;
-  ctx.fillStyle = "#fff";
-  ctx.fillRect(0, 0, w, h);
-  ctx.font = "14px system-ui, sans-serif";
-  let x = pad;
-  for (const [label, c] of panels) {
-    ctx.fillStyle = "#333";
-    ctx.fillText(label, x, pad + 12);
-    ctx.strokeStyle = "#ccc";
-    ctx.strokeRect(x - 0.5, pad + caption - 0.5, c.width + 1, c.height + 1);
-    ctx.drawImage(c, x, pad + caption);
-    x += c.width + pad;
-  }
-  return out;
-}
-
 // ------------------------------------------------------------- run
 
 const status = document.getElementById("status")!;
 const list = document.getElementById("list")!;
-const only = new URLSearchParams(location.search).get("only");
+const params = new URLSearchParams(location.search);
+const only = params.get("only");
+const engines = new Set((params.get("engines") ?? "ours,tikzjax").split(","));
 
 const busytex = new Busytex();
-const tikzjax = new TikzJax();
+const tikzjax = engines.has("tikzjax") ? new TikzJax() : null;
+const ours = engines.has("ours") ? new EngineClient(engineBase(params.get("engine"))) : null;
 status.textContent = "Loading engines…";
-await Promise.all([busytex.load(), tikzjax.load()]);
+await Promise.all([busytex.load(), tikzjax?.load(), ours?.ready()]);
 
 const results: DiagramResult[] = [];
 for (const [path, source] of Object.entries(sources).sort()) {
@@ -305,37 +101,51 @@ for (const [path, source] of Object.entries(sources).sort()) {
   if (only && !name.includes(only)) continue;
   status.textContent = `Compiling ${name}…`;
   const job = jobFor(source);
-  const [b, t] = [await busytex.compile(job), await tikzjax.compile(job)];
-  const result: DiagramResult = { name, busytexOk: b.ok, tikzjaxOk: t.ok };
+  const b = await busytex.compile(job);
+  const result: DiagramResult = { name, busytexOk: b.ok };
   if (!b.ok) result.busytexLog = b.log.slice(-1500);
-  if (!t.ok) result.tikzjaxLog = t.log.slice(-1500);
-  if (b.ok && t.ok && b.output.kind === "pdf" && t.output.kind === "svg") {
-    status.textContent = `${name}: rendering PDF…`;
-    const ref = trim(await rasterPdf(b.output.pdf));
-    status.textContent = `${name}: rendering SVG…`;
-    const rawT = trim(await rasterSvg(t.output.svg));
-    const fixT = trim(await rasterSvg(fixBoxStroke(t.output.svg)));
-    status.textContent = `${name}: diffing…`;
-    const rawD = diff(ref, rawT);
-    const fixD = diff(ref, fixT);
-    result.raw = rawD.stats;
-    result.fixed = fixD.stats;
-    const comp = composite([
-      ["busytex (reference)", toCanvas(ref)],
-      ["TikZJax (stroke fix)", toCanvas(fixT)],
-      ["diff: fixed", toCanvas(fixD.image)],
-      ["diff: raw TikZJax", toCanvas(rawD.image)],
-    ]);
-    result.composite = comp.toDataURL("image/png");
-    const fig = document.createElement("figure");
-    fig.innerHTML = `<figcaption>${name}: raw ${rawD.stats.mismatchPct}% · fixed ${fixD.stats.mismatchPct}%</figcaption>`;
-    fig.append(comp);
-    list.append(fig);
-  } else {
-    const fig = document.createElement("figure");
-    fig.innerHTML = `<figcaption>${name}: busytex ${b.ok ? "ok" : "FAILED"}, TikZJax ${t.ok ? "ok" : "FAILED"}</figcaption>`;
-    list.append(fig);
+  const panels: Array<[string, HTMLCanvasElement]> = [];
+  const captions: string[] = [];
+  const ref = b.ok && b.output.kind === "pdf" ? trim(await rasterPdf(b.output.pdf)) : null;
+  if (ref) panels.push(["busytex (reference)", toCanvas(ref)]);
+
+  if (ours) {
+    const started = performance.now();
+    const o = await ours.compile(oursInput(job));
+    result.oursMs = Math.round(performance.now() - started);
+    result.oursOk = !!o?.ok && !o.errors.length;
+    if (!result.oursOk) result.oursLog = o ? `${o.errors.map((e) => `! ${e.message} l.${e.line}`).join("\n")}\n${o.log.slice(-1500)}` : "replaced";
+    if (ref && o?.svg) {
+      const t = trim(await rasterSvg(o.svg, false));
+      const d = diff(ref, t);
+      result.ours = d.stats;
+      panels.push(["ours", toCanvas(t)], ["diff: ours", toCanvas(d.image)]);
+      captions.push(`ours ${d.stats.mismatchPct}% (${result.oursMs} ms)`);
+    }
   }
+  if (tikzjax) {
+    const t = await tikzjax.compile(job);
+    result.tikzjaxOk = t.ok;
+    if (!t.ok) result.tikzjaxLog = t.log.slice(-1500);
+    if (ref && t.ok && t.output.kind === "svg") {
+      const rawT = trim(await rasterSvg(t.output.svg));
+      const fixT = trim(await rasterSvg(fixBoxStroke(t.output.svg)));
+      const rawD = diff(ref, rawT);
+      const fixD = diff(ref, fixT);
+      result.raw = rawD.stats;
+      result.fixed = fixD.stats;
+      panels.push(["TikZJax (stroke fix)", toCanvas(fixT)], ["diff: TikZJax fixed", toCanvas(fixD.image)]);
+      captions.push(`TikZJax raw ${rawD.stats.mismatchPct}% · fixed ${fixD.stats.mismatchPct}%`);
+    }
+  }
+  const fig = document.createElement("figure");
+  fig.innerHTML = `<figcaption>${name}: ${ref ? captions.join(" · ") : "busytex FAILED"}</figcaption>`;
+  if (panels.length > 1) {
+    const comp = composite(panels);
+    result.composite = comp.toDataURL("image/png");
+    fig.append(comp);
+  }
+  list.append(fig);
   results.push(result);
 }
 status.textContent = `Done: ${results.length} diagrams.`;

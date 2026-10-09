@@ -16,6 +16,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:offline": "playwright test --config playwright.offline.config.ts",
     "grammar:inspect": "node scripts/grammar-inspect.ts",
     "grammar:bench": "node scripts/grammar-bench.ts",
     "corpus:report": "node scripts/corpus-report.ts",
@@ -25,7 +26,11 @@
     "compare-engines": "node scripts/compare-engines.ts",
     "fidelity": "node scripts/fidelity.ts",
     "layout:bench": "node scripts/layout-bench.ts",
-    "golden:review": "node scripts/golden-review.ts"
+    "golden:review": "node scripts/golden-review.ts",
+    "dvicheck": "node scripts/dvicheck.ts",
+    "pdfcheck": "node scripts/pdfcheck.ts",
+    "check:dist": "node scripts/check-dist.ts",
+    "build:pages": "npm run fetch-engines -- engine && npm run build && npm run check:dist"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",

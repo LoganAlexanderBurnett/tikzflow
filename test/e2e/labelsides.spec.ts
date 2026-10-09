@@ -1,7 +1,7 @@
 // Which side of its edge a label sits on (D57): new labels are written with
 // auto, "Flip side" turns one over, and a left/right/above/below that would
 // sit on the line becomes auto when the label is dragged.
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, test } from "./base.ts";
 
 async function code(page: Page): Promise<string> {
   return page.evaluate(() => {
@@ -106,7 +106,7 @@ test("Flip side from the menu and the panel turns a label over, one undo step ea
   expect(await code(page)).toContain("auto, swap");
 });
 
-test("Flip side says why when the edge has no label, or the label is on the line", async ({ page }) => {
+test("Flip side says why when the edge has no label, and writes auto for a label on the line", async ({ page }) => {
   await setCode(page, `${TWO}\\draw[->] (a) -- (b);\n\\end{tikzpicture}\n`);
   const id = await firstEdge(page);
   await expect(async () => {
@@ -119,8 +119,17 @@ test("Flip side says why when the edge has no label, or the label is on the line
   await page.keyboard.press("Escape");
   await setCode(page, `${TWO}\\draw[->] (a) -- node[pos=0.3] {x} (b);\n\\end{tikzpicture}\n`);
   await firstEdge(page);
+  // A label with no side key sits on the line: Flip side writes auto (D64), one undo step.
+  const before = await code(page);
+  expect(await lineCutsLabel(page)).toBeGreaterThan(0);
   await page.getByTestId("edge-label").click({ button: "right" });
-  await expect(page.getByTestId("menu-flip-label")).toHaveAttribute("title", /sits on the line/);
+  await expect(page.getByTestId("menu-flip-label")).not.toHaveAttribute("aria-disabled", "true");
+  await page.getByTestId("menu-flip-label").click();
+  expect(await code(page)).toBe(before.replace("node[pos=0.3] {x}", "node[pos=0.3, auto] {x}"));
+  await expect(page.getByTestId("status")).toContainText("beside it now");
+  expect(await lineCutsLabel(page)).toBe(0);
+  await page.keyboard.press("Control+z");
+  expect(await code(page)).toBe(before);
 });
 
 test("dragging a left label from the upright piece of |- onto the level piece turns it into auto", async ({ page }) => {
@@ -141,4 +150,21 @@ test("dragging a left label from the upright piece of |- onto the level piece tu
   // One undo puts the label and its key back.
   await page.keyboard.press("Control+z");
   expect(await code(page)).toContain("node[pos=0.2, left] {x}");
+});
+
+test("Make orthogonal turns a label the new line would cut through into auto, in the same undo step", async ({ page }) => {
+  const start = "\\begin{tikzpicture}\n\\node[draw] (a) {A};\n\\node[draw] (b) at (4,-3) {B};\n\\draw[->] (a) -- node[pos=0.8, above] {x} (b);\n\\end{tikzpicture}\n";
+  await setCode(page, start);
+  const id = await firstEdge(page);
+  await expect(async () => {
+    const p = await onEdge(page, id, 0.5);
+    await page.mouse.click(p.x, p.y, { button: "right" });
+    await expect(page.getByTestId("edge-menu")).toBeVisible({ timeout: 700 });
+  }).toPass({ timeout: 6000 });
+  await page.getByTestId("menu-orthogonal").click();
+  expect(await code(page)).toContain("\\draw[->] (a) -| node[pos=0.8, auto] {x} (b);");
+  await expect(page.getByTestId("status")).toContainText('wrote the label "x" as auto instead of above');
+  expect(await lineCutsLabel(page)).toBe(0);
+  await page.keyboard.press("Control+z");
+  expect(await code(page)).toBe(start);
 });

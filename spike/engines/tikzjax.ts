@@ -2,8 +2,10 @@
 // the threads.js message protocol directly, so no extra dependency is needed.
 
 import type { CompileResult, Engine, Job } from "./engine.ts";
-import { LIBRARIES, SAMPLE_JOB, type Probe } from "./sample.ts";
+import { LIBRARIES, SAMPLE_JOB, readProbe, type Probe } from "./sample.ts";
 
+// The published package. (M3 step 1 also ran our CI build through this
+// worker; since step 6 our engine has its own, src/engine/worker.ts, D67.)
 const ROOT = "/vendor/tikzjax/package/dist";
 
 type Reply =
@@ -93,7 +95,8 @@ export class TikzJax implements Engine {
     try {
       const svg = String(await this.#call("texify", job.body, dataset));
       const log = this.#consoleLines.join("\n");
-      return { ok: svg.includes("<svg"), output: { kind: "svg", svg }, log, probe: probeFromSvg(svg) };
+      const ok = svg.includes("<svg");
+      return { ok, output: { kind: "svg", svg }, log, probe: probeFromSvg(svg) ?? readProbe(log) };
     } catch (e) {
       return { ok: false, output: { kind: "none" }, log: [...this.#consoleLines, String(e)].join("\n"), probe: null };
     }

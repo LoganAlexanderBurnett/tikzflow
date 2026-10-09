@@ -8,7 +8,7 @@ import { applyKeys, applyStyle, defaultTipLength, defaultTipWidth, KNOWN_SHAPES,
 import { type KeyValue, parseOptionString } from "./options.ts";
 import { anchorOffset, anchorPoint, borderToward, makeShape, type NodeShape, outline, type Point, shapeBounds } from "./shapes.ts";
 import { applyLinear, applyMatrix, type ArrowTip, initialState, itemCopy, type Matrix, multiply, scopeCopy, type Shading, type SizeTable, type State } from "./state.ts";
-import { CM, evalQuantity } from "./units.ts";
+import { CM, evalQuantity, type PageLengths, setPageLengths } from "./units.ts";
 
 export interface LayoutEnv {
   styles: StyleTable;
@@ -20,6 +20,8 @@ export interface LayoutEnv {
   font?: { sizes: SizeTable; family: "rm" | "sf" };
   /** Libraries the document loads before the picture; undefined for a bare picture. */
   libraries?: readonly string[];
+  /** The page the picture goes on, for \textwidth and the like (D73); the default page when absent. */
+  page?: PageLengths;
 }
 
 /** How a node's position is written, for the editor. */
@@ -288,6 +290,7 @@ function keyCtx(ctx: Ctx, styles: StyleTable) {
 
 /** Lays out a picture. `overrides` pins node centres (by id) while dragging. */
 export function layoutPicture(pic: PictureSyntax, env: LayoutEnv, overrides: ReadonlyMap<string, Point> = new Map()): PictureLayout {
+  setPageLengths(env.page ?? null);
   const out: PictureLayout = {
     nodes: [],
     pathNodes: [],

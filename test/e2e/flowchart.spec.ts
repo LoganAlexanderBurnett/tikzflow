@@ -2,7 +2,7 @@
 // picture, its branches labelled, one edge restyled and its label slid
 // from the edge panel, and a node deleted, with the code reading as if it was
 // written by hand at every step.
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, test } from "./base.ts";
 
 type Store = { editorView: () => { dispatch(s: unknown): void; state: { doc: { length: number; toString(): string } } } };
 

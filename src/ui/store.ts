@@ -11,9 +11,9 @@ import { planMakeCurved } from "../edit/curves.ts";
 import { planMakeOrthogonal } from "../edit/orthogonal.ts";
 import { planSplit } from "../edit/split.ts";
 import { planAddVertex, planRemoveVertex, planStraighten } from "../edit/vertices.ts";
-import { planAddLabel, planFlipLabel } from "../edit/labels.ts";
+import { fixLabelSides, labelsOnTheirLine, planAddLabel, planFlipLabel, planLabelBesideLine } from "../edit/labels.ts";
 import { type DeleteTarget, planDelete } from "../edit/delete.ts";
-import { type EdgeEdit, type EdgeScope, planEdgeProperty } from "../edit/edgeprops.ts";
+import { type EdgeEdit, type EdgeScope, planEdgeProperty, planSplitAndApply } from "../edit/edgeprops.ts";
 import { draftOf, labelBlocker, labelledNode, labelProblem, planLabelEdit } from "../edit/label.ts";
 import { withLibraries } from "../edit/libraries.ts";
 import { formatDistance, planAttach, planPin } from "../edit/move.ts";
@@ -30,6 +30,7 @@ import type { Encoding } from "../source/encoding.ts";
 import type { LaidOutNode, LaidOutPath, PictureLayout } from "../tikz/layout.ts";
 import type { Point } from "../tikz/shapes.ts";
 import { fromCanvas, setHighlight, setOpaque } from "./editor.ts";
+import { pageSettings } from "./pagesettings.ts";
 
 /** What the pointer or the cursor is on: a node, an edge, or a path that has no edges the editor models. */
 export type Hit = { kind: "node"; id: string } | { kind: "edge"; id: string } | { kind: "path"; id: string };
@@ -59,7 +60,11 @@ export const pictureCount = computed(() => doc.value.syntax.pictures.length);
 export const currentPicture = computed(() => Math.min(pictureIndex.value, Math.max(0, pictureCount.value - 1)));
 
 /** The layout as the text describes it. */
-export const baseLayout = computed<PictureLayout | null>(() => layoutDocumentPicture(doc.value, currentPicture.value));
+export const baseLayout = computed<PictureLayout | null>(() => {
+  // The page the figure goes on sets what \textwidth means (D73): a change of settings draws it again.
+  void pageSettings.value;
+  return layoutDocumentPicture(doc.value, currentPicture.value);
+});
 
 /** The picture as it would be laid out with the resize or creation in progress applied. */
 export const previewLayout = signal<PictureLayout | null>(null);
@@ -70,6 +75,7 @@ export const layout = computed<PictureLayout | null>(() => {
   if (preview) return preview;
   const o = overrides.value;
   if (!o.size) return baseLayout.value;
+  void pageSettings.value;
   return layoutDocumentPicture(doc.value, currentPicture.value, o);
 });
 
@@ -527,7 +533,25 @@ export function flipLabel(labelId: string): boolean {
     return false;
   }
   pickedLabel.value = { edgeId: r.edgeId, labelId: r.labelId };
-  applyEdgeEdit(r.changes, "input.edge.label.flip", `Flipped the label to the other side of the edge: ${r.written}`, r.edgeId);
+  applyEdgeEdit(r.changes, "input.edge.label.flip", r.placed ? `The label sat on the line; it is beside it now: ${r.written}` : `Flipped the label to the other side of the edge: ${r.written}`, r.edgeId);
+  return true;
+}
+
+/** Labels their own line cuts through (after a node move, say): the canvas marks them (D65). */
+export const labelWarnings = computed(() => {
+  const l = baseLayout.value;
+  return l ? labelsOnTheirLine(l) : [];
+});
+
+/** The marker's fix that keeps the label's side: its side key becomes auto (D65). */
+export function putLabelBesideLine(labelId: string): boolean {
+  const r = planLabelBesideLine(text.value, currentPicture.value, labelId);
+  if (!r.ok) {
+    status.value = r.reason;
+    return false;
+  }
+  pickedLabel.value = { edgeId: r.edgeId, labelId: r.labelId };
+  applyEdgeEdit(r.changes, "input.edge.label.beside", `The label is beside the line now: ${r.written}.`, r.edgeId);
   return true;
 }
 
@@ -730,16 +754,26 @@ export function previewEnd(edgeId: string, which: "from" | "to", target: EndTarg
     previewLayout.value = null;
     return null;
   }
-  const r = planEnd(text.value, currentPicture.value, edgeId, which, target);
+  const r = planEndWithLabels(edgeId, which, target);
   previewLayout.value = r.ok ? r.layout : null;
   return r.ok ? null : r.reason;
+}
+
+/** An end moved, with labels the new line would cut through put beside it in the same edit (D65). */
+function planEndWithLabels(edgeId: string, which: "from" | "to", target: EndTarget) {
+  return fixLabelSides(text.value, currentPicture.value, edgeId, planEnd(text.value, currentPicture.value, edgeId, which, target));
+}
+
+/** " Also …." for each note of an edit, for the status bar. */
+export function alsoNotes(notes: readonly string[]): string {
+  return notes.map((n) => ` Also ${n}.`).join("");
 }
 
 /** Attaches an end of edge `edgeId` to `target` (another anchor, the border, or another node), as one undoable step. */
 export function moveEnd(edgeId: string, which: "from" | "to", target: EndTarget): boolean {
   previewLayout.value = null;
   const edge = edges.value.find((e) => e.id === edgeId);
-  const r = planEnd(text.value, currentPicture.value, edgeId, which, target);
+  const r = planEndWithLabels(edgeId, which, target);
   if (!r.ok) {
     status.value = r.reason;
     return false;
@@ -748,7 +782,7 @@ export function moveEnd(edgeId: string, which: "from" | "to", target: EndTarget)
   const name = targetName(target);
   const what = which === "from" ? "start" : "end";
   const done = other && other !== target.node ? `Reconnected the ${what} to ${name}.` : `Moved the ${what} to ${name}.`;
-  applyEdgeEdit(r.changes, "input.edge.end", `${done}${r.notes.map((n) => ` Also ${n}.`).join("")}`, r.edgeId);
+  applyEdgeEdit(r.changes, "input.edge.end", `${done}${alsoNotes(r.notes)}`, r.edgeId);
   return true;
 }
 
@@ -794,23 +828,23 @@ export function cornerMessage(l: PictureLayout, edgeId: string, stop: number, ve
 
 /** "Add vertex here": a corner on segment `seg` of the edge at `p`. */
 export function addVertex(edgeId: string, seg: number, p: Point): boolean {
-  const r = planAddVertex(text.value, currentPicture.value, edgeId, seg, p);
+  const r = fixLabelSides(text.value, currentPicture.value, edgeId, planAddVertex(text.value, currentPicture.value, edgeId, seg, p));
   if (!r.ok) {
     status.value = r.reason;
     return false;
   }
-  applyEdgeEdit(r.changes, "input.edge.vertex", `${cornerMessage(r.layout, r.edgeId ?? edgeId, r.stop, "Added")}${r.notes.map((n) => ` Also ${n}.`).join("")}`, r.edgeId);
+  applyEdgeEdit(r.changes, "input.edge.vertex", `${cornerMessage(r.layout, r.edgeId ?? edgeId, r.stop, "Added")}${alsoNotes(r.notes)}`, r.edgeId);
   return true;
 }
 
 /** "Remove vertex", or a double-click on a corner. */
 export function removeVertex(edgeId: string, stop: number): boolean {
-  const r = planRemoveVertex(text.value, currentPicture.value, edgeId, stop);
+  const r = fixLabelSides(text.value, currentPicture.value, edgeId, planRemoveVertex(text.value, currentPicture.value, edgeId, stop));
   if (!r.ok) {
     status.value = r.reason;
     return false;
   }
-  applyEdgeEdit(r.changes, "input.edge.vertex", "Removed the corner.");
+  applyEdgeEdit(r.changes, "input.edge.vertex", `Removed the corner.${alsoNotes(r.notes)}`);
   return true;
 }
 
@@ -821,7 +855,7 @@ export function straightenEdge(edgeId: string): boolean {
     status.value = r.reason;
     return false;
   }
-  applyEdgeEdit(r.changes, "input.edge.straighten", "Straightened the edge.");
+  applyEdgeEdit(r.changes, "input.edge.straighten", `Straightened the edge.${r.notes.map((n) => ` Also ${n}.`).join("")}`);
   return true;
 }
 
@@ -851,7 +885,7 @@ export function makeCurved(edgeId: string): boolean {
     status.value = r.reason;
     return false;
   }
-  applyEdgeEdit(r.changes, "input.edge.curved", `Made the edge curved: ${edgeCode(r.text, r.layout, edgeId)}`);
+  applyEdgeEdit(r.changes, "input.edge.curved", `Made the edge curved: ${edgeCode(r.text, r.layout, edgeId)}${r.notes.map((n) => ` Also ${n}.`).join("")}`);
   return true;
 }
 
@@ -883,6 +917,21 @@ export function applyEdgeProperty(edgeId: string, scope: EdgeScope, edit: EdgeEd
     return false;
   }
   applyEdgeEdit(r.changes, "input.edge.props", `${done}${scope.kind === "style" ? ` through the ${scope.name} style` : ""}.${r.notes.map((n) => ` Note: ${n}.`).join("")}`);
+  return true;
+}
+
+/**
+ * "Split and apply" (D58 item 5): an arrow edit for one edge of a `\draw` with
+ * several edges. The path is split and the tip set on this edge's own statement,
+ * as one undoable step. The same edge stays selected.
+ */
+export function splitAndApplyArrow(edgeId: string, edit: EdgeEdit, done = "Changed the arrow of the edge"): boolean {
+  const r = planSplitAndApply(text.value, currentPicture.value, edgeId, edit);
+  if (!r.ok) {
+    status.value = r.reason;
+    return false;
+  }
+  applyEdgeEdit(r.changes, "input.edge.splitapply", `${done}, after splitting the path.${r.notes.map((n) => ` Note: ${n}.`).join("")}`, r.edgeId);
   return true;
 }
 

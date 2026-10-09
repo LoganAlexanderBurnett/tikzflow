@@ -1,6 +1,6 @@
 // Milestone 2a step 3: the properties panel, with node-or-style scope, the
 // colour picker and multi-select.
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, test } from "./base.ts";
 
 async function code(page: Page): Promise<string> {
   return page.evaluate(() => {
