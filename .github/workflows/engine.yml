@@ -26,9 +26,9 @@ env:
   WEB2JS_COMMIT: 0114ef5905dc387b70e72c654bcedd3b52b29fad
   PGF_VERSION: 3.1.12
   NODE_VERSION: 24.21.0
-  # The PGF driver the format is dumped with. pgf's own dvisvgm driver (LPPL)
-  # for now; ours replaces it in Milestone 3 step 6.
-  PGF_DRIVER: pgfsys-dvisvgm.def
+  # The PGF driver the format is dumped with: ours, built on pgf's
+  # pgfsys-dvisvgm.def (engine/build/texinputs, D66).
+  PGF_DRIVER: pgfsys-tikzflow.def
 
 jobs:
   build:
@@ -81,6 +81,13 @@ jobs:
           time npm run build:asyncify-wasm
           ls -l tex.p tex.pool out.wasm tex.wasm
 
+      - name: Fix the clock
+        # TeX's date and time in the format come from the commit, so a rebuild
+        # of the same commit gives the same core.dump (D66).
+        env:
+          COMMIT_TIME: ${{ github.event.head_commit.timestamp }}
+        run: echo "SOURCE_DATE_EPOCH=$(date -d "${COMMIT_TIME:-1970-01-01T00:00:00Z}" +%s)" >> "$GITHUB_ENV"
+
       - name: Dump the format
         run: |
           mkdir -p work
@@ -100,6 +107,24 @@ jobs:
 
       - name: Check the sample
         run: node engine/build/sample.ts check work/sample.log work/latex.log "$PGF_VERSION" work/versions.json
+
+      - name: Fonts for the DVI converter
+        run: node engine/build/fonts.ts "$(kpsewhich -var-value TEXMFDIST)" work/fonts-build
+
+      - name: Reference diagrams (our engine's DVI, the real dvisvgm's SVG)
+        run: |
+          dvisvgm --version
+          node engine/build/references.ts write work/ref
+          cd work/ref
+          export WEB2JS_DIR="$GITHUB_WORKSPACE/web2js"
+          for f in *.tex; do
+            n="${f%.tex}"
+            node ../../engine/build/compile.cjs "$f" ../core.dump > "$n-terminal.txt" 2>&1 || echo "::warning::$n did not compile cleanly"
+            if [ -s "$n.dvi" ]; then
+              dvisvgm --no-fonts --output="$n.dvisvgm.svg" "$n.dvi" > "$n-dvisvgm.txt" 2>&1 || echo "::warning::dvisvgm failed on $n"
+            fi
+          done
+          ls -l
 
       - name: Pack
         if: ${{ !cancelled() }}

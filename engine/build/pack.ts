@@ -1,6 +1,7 @@
 // Packs the engine built in CI into <out> (D15): tex.wasm.gz, core.dump.gz,
 // tex_files/<name>.gz for every file the sample read after the format (from
-// the same TeX Live snapshot as the format), and manifest.json with sizes,
+// the same TeX Live snapshot as the format), fonts/<name>.json.gz for the DVI
+// converter (D66), the reference diagrams, and manifest.json with sizes,
 // SHA-256 hashes, versions and timings.
 //
 //   node engine/build/pack.ts <work dir> <out dir>
@@ -10,7 +11,7 @@
 // comes from the environment (TL_IMAGE, WEB2JS_COMMIT, GITHUB_*).
 
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { brotliCompressSync, constants, gzipSync } from "node:zlib";
 
@@ -59,6 +60,28 @@ const abi = {
   exports: WebAssembly.Module.exports(wasmModule).map((e) => e.name),
 };
 
+// The converter's fonts (engine/build/fonts.ts wrote them to <work>/fonts-build).
+const fontsBuild = join(work, "fonts-build", "fonts");
+const fonts: FileEntry[] = [];
+if (existsSync(fontsBuild)) {
+  mkdirSync(join(out, "fonts"), { recursive: true });
+  for (const name of readdirSync(fontsBuild).sort()) {
+    fonts.push(packFile(join(fontsBuild, name), join(out, "fonts", `${name}.gz`), `${name}.gz`));
+  }
+}
+
+// The reference diagrams: our engine's DVI and log, and the real dvisvgm's SVG of that DVI.
+const refDir = join(work, "ref");
+const references: string[] = [];
+if (existsSync(refDir)) {
+  mkdirSync(join(out, "reference"), { recursive: true });
+  for (const name of readdirSync(refDir).sort()) {
+    if (!/\.(tex|dvi|log|svg|txt)$/.test(name)) continue;
+    copyFileSync(join(refDir, name), join(out, "reference", name));
+    references.push(name);
+  }
+}
+
 const formatFiles = Object.keys(readJson("dump-files.json") as Record<string, string>).sort();
 
 const manifest = {
@@ -82,6 +105,13 @@ const manifest = {
     bytes: texFiles.reduce((s, f) => s + f.bytes, 0),
     gzBytes: texFiles.reduce((s, f) => s + f.gzBytes, 0),
   },
+  fonts: {
+    count: fonts.length,
+    bytes: fonts.reduce((s, f) => s + f.bytes, 0),
+    gzBytes: fonts.reduce((s, f) => s + f.gzBytes, 0),
+    files: fonts,
+  },
+  references,
   formatFiles,
 };
 writeFileSync(join(out, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
@@ -89,4 +119,5 @@ writeFileSync(join(out, "manifest.json"), JSON.stringify(manifest, null, 2) + "\
 const mb = (n: number) => `${(n / 1e6).toFixed(2)} MB`;
 for (const f of engine) console.log(`${f.name.padEnd(14)} ${mb(f.bytes)} raw, ${mb(f.gzBytes)} gz, ${f.sha256}`);
 console.log(`brotli: tex.wasm ${mb(brotli["tex.wasm"] ?? 0)}, core.dump ${mb(brotli["core.dump"] ?? 0)}`);
+console.log(`fonts: ${fonts.length} files, ${mb(manifest.fonts.gzBytes)} gz; reference files: ${references.length}`);
 console.log(`tex_files: ${texFiles.length} files, ${mb(manifest.texFilesTotal.gzBytes)} gz; format read ${formatFiles.length} files`);

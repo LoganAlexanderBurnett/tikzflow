@@ -7,6 +7,9 @@
 //
 //   WEB2JS_DIR=<web2js checkout with tex.wasm and tex.pool> node dump.cjs [driver]
 //
+// TeX's clock reads SOURCE_DATE_EPOCH when it is set, so a rebuild from the
+// same inputs gives the same core.dump, byte for byte (D66).
+//
 // Run it in an empty working directory: TeX writes latex.fmt and its logs
 // there. Writes core.dump and dump-files.json (every file TeX read, by name).
 'use strict';
@@ -16,12 +19,22 @@ const path = require('path');
 
 const web2js = process.env.WEB2JS_DIR;
 if (!web2js) throw new Error('Set WEB2JS_DIR to the web2js checkout');
-const driver = process.argv[2] || 'pgfsys-dvisvgm.def';
+const driver = process.argv[2] || 'pgfsys-tikzflow.def';
 
 const { texErrors } = require('./run-support.cjs');
 const library = require(path.join(web2js, 'library.js'));
 const { pages } = require(path.join(web2js, 'commonMemory.js'));
 library.setTexPool(path.join(web2js, 'tex.pool'));
+
+// The import object: web2js's library, with a fixed clock when asked for one.
+const epoch = process.env.SOURCE_DATE_EPOCH;
+const now = () => (epoch ? new Date(Number(epoch) * 1000) : new Date());
+const imports = Object.assign({}, library, {
+    getCurrentMinutes: () => 60 * now().getUTCHours() + now().getUTCMinutes(),
+    getCurrentDay: () => now().getUTCDate(),
+    getCurrentMonth: () => now().getUTCMonth() + 1,
+    getCurrentYear: () => now().getUTCFullYear()
+});
 
 const code = new WebAssembly.Module(fs.readFileSync(path.join(web2js, 'tex.wasm')));
 const started = Date.now();
@@ -30,7 +43,7 @@ const started = Date.now();
 const initexMemory = new WebAssembly.Memory({ initial: pages, maximum: pages });
 library.setMemory(initexMemory.buffer);
 library.setInput('\n*latex.ltx\n\\dump\n\n', () => {});
-let wasm = new WebAssembly.Instance(code, { library, env: { memory: initexMemory } });
+let wasm = new WebAssembly.Instance(code, { library: imports, env: { memory: initexMemory } });
 library.setWasmExports(wasm.exports);
 wasm.exports.main();
 if (!fs.existsSync('latex.fmt') || texErrors().length) {
@@ -42,7 +55,8 @@ const stage1 = Date.now();
 // Stage 2: load the format, read the shared preamble, and save the memory
 // when TeX asks for the next line.
 const preamble =
-    '\\documentclass[margin=0pt]{standalone}\n' +
+    // dvisvgm: graphics, xcolor and expl3 load their dvisvgm back ends.
+    '\\documentclass[dvisvgm,margin=0pt]{standalone}\n' +
     `\\def\\pgfsysdriver{${driver}}\n` +
     '\\usepackage[svgnames]{xcolor}\n' +
     '\\usepackage{tikz}\n\n' +
@@ -66,7 +80,7 @@ library.setInput('\n&latex\n' + preamble, () => {
     console.log(`\nDUMP OK: driver ${driver}, ${pages} pages, ${stage1 - started} ms + ${done - stage1} ms`);
     process.exit(0);
 });
-wasm = new WebAssembly.Instance(code, { library, env: { memory } });
+wasm = new WebAssembly.Instance(code, { library: imports, env: { memory } });
 library.setWasmExports(wasm.exports);
 wasm.exports.main();
 
