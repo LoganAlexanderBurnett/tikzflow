@@ -93,7 +93,7 @@ export function buildCompileInput(doc: DocumentModel, index: number, available: 
   /** Copies source text [from, to) on fresh lines, recording where it came from. */
   const copy = (from: number, to: number, body = text.slice(from, to)) => {
     emit("\n");
-    segments.push({ inputLine: line, sourceLine: lineOf(text, from), lines: countLines(body) });
+    segments.push({ inputLine: line, sourceLine: lineOf(text, from), lines: countLines(body.replace(/\n$/, "")) });
     emit(body);
     emit("\n");
   };
@@ -111,8 +111,10 @@ export function buildCompileInput(doc: DocumentModel, index: number, available: 
       emit("\\makeatother\\normalsize");
     }
     if (cls[2]!.trim() === "beamer") emit("\n\\renewcommand\\familydefault{\\sfdefault}\\normalfont");
-    // The preamble, verbatim, with unusable packages taken out of their \usepackage lines.
-    const from = cls.index + cls[0].length;
+    // The preamble, verbatim from the line after \documentclass, with unusable
+    // packages taken out of their \usepackage lines.
+    const eol = text.indexOf("\n", cls.index + cls[0].length);
+    const from = eol < 0 || eol > begin ? begin : eol + 1;
     const preamble = text.slice(from, begin).replace(USEPACKAGE, (all, opts: string | undefined, list: string) => {
       const names = list.split(",").map((s) => s.trim()).filter(Boolean);
       const keep = names.filter((n) => {

@@ -97,6 +97,17 @@ describe("DVI to SVG", () => {
     expect(uses[1]).not.toContain("fill=");
   });
 
+  it("lets text inherit its group's colour only where the driver says so; black from a special is written", () => {
+    // A picture: the driver pushes "inherit"; a node part's text pushes black itself.
+    const d = new DviWriter().pre().fontDef(0, "testr10", 10 * SP).op(171);
+    d.special("color push tikzflow inherit").special('dvisvgm:raw <g fill="#f3f3f3">').op(65);
+    d.special("color push gray 0").op(65).special("color pop");
+    d.special("dvisvgm:raw </g>").special("color pop");
+    const uses = [...dviToSvg(d.end(), fonts).svg.matchAll(/<use [^>]*>/g)].map((m) => m[0]);
+    expect(uses[0]).not.toContain("fill=");
+    expect(uses[1]).toContain('fill="#000000"');
+  });
+
   it("keeps raw sets until they are put, and puts each definition once", () => {
     const d = new DviWriter().pre();
     d.special("dvisvgm:rawset grad").special('dvisvgm:rawdef <linearGradient id="g1"/>').special("dvisvgm:endrawset");

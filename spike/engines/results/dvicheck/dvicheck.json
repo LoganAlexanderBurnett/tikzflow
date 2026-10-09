@@ -1,13 +1,11 @@
 {
+  "run": "run3",
   "browser": "msedge 154.0.4258.62",
-  "date": "2026-10-09T16:35:41.051Z",
+  "date": "2026-10-09T16:08:43.524Z",
   "results": [
     {
       "name": "01-fills",
-      "busytexOk": true,
-      "oursMs": 190,
-      "oursOk": true,
-      "ours": {
+      "stats": {
         "refSizePt": [
           241,
           68.7
@@ -20,19 +18,19 @@
           0,
           0
         ],
-        "inkPixels": 68046,
-        "missing": 121,
-        "extra": 397,
+        "inkPixels": 67852,
+        "missing": 0,
+        "extra": 0,
         "color": 0,
-        "mismatchPct": 0.8
-      }
+        "mismatchPct": 0
+      },
+      "glyphs": 17,
+      "missingFonts": [],
+      "ms": 1.2
     },
     {
       "name": "02-line-styles",
-      "busytexOk": true,
-      "oursMs": 126,
-      "oursOk": true,
-      "ours": {
+      "stats": {
         "refSizePt": [
           229.3,
           91.7
@@ -45,47 +43,47 @@
           0,
           0
         ],
-        "inkPixels": 26602,
-        "missing": 507,
-        "extra": 11,
+        "inkPixels": 25349,
+        "missing": 0,
+        "extra": 0,
         "color": 0,
-        "mismatchPct": 1.9
-      }
+        "mismatchPct": 0
+      },
+      "glyphs": 0,
+      "missingFonts": [],
+      "ms": 0.2
     },
     {
       "name": "03-opacity",
-      "busytexOk": true,
-      "oursMs": 112,
-      "oursOk": true,
-      "ours": {
+      "stats": {
         "refSizePt": [
           190,
-          98.7
+          99
         ],
         "testSizePt": [
           190,
           99
         ],
         "offsetPt": [
-          -0.3,
+          0,
           0
         ],
-        "inkPixels": 82603,
-        "missing": 26,
-        "extra": 87,
-        "color": 14,
-        "mismatchPct": 0.2
-      }
+        "inkPixels": 82188,
+        "missing": 0,
+        "extra": 0,
+        "color": 0,
+        "mismatchPct": 0
+      },
+      "glyphs": 21,
+      "missingFonts": [],
+      "ms": 0.3
     },
     {
       "name": "04-arrow-tips",
-      "busytexOk": true,
-      "oursMs": 302,
-      "oursOk": true,
-      "ours": {
+      "stats": {
         "refSizePt": [
           227,
-          69.7
+          70
         ],
         "testSizePt": [
           227,
@@ -95,22 +93,22 @@
           0,
           0
         ],
-        "inkPixels": 17947,
-        "missing": 9,
-        "extra": 28,
-        "color": 20,
-        "mismatchPct": 0.3
-      }
+        "inkPixels": 17370,
+        "missing": 0,
+        "extra": 0,
+        "color": 0,
+        "mismatchPct": 0
+      },
+      "glyphs": 0,
+      "missingFonts": [],
+      "ms": 0.3
     },
     {
       "name": "05-fit-backgrounds",
-      "busytexOk": true,
-      "oursMs": 187,
-      "oursOk": true,
-      "ours": {
+      "stats": {
         "refSizePt": [
           200,
-          70.3
+          70.7
         ],
         "testSizePt": [
           200,
@@ -118,24 +116,24 @@
         ],
         "offsetPt": [
           0,
-          -0.3
+          0
         ],
-        "inkPixels": 45455,
-        "missing": 39,
-        "extra": 23,
+        "inkPixels": 44290,
+        "missing": 0,
+        "extra": 0,
         "color": 0,
-        "mismatchPct": 0.1
-      }
+        "mismatchPct": 0
+      },
+      "glyphs": 22,
+      "missingFonts": [],
+      "ms": 0.4
     },
     {
       "name": "06-clipping",
-      "busytexOk": true,
-      "oursMs": 123,
-      "oursOk": true,
-      "ours": {
+      "stats": {
         "refSizePt": [
           232.7,
-          56.7
+          57
         ],
         "testSizePt": [
           232.7,
@@ -145,19 +143,19 @@
           0,
           0
         ],
-        "inkPixels": 53530,
+        "inkPixels": 53323,
         "missing": 0,
-        "extra": 19,
-        "color": 1,
+        "extra": 0,
+        "color": 0,
         "mismatchPct": 0
-      }
+      },
+      "glyphs": 7,
+      "missingFonts": [],
+      "ms": 0.2
     },
     {
       "name": "07-rounded-corners",
-      "busytexOk": true,
-      "oursMs": 170,
-      "oursOk": true,
-      "ours": {
+      "stats": {
         "refSizePt": [
           227.3,
           122.7
@@ -170,19 +168,19 @@
           0,
           0
         ],
-        "inkPixels": 73365,
-        "missing": 4,
-        "extra": 3,
+        "inkPixels": 71447,
+        "missing": 0,
+        "extra": 0,
         "color": 0,
         "mismatchPct": 0
-      }
+      },
+      "glyphs": 32,
+      "missingFonts": [],
+      "ms": 0.2
     },
     {
       "name": "08-node-shapes",
-      "busytexOk": true,
-      "oursMs": 280,
-      "oursOk": true,
-      "ours": {
+      "stats": {
         "refSizePt": [
           229.7,
           143
@@ -195,19 +193,19 @@
           -0.3,
           0
         ],
-        "inkPixels": 95765,
-        "missing": 903,
-        "extra": 33,
+        "inkPixels": 35232,
+        "missing": 0,
+        "extra": 0,
         "color": 0,
-        "mismatchPct": 1
-      }
+        "mismatchPct": 0
+      },
+      "glyphs": 47,
+      "missingFonts": [],
+      "ms": 0.5
     },
     {
       "name": "09-matrix",
-      "busytexOk": true,
-      "oursMs": 222,
-      "oursOk": true,
-      "ours": {
+      "stats": {
         "refSizePt": [
           146.7,
           46
@@ -220,19 +218,19 @@
           0,
           0
         ],
-        "inkPixels": 19388,
-        "missing": 2,
+        "inkPixels": 19077,
+        "missing": 0,
         "extra": 0,
         "color": 0,
         "mismatchPct": 0
-      }
+      },
+      "glyphs": 10,
+      "missingFonts": [],
+      "ms": 0.4
     },
     {
       "name": "10-flowchart",
-      "busytexOk": true,
-      "oursMs": 265,
-      "oursOk": true,
-      "ours": {
+      "stats": {
         "refSizePt": [
           171,
           195
@@ -245,19 +243,19 @@
           -0.3,
           0
         ],
-        "inkPixels": 88075,
-        "missing": 58,
-        "extra": 46,
+        "inkPixels": 87177,
+        "missing": 0,
+        "extra": 0,
         "color": 0,
-        "mismatchPct": 0.1
-      }
+        "mismatchPct": 0
+      },
+      "glyphs": 47,
+      "missingFonts": [],
+      "ms": 0.3
     },
     {
       "name": "11-text-and-math",
-      "busytexOk": true,
-      "oursMs": 170,
-      "oursOk": true,
-      "ours": {
+      "stats": {
         "refSizePt": [
           181.3,
           176.3
@@ -270,19 +268,19 @@
           0,
           0
         ],
-        "inkPixels": 46441,
-        "missing": 524,
-        "extra": 154,
+        "inkPixels": 44328,
+        "missing": 73,
+        "extra": 0,
         "color": 0,
-        "mismatchPct": 1.5
-      }
+        "mismatchPct": 0.2
+      },
+      "glyphs": 117,
+      "missingFonts": [],
+      "ms": 0.8
     },
     {
       "name": "12-transforms",
-      "busytexOk": true,
-      "oursMs": 116,
-      "oursOk": true,
-      "ours": {
+      "stats": {
         "refSizePt": [
           227.3,
           116.3
@@ -295,22 +293,22 @@
           -0.3,
           -0.3
         ],
-        "inkPixels": 23459,
+        "inkPixels": 23222,
         "missing": 0,
         "extra": 0,
         "color": 0,
         "mismatchPct": 0
-      }
+      },
+      "glyphs": 25,
+      "missingFonts": [],
+      "ms": 0.2
     },
     {
       "name": "13-curves-and-nesting",
-      "busytexOk": true,
-      "oursMs": 159,
-      "oursOk": true,
-      "ours": {
+      "stats": {
         "refSizePt": [
           202.7,
-          85.3
+          85.7
         ],
         "testSizePt": [
           202.7,
@@ -320,12 +318,15 @@
           0,
           0
         ],
-        "inkPixels": 21256,
-        "missing": 26,
-        "extra": 66,
+        "inkPixels": 20586,
+        "missing": 0,
+        "extra": 0,
         "color": 0,
-        "mismatchPct": 0.4
-      }
+        "mismatchPct": 0
+      },
+      "glyphs": 0,
+      "missingFonts": [],
+      "ms": 0.2
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { extname, join, normalize, sep } from "node:path";
 import { gzipSync } from "node:zlib";
 import type { Plugin } from "vite";
@@ -105,6 +105,54 @@ function rawVendor(): Plugin {
   };
 }
 
+/**
+ * The accurate preview's engine (D67): vendor/engine/<tag>/ (from `npm run
+ * fetch-engines`, or a CI run staged with scripts/stage-engine-ci.ts) served
+ * as /engine/<tag>/ byte for byte, and copied into the build. Its .gz files
+ * must reach the worker gzipped: no Content-Encoding, ever (D12).
+ */
+function engineFiles(): Plugin {
+  const engineRoot = join(vendorRoot, "engine");
+  let outDir = "dist";
+  let building = false;
+  return {
+    name: "tikzflow-engine-files",
+    configResolved(config) {
+      outDir = join(config.root, config.build.outDir);
+      building = config.command === "build" && !process.env.VITEST;
+    },
+    configureServer(server) {
+      server.middlewares.use("/engine", (req, res, next) => {
+        const path = normalize(join(engineRoot, decodeURIComponent((req.url ?? "/").split("?")[0]!)));
+        if (!path.startsWith(engineRoot + sep)) return next();
+        // Not an engine folder (the repo's own engine/release.json, imported by the app): Vite's.
+        const folder = path.slice(engineRoot.length + 1).split(sep)[0]!;
+        if (!existsSync(join(engineRoot, folder)) || !statSync(join(engineRoot, folder)).isDirectory()) return next();
+        if (!existsSync(path) || !statSync(path).isFile()) {
+          res.statusCode = 404;
+          res.end();
+          return;
+        }
+        res.setHeader("Content-Type", TYPES[extname(path)] ?? "application/octet-stream");
+        res.setHeader("Content-Length", statSync(path).size);
+        res.setHeader("Cache-Control", "no-cache");
+        res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+        createReadStream(path).pipe(res);
+      });
+    },
+    closeBundle() {
+      if (!building) return;
+      const release = JSON.parse(readFileSync(join(import.meta.dirname, "engine", "release.json"), "utf8")) as { tag: string };
+      const from = join(engineRoot, release.tag);
+      if (!existsSync(join(from, "index.json"))) {
+        this.warn(`The engine ${release.tag} isn't in vendor/engine: the build has no accurate preview. Run npm run fetch-engines -- engine first.`);
+        return;
+      }
+      cpSync(from, join(outDir, "engine", release.tag), { recursive: true });
+    },
+  };
+}
+
 // kpathsea file-format numbers SwiftLaTeX sends, and the suffix each implies
 // when the requested name has none.
 const KPSE_SUFFIX: Record<string, string> = {
@@ -183,7 +231,7 @@ function swiftlatexTexlive(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [rawVendor(), swiftlatexTexlive()],
+  plugins: [rawVendor(), engineFiles(), swiftlatexTexlive()],
   oxc: { jsx: { runtime: "automatic", importSource: "preact" } },
   server: {
     watch: { ignored: ["**/vendor/**"] },

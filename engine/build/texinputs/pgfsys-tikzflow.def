@@ -19,7 +19,15 @@
 %     in a node's text (\node{\tikz ...}). Colour changes now set the stroke as
 %     well, as they do outside boxes.
 %  2. Boxes are placed without stroke="none", for the same reason.
-%  3. The outermost picture says where it is with a special,
+%  3. A picture starts with \special{color push tikzflow inherit} instead of
+%     dvisvgm's "color push gray 0". dvisvgm leaves black text without a fill
+%     so that it takes the colour of the SVG group around it; but text whose
+%     colour is set with a colour special (the second part of a rectangle
+%     split, typeset outside the picture and coloured with \pgfsetcolor)
+%     then took the node's fill colour and vanished into it. The converter
+%     gives every colour set with a special to the text, black too, and
+%     lets only "inherit" take the group's colour.
+%  4. The outermost picture says where it is with a special,
 %       \special{tikzflow:picture <minx> <miny> <width> <height>}
 %     at the lower left corner of its bounding box, in TeX points, so the
 %     preview can lay the compiled picture exactly over TikZ's coordinates.
@@ -60,7 +68,16 @@
   }%
 }
 
-% 3. pgfsys-dvisvgm.def's \pgfsys@typesetpicturebox, with the picture's box
+% 3. Text in a picture takes the colour of the SVG groups around it, unless
+% a colour special says otherwise.
+\def\pgfsys@beginpicture{%
+  \special{color push tikzflow inherit}%
+  \pgf@sys@svg@inpicturetrue% in a picture
+  \pgfsys@svg@boxmodefalse%
+  \pgfsys@invoke{<g \ifx\pgf@sys@svg@last@stroke\relax\else
+    stroke="\pgf@sys@svg@last@stroke" \fi stroke-miterlimit="10" transform="translate({?x},{?y})scale(0.996264,-0.996264)">}}
+
+% 4. pgfsys-dvisvgm.def's \pgfsys@typesetpicturebox, with the picture's box
 % written for the converter.
 \def\pgfsys@typesetpicturebox#1{%
   \pgf@ya=\pgf@shift@baseline\relax%

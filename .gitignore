@@ -19,3 +19,4 @@ spike/engines/results/*.svg
 spike/engines/results/*.png
 spike/engines/results/compare/**/*.png
 .scratch/
+spike/engines/results/dvicheck/*.png

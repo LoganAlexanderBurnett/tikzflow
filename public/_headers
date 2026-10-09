@@ -1,0 +1,8 @@
+# Cloudflare Pages response headers (D67).
+# The engine's files live under /engine/<release tag>/, so a new release has
+# new URLs and the old files can be cached for good. The worker reads the
+# .gz files itself and also accepts them already inflated, so it doesn't
+# matter whether a server adds Content-Encoding to them.
+/engine/*
+  Cache-Control: public, max-age=31536000, immutable
+  X-Content-Type-Options: nosniff

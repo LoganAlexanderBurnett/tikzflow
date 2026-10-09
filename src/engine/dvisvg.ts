@@ -139,6 +139,7 @@ export function specialColor(spec: string): string {
   const n = parts.slice(1).map(Number);
   const hex = (r: number, g: number, b: number) =>
     "#" + [r, g, b].map((v) => Math.round(Math.min(1, Math.max(0, v)) * 255).toString(16).padStart(2, "0")).join("");
+  if (parts[0] === "tikzflow" && parts[1] === INHERIT) return INHERIT;
   switch (parts[0]?.toLowerCase()) {
     case "rgb":
       return hex(n[0] ?? 0, n[1] ?? 0, n[2] ?? 0);
@@ -181,7 +182,13 @@ const DVIPS_NAMES: Record<string, string> = {
   Yellow: "#ffff00",
 };
 
-const BLACK = "#000000";
+/**
+ * The colour of text that takes the colour of the SVG groups around it: the
+ * bottom of the colour stack, and what our driver pushes at the start of a
+ * picture (`color push tikzflow inherit`). Any colour a special sets, black
+ * included, is written on the text (dvisvgm writes black as nothing, D66).
+ */
+const INHERIT = "inherit";
 
 /**
  * Converts the first page of a DVI file to SVG. `fonts` gives the converter
@@ -229,7 +236,7 @@ export function dviToSvg(dvi: Uint8Array, fonts: (name: string) => FontData | un
   const rawSets = new Map<string, Array<{ kind: "raw" | "rawdef"; text: string }>>();
   let rawSet: { name: string; items: Array<{ kind: "raw" | "rawdef"; text: string }> } | null = null;
   const putDefs = new Set<string>();
-  const colors: string[] = [BLACK];
+  const colors: string[] = [INHERIT];
   const ignored: Record<string, number> = {};
   let picture: PicturePlacement | null = null;
   let glyphs = 0;
@@ -245,7 +252,7 @@ export function dviToSvg(dvi: Uint8Array, fonts: (name: string) => FontData | un
   let page = 0;
 
   const color = () => colors[colors.length - 1]!;
-  const fillAttr = () => (color() === BLACK ? "" : ` fill="${color()}"`);
+  const fillAttr = () => (color() === INHERIT ? "" : ` fill="${color()}"`);
 
   const setChar = (c: number, advance: boolean) => {
     if (!font) return;
@@ -268,7 +275,7 @@ export function dviToSvg(dvi: Uint8Array, fonts: (name: string) => FontData | un
   };
   const expand = (text: string) =>
     text.replace(/\{\?(x|y|nl|color|matrix)\}/g, (_, k: string) =>
-      k === "x" ? fmt(h * unit) : k === "y" ? fmt(v * unit) : k === "nl" ? "\n" : k === "color" ? color() : "1 0 0 1 0 0",
+      k === "x" ? fmt(h * unit) : k === "y" ? fmt(v * unit) : k === "nl" ? "\n" : k === "color" ? (color() === INHERIT ? "#000000" : color()) : "1 0 0 1 0 0",
     );
   const raw = (kind: "raw" | "rawdef", text: string) => {
     const t = expand(text);
