@@ -1,11 +1,11 @@
 {
   "browser": "msedge 154.0.4258.62",
-  "date": "2026-10-09T16:35:41.051Z",
+  "date": "2026-10-09T16:43:53.958Z",
   "results": [
     {
       "name": "01-fills",
       "busytexOk": true,
-      "oursMs": 190,
+      "oursMs": 194,
       "oursOk": true,
       "ours": {
         "refSizePt": [
@@ -30,7 +30,7 @@
     {
       "name": "02-line-styles",
       "busytexOk": true,
-      "oursMs": 126,
+      "oursMs": 120,
       "oursOk": true,
       "ours": {
         "refSizePt": [
@@ -55,7 +55,7 @@
     {
       "name": "03-opacity",
       "busytexOk": true,
-      "oursMs": 112,
+      "oursMs": 113,
       "oursOk": true,
       "ours": {
         "refSizePt": [
@@ -80,7 +80,7 @@
     {
       "name": "04-arrow-tips",
       "busytexOk": true,
-      "oursMs": 302,
+      "oursMs": 299,
       "oursOk": true,
       "ours": {
         "refSizePt": [
@@ -105,7 +105,7 @@
     {
       "name": "05-fit-backgrounds",
       "busytexOk": true,
-      "oursMs": 187,
+      "oursMs": 189,
       "oursOk": true,
       "ours": {
         "refSizePt": [
@@ -130,7 +130,7 @@
     {
       "name": "06-clipping",
       "busytexOk": true,
-      "oursMs": 123,
+      "oursMs": 117,
       "oursOk": true,
       "ours": {
         "refSizePt": [
@@ -180,7 +180,7 @@
     {
       "name": "08-node-shapes",
       "busytexOk": true,
-      "oursMs": 280,
+      "oursMs": 282,
       "oursOk": true,
       "ours": {
         "refSizePt": [
@@ -196,16 +196,16 @@
           0
         ],
         "inkPixels": 95765,
-        "missing": 903,
+        "missing": 61,
         "extra": 33,
         "color": 0,
-        "mismatchPct": 1
+        "mismatchPct": 0.1
       }
     },
     {
       "name": "09-matrix",
       "busytexOk": true,
-      "oursMs": 222,
+      "oursMs": 225,
       "oursOk": true,
       "ours": {
         "refSizePt": [
@@ -230,7 +230,7 @@
     {
       "name": "10-flowchart",
       "busytexOk": true,
-      "oursMs": 265,
+      "oursMs": 275,
       "oursOk": true,
       "ours": {
         "refSizePt": [
@@ -255,7 +255,7 @@
     {
       "name": "11-text-and-math",
       "busytexOk": true,
-      "oursMs": 170,
+      "oursMs": 173,
       "oursOk": true,
       "ours": {
         "refSizePt": [
@@ -280,7 +280,7 @@
     {
       "name": "12-transforms",
       "busytexOk": true,
-      "oursMs": 116,
+      "oursMs": 119,
       "oursOk": true,
       "ours": {
         "refSizePt": [
@@ -305,7 +305,7 @@
     {
       "name": "13-curves-and-nesting",
       "busytexOk": true,
-      "oursMs": 159,
+      "oursMs": 162,
       "oursOk": true,
       "ours": {
         "refSizePt": [

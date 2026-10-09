@@ -119,11 +119,11 @@ if (wanted.size === 0 || wanted.has("engine")) await fetchRelease();
 wanted.delete("engine");
 const selected = process.argv.length > 2 && wanted.size === 0 ? [] : DOWNLOADS.filter((d) => wanted.size === 0 || wanted.has(d.group));
 const totalMB = selected.reduce((sum, d) => sum + d.approxMB, 0);
-console.log(`Fetching ${selected.length} files (about ${totalMB.toFixed(0)} MB) into ${root}`);
+if (selected.length) console.log(`Fetching ${selected.length} files (about ${totalMB.toFixed(0)} MB) into ${root}`);
 
 for (const d of selected) {
   const file = await download(d);
   await extract(d, file);
   writeFileSync(lockPath, JSON.stringify(lock, null, 2) + "\n");
 }
-console.log("Done. Sizes and SHA-256 hashes are in vendor/LOCK.json.");
+if (selected.length) console.log("Done. Sizes and SHA-256 hashes are in vendor/LOCK.json.");
