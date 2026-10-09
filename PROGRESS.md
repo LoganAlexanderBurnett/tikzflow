@@ -12,7 +12,7 @@ Milestone 0 is done and was approved on 2026-10-07:
 
 **Milestone 2b (edges): done and approved (2026-10-08).** The owner tested all of it, and the fixes of D57, by hand. Their answers are in DECISIONS.md D58 and "M2b review" below. SPEC.md's revisions log now covers D53–D58.
 
-**Milestone 3 (accurate preview and export): in progress on the `m3-engine-ci` branch.** Step 1, the CI feasibility check (D15, D59), passed and the owner approved it (D60). Steps 2–5, the four fixes from the M2b review (D58 items 4–7), are done (D61–D64). The owner's decision on step 4's limit is D65. Steps 6–8 are done (D66–D68): the TeX preview works in the app; see "M3 steps 6–8" below. Steps 9–11 are done (D70–D72, with D69's fixes): offline use, the page, and export; see "M3 steps 9–11" below. Then the owner answered the step 9–11 questions (D73, 2026-10-09) and asked for steps 12, 13 and 14 without pausing; see "Resuming" below. The owner's standing answers:
+**Milestone 3 (accurate preview and export): done, awaiting review (merged into `trunk` on 2026-10-09).** Step 1, the CI feasibility check (D15, D59), passed and the owner approved it (D60). Steps 2–5, the four fixes from the M2b review (D58 items 4–7), are done (D61–D64). The owner's decision on step 4's limit is D65. Steps 6–8 are done (D66–D68): the TeX preview works in the app; see "M3 steps 6–8" below. Steps 9–11 are done (D70–D72, with D69's fixes): offline use, the page, and export; see "M3 steps 9–11" below. The owner answered the step 9–11 questions (D73) and steps 12–14 followed (D74, D75): **Milestone 3 is done, merged into `trunk`, and waiting for the owner's review**; see "Milestone 3 report" below. The owner's standing answers:
 - `gh` is logged in with a token for this repo only (Contents, Actions, Workflows: read/write). Report any missing permission instead of working around it.
 - Engine files are published as GitHub Releases and fetched by hash. The TL2026 Docker image is pinned by digest.
 - Push the `m3-engine-ci` branch when needed. Show the download list before CI downloads anything new.
@@ -34,16 +34,51 @@ Also read "Notes for later milestones" below.
 | 9 | Service worker, offline | Done (D70) |
 | 10 | Importing the preamble, column-width guide | Done (D71) |
 | 11 | Export: `.tex`, snippet, SVG, PNG, PDF | Done (D72) |
-| 12 | Save and open: IndexedDB autosave, File System Access API, fallback | Done (D74), committed 5e89541 |
-| 13 | Share links in the URL hash | Done (D74), committed 5e89541 |
-| 14 | End-to-end tests, goldens, docs, report, push, Cloudflare Pages checks | Not started |
+| 12 | Save and open: IndexedDB autosave, File System Access API, fallback | Done (D74) |
+| 13 | Share links in the URL hash | Done (D74) |
+| 14 | End-to-end tests, goldens, docs, report, push, Cloudflare Pages checks | Done (D75) |
 
-## Resuming (updated as work is committed)
-The owner's instruction (2026-10-09): do the three items below, then steps 12, 13, 14 without pausing, a commit after each; step 14 ends the milestone (merge `m3-engine-ci` into `trunk`, move `engine.yml`'s branch trigger to `trunk`, push, report on all of Milestone 3).
-1. **Background fetch skipped on data-saver or metered connections** (D73): done, in 5e89541.
-2. **Class presets and typed widths** (D73): IN PROGRESS. The measuring job `.github/workflows/page-widths.yml` (cases in `engine/page-widths/cases.txt`) runs in the pinned TL2026 image; Docker Hub's anonymous pull limit makes it fail now and then, so re-run it (`gh run rerun <id>`). Its output, `page-widths.jsonl`, is to be committed as `engine/page-widths/measured.jsonl`, and `src/tikz/classes.ts` (ieee, revtex, acm functions still placeholders) fitted to it by `test/page.test.ts`. Typed widths and named presets (`src/ui/pagesettings.ts`, the Page panel), unknown classes substituted with a note (`CompileInput.substitutedClass`), are written but uncommitted.
-3. **The page through the interpreter** (D73): written (`setPageLengths` in `src/tikz/units.ts`, `LayoutEnv.page`, `pictureEnv`), uncommitted.
-4. Steps 12–13: done and committed. Step 14 not started.
+## Milestone 3 report: accurate preview and export (2026-10-09)
+All of Milestone 3 is done on `m3-engine-ci` and merged into `trunk` (D60). This section covers the last stretch: the owner's answers to the step 9–11 questions (D73), and steps 12–14 (D74, D75). Steps 1–11 are reported below, in "M3 steps 9–11", "M3 steps 6–8", "M3 steps 2–5" and "M3 step 1".
+
+### How to try it
+`npm run fetch-engines -- engine` once (10.8 MB from this repo's release, checked by hash), then `npm run dev`, open http://localhost:5173.
+- **Page widths for your classes (D73).** Toolbar **Page**. Paste `\documentclass[5p]{elsarticle}`: column 252 pt, text 522 pt, and the guide is one column wide; a node with `text width=0.5\columnwidth` is 126 pt wide in **both** the quick and the TeX preview. Try `\documentclass[3p,twocolumn]{elsarticle}` (222 pt columns), IEEEtran, revtex4-2 (`reprint`, `preprint`), llncs and the one-column acmart formats.
+- **Your own class (ANS).** Paste a preamble with `\documentclass{ans}` and a macro the class defines, say `\journal{…}`. The TeX preview still draws: the bar says **TeX preview: notes**, with "The ans class isn't available in the preview, so it uses article's page (or the widths you typed) and keeps your packages and macros" and the line of the unknown macro. Under **Type the widths yourself** enter `\textwidth` and `\columnwidth`, type a name (ANS) and **Save as preset**; next time choose it from the list. Typed widths win over the preamble everywhere and are kept per viewer in this browser.
+- **Save and open (D74).** Type something, reload: it is still there (kept in IndexedDB as you type). **Open…** (Chromium) opens a file and links it; edit and press **Ctrl+S**: it is written back (a `●` after the name says the file differs). **Save as…** writes a new file. In Firefox and Safari Open is a file chooser and Save a download. Opening a file or a link puts the work on screen aside; **Restore previous work** brings it back.
+- **Share (D74).** Toolbar **Share**: a link with your code compressed into the part after the `#`. Open it in a private window: the same picture. Nothing is uploaded; the link holds the code only, not your preamble or settings.
+- **Metered connections (D73).** In Chromium's developer tools, Network conditions can't fake `saveData`, but `navigator.connection` reports it on devices that have a data-saver: the toolbar then says "Offline: kept as used" instead of fetching the whole engine.
+- **Production headers (D75).** `npm run build:pages` (fetches the pinned engine, builds, checks `dist/`), then `npx vite preview` serves the build with the headers Cloudflare Pages will send, including a Content-Security-Policy that allows only this site's own files.
+
+### What works
+- **Class presets (D73).** `src/tikz/classes.ts`: article, report, book, elsarticle (`1p` 384 pt; `3p` 468 pt, 24 pt gap; `5p` 522 pt, two columns, 18 pt gap; else article's), IEEEtran (516 pt; `compsoc`; `conference,compsoc`; one column; `draftcls`), revtex4-2 (10 pt 510 pt, 11/12 pt 468 pt; `reprint`/`preprint`/`aip`; columns and gaps), llncs (12.2 cm), and acmart's single-column formats. **They are tested against LaTeX itself:** `.github/workflows/page-widths.yml` compiles a document that prints `\textwidth` and `\columnwidth` for 130 class-and-option lists in the pinned TL2026 image, the result is committed (`engine/page-widths/measured.jsonl`), and `test/page.test.ts` runs every case through the code. That also confirmed the previous session's reading of elsarticle.dtx.
+- **The page goes through the interpreter (D73).** `\textwidth`, `\columnwidth`, `\linewidth` and `\paperwidth` in the quick preview follow the same page as the TeX preview (`effectivePage` is the one source), including in the planners that check their edits by drawing.
+- **Unknown classes (D73).** Substituted by article's page with a note, errors in their preamble shown as notes, typed widths and named presets.
+- **Steps 12 and 13 (D74), step 14 (D75):** as above. `npm run check:dist`: 1,235 files, 11.6 MiB, the largest file 2.85 MiB, `_headers` valid, every file the engine index and the service worker list present.
+
+### Tests
+- **Vitest:** 1,130 tests in 35 files (was 992 in 33). New: 144 in `test/page.test.ts` (130 of them are the measured class cases), `test/page-layout.test.ts` (5: the page through the interpreter), `test/share.test.ts` (4), and imported-preamble, typed-width and substituted-class cases in `test/engine-input.test.ts`.
+- **Playwright:** 126 tests in Edge (was 117), all passing: `test/e2e/files.spec.ts` (6), `test/e2e/pagepresets.spec.ts` (2), and an unknown-class case in `page.spec.ts`. `npm run test:offline`: 4 tests (was 3), the new one runs the TeX picture, the three exports, a share link and the Page panel under the production Content-Security-Policy and fails on a violation (checked by forbidding workers).
+- All end-to-end specs now import `test` from `test/e2e/base.ts`: the app starts once the kept work has been read, so a page counts as loaded when the code pane exists.
+- `npm run typecheck`, `npm run build` and `npm run layout:bench` (unchanged: parse 7.3 ms, layout 7.4 ms, drop 28 ms) pass.
+
+### Cloudflare Pages: what to do and what to look at
+1. Cloudflare dashboard → Workers & Pages → Create → Pages → Connect to Git → this repo, production branch `trunk`.
+2. Build command `npm run build:pages`; build output directory `dist`; Node 24 is picked up from `.node-version`. (The engine is not in git: `build:pages` downloads the pinned release from this repo's GitHub Releases, checks its SHA-256 and unpacks it. The repo must be public, or the release asset reachable without a token.)
+3. After the first deploy, open the site and check: the toolbar says "Works offline" after a few seconds on the first visit; the browser's console shows no Content-Security-Policy messages; **TeX preview** appears; the response for `/engine/engine-2026-10-09/core.dump.gz` has `Cache-Control: immutable` (Network tab). If Cloudflare adds `Content-Encoding: gzip` to the `.gz` files the engine still works (the worker accepts them inflated or not, D67), but then the transfer is a little larger than it needs to be: tell me and we rename or recompress them.
+4. Custom domain, if wanted: the Pages project's Custom domains tab.
+
+### Decisions for you
+1. **The Content-Security-Policy (D75).** I added it (nothing in the spec asks for it): it makes the browser refuse any request to another host, which is the hard rule "client-side only" enforced rather than promised. It is tested under `vite preview` but not on Cloudflare itself. It is one line in `public/_headers` to remove or loosen. Keep?
+2. **acmart's two-column formats** (see "Known limits").
+3. **Metered connections (D73).** The Network Information API has no "metered" flag; I use `saveData`, a cellular connection type, or a 2G effective type. On desktop Chrome neither is reported, so the engine is always fetched there. Enough?
+
+### Known limits
+- **Presets cover what was measured.** Classes and options not in `engine/page-widths/cases.txt` follow the same rules but are unverified; add a line to the cases and re-run the workflow (Docker Hub's anonymous pull limit makes it fail now and then; re-run it).
+- **File System Access API** works in Chromium browsers only; the fakes in `files.spec.ts` stand in for the pickers, so the real pickers were not driven by a test. A file handle kept from an earlier visit asks for permission again at the first Save.
+- **Share links** need `CompressionStream` (every current browser). The link holds the code only. Very long code makes a long link (a warning appears past 8,000 characters).
+- **Everything about Cloudflare Pages itself** is untested until the first deploy (headers, `.gz`, caching): see above.
+- **Still from before:** styles and macros defined only in an imported preamble aren't known to the quick preview or the editing tools (D71); PDF export limits (D72); fonts are Computer Modern only (D16); Firefox is untested.
 
 ## M3 steps 9–11: offline, the page, export (2026-10-09)
 Done in one go on `m3-engine-ci`, as the owner asked, with a commit after each step. The owner's answers on steps 6–8 and two bugs from their testing are in too (D69). No new engine release was published: the pinned one is still `engine-2026-10-09`. Old releases are untouched.
@@ -889,7 +924,7 @@ These come from the M0 review. The full reasoning is in DECISIONS.md D15 and D16
 5. *Done (D67, D68).* **Missing packages:** show a visible warning when a package isn't available, rather than letting TikZJax load an empty file silently.
 6. *Done (D68).* **Font notice:** the preview always uses Computer Modern (D16). When the preamble loads a font package, show a small notice that text widths in the preview may differ from the user's document. `.tex` export keeps the user's packages.
 7. *Done (D66, D68).* **Units and hairlines:** place the SVG with the 72/72.27 correction (or emit bp), and enforce a minimum visible stroke width in the preview.
-8. **PDF export:** `.tex` export is the primary output. For quick PDF exports, prefer converting the preview SVG to PDF in the browser. Don't ship busytex for this. Decide the details in Milestone 3.
+8. *Done (step 11, D72).* **PDF export:** `.tex` export is the primary output. For quick PDF exports, prefer converting the preview SVG to PDF in the browser. Don't ship busytex for this. Decide the details in Milestone 3.
 
 ### Milestone 5: owner requirements on top of SPEC.md (2026-10-09, D69)
 - **Stop the engine worker while the tab is hidden** (it holds about 330 MB) and start it again when the tab is shown.
