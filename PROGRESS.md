@@ -12,7 +12,7 @@ Milestone 0 is done and was approved on 2026-10-07:
 
 **Milestone 2b (edges): done and approved (2026-10-08).** The owner tested all of it, and the fixes of D57, by hand. Their answers are in DECISIONS.md D58 and "M2b review" below. SPEC.md's revisions log now covers D53–D58.
 
-**Milestone 3 (accurate preview and export): in progress on the `m3-engine-ci` branch.** Step 1, the CI feasibility check (D15, D59), passed and the owner approved it (D60). Steps 2–5, the four fixes from the M2b review (D58 items 4–7), are done (D61–D64). The owner's decision on step 4's limit is D65. Steps 6–8 are done (D66–D68): the TeX preview works in the app; see "M3 steps 6–8" below. Steps 9–11 are done (D70–D72, with D69's fixes): offline use, the page, and export; see "M3 steps 9–11" below. Step 12 is next. The owner's standing answers:
+**Milestone 3 (accurate preview and export): in progress on the `m3-engine-ci` branch.** Step 1, the CI feasibility check (D15, D59), passed and the owner approved it (D60). Steps 2–5, the four fixes from the M2b review (D58 items 4–7), are done (D61–D64). The owner's decision on step 4's limit is D65. Steps 6–8 are done (D66–D68): the TeX preview works in the app; see "M3 steps 6–8" below. Steps 9–11 are done (D70–D72, with D69's fixes): offline use, the page, and export; see "M3 steps 9–11" below. Then the owner answered the step 9–11 questions (D73, 2026-10-09) and asked for steps 12, 13 and 14 without pausing; see "Resuming" below. The owner's standing answers:
 - `gh` is logged in with a token for this repo only (Contents, Actions, Workflows: read/write). Report any missing permission instead of working around it.
 - Engine files are published as GitHub Releases and fetched by hash. The TL2026 Docker image is pinned by digest.
 - Push the `m3-engine-ci` branch when needed. Show the download list before CI downloads anything new.
@@ -34,9 +34,16 @@ Also read "Notes for later milestones" below.
 | 9 | Service worker, offline | Done (D70) |
 | 10 | Importing the preamble, column-width guide | Done (D71) |
 | 11 | Export: `.tex`, snippet, SVG, PNG, PDF | Done (D72) |
-| 12 | Save and open: IndexedDB autosave, File System Access API, fallback | Not started |
-| 13 | Share links in the URL hash | Not started |
+| 12 | Save and open: IndexedDB autosave, File System Access API, fallback | Done (D74), committed 5e89541 |
+| 13 | Share links in the URL hash | Done (D74), committed 5e89541 |
 | 14 | End-to-end tests, goldens, docs, report, push, Cloudflare Pages checks | Not started |
+
+## Resuming (updated as work is committed)
+The owner's instruction (2026-10-09): do the three items below, then steps 12, 13, 14 without pausing, a commit after each; step 14 ends the milestone (merge `m3-engine-ci` into `trunk`, move `engine.yml`'s branch trigger to `trunk`, push, report on all of Milestone 3).
+1. **Background fetch skipped on data-saver or metered connections** (D73): done, in 5e89541.
+2. **Class presets and typed widths** (D73): IN PROGRESS. The measuring job `.github/workflows/page-widths.yml` (cases in `engine/page-widths/cases.txt`) runs in the pinned TL2026 image; Docker Hub's anonymous pull limit makes it fail now and then, so re-run it (`gh run rerun <id>`). Its output, `page-widths.jsonl`, is to be committed as `engine/page-widths/measured.jsonl`, and `src/tikz/classes.ts` (ieee, revtex, acm functions still placeholders) fitted to it by `test/page.test.ts`. Typed widths and named presets (`src/ui/pagesettings.ts`, the Page panel), unknown classes substituted with a note (`CompileInput.substitutedClass`), are written but uncommitted.
+3. **The page through the interpreter** (D73): written (`setPageLengths` in `src/tikz/units.ts`, `LayoutEnv.page`, `pictureEnv`), uncommitted.
+4. Steps 12–13: done and committed. Step 14 not started.
 
 ## M3 steps 9–11: offline, the page, export (2026-10-09)
 Done in one go on `m3-engine-ci`, as the owner asked, with a commit after each step. The owner's answers on steps 6–8 and two bugs from their testing are in too (D69). No new engine release was published: the pinned one is still `engine-2026-10-09`. Old releases are untouched.
