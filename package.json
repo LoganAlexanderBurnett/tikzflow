@@ -25,7 +25,8 @@
     "compare-engines": "node scripts/compare-engines.ts",
     "fidelity": "node scripts/fidelity.ts",
     "layout:bench": "node scripts/layout-bench.ts",
-    "golden:review": "node scripts/golden-review.ts"
+    "golden:review": "node scripts/golden-review.ts",
+    "dvicheck": "node scripts/dvicheck.ts"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",

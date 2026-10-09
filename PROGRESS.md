@@ -12,7 +12,7 @@ Milestone 0 is done and was approved on 2026-10-07:
 
 **Milestone 2b (edges): done and approved (2026-10-08).** The owner tested all of it, and the fixes of D57, by hand. Their answers are in DECISIONS.md D58 and "M2b review" below. SPEC.md's revisions log now covers D53–D58.
 
-**Milestone 3 (accurate preview and export): in progress on the `m3-engine-ci` branch.** Step 1, the CI feasibility check (D15, D59), passed and the owner approved it (D60). Steps 2–5, the four fixes from the M2b review (D58 items 4–7), are done (D61–D64); see "M3 steps 2–5" below. Step 6 is next. The owner's standing answers:
+**Milestone 3 (accurate preview and export): in progress on the `m3-engine-ci` branch.** Step 1, the CI feasibility check (D15, D59), passed and the owner approved it (D60). Steps 2–5, the four fixes from the M2b review (D58 items 4–7), are done (D61–D64). The owner's decision on step 4's limit is D65. Steps 6–8 are done (D66–D68): the TeX preview works in the app; see "M3 steps 6–8" below. Step 9 is next. The owner's standing answers:
 - `gh` is logged in with a token for this repo only (Contents, Actions, Workflows: read/write). Report any missing permission instead of working around it.
 - Engine files are published as GitHub Releases and fetched by hash. The TL2026 Docker image is pinned by digest.
 - Push the `m3-engine-ci` branch when needed. Show the download list before CI downloads anything new.
@@ -28,15 +28,58 @@ Also read "Notes for later milestones" below.
 | 3 | "Split and apply" for arrow tips (D58 item 5, D62) | Done |
 | 4 | Form changes turn overlapping side keys into `auto` (D58 item 6, D63) | Done |
 | 5 | Flip label side on a label with no side key writes `auto` (D58 item 7, D64) | Done |
-| 6 | Our own driver from `pgfsys-dvisvgm.def`; `dvi2html` adapted; boxes, bp units | Not started |
-| 7 | Our worker and files: missing-package warning, bytes, caching, `\scrollmode`, log, error lines, packages, `_headers`, `.gz` serving, fetch the release by hash | Not started |
-| 8 | Accurate preview in the app; locked blocks drawn and selectable; errors; font notice; minimum stroke | Not started |
+| 6 | Our own driver from `pgfsys-dvisvgm.def`; ~~`dvi2html` adapted~~ our own DVI-to-SVG converter (D66, a departure to review); boxes, bp units | Done |
+| 7 | Our worker and files: missing-package warning, bytes, caching, `\scrollmode`, log, error lines, packages, `_headers`, `.gz` serving, fetch the release by hash | Done (D67) |
+| 8 | Accurate preview in the app; locked blocks drawn and selectable; errors; font notice; minimum stroke; label marker (D65) | Done (D68) |
 | 9 | Service worker, offline | Not started |
 | 10 | Importing the preamble, column-width guide | Not started |
 | 11 | Export: `.tex`, snippet, SVG, PNG, PDF | Not started |
 | 12 | Save and open: IndexedDB autosave, File System Access API, fallback | Not started |
 | 13 | Share links in the URL hash | Not started |
 | 14 | End-to-end tests, goldens, docs, report, push, Cloudflare Pages checks | Not started |
+
+## M3 steps 6–8: the TeX preview (2026-10-09)
+Done in one go on `m3-engine-ci`, as the owner asked, with commits along the way. The owner's decision on step 4's limit (D65) is in too: dragging a corner, curve handle, segment or end converts overlapping label sides like a form change; moving a node doesn't, and a marker shows instead.
+
+### How to try it
+1. `npm run fetch-engines -- engine`: downloads the engine release `engine-2026-10-09` from this repo's GitHub Releases (one file, `engine.tar`, 10.8 MB), checks its SHA-256 against `engine/release.json` and unpacks it into `vendor/engine/`.
+2. `npm run dev`, open http://localhost:5173. After about half a second the picture is TeX's own (Computer Modern text, pgf's real shapes and arrows). The summary bar says **TeX preview**; the toolbar's **TeX preview** box turns it off and on.
+3. Things to try:
+   - **Edit or drag:** while the code and TeX's picture differ (during a drag, and for 0.1–0.3 s after an edit), the native drawing shows; then TeX's picture replaces it. Everything is clicked and dragged as before.
+   - **A locked block:** add `\foreach \i in {0,1,2} \fill[red] (\i,-1.5) circle (3pt);` to a picture. TeX draws the dots; hover them for an outline, click to select the loop's code.
+   - **Errors:** write `{\oops B}` in a node's text. The bar says **TeX: 1 error**; click it for "Line n: Undefined control sequence." with a link to the line. TeX carries on, so the rest is still drawn.
+   - **Notes:** in a full document, `\usepackage{lmodern}` gives the Computer Modern notice (D16), and `\usepackage{nosuchpackage}` says the preview compiles without it. `\matrix`, `\usepackage{amssymb,siunitx}`, `pgfplots`, `tikz-cd` and every TikZ library load.
+   - **Label marker (D65):** paste `\node[draw] (a) at (0,0) {A};`, `\node[draw] (b) at (0,-3) {B};`, `\draw[->] (a) -- node[above] {x} (b);`. A small amber marker sits by the "x": click it for **Beside the line (auto)** or **Flip side**, one undo step each. The same happens after dragging `b` below `a` in a horizontal pair.
+   - **Corner drags (D65):** `\draw (a) -- node[pos=0.5, above] {x} (4,0) -- (b);` with two nodes; drag the corner so the first segment turns upright: the status bar says the label was written as `auto`.
+
+### What works
+- **Step 6, driver and converter (D66).** `pgfsys-tikzflow.def` loads pgf's dvisvgm driver and fixes box handling (no lost strokes in boxes), text colour, and writes where the picture sits. Our own DVI-to-SVG converter draws text as paths from the AMS Type 1 fonts, so the SVG needs no web fonts. Against pdfTeX (busytex) on the 13 comparison diagrams: 0–1.9% of ink pixels differ (antialiasing and the 0.1pt hairline); `\matrix` cell borders 0%, pictures nested in nodes 0.4%, where TikZJax lost them. Against the real dvisvgm on the same DVIs: 0% on 12, and on the 13th dvisvgm's fraction bar is the one that's off.
+- **Step 7, worker and files (D67).** Our TeX runtime (missing files are missing, bytes, files cached for the session, asyncify pauses for fetches), `\scrollmode`, the log read for errors with the user's line, 44 TeX Live packages (979 files, 3.6 MB gzipped), 188 fonts (3.2 MB gzipped), all fetched on demand. CI publishes `engine.tar` as a release; `engine/release.json` pins it by hash. The format is now byte-reproducible (same `core.dump` hash from two runs of one commit). `_headers` caches the engine; the worker accepts `.gz` files whether or not a server inflated them (`vite preview` does).
+- **Step 8, the app (D68).** TeX's picture under a transparent native drawing, placed by TikZ's origin (checked to within 2 px on screen); the native drawing shows whenever the two differ. Locked blocks outlined and clickable. Errors with line links; notes for packages, fonts and missing files. Hairlines at least 0.75 px. The label marker of D65.
+- **Speed (Edge, local server, fresh context):** the engine is ready 0.1 s after the page opens; the first picture takes 0.32 s more; later compiles take about 55 ms (TikZJax beta24: about 400 ms), plus the 250 ms wait after the last keystroke. The engine downloads 3.1 MB (wasm and format) plus about 0.1–0.3 MB of packages and fonts for a typical figure.
+
+### Tests
+- **Vitest:** 932 tests in 29 files (was 900 in 25). New: `test/dvisvg.test.ts` (10, hand-written DVI files), `test/engine-fonts.test.ts` (4, CTAN fonts), `test/engine-input.test.ts` (7: input, line map, block markers, log, file names), `test/engine-run.test.ts` (5: the whole pipeline in Node with the released engine: a flowchart, an error mapped to its line, packages and libraries on demand, a missing package, block markers), and 6 in `test/labelforms.test.ts` (D65: corner and end drags, the marker's list and fixes). The engine tests skip without `vendor/engine`.
+- **Playwright:** 101 tests in Edge (was 95), all passing with the TeX preview on. New: `test/e2e/preview.spec.ts` (6: TeX's picture lined up with the native one, native while stale, a locked block clicked, errors and notes, the switch, the label marker).
+- **Engine checks:** `npm run compare-engines -- --engines=ours` (above) and `npm run dvicheck`.
+- `npm run typecheck` and `npm run build` pass; the build is 1,234 files, 15 MB, the largest 2.98 MB (`core.dump.gz`), within Cloudflare Pages' limits. I didn't re-run `npm run fidelity` or `layout:bench`: the native interpreter and layout didn't change.
+- Screenshots and checks in the app's browser pane, which works this session.
+
+### Decisions for you
+1. **Our own DVI-to-SVG converter instead of adapting dvi2html (D66 item 2).** The plan said "dvi2html adapted". I wrote our own (about 800 lines with the font readers): dvi2html was only available minified, depends on Node polyfills, targets the ximera driver, and draws text with BaKoMa web fonts whose licence the M5 audit would have to clear and that exports would have to embed. Ours draws text as paths from the AMS fonts (OFL-1.1). dvi2html is no longer used. OK, or do you want dvi2html adapted after all?
+2. **The engine release.** I published `engine-2026-10-09` as a GitHub prerelease of this repo (the plan's "fetch the release by hash"); D59 recorded approval for one prerelease, in step 1. Fine to publish engine releases this way from now on?
+3. **What is compiled.** The user's preamble and the picture, not the document's other text. Font packages are left out (D16), and so are `hyperref`, `geometry`, `babel` and similar ones that only affect pages. `11pt`/`12pt` are honoured; other class options aren't (the format is `standalone`). Is that the right line?
+
+### Known limits
+- **Fonts:** only Computer Modern, the AMS fonts and LaTeX's own; `\usepackage[T1]{fontenc}` is left out with the font notice (the T1 fonts, cm-super, would be about 60 MB).
+- **Packages:** only the 44 in `engine/build/packages.txt`; others are left out with a note. Adding one is a line there and an engine release.
+- **The switch to the native drawing on every edit** is a visible flicker of 0.1–0.3 s while TeX catches up.
+- **Memory:** the worker holds TeX's 164 MB memory and a 164 MB copy of the format to reset it from.
+- **Locked-block outlines** are the bounding box of what TeX drew between the block's markers.
+- **The canvas fits the native layout's bounds,** so parts only TeX draws (a loop's output) can be outside the fitted view.
+- **No offline use yet:** files are cached for the session only; the service worker is step 9.
+- **Errors in packages** show the package's file name, not a line of the user's code.
+- **Cloudflare Pages behaviour** (`.gz` headers, caching) is untested until step 14; the worker handles either.
 
 ## M3 steps 2–5: the four fixes from the M2b review (2026-10-08)
 Done in one go on `m3-engine-ci`, as the owner asked (D60), with a commit after each step. The owner's decisions on step 1 are recorded in D60: the `\filesize` change to web2js is approved, and the whole of Milestone 3 is merged into `trunk` at its end.
@@ -79,6 +122,8 @@ Done in one go on `m3-engine-ci`, as the owner asked (D60), with a commit after 
   3. Run the bench: `npm run bench-engines -- tikzjax --query=build=ci --tag=ci`.
 
   Or open `/spike/engines/bench.html?engine=tikzjax&build=ci` with `npm run dev`.
+
+  *(Superseded in step 7: the staging script now unpacks a run's `engine.tar` for our own worker, and `?build=ci` is gone; see CLAUDE.md.)*
 
 ### Results
 | | Our CI build | TikZJax 1.0.0-beta24 |
@@ -507,7 +552,7 @@ Not answered yet: whether a palette click with nothing selected should continue 
 | M1: Core loop | Done, approved 2026-10-07 |
 | M2a: Creating and editing nodes and styles | Done, approved 2026-10-07 |
 | M2b: Editing edges | Done, approved 2026-10-08 |
-| M3: Accurate preview and export | In progress: steps 1–5 done 2026-10-08 |
+| M3: Accurate preview and export | In progress: steps 1–5 done 2026-10-08, steps 6–8 done 2026-10-09 |
 | M4: Layout and import | Not started |
 | M5: Polish and launch prep | Not started |
 
@@ -797,16 +842,18 @@ Playwright's Firefox 155, and an older Firefox 137 build, both fail to start on 
 ### Milestone 3: owner requirements on top of SPEC.md (2026-10-07)
 These come from the M0 review. The full reasoning is in DECISIONS.md D15 and D16.
 1. **First task: confirm the CI toolchain is feasible.** *Done 2026-10-08 (M3 step 1, D59).* Build TikZJax's `tex.wasm` (web2js) and dump our own format from a pinned TeX Live snapshot in **GitHub Actions on Linux**, not locally on Windows. Do this before any other Milestone 3 work.
-2. **Our own engine build** (D15): current LaTeX kernel, expl3 and pgf 3.1.12, with matching extra packages hosted as `tex_files/<name>.gz`.
-3. **Replace `pgfsys-ximera.def`** (unknown origin and license) with a driver based on pgf's `pgfsys-dvisvgm.def` (LPPL). Fix box handling so that `\matrix` cell borders and pictures nested in node text keep their strokes and colours. Adapt `dvi2html` as needed.
-4. **Use `\scrollmode` by default**, stream the TeX log, and map error lines back to the user's source.
-5. **Missing packages:** show a visible warning when a package isn't available, rather than letting TikZJax load an empty file silently.
-6. **Font notice:** the preview always uses Computer Modern (D16). When the preamble loads a font package, show a small notice that text widths in the preview may differ from the user's document. `.tex` export keeps the user's packages.
-7. **Units and hairlines:** place the SVG with the 72/72.27 correction (or emit bp), and enforce a minimum visible stroke width in the preview.
+2. *Done 2026-10-09 (steps 6–7, D66, D67).* **Our own engine build** (D15): current LaTeX kernel, expl3 and pgf 3.1.12, with matching extra packages hosted as `tex_files/<name>.gz`.
+3. *Done (step 6, D66).* **Replace `pgfsys-ximera.def`** (unknown origin and license) with a driver based on pgf's `pgfsys-dvisvgm.def` (LPPL). Fix box handling so that `\matrix` cell borders and pictures nested in node text keep their strokes and colours. Adapt `dvi2html` as needed.
+4. *Done (steps 7–8, D67, D68).* **Use `\scrollmode` by default**, stream the TeX log, and map error lines back to the user's source.
+5. *Done (D67, D68).* **Missing packages:** show a visible warning when a package isn't available, rather than letting TikZJax load an empty file silently.
+6. *Done (D68).* **Font notice:** the preview always uses Computer Modern (D16). When the preamble loads a font package, show a small notice that text widths in the preview may differ from the user's document. `.tex` export keeps the user's packages.
+7. *Done (D66, D68).* **Units and hairlines:** place the SVG with the 72/72.27 correction (or emit bp), and enforce a minimum visible stroke width in the preview.
 8. **PDF export:** `.tex` export is the primary output. For quick PDF exports, prefer converting the preview SVG to PDF in the browser. Don't ship busytex for this. Decide the details in Milestone 3.
 
 ### Milestone 5: license audit items
 - **web2js's license files disagree** (found 2026-10-08, M3 step 1). `drgrice1/web2js` (commit `0114ef5`, used to build `tex.wasm` in CI) declares `"license": "GPL-3.0"` in `package.json`. Its `LICENSE.md` names "Math-expression", apparently pasted from another project, and offers GPL-3.0 or Apache-2.0. GitHub reports the license as NOASSERTION. web2js itself is only a build tool. But its `library.js` runtime and the TikZJax worker code adapted from it in step 7 ship in the app, so the audit must settle their license, upstream (kisonecat/web2js) included.
+
+- **Added in M3 steps 6–8:** `src/engine/texlib.ts` is our port of web2js's `library.js` (GPL-3.0 as declared; see the item above). `engine/build/texinputs/pgfsys-tikzflow.def` is derived from pgf's `pgfsys-dvisvgm.def` (LPPL and/or GPL; ours takes GPL-3.0-or-later). The preview's glyphs come from the AMS Type 1 Computer Modern fonts (OFL-1.1). The engine release bundles 44 TeX Live packages (`engine/build/packages.txt`), each to be listed with its licence. dvi2html and the BaKoMa fonts are no longer used.
 
 ### Any time
 - **Firefox spot check:** the owner will run it themselves:
@@ -834,8 +881,8 @@ These come from the M0 review. The full reasoning is in DECISIONS.md D15 and D16
 **Native preview and editing:** see "What doesn't work yet" in the M1 section.
 
 **Engines and hosting**
-- **TikZJax rendering defects.** Missing `\matrix` cell borders, lost strokes in nested pictures, and the 72.27/72 scale error are root-caused, with workarounds; see the M0 follow-up checks.
-- **TikZJax refetches files on every compile.** It clears its virtual file system after each compile, so production needs good HTTP caching or a patched loader.
+- **TikZJax rendering defects** (matrix borders, nested pictures, the 72.27/72 scale): gone with our driver and converter (D66). TikZJax itself is now used only by the M0 comparison pages.
+- **Refetching files on every compile:** our worker caches them for the session (D67); across sessions, step 9.
 - **`.gz` assets get decompressed early.** Static servers may send `.gz` files with `Content-Encoding: gzip`, so the browser inflates them before the engine does. Vite's dev server did this. Cloudflare Pages behaviour needs checking in Milestone 3, or the assets should be renamed or recompressed with Brotli.
-- **Cross-origin isolation needs headers on workers.** With COOP/COEP set, every worker script must also send COEP. In production that means a `_headers` file.
+- **Cross-origin isolation** isn't needed by our engine (no SharedArrayBuffer), so production sets no COOP/COEP; the dev server still sends it, for the M0 spike pages.
 - **Firefox not yet tested.** Playwright's Firefox won't start in the agent's environment. The owner will run the check (see "Notes for later milestones").

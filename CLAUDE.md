@@ -48,15 +48,17 @@ A free, static, fully client-side web app for creating and editing TikZ flowchar
   - `UPDATE_GOLDEN=1 npx vitest run test/golden-edges.test.ts`: regenerates `test/fixtures/golden/edges/`, the golden files for edge edits (dashed, label, orthogonal, curved, delete).
   - `npm run fidelity [-- --only=<file>] [-- --verbose]`: compiles the corpus and `spike/engines/probes/*.tex` with pdfTeX (busytex) and compares node anchors, and labels written inside paths, with the native layout. It writes `spike/engines/results/fidelity.json`. It needs `npm run fetch-engines` and `node scripts/pack-texmf.ts` first. When unsure how TikZ behaves, add a probe here rather than guessing (D23).
   - `npm run gen:font-metrics`: regenerates `src/text/fontMetrics.ts` from KaTeX. Run it after upgrading KaTeX.
-  - `npm run fetch-engines`: downloads the engines and CTAN packages listed in `scripts/engine-manifest.ts` into the gitignored `vendor/` folder, recording sizes and hashes in `vendor/LOCK.json`.
+  - `npm run fetch-engines -- engine`: downloads the accurate preview's engine, the release pinned in `engine/release.json`, checks its SHA-256 and unpacks it into `vendor/engine/<tag>/` (10.8 MB). The dev server serves it as `/engine/<tag>/` and the build copies it into `dist/`. Without it the app runs with the quick preview only. `npm run fetch-engines` with no group also downloads the M0 engines and CTAN packages listed in `scripts/engine-manifest.ts`, recording sizes and hashes in `vendor/LOCK.json`.
   - `node scripts/pack-texmf.ts`: builds `vendor/packs/tikz-flat.json`, which busytex needs.
   - `npm run bench-engines -- tikzjax busytex`: runs the Playwright engine benchmark in Edge. Results go to `spike/engines/results/`.
   - Engine bench page: `/spike/engines/bench.html?engine=tikzjax|busytex|swiftlatex`. Output viewer: `/spike/engines/view.html?files=busytex.pdf,tikzjax.svg`.
-  - Engine CI (D59): `.github/workflows/engine.yml` builds `tex.wasm` and the format on pushes to `m3-engine-ci`; a tag `engine-*` also publishes a GitHub prerelease. To try a run's files in Edge:
-    1. `gh run download <run id> --name engine --dir vendor/engine-ci/artifact`
-    2. `node scripts/stage-engine-ci.ts`
-    3. `npm run bench-engines -- tikzjax --query=build=ci --tag=ci`, or open `bench.html?engine=tikzjax&build=ci`.
-  - `npm run compare-engines`: compares TikZJax with busytex on `spike/engines/diagrams/*.tex`. It writes composite PNGs and `compare.json` to `spike/engines/results/compare/`.
+  - Engine CI (D59, D66, D67): `.github/workflows/engine.yml` builds `tex.wasm`, the format (with our driver `engine/build/texinputs/pgfsys-tikzflow.def`), the fonts, the package files (`engine/build/packages.txt`) and `engine.tar` on pushes to `m3-engine-ci`, plus reference SVGs from the real dvisvgm. A tag `engine-*` also publishes a GitHub prerelease; to adopt it, put its tag, the tar's size and SHA-256 (from its `manifest.json`) in `engine/release.json`. To try a run's files before releasing:
+    1. `gh run download <run id> --name engine --dir vendor/engine-ci/<folder>`
+    2. `node scripts/stage-engine-ci.ts vendor/engine-ci/<folder>` (unpacks into `vendor/engine/ci-<run id>/`)
+    3. Open the app with `?engine=ci-<run id>`, or run `TIKZFLOW_ENGINE=ci-<run id> npx vitest run test/engine-run.test.ts`.
+  - `npm run compare-engines [-- --engines=ours,tikzjax] [-- --engine=ci-<run id>]`: compares our engine (and TikZJax) with busytex on `spike/engines/diagrams/*.tex`. It writes composite PNGs and `compare.json` to `spike/engines/results/compare/`. Use `--engines=ours` alone: with all three the page runs out of memory.
+  - `npm run dvicheck -- --run=<folder>`: checks our DVI-to-SVG converter against the real dvisvgm on a CI artifact's reference DVIs (in `vendor/engine-ci/<folder>/reference`, with its `fonts/` unpacked from `engine.tar`). Output in `spike/engines/results/dvicheck/`.
+  - `/spike/engines/ours.html[?engine=…]`: compiles one picture three times with our worker and prints the timings.
   - `/spike/engines/packages.html`: the TikZJax runtime-package and user-preamble checks.
 - Playwright's Firefox doesn't start on this machine (see PROGRESS.md), so use Edge (`msedge` channel) for browser automation. In development builds, `window.tikzflow` exposes the store for tests and debugging.
 - Layout:
@@ -65,8 +67,9 @@ A free, static, fully client-side web app for creating and editing TikZ flowchar
   - `src/tikz/`: the TikZ interpreter: units, colours, keys and styles, coordinates, shapes, and layout.
   - `src/text/`: label typesetting.
   - `src/edit/`: text changes (and merging two edits into one), snapping, the move planner and emitter, resizing and matching sizes, node creation and the palette, style edits and factoring, label edits, the properties edits, libraries, and edge edits: `edges.ts` (the core, ends, waypoints, new edges), `vertices.ts` (corners, Straighten, rewriting the code between two ends), `orthogonal.ts`, `curves.ts`, `split.ts` and `edgeop.ts` (an `edge` operation turned into `--`); `labels.ts` (adding and sliding edge labels, Yes/No on decisions), `edgeprops.ts` (the edge properties panel's edits) and `delete.ts` (deleting nodes, edges and paths).
-  - `src/ui/`: Preact components, the CodeMirror setup, and the store.
+  - `src/engine/`: the accurate preview's engine (D66, D67): the worker and its client, the TeX runtime (`texlib.ts`), the compile input and line map (`input.ts`), the log reader, the DVI-to-SVG converter (`dvisvg.ts`) and its TFM and Type 1 readers.
+  - `src/ui/`: Preact components, the CodeMirror setup, and the store. `preview.ts` runs the TeX preview, `compiled.tsx` draws it on the canvas (D68).
   - `test/`: Vitest tests, `test/e2e/` Playwright tests, and `test/fixtures/golden/`.
-  - `engine/build/`: the CI engine build (D59): format dump, sample compile and check, packing, the kpsewhich stand-in, and the web2js patches.
-  - `spike/`: Milestone 0 engine code, plus the fidelity harness and probes. It is still used by `npm run fidelity`.
+  - `engine/build/`: the CI engine build (D59, D66, D67): our pgf driver (`texinputs/`), format dump, sample compile and check, fonts, the package list, reference diagrams, packing, the kpsewhich stand-in, and the web2js patches. `engine/release.json` pins the release the app uses.
+  - `spike/`: Milestone 0 engine code, plus the fidelity harness and probes (`npm run fidelity`) and the engine comparison pages (`compare.html`, `dvicheck.html`, `ours.html`).
 - Shell quoting: backslashes in `node -e` and heredocs get mangled in this environment. Write files containing TeX or regexes with the editor tools, not shell one-liners.

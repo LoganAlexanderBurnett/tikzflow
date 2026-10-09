@@ -10,7 +10,7 @@ const log = (s: string) => {
 };
 const client = new EngineClient(engineBase(new URLSearchParams(location.search).get("engine")));
 const index = await client.ready();
-log(`ready: ${index.version}, ${index.texFiles.length} files`);
+log(`ready: ${index.version}, ${index.texFiles.length} files, ${Math.round(performance.now())} ms after navigation`);
 const tex = String.raw`\scrollmode
 \begin{document}
 \begin{tikzpicture}\node[draw] {Hello $x^2$};\end{tikzpicture}
