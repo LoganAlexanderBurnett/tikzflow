@@ -192,6 +192,8 @@ export function pageGeometry(source: string, typed: WidthOverride = {}): PageGeo
       g.textWidth = paper - 2 * mm(10);
       g.notes.push(`beamer, aspect ratio ${ratio === "43" ? "4:3" : ratio === "169" ? "16:9" : "16:10"}: slides ${trim1(paper / PT_PER_UNIT.mm!)} mm wide with 1 cm margins give a text width of ${describeWidth(g.textWidth)}`);
     } else g.notes.push(`beamer with aspect ratio ${ratio}: its slide width isn't known here`);
+  } else if (g.documentClass === "standalone") {
+    g.notes.push("The standalone class has no page: the preview uses article's widths until you type some below (or say them in the preamble)");
   } else if (g.documentClass) {
     g.notes.push(`The ${g.documentClass} class's page isn't known here, so the preview uses article's. Type its widths below (you can save them under a name), or say them in the preamble (\\setlength{\\textwidth}{…}, geometry)`);
   }
