@@ -557,7 +557,7 @@ export function applyKey(s: State, kv: KeyValue, ctx: KeyContext, depth = 0): vo
   }
   if (key === "on chain") {
     s.onChain = value ? value.replace(/\s+going\s+.+$/, "").trim() || true : true;
-    s.chainAt = { onGrid: s.onGrid, distance: { ...s.nodeDistance } };
+    s.chainAt = { onGrid: s.onGrid, distance: { ...s.nodeDistance }, ...(s.placement ? { placement: s.placement } : {}), ...(s.at !== undefined ? { at: s.at } : {}) };
     return;
   }
   if (key === "join") {

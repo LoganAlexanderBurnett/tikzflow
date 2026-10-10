@@ -7,6 +7,7 @@ import { memo } from "preact/compat";
 import { useCallback, useEffect, useMemo, useRef } from "preact/hooks";
 import { planMove, positioningText, referenceCandidates } from "../edit/move.ts";
 import { groupBlocker, groupMembers, groupMessage, movingWith, planGroupMove } from "../edit/group.ts";
+import { conversionMessage, planChainMove } from "../edit/chains.ts";
 import type { Scope } from "../edit/properties.ts";
 import { type Hold, planResize, type ResizeOutcome, resizeBlocker, type SizeWant } from "../edit/resize.ts";
 import { type GapMark, snapNode } from "../edit/snap.ts";
@@ -69,6 +70,7 @@ import {
   previewLayout,
   pickLabel,
   selectFromCanvas,
+  selectNodes,
   selectedEdge,
   selectedLabelId,
   selectedIds,
@@ -988,12 +990,14 @@ export function Canvas() {
       }
       selectFromCanvas({ kind: "node", id });
       // A node locked only by an undefined reference can still be dragged:
-      // dropping it pins it there with plain coordinates.
-      if (n && (!n.locked || n.lock?.kind === "undefined-ref")) {
+      // dropping it pins it there with plain coordinates. A node its chain
+      // places is dragged too: dropping it writes the chain out (D77 item 4).
+      if (n && (!n.locked || n.lock?.kind === "undefined-ref" || n.lock?.kind === "chain")) {
         const p = toModel(e);
         drag.current = { kind: "node", id, pointer: p, center: n.shape.center, moved: false, target: n.shape.center, alignedWith: [] };
         svg.setPointerCapture(e.pointerId);
-        if (n.locked) status.value = `${n.locked}. Drag it to pin it where you drop it, or see the panel for other fixes.`;
+        if (n.lock?.kind === "chain") status.value = "This node's position is set by a chain. Dropping it writes out the positions of the chain's nodes, so they can all be dragged.";
+        else if (n.locked) status.value = `${n.locked}. Drag it to pin it where you drop it, or see the panel for other fixes.`;
       } else if (n?.locked) status.value = `Locked: ${n.locked}. The panel on the right says why and how to fix it.`;
       return;
     }
@@ -1418,7 +1422,6 @@ export function Canvas() {
         return;
       }
       if (d.blocked) return;
-      const l = baseLayout.value;
       const r = planGroupMove(text.value, currentPicture.value, d.ids, { x: d.target.x - d.center.x, y: d.target.y - d.center.y });
       if (!r.ok) {
         status.value = r.reason;
@@ -1426,7 +1429,10 @@ export function Canvas() {
       }
       if (!r.changes.length) return;
       applyEdit(r.changes, "move.group");
-      if (l) status.value = groupMessage(l, r, d.members.length);
+      status.value = groupMessage(r, d.members.length);
+      // Naming chain nodes changes their ids (D77 item 4): keep them selected.
+      const renamed = new Map(r.conversions.flatMap((c) => [...c.ids]));
+      if (renamed.size) selectNodes(d.ids.map((id) => renamed.get(id) ?? id));
       return;
     }
     if (d.kind === "resize") {
@@ -1439,6 +1445,20 @@ export function Canvas() {
       return;
     }
     if (!d.moved) return;
+    if (baseLayout.value?.nodes.find((x) => x.id === d.id)?.lock?.kind === "chain") {
+      overrides.value = new Map();
+      guides.value = { lines: [], gaps: [] };
+      const r = planChainMove(text.value, currentPicture.value, d.id, d.target);
+      if (!r.ok) {
+        status.value = r.reason;
+        return;
+      }
+      applyEdit(r.changes, "move.chain");
+      if (r.id !== d.id) selectNodes([r.id]);
+      const s = r.move.spec;
+      status.value = `${conversionMessage(r.conversion)} ${s.kind === "positioning" ? `Wrote ${positioningText(s)}.` : s.kind === "perp" ? `Wrote at (${s.xFrom} |- ${s.yFrom}).` : s.kind === "shift" ? "Adjusted its shift." : "Wrote coordinates: nothing nearby lines up."}`;
+      return;
+    }
     if (baseLayout.value?.nodes.find((x) => x.id === d.id)?.lock) {
       overrides.value = new Map();
       guides.value = { lines: [], gaps: [] };

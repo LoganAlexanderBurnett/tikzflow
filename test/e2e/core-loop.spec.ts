@@ -129,12 +129,25 @@ test("opens a Latin-1 file and downloads it byte for byte", async ({ page }) => 
   expect(readFileSync(path).equals(readFileSync(file))).toBe(true);
 });
 
-test("locked nodes can't be dragged and say why", async ({ page }) => {
+test("dragging a fit node moves what it fits (D78)", async ({ page }) => {
   await page.locator('input[type="file"]').setInputFiles(corpus("self-document.tex"));
   await expect(page.getByTestId("summary-headline")).toHaveText("6 nodes of 7 and 6 edges editable");
   const before = await code(page);
   const box = await nodeBox(page, "box");
   await drag(page, { x: box.x + 4, y: box.y + box.height / 2 }, { x: box.x + 60, y: box.y + box.height / 2 + 40 });
+  await expect(page.getByTestId("status")).toContainText("Moved");
+  expect(await code(page)).not.toBe(before);
+});
+
+test("locked nodes can't be dragged and say why", async ({ page }) => {
+  await page.evaluate((t) => {
+    const w = window as unknown as { tikzflow: { store: { replaceDocument: (t: string, n: null, e: string) => void } } };
+    w.tikzflow.store.replaceDocument(t, null, "utf-8");
+  }, "\\begin{tikzpicture}\n\\matrix (m) [matrix of nodes] { a \\\\ };\n\\node[draw, below=of m-1-1] (c) {C};\n\\end{tikzpicture}\n");
+  await expect(page.getByTestId("summary-headline")).toContainText("0 nodes of 1");
+  const before = await code(page);
+  const box = await nodeBox(page, "c");
+  await drag(page, { x: box.x + box.width / 2, y: box.y + box.height / 2 }, { x: box.x + 60, y: box.y + box.height / 2 + 40 });
   expect(await code(page)).toBe(before);
   await expect(page.getByTestId("status")).toContainText("Locked");
 });

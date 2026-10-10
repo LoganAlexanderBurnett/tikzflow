@@ -44,7 +44,7 @@
     % the nodes at the top  
     \node[mynode, left=1cm of tc, anchor=south east] (n1l)
         {\# of records is identified through database searching};
-    \node[mynode, right=of tc, yshift=5mm] (n1r) 
+    \node[mynode, right=1cm of tc, anchor=south west] (n1r) 
         {\# of additional records indentified\\ through other sources};
 
     \coordinate (n2nl) at ([xshift=-2cm]n2.north);
@@ -54,10 +54,10 @@
 
     % the labels on the left
     \begin{scope}[start chain=going below, xshift=-8cm, node distance=.8cm]
-        \node[mylabel, on chain, left=3.2cm of n2, yshift=2cm] {\rotatebox{90}{Identification}};
-        \node[mylabel, on chain] {\rotatebox{90}{Screening}};
-        \node[mylabel, on chain] {\rotatebox{90}{Eligibility}};
-        \node[mylabel, on chain] {\rotatebox{90}{Included}};
+        \node[mylabel, on chain] (identification) {\rotatebox{90}{Identification}};
+        \node[mylabel, on chain, below=1.1cm of identification, xshift=5mm] (screening) {\rotatebox{90}{Screening}};
+        \node[mylabel, on chain, below=of screening] (eligibility) {\rotatebox{90}{Eligibility}};
+        \node[mylabel, on chain, below=of eligibility] {\rotatebox{90}{Included}};
     \end{scope}
 
     % the title

@@ -21,6 +21,9 @@ export function labelWords(label: string): string[] {
     .replace(/(^|[^\\])%[^\n]*/g, "$1")
     .replace(/\$\$[\s\S]*?\$\$|\$[^$]*\$|\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\]/g, " ")
     .replace(/\\\\(\[[^\]]*\])?/g, " ")
+    // Arguments that aren't text: the angle of \rotatebox, the factor of \scalebox, the size of \resizebox.
+    .replace(/\\(rotatebox|scalebox)\s*(\[[^\]]*\])?\s*\{[^{}]*\}/g, " ")
+    .replace(/\\resizebox\*?\s*\{[^{}]*\}\s*\{[^{}]*\}/g, " ")
     // Accent commands ("\'e", "\"o") keep their letter.
     .replace(/\\['"`^~=.]\{?([A-Za-z])\}?/g, "$1")
     .replace(/\\[A-Za-z@]+\*?/g, " ")

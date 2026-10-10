@@ -34,17 +34,17 @@
     % the branches to the right
     \begin{scope}[start chain=going right]
         \chainin (n3);
-        \node[mynode, join, on chain]
+        \node[mynode, join, on chain, right=2cm of n3, yshift=-3mm]
             {\# of records excluded};
         \chainin (n4);
-        \node[mynode, join, on chain]
+        \node[mynode, join, on chain, right=of n4]
             {\# of full-text articles excluded, with reasons};
     \end{scope}
 
     % the nodes at the top  
     \node[mynode, left=1cm of tc, anchor=south east] (n1l)
         {\# of records is identified through database searching};
-    \node[mynode, right=of tc, yshift=5mm] (n1r) 
+    \node[mynode, right=1cm of tc, anchor=south west] (n1r) 
         {\# of additional records indentified\\ through other sources};
 
     \coordinate (n2nl) at ([xshift=-2cm]n2.north);
@@ -54,7 +54,7 @@
 
     % the labels on the left
     \begin{scope}[start chain=going below, xshift=-8cm, node distance=.8cm]
-        \node[mylabel, on chain, left=3.2cm of n2, yshift=2cm] {\rotatebox{90}{Identification}};
+        \node[mylabel, on chain] {\rotatebox{90}{Identification}};
         \node[mylabel, on chain] {\rotatebox{90}{Screening}};
         \node[mylabel, on chain] {\rotatebox{90}{Eligibility}};
         \node[mylabel, on chain] {\rotatebox{90}{Included}};

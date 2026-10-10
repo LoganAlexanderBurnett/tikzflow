@@ -194,8 +194,11 @@ export interface State {
   chain?: { name: string; dir: string; start: boolean };
   /** "on chain" (true) or "on chain=name". */
   onChain?: string | true;
-  /** "on grid" and "node distance" when "on chain" ran, which places the node. */
-  chainAt?: { onGrid: boolean; distance: { v: number; h: number } };
+  /**
+   * "on grid" and "node distance" when "on chain" ran, which places the node, and the
+   * position keys set before it: the chain's placement replaces those, not ones set after.
+   */
+  chainAt?: { onGrid: boolean; distance: { v: number; h: number }; placement?: Placement; at?: string };
   /** "join" (true) or "join=by style" / "join=with node". */
   join?: string | true;
   labels: string[];

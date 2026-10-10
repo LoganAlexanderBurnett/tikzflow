@@ -97,7 +97,7 @@ export function explainLock(layout: PictureLayout, node: LaidOutNode, earlierNam
     case "chain":
       return {
         title: "Placed by a chain",
-        body: "The chains library places this node after the previous one on its chain. Dragging chain nodes isn't supported yet; it will convert them to ordinary positioning.",
+        body: "The chains library places this node after the previous one on its chain. Drag it anyway: the positions of the chain's nodes are written out (\"below=of …\"), so every node of the chain can be dragged. They stay on the chain, and its joins stay.",
         canPin: false,
         canAttach: false,
       };

@@ -312,6 +312,9 @@ describe("inserting statements", () => {
 describe("node names", () => {
   it("takes the label's meaningful words", () => {
     expect(labelWords("\\textbf{Check} the input\\\\ $x^2$ % note")).toEqual(["Check", "the", "input"]);
+    // An angle, a factor or a size isn't a word of the label.
+    expect(labelWords("\\rotatebox{90}{Identification}")).toEqual(["Identification"]);
+    expect(labelWords("\\scalebox{0.8}{Small} \\resizebox{2cm}{!}{Wide}")).toEqual(["Small", "Wide"]);
     expect(baseName("Check the input", "camel")).toBe("checkInput");
     expect(baseName("Check the input", "snake")).toBe("check_input");
     expect(baseName("Start", "camel")).toBe("start");

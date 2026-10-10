@@ -74,6 +74,21 @@ export interface LaidOutNode {
   layer: number;
   /** What the size is made of, for resizing (D38). */
   sizing: Sizing;
+  /** For a node "on chain": which chain, and whether (and how) the chain placed it. */
+  chain?: ChainPlace;
+}
+
+/** How a chain placed a node: "dir=of prev", with the grid and node distance in effect when "on chain" ran. */
+export interface ChainPlace {
+  /** The chain's identity within the picture. */
+  serial: number;
+  /** The chain set its position (no position written after "on chain", no "at"). */
+  placed: boolean;
+  /** Id of the node it was placed next to, when placed. */
+  prev?: string;
+  dir: string;
+  onGrid: boolean;
+  distance: { v: number; h: number };
 }
 
 /** What a node's drawn size is made of. Lengths are canvas pt. */
@@ -223,6 +238,7 @@ interface Ctx {
   out: PictureLayout;
   labelEnv: LabelEnv;
   chains: Map<string, ChainState>;
+  chainSerial: number;
 }
 
 const POSITIONING_ANCHOR: Record<string, string> = {
@@ -310,6 +326,7 @@ export function layoutPicture(pic: PictureSyntax, env: LayoutEnv, overrides: Rea
     out,
     labelEnv: { macros: env.macros, color: (e) => env.colors.parse(e), ...(env.font ? { sizes: env.font.sizes } : {}) },
     chains: new Map(),
+    chainSerial: 0,
   };
   const root = initialState();
   if (env.font) {
@@ -372,13 +389,19 @@ export function layoutPicture(pic: PictureSyntax, env: LayoutEnv, overrides: Rea
         // "\chainin (n3);" makes an existing node the chain's current one.
         const chainin = item.reason === "command" ? /^\\chainin\s*\(([^)]+)\)\s*(?:\[([^\]]*)\])?\s*;?\s*$/.exec(item.text) : null;
         const chainName = scope.state.chain?.name ?? "chain";
-        const chain = ctx.chains.get(chainName) ?? { dir: scope.state.chain?.dir ?? "right", count: 0 };
+        const chain = ctx.chains.get(chainName) ?? newChain(scope.state.chain?.dir ?? "right", ctx);
         const entry = chainin && ctx.names.get(chainin[1]!.trim());
         if (chainin && entry?.nodeId) {
           const node = out.nodes.find((n) => n.id === entry.nodeId);
           const prev = chain.last;
           chain.last = { id: entry.nodeId, name: chainin[1]!.trim() };
           ctx.chains.set(chainName, chain);
+          // \chainin applies "on chain" to the node as late options: it takes the next number
+          // on the chain and its aliases, like any node on it (tikzlibrarychains.code.tex).
+          chain.count++;
+          for (const alias of [`${chainName}-${chain.count}`, `${chainName}-end`, ...(chain.count === 1 ? [`${chainName}-begin`] : [])]) {
+            if (alias !== chain.last.name) ctx.names.set(alias, entry);
+          }
           const opts = parseOptionString(chainin[2] ?? "");
           const join = opts.find((o) => o.key === "join");
           if (node && join && prev) addJoin(prev.name, node, join.value ?? true, scope, ctx);
@@ -418,7 +441,7 @@ export function layoutPicture(pic: PictureSyntax, env: LayoutEnv, overrides: Rea
 function startChain(st: State, ctx: Ctx) {
   if (!st.chain) return;
   const existing = ctx.chains.get(st.chain.name);
-  if (st.chain.start || !existing) ctx.chains.set(st.chain.name, { dir: st.chain.dir, count: 0 });
+  if (st.chain.start || !existing) ctx.chains.set(st.chain.name, newChain(st.chain.dir, ctx));
   else existing.dir = st.chain.dir;
   st.chain = { ...st.chain, start: false };
 }
@@ -535,19 +558,25 @@ function layoutNode(
   // name like "chain-3" if it has none.
   let chain: ChainState | undefined;
   let chainName = "";
+  let chainPlace: ChainPlace | undefined;
   if (st.onChain) {
     chainName = typeof st.onChain === "string" ? st.onChain : (st.chain?.name ?? "chain");
     chain = ctx.chains.get(chainName);
     if (!chain) {
-      chain = { dir: st.chain?.dir ?? "right", count: 0 };
+      chain = newChain(st.chain?.dir ?? "right", ctx);
       ctx.chains.set(chainName, chain);
     }
-    const placedByChain = !st.placement && st.at === undefined && !syn.at && chain.last;
-    if (placedByChain) {
-      const when = st.chainAt ?? { onGrid: st.onGrid, distance: st.nodeDistance };
-      st.placement = { kind: "relative", dir: chain.dir, of: chain.last!.name, onGrid: when.onGrid, distance: when.distance };
+    // "on chain" places the node when it runs ("below=of chain-2"), so a position set before
+    // it is replaced and one set after it wins; an "at" clause comes after all options
+    // (checked against pdfTeX: spike/engines/probes/p8-chains-explicit.tex).
+    const when = st.chainAt ?? { onGrid: st.onGrid, distance: st.nodeDistance };
+    const later = (!!st.placement && st.placement !== st.chainAt?.placement) || (st.at !== undefined && st.at !== st.chainAt?.at);
+    if (!later && !syn.at && chain.last) {
+      st.placement = { kind: "relative", dir: chain.dir, of: chain.last.name, onGrid: when.onGrid, distance: when.distance };
       st.anchor = positioningAnchor(chain.dir);
-    }
+      delete st.at;
+      chainPlace = { serial: chain.serial, placed: true, prev: chain.last.id, dir: chain.dir, onGrid: when.onGrid, distance: { ...when.distance } };
+    } else chainPlace = { serial: chain.serial, placed: false, dir: chain.dir, onGrid: when.onGrid, distance: { ...when.distance } };
   }
   const name = syn.name?.text ?? st.name ?? (chain ? `${chainName}-${chain.count + 1}` : undefined);
   const id = nextId(ctx, name);
@@ -804,7 +833,15 @@ function layoutNode(
     const prev = chain.last;
     chain.count++;
     chain.last = { id, name };
-    if (st.onChain && !node.lock) {
+    // pgf's chains give every node on a chain, named or not, the aliases chain-<n>, and
+    // chain-begin for the first and chain-end for the latest (tikzlibrarychains.code.tex).
+    const entry = ctx.names.get(name);
+    if (entry) {
+      const aliases = [`${chainName}-${chain.count}`, `${chainName}-end`, ...(chain.count === 1 ? [`${chainName}-begin`] : [])];
+      for (const alias of aliases) if (alias !== name) ctx.names.set(alias, entry);
+    }
+    if (chainPlace) node.chain = chainPlace;
+    if (chainPlace?.placed && !node.lock) {
       node.lock = { kind: "chain", message: "its position is set by a chain" };
       node.locked = node.lock.message;
     }
@@ -814,9 +851,15 @@ function layoutNode(
 }
 
 interface ChainState {
+  /** Tells chains apart: a chain started again under the same name is another chain. */
+  serial: number;
   dir: string;
   count: number;
   last?: { id: string; name: string };
+}
+
+function newChain(dir: string, ctx: Ctx): ChainState {
+  return { serial: ++ctx.chainSerial, dir, count: 0 };
 }
 
 /** The edge "join" draws from the previous node on a chain to this one. */

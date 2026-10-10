@@ -1,0 +1,122 @@
+    \documentclass[12pt,a4paper,titlepage,twoside,openright]{article}
+    \usepackage{tikz}
+    \usetikzlibrary{intersections}
+    \usetikzlibrary{shapes,arrows,chains}
+    \tikzstyle{line}=[draw] % here
+    %%%<
+    \usepackage{verbatim}
+
+
+    \usepackage{amsfonts}
+    \usepackage{amsmath}
+    \usepackage{cite}
+    \usepackage{enumerate}
+    \usepackage{flushend}
+    \usepackage{graphics,graphicx}
+    \usepackage{comment}
+    \usepackage{multirow}
+    \usepackage{algpseudocode}
+    \usepackage{color}
+    \usepackage{tikz}
+    \usetikzlibrary{shapes,arrows,chains}
+    %%%<
+    \usepackage{verbatim}
+
+    \DeclareMathOperator*{\argmax}{arg\,max}
+    \usepackage{array}
+    \renewcommand{\arraystretch}{1.2}
+    \usepackage{graphicx}
+    \usepackage{subfigure}
+    \newtheorem{thm}{Theorem}
+    \newtheorem{lmm}{Lemma}
+    \newtheorem{cll}{Corollary}
+    \newtheorem{dfn}{Definition}
+    \newtheorem{prop}{Proposition}
+    %\makeatletter
+
+    \begin{document}
+
+    \colorlet{lcfree}{black} 
+    \colorlet{lcnorm}{black}
+    \colorlet{lccong}{black}
+
+    \providecommand{\cmark}[2][]{\relax}
+    \begin{tikzpicture}[%
+    >=triangle 60,              % Nice arrows; your taste may be different
+    start chain=going below,    % General flow is top-to-bottom
+    node distance=10mm and 75mm, % Global setup of box spacing
+    every join/.style={norm},   % Default linetype for connecting boxes
+    ]
+
+
+    % ------------------------------------------------- 
+    % A few box styles 
+    % <on chain> *and* <on grid> reduce the need for manual relative
+    % positioning of nodes
+    \tikzset{
+     base/.style={draw, on chain, on grid, align=center, minimum height=4ex},
+     proc/.style={base, rectangle, text width=12em},
+     test/.style={base, diamond, aspect=2, text width=8em},
+     term/.style={proc, rounded corners},
+     % coord node style is used for placing corners of connecting lines
+     coord/.style={coordinate, on chain, on grid, node distance=2mm and 12mm},
+     % nmark node style is used for coordinate debugging marks
+     nmark/.style={draw, cyan, circle, font={\sffamily\bfseries}},
+     % -------------------------------------------------
+     % Connector line styles for different parts of the diagram
+     norm/.style={->, draw, lcnorm},
+     free/.style={->, draw, lcfree},
+     cong/.style={->, draw, lccong},
+     it/.style={font={\small\itshape}}
+    }
+    % -------------------------------------------------
+    % Use join to connect a node to the previous one 
+    \node [term, join]  (p0)    {t  =  0\\ Intialize $m_i$, $q_i$, $p_i$,\\ and $q_k$, $p_k$, $a_k$.};
+    \node [proc, join] (p1) {Sense AoI and update inforamtion maps.};
+    \node [proc, join]      {Detect targets and update inforamtion lists.};
+    \node [test, join] (t1) {Is $N_i={\emptyset}$?};
+    \node [proc] (p2) {Evaluate the fitness of each target as in Section \ref{sec:Proposed distributed semi-flocking}-A.};
+    \node [proc, join] (p3) {Dertermin the next operating mode as in Section \ref{sec:Proposed distributed semi-flocking}-B.};
+    \node [test, join] (t2) {Track a target $k$?};
+    \node [proc, join=by free]  (p7) {Calculate $f_i^t$ as in Eq. (12).};
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    \node [proc,  right=8cm of p1, yshift=-3mm] (p4) {Exchange inforamtion maps with all neighbours.};
+    \node [proc, join=by free]   {Transimit information lists to all neighbours.};
+    \node [test, join] (t3) {other nodes?};
+    \node [proc, join=by free, right=8cm of p2, yshift=-3mm] (p5) {Transimit information lists to these nodes.};
+    \node [proc,  right=of t2] (p6) {Calculate $q_{i_s}$ as in Section \ref{sec:Proposed distributed semi-flocking}-C.};
+    \node [proc, join=by free, right=of p7]  (p8) {Calculate $f_i^s$ as in Eq. (13).};
+    % Some more nodes specifically positioned (we could have avoided this,
+    % but try it and you'll see the result is ugly).
+    % -------------------------------------------------
+    % Now we place the coordinate nodes for the connectors with angles, or
+    % with annotations. We also mark them for debugging.
+    \node [coord, right=of t1] (c7)  {}; \cmark{7}  
+
+
+
+    % -------------------------------------------------
+    % A couple of boxes have annotations
+    % -------------------------------------------------
+    % All the other connections come out of tests and need annotating
+    % First, the straight north-south connections. In each case, we first
+    % draw a path with a (consistently positioned) annotation node, then
+    % we draw the arrow itself.
+    \path (t1.south) to node [near start, xshift=1em] {$y$} (p2);
+\draw [->,lcnorm] (t1.south) -- (p2);
+%\path (t1.east) to node [near start, xshift=1em] {$n$} (p4);
+%\draw [->,lcnorm] (t1.east) -- (p4.west);
+\draw[->,lcnorm] (t1.east)--++(0:10mm) node[near start, above] {$n$} |-(p4);
+\path (t3.south) to node [near start, xshift=1em] {$y$} (p5);
+\draw [->,lcnorm] (t3.south) -- (p5);
+\path (p5.west) to node [near start, xshift=1em] {} (p2); 
+\draw [->,lcnorm] (p5.west) -- (p2);
+\path (t2.east) -| node [very near start, yshift=1em] {$n$} (c7); 
+\draw [->,lcfree] (t2.east) -- (p6.west);
+
+    % -------------------------------------------------
+
+% -------------------------------------------------
+\end{tikzpicture}
+
+\end{document}

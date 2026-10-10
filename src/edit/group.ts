@@ -11,6 +11,7 @@ import type { Point } from "../tikz/shapes.ts";
 import { PT_PER_UNIT } from "../tikz/units.ts";
 import { applyChanges, type Change, composeChanges } from "./changes.ts";
 import { absoluteText, isPlainStop, writeStops } from "./edges.ts";
+import { type ChainConversion, conversionMessage, planChainConversion } from "./chains.ts";
 import { dependents, planMove, planPin, positioningText, type PositionSpec } from "./move.ts";
 
 const MM = PT_PER_UNIT.mm!;
@@ -31,8 +32,10 @@ export type GroupMoveResult =
       ok: true;
       changes: Change[];
       text: string;
-      /** What was written for each rewritten node, by id. */
-      written: Array<{ id: string; spec: PositionSpec }>;
+      /** What was written for each rewritten node, by id after the edit. */
+      written: Array<{ id: string; name: string; spec: PositionSpec }>;
+      /** Chains written out first so their nodes could move (D77 item 4). */
+      conversions: Array<ChainConversion & { ok: true }>;
       /** Edge corners moved along with the group. */
       corners: number;
       library: boolean;
@@ -117,7 +120,8 @@ export function groupBlocker(layout: PictureLayout, ids: readonly string[]): str
   const set = new Set(members);
   for (const id of members) {
     const n = layout.nodes.find((x) => x.id === id)!;
-    if (!n.locked || n.lock?.kind === "undefined-ref") continue;
+    // An undefined name is pinned where it lands; a chain is written out first (D77 item 4).
+    if (!n.locked || n.lock?.kind === "undefined-ref" || n.lock?.kind === "chain") continue;
     // A locked node that is placed against another member still moves with it.
     if (n.position.refs.some((r) => { const t = named(layout, r, n); return t && set.has(t.id); })) continue;
     return `${n.name ?? "A node"} can't be moved: ${n.locked}.`;
@@ -134,6 +138,34 @@ export function groupBlocker(layout: PictureLayout, ids: readonly string[]): str
  * that neither is a member nor depends on one stays exactly where it was.
  */
 export function planGroupMove(text: string, picIndex: number, ids: readonly string[], delta: Point): GroupMoveResult {
+  const layout = layoutDocumentPicture(analyzeDocument(text), picIndex);
+  if (!layout) return { ok: false, reason: "There is no picture." };
+  const blocked = groupBlocker(layout, ids);
+  if (blocked) return { ok: false, reason: blocked };
+  // Members a chain places: their chains are written out first, as one edit with the move.
+  let base = text;
+  let pre: Change[] = [];
+  const idMap = new Map<string, string>();
+  const conversions: Array<ChainConversion & { ok: true }> = [];
+  const serials = new Set<number>();
+  for (const id of groupMembers(layout, ids).members) {
+    const n = layout.nodes.find((x) => x.id === id)!;
+    if (n.lock?.kind !== "chain" || !n.chain || serials.has(n.chain.serial)) continue;
+    serials.add(n.chain.serial);
+    const c = planChainConversion(base, picIndex, idMap.get(id) ?? id);
+    if (!c.ok) return c;
+    pre = composeChanges(text, pre, c.changes);
+    base = c.text;
+    for (const [k, v] of idMap) if (c.ids.has(v)) idMap.set(k, c.ids.get(v)!);
+    for (const [k, v] of c.ids) if (!idMap.has(k)) idMap.set(k, v);
+    conversions.push(c);
+  }
+  const r = moveGroup(base, picIndex, ids.map((id) => idMap.get(id) ?? id), delta);
+  if (!r.ok) return r;
+  return { ...r, changes: conversions.length ? composeChanges(text, pre, r.changes) : r.changes, conversions };
+}
+
+function moveGroup(text: string, picIndex: number, ids: readonly string[], delta: Point): GroupMoveResult {
   const doc = analyzeDocument(text);
   const layout = layoutDocumentPicture(doc, picIndex);
   if (!layout) return { ok: false, reason: "There is no picture." };
@@ -150,7 +182,7 @@ export function planGroupMove(text: string, picIndex: number, ids: readonly stri
 
   let current = text;
   let changes: Change[] = [];
-  const written: Array<{ id: string; spec: PositionSpec }> = [];
+  const written: Array<{ id: string; name: string; spec: PositionSpec }> = [];
   let library = false;
   const notes = new Set<string>();
   const done = new Set<string>();
@@ -184,13 +216,14 @@ export function planGroupMove(text: string, picIndex: number, ids: readonly stri
       // the user didn't choose now: it isn't newly related to them. So a translation keeps each
       // member's own form (a plain-coordinate picture keeps its numbers, D24; an "at" keeps its
       // expression and gets a shift). A member that already refers to another one keeps doing so.
-      const memberNames = new Set(members.flatMap((m) => (m !== id && layout.nodes.find((x) => x.id === m)?.name) || []));
+      // Everything that moves with the group counts, not only the members (a chain's next node, say).
+      const memberNames = new Set([...moving].flatMap((m) => (m !== id && layout.nodes.find((x) => x.id === m)?.name) || []));
       const exclude = n.position.refs.some((r) => memberNames.has(r)) ? undefined : memberNames;
       // A node locked only by an undefined name is pinned where it lands, as when dragged alone.
       const r = n.lock?.kind === "undefined-ref" ? planPin(current, picIndex, id, want(id)) : planMove(current, picIndex, id, want(id), exclude);
       if (!r) return { ok: false, reason: `The new position of ${nameOf(layout, id)} couldn't be written; nothing was moved.` };
       add(r.changes, r.text);
-      written.push({ id, spec: r.spec });
+      written.push({ id, name: nameOf(layout, id), spec: r.spec });
       if (r.library) library = true;
       for (const note of r.notes) notes.add(note);
     }
@@ -244,7 +277,7 @@ export function planGroupMove(text: string, picIndex: number, ids: readonly stri
     }
   }
   if (applyChanges(text, changes) !== current) return { ok: false, reason: "The move couldn't be written as one edit." };
-  return { ok: true, changes, text: current, written, corners, library, notes: [...notes] };
+  return { ok: true, changes, text: current, written, corners, library, notes: [...notes], conversions: [] };
 }
 
 function memberEnds(e: Edge, moving: ReadonlySet<string>): boolean {
@@ -256,14 +289,15 @@ function nameOf(layout: PictureLayout, id: string): string {
 }
 
 /** A one-line summary of a group move for the status bar. */
-export function groupMessage(layout: PictureLayout, r: GroupMoveResult & { ok: true }, count: number): string {
-  const parts = r.written.slice(0, 3).map(({ id, spec }) => `${nameOf(layout, id)}: ${specText(spec)}`);
+export function groupMessage(r: GroupMoveResult & { ok: true }, count: number): string {
+  const parts = r.written.slice(0, 3).map(({ name, spec }) => `${name}: ${specText(spec)}`);
   const more = r.written.length > 3 ? `, and ${r.written.length - 3} more` : "";
   const follow = count - r.written.length;
   let s = `Moved ${count} node${count === 1 ? "" : "s"}. Wrote ${parts.join("; ")}${more}.`;
   if (follow > 0) s += ` ${follow === 1 ? "One follows" : `${follow} follow`} the node${follow === 1 ? "" : "s"} it is placed against.`;
   if (r.corners) s += ` Moved ${r.corners === 1 ? "a corner" : `${r.corners} corners`} of the edges between them.`;
   if (r.library) s += " Loaded the positioning library.";
+  for (const c of r.conversions) s += ` ${conversionMessage(c)}`;
   for (const n of r.notes) s += ` Note: ${n}.`;
   return s;
 }

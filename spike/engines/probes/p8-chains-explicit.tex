@@ -1,0 +1,23 @@
+\documentclass[tikz]{standalone}
+\usetikzlibrary{positioning,chains}
+% M4 step 2: what wins between a chain's placement and a position written in the
+% node's own options, and which "on grid" and "node distance" the chain uses.
+% Each node is checked against the native layout by npm run fidelity.
+\begin{tikzpicture}[start chain=going below, node distance=8mm and 20mm,
+    every node/.style={draw, minimum width=12mm, minimum height=6mm, inner sep=0pt, outer sep=0pt}]
+  \node[on chain] (a) {A};
+  % An explicit position after "on chain" wins.
+  \node[on chain, right=of a] (b) {B};
+  % An explicit position before "on chain": does the chain's placement win?
+  \node[right=of b, on chain] (c) {C};
+  % "on grid" and "node distance" after "on chain" don't change the chain's placement...
+  \node[on chain, on grid, node distance=15mm] (d) {D};
+  % ...but do change an explicit position written after them.
+  \node[on chain, on grid, node distance=15mm, below=of d] (e) {E};
+  % The same position written out, with the grid and distance of the chain.
+  \node[on chain, on grid, node distance=15mm, on grid=false, below=8mm of e] (f) {F};
+  % A named chain node keeps its chain-n alias.
+  \node[on chain] {G};
+  \node[right=of chain-6] (h) {H};
+\end{tikzpicture}
+\end{document}

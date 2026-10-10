@@ -37,7 +37,9 @@ function plural(n: number, word: string, words = `${word}s`) {
 
 export function summarize(doc: DocumentModel, layout: PictureLayout, picIndex = 0): Summary {
   const real = layout.nodes.filter((n) => n.kind !== "coordinate");
-  const editable = real.filter((n) => !n.locked);
+  // A node its chain places can be dragged: the chain is written out first (D77 item 4).
+  const movable = (n: (typeof real)[number]) => !n.locked || n.lock?.kind === "chain";
+  const editable = real.filter(movable);
   let edges = 0;
   for (const p of layout.paths) edges += p.edges.length;
   const kept: Record<string, number> = {};
@@ -78,7 +80,7 @@ export function summarize(doc: DocumentModel, layout: PictureLayout, picIndex = 
     editableNodes: editable.length,
     edges,
     kept,
-    locked: real.filter((n) => n.locked).map((n) => ({ id: n.id, reason: n.locked! })),
+    locked: real.filter((n) => !movable(n)).map((n) => ({ id: n.id, reason: n.locked! })),
     unknownKeys: [...keys].map(([key, count]) => ({ key, count })).sort((a, b) => b.count - a.count),
     notes: [...notes],
     parseErrors: doc.errorCount,

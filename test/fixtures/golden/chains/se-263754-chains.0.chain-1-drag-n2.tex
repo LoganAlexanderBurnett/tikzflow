@@ -20,15 +20,15 @@
     ]
     % the chain in the center going below
     \coordinate[on chain=1] (tc);
-    \node[mynode, on chain=1] (n2)
+    \node[mynode, on chain=1, below=1.8cm of tc, xshift=5mm] (n2)
         {\# of records after duplicates removed};
-    \node[mynode, join, on chain=1] (n3)
+    \node[mynode, join, on chain=1, below=of n2] (n3)
         {\# of records screened};
-    \node[mynode, join, on chain=1] (n4)
+    \node[mynode, join, on chain=1, below=of n3] (n4)
         {\# of full-text articles accessed for eligbility};
-    \node[mynode, join, on chain=1] (n5)
+    \node[mynode, join, on chain=1, below=of n4] (n5)
         {\# of studies included in qualitative synthesis};
-    \node[mynode, join, on chain=1] (n6)
+    \node[mynode, join, on chain=1, below=of n5] (n6)
         {\# of studies included in quantitative sysntesis\\ (meta-analysis)};
 
     % the branches to the right
@@ -44,7 +44,7 @@
     % the nodes at the top  
     \node[mynode, left=1cm of tc, anchor=south east] (n1l)
         {\# of records is identified through database searching};
-    \node[mynode, right=of tc, yshift=5mm] (n1r) 
+    \node[mynode, right=1cm of tc, anchor=south west] (n1r) 
         {\# of additional records indentified\\ through other sources};
 
     \coordinate (n2nl) at ([xshift=-2cm]n2.north);
@@ -54,7 +54,7 @@
 
     % the labels on the left
     \begin{scope}[start chain=going below, xshift=-8cm, node distance=.8cm]
-        \node[mylabel, on chain, left=3.2cm of n2, yshift=2cm] {\rotatebox{90}{Identification}};
+        \node[mylabel, on chain] {\rotatebox{90}{Identification}};
         \node[mylabel, on chain] {\rotatebox{90}{Screening}};
         \node[mylabel, on chain] {\rotatebox{90}{Eligibility}};
         \node[mylabel, on chain] {\rotatebox{90}{Included}};
