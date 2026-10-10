@@ -68,6 +68,7 @@ The owner kept the CSP and the `mirror.gcr.io` pull (D76 items 1, 2). `npm run t
 - **`.gz`:** served as `application/gzip` with no `Content-Encoding`; `core.dump.gz` is byte-for-byte the release's size. No rename needed.
 - **Engine download and cache:** first visit fetches `core.dump.gz` once, shows the TeX preview and "Works offline", asks no other host, no console error or policy violation; a reload takes every engine file from the service worker.
 - **Offline, exports, share links:** work as on `vite preview` (offline reload with the picture and an SVG export; `.tex`, snippet, SVG, PDF, PNG; a link opened by a new visitor).
+- **An update** is picked up on the next load, with the engine cache kept (checked when the Beta build was pushed).
 - **To know:** Cloudflare answers unknown paths with the page and status 200 (the worker is safe: it asks only for files the index lists); it adds `Access-Control-Allow-Origin: *` and `Report-To`/`NEL` headers of its own (D76 item 4).
 - **Beta:** a "Beta" pill and a "Report a problem" link to the repository's Issues are in the toolbar (D76 item 5).
 
