@@ -1,5 +1,6 @@
-// Times parsing, layout, snapping and a move on a generated 200-node, 250-edge picture.
+// Times parsing, layout, snapping, a move and auto-layout on a generated 200-node, 250-edge picture.
 // Usage: npm run layout:bench
+import { planAutoLayout } from "../src/edit/autolayout.ts";
 import { planMove } from "../src/edit/move.ts";
 import { snapNode } from "../src/edit/snap.ts";
 import { analyzeDocument, layoutDocumentPicture } from "../src/model/document.ts";
@@ -33,3 +34,10 @@ time("layout with drag override", () => layoutDocumentPicture(doc, 0, new Map([[
 time("snap", () => snapNode(layout, n, { x: n.shape.center.x + 10, y: n.shape.center.y }, 3));
 time("edge model", () => pictureEdges(layout));
 time("plan move (drop)", () => planMove(text, 0, n.id, { x: n.shape.center.x + 40, y: n.shape.center.y - 20 }), 5);
+
+// Auto-layout (D80): ELK plus writing every node's relation, on the same picture.
+for (const direction of ["down", "right"] as const) {
+  const t = performance.now();
+  const r = await planAutoLayout(text, 0, { direction });
+  console.log(`${`auto-layout (${direction})`.padEnd(28)} ${(performance.now() - t).toFixed(0)} ms${r.ok ? `, ${r.written.length} written` : `: ${r.reason}`}`);
+}

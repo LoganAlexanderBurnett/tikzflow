@@ -357,17 +357,18 @@ export function isRelationalItem(item: OptionItem): boolean {
   return POSITIONING_KEY.test(item.key) && item.value !== undefined && /(^|\s)of(\s|$)/.test(item.value);
 }
 
-/** Text changes that give `syn` the position `spec`. */
-export function specChanges(text: string, syn: NodeSyntax, spec: PositionSpec, coordText?: string): Change[] {
+/** Text changes that give `syn` the position `spec`. `alsoRemove` names more of the node's own items that go (auto-layout drops a `node distance` that served the old relation). */
+export function specChanges(text: string, syn: NodeSyntax, spec: PositionSpec, coordText?: string, alsoRemove?: (item: OptionItem) => boolean): Change[] {
   const changes: Change[] = [];
   // An absolute position keeps anchors and shifts ("left", "anchor=west", "xshift")
   // and accounts for them; other kinds replace all of them.
-  const removeTest =
+  const placement =
     spec.kind === "absolute"
       ? isRelationalItem
       : spec.kind === "shift"
         ? (i: OptionItem) => /^(xshift|yshift)$/.test(i.key)
         : (i: OptionItem) => isPlacementKey(i.key);
+  const removeTest = alsoRemove ? (i: OptionItem) => placement(i) || alsoRemove(i) : placement;
   let remove = ownItems(syn, removeTest);
   let replaced: OwnItem | undefined;
   if (spec.kind === "positioning" || spec.kind === "shift") {

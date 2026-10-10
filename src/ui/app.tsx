@@ -13,6 +13,7 @@ import { offlineState } from "./offline.ts";
 import { ExportButton } from "./exportpanel.tsx";
 import { ShareButton } from "./sharepanel.tsx";
 import { PageButton } from "./pagepanel.tsx";
+import { LayoutButton } from "./layoutpanel.tsx";
 import { startPreview } from "./preview.ts";
 import { PreviewStatus, PreviewToggle, TexBanner } from "./previewstatus.tsx";
 import {
@@ -271,6 +272,7 @@ function Toolbar() {
         </label>
       )}
       <PreviewToggle />
+      <LayoutButton />
       <PageButton />
       <ExportButton />
       <ShareButton />

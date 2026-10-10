@@ -122,6 +122,33 @@ test.describe("the app", () => {
     expect(readFileSync((await d.path())!, "utf8")).toContain("<svg");
   });
 
+  test("auto-layout loads elk.js from this site under the policy, and works offline after one visit (D80)", async ({ page, context }) => {
+    const problems: string[] = [];
+    page.on("console", (m) => /content security policy|refused to/i.test(m.text()) && problems.push(m.text()));
+    page.on("pageerror", (e) => problems.push(String(e)));
+    const layOut = async () => {
+      await setCode(page, FIGURE);
+      await page.getByTestId("layout-button").click();
+      await page.getByTestId("layout-down").click();
+      await expect(page.getByTestId("status")).toContainText("Laid out 2 nodes top to bottom", { timeout: 30_000 });
+      await expect(page.locator(".cm-content")).toContainText("below=of a");
+    };
+    await page.goto("/");
+    await page.evaluate(() => navigator.serviceWorker.ready);
+    await layOut();
+    // elk.js is a chunk of its own, cached with the app.
+    await expect
+      .poll(() => page.evaluate(async () => {
+        const shell = (await caches.keys()).find((n) => n.startsWith("tikzflow-shell-"));
+        return !!shell && (await (await caches.open(shell)).keys()).some((r) => /elk\.bundled-[^/]*\.js$/.test(r.url));
+      }))
+      .toBe(true);
+    await context.setOffline(true);
+    await page.reload();
+    await layOut();
+    expect(problems).toEqual([]);
+  });
+
   test("exports are real files: .tex, snippet, SVG, PDF, PNG", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByTestId("compiled-picture")).toBeAttached({ timeout: 45_000 });

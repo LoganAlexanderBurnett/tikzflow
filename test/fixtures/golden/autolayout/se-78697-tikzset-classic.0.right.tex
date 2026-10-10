@@ -1,0 +1,49 @@
+\documentclass{article}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows,shapes.multipart,positioning}
+
+\begin{document}
+\pagestyle{empty}
+
+
+% Define block styles
+\tikzset{
+decision/.style = {diamond, draw, fill=blue!20, 
+  text width=4.5em, text badly centered, node distance=3cm, inner sep=0pt},
+block/.style = {rectangle, draw, fill=blue!20, 
+  text width=5em, text centered, rounded corners, minimum height=4em},
+line/.style = {draw, -latex'},
+cloud/.style = {draw, ellipse,fill=red!20, node distance=3cm,
+  minimum height=2em},
+subroutine/.style = {draw,rectangle split, rectangle split horizontal,
+  rectangle split parts=3,minimum height=1cm,
+  rectangle split part fill={red!50, green!50, blue!20, yellow!50}},
+connector/.style = {draw,circle,node distance=3cm,fill=yellow!20},
+data/.style = {draw, trapezium,node distance=3cm,fill=olive!20}
+}
+
+\begin{tikzpicture}[node distance = 2cm, auto]
+    % Place nodes
+    \node [block] (init) {initialize model};
+    \node [data, left of=init] (expert) {expert};
+    \node [connector, below=of expert] (system) {system};
+    \node [block, right=of init] (identify) {identify candidate models};
+    \node [block, right=of identify] (evaluate) {evaluate candidate models};
+    \node [block, below right=2cm and 7.7cm of evaluate] (update) {update     model};
+    \node [decision, right=of evaluate] (decide) {is best candidate     better?};
+    \node [block, right=of decide] (test) {test};
+    \node [subroutine, right=of test] (sub) {part1\nodepart{two}part2\nodepart{three}part3};
+    % Draw edges
+    \path [line] (init) -- (identify);
+    \path [line] (identify) -- (evaluate);
+    \path [line] (evaluate) -- (decide);
+    \path [line] (decide) -| node [near start] {yes} (update);
+    \path [line] (update) |- (identify);
+    \path [line] (decide) -- node {no}(test);
+    \path [line,dashed] (test) -- (sub);
+    \path [line,dashed] (expert) -- (init);
+    \path [line,dashed] (system) -- (init);
+    \path [line,dashed] (system) |- (evaluate);
+\end{tikzpicture}
+
+\end{document}

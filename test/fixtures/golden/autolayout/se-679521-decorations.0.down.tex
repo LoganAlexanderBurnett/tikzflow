@@ -1,0 +1,56 @@
+\documentclass{amsart}
+
+\usepackage{tikz, lipsum}
+\usetikzlibrary{positioning, decorations.pathreplacing, calc, arrows.meta, shapes.geometric}
+
+\tikzset{
+    bigbox/.style={draw, rounded corners, minimum width=2.5cm, minimum height=1.5cm},
+    smallbox/.style={draw, rounded corners, minimum width=2cm, minimum height=1cm},
+    bigcircle/.style={draw, circle, minimum size=2cm},
+    bigellipse/.style={draw, ellipse, minimum width=3cm, minimum height=2.5cm},
+    place/.style={inner sep=0pt, outer sep=0pt},
+    fork/.style={decorate, decoration={show path construction, lineto code={
+        \draw[rounded corners, ->](\tikzinputsegmentfirst)-|($(\tikzinputsegmentfirst)!.5!(\tikzinputsegmentlast)$)|-(\tikzinputsegmentlast);}
+    }}
+}
+
+\begin{document}
+\lipsum[1]
+\[
+\begin{tikzpicture}[scale=.8, transform shape, node distance=1cm, >=Latex]
+  \node(A)[bigbox]{Text A};
+  \node(B)[bigbox, below=of A]{Text B};
+  \node[place](X)[right=of A]{};
+  \node(C)[smallbox, below=of B]{Text C};
+  \node(D)[smallbox, right=of C]{Text D};
+  \node(E)[smallbox, left=of C]{Text E};
+  \node(F)[smallbox, left=of E]{Text F};
+  \node(G)[bigbox, below=of D]{Text G};
+  \node(H)[bigbox, below=of C]{Text H};
+  \node(I)[bigbox, below=of H]{Text I};
+  \node(J)[bigbox, below=of I]{Text J};
+  \node(K)[bigcircle, below=of J]{Text K};
+  \node(L)[bigbox, below=of K]{Text L};
+  \node[place](Y)[right=of X]{};
+  \node(M)[bigbox, below=of L]{Text M};
+  \node(N)[bigbox, left=of M]{Text N};
+  \node(O)[bigellipse, below=of M]{Text O};
+  \draw[->](A)--(B);
+  \draw[fork](B.east)--(D.west);
+  \draw[fork](B.east)--(C.west);
+  \draw[fork](B.east)--(E.west);
+  \draw[fork](B.east)--(F.west);
+  \draw[->](D)--(G);
+  \draw[->](C)--(H);
+  \draw[->](H)--(I);
+  \draw[->](I)--(J);
+  \draw[->](J)--(K);
+  \draw[->](K)--(L);
+  \draw[fork](L.west)--(M.east);
+  \draw[fork](L.west)--(N.east);
+  \draw[fork](M.west)--(O.east);
+  \draw[fork](N.west)--(O.east);
+\end{tikzpicture}
+\]
+\lipsum[2]
+\end{document}

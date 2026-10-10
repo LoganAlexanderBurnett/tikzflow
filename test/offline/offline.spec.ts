@@ -76,6 +76,29 @@ test.describe("under the production Content-Security-Policy", () => {
   });
 });
 
+// Auto-layout (D80) loads elk.js as a chunk of its own on first use: it must be in the app's
+// cache, so it works offline after one visit, and it must run under the production policy.
+test("auto-layout works offline, under the production Content-Security-Policy", async ({ page, context }) => {
+  const violations: string[] = [];
+  page.on("console", (m) => /content security policy|refused to/i.test(m.text()) && violations.push(m.text()));
+  page.on("pageerror", (e) => violations.push(String(e)));
+  await page.goto("/");
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await expect
+    .poll(() => page.evaluate(async () => {
+      const shell = (await caches.keys()).find((n) => n.startsWith("tikzflow-shell-"));
+      return !!shell && (await (await caches.open(shell)).keys()).some((r) => /elk\.bundled-[^/]*\.js$/.test(r.url));
+    }))
+    .toBe(true);
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.getByTestId("summary-headline")).toBeVisible();
+  await page.getByTestId("layout-button").click();
+  await page.getByTestId("layout-right").click();
+  await expect(page.getByTestId("status")).toContainText(/Laid out \d+ nodes left to right|already follow this layout/, { timeout: 30_000 });
+  expect(violations).toEqual([]);
+});
+
 test("one cache holds the app and one the engine", async ({ page }) => {
   await page.goto("/");
   await page.evaluate(() => navigator.serviceWorker.ready);

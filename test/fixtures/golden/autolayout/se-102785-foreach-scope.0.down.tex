@@ -1,0 +1,56 @@
+\documentclass[landscape]{article}
+\usepackage{tikz}
+\usetikzlibrary{positioning,shadows}
+
+\begin{document}
+
+\tikzset{font=\small,
+every node/.style=
+    {top color=white,
+    bottom color=blue!25,
+    rectangle,rounded corners,
+    minimum height=8mm,
+    draw=blue!75,
+    very thick,
+    drop shadow,
+    align=center,
+    text depth = 0pt
+    },
+myedge/.style=
+    {draw=blue!50,
+    thick
+    }}
+
+\begin{tikzpicture}
+\node (a) {A};
+\node[right=of a] (d) {D};
+\node[right=of d] (e) {E};
+\node[right=of e] (b) {B};
+\node[below=of a] (c) {C};
+\foreach \pare/\chil in {a/b,a/d,a/e,b/c,d/c} 
+  \draw[myedge] (\pare.south) -- (\chil.north);
+\draw[myedge] (a.south) -- (c.north);
+\begin{scope}[xshift=5.5cm]
+\node[right=of b] (a) {A};
+\node[right=of a] (d) {D};
+\node[right=of d] (e) {E};
+\node[right=of e] (b) {B};
+\node[below=of a] (c) {C};
+\foreach \pare/\chil in {a/b,a/d,a/e,b/c,d/c} 
+  \draw[myedge] (\pare.south) -- (\chil.north);
+\draw[myedge] (a.south) .. controls (-3.5cm,-1.5cm) .. (c.north);
+\end{scope}
+\begin{scope}[xshift=8cm]
+\node[right=of b] (a) {A};
+\coordinate[below=of a] (aux); 
+\node[right=of a] (b) {B};
+\node[right=of b] (d) {D};
+\node[right=of d] (e) {E};
+\node[below=of a] (c) {C};
+\foreach \pare/\chil in {a/b,a/d,a/e,b/c,d/c} 
+  \draw[myedge] (\pare.south) -- (\chil.north);
+\draw[myedge] (a) -- (c);
+\end{scope}
+\end{tikzpicture}
+
+\end{document}

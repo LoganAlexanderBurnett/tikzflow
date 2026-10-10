@@ -4,6 +4,7 @@ import { isolateHistory, redo, undo } from "@codemirror/commands";
 import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { batch, computed, effect, signal } from "@preact/signals";
+import { autoLayoutMessage, type LayoutDirection, planAutoLayout } from "../edit/autolayout.ts";
 import type { Change } from "../edit/changes.ts";
 import { defaultEntry, edgeHead, type PaletteEntry, paletteEntries, planCreate, type Placement } from "../edit/create.ts";
 import { type EndTarget, findEdge, planConnect, planEnd } from "../edit/edges.ts";
@@ -406,6 +407,42 @@ export function attachNode(id: string, from: string, to: string): void {
   }
   applyEdit(r.changes, "fix.attach");
   status.value = `Now placed relative to ${to} instead of ${from}. You can drag it now.`;
+}
+
+/** Whether an auto-layout is being worked out (ELK runs asynchronously). */
+export const layoutBusy = signal(false);
+
+/**
+ * Auto-layout (D80): the whole picture, or the selection when two or more
+ * nodes are selected, as one undoable step. Nothing is written if the code
+ * changed while ELK was working.
+ */
+export async function autoLayout(direction: LayoutDirection): Promise<boolean> {
+  const before = text.value;
+  const pic = currentPicture.value;
+  const ids = selectedIds.value.length >= 2 ? [...selectedIds.value] : undefined;
+  layoutBusy.value = true;
+  status.value = "Laying out…";
+  try {
+    const r = await planAutoLayout(before, pic, ids ? { direction, ids } : { direction });
+    if (text.value !== before) {
+      status.value = "The code changed while the layout was worked out, so nothing was written. Try again.";
+      return false;
+    }
+    if (!r.ok) {
+      status.value = r.reason;
+      return false;
+    }
+    if (r.changes.length) applyEdit(r.changes, "input.layout");
+    status.value = autoLayoutMessage(r);
+    fitRequests.value++;
+    return true;
+  } catch (e) {
+    status.value = `The layout engine failed: ${e instanceof Error ? e.message : String(e)}. Nothing was changed.`;
+    return false;
+  } finally {
+    layoutBusy.value = false;
+  }
 }
 
 export function undoEdit(): void {
