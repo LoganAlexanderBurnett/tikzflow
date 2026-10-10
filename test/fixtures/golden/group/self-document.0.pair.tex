@@ -1,0 +1,38 @@
+\documentclass[tikz,border=4pt]{standalone}
+\usepackage{amsmath}
+\usetikzlibrary{positioning, shapes.geometric, arrows.meta,
+                fit, backgrounds, calc}
+
+% Flowchart styles, shared by every picture in this document.
+\tikzset{
+  base/.style   = {draw, minimum width=2.6cm, minimum height=9mm, align=center},
+  process/.style  = {base, rectangle, fill=blue!8},
+  decision/.style = {base, diamond, aspect=2, fill=orange!15, inner sep=1pt},
+  terminal/.style = {base, rounded rectangle, fill=green!10},
+  io/.style       = {base, trapezium, trapezium left angle=70,
+                     trapezium right angle=110, fill=gray!10},
+  every edge/.style = {draw, -{Stealth[length=2.5mm]}},
+}
+
+\begin{document}
+\begin{tikzpicture}[node distance=8mm and 14mm, font=\small]
+  \node[terminal]                 (start)  {Start};
+  \node[io, below=1.1cm of start, xshift=5mm]       (read)   {Read $n$};
+  \node[decision, below=of read]  (check)  {$n \le 1$?};
+  \node[process, right=of check]  (base)   {Return $1$};
+  \node[process, below=of check]  (rec)    {Compute\\ $n \cdot f(n-1)$};
+  \node[terminal, below=of rec]   (stop)   {Stop};
+
+  \draw[-{Stealth}] (start) -- (read);
+  \draw[-{Stealth}] (read)  -- (check);
+  \draw[-{Stealth}] (check) -- node[above] {yes} (base);
+  \draw[-{Stealth}] (check) -- node[right] {no}  (rec);
+  \draw[-{Stealth}] (rec)   -- (stop);
+  \draw[-{Stealth}] (base)  |- (stop);   % orthogonal return path
+
+  \begin{scope}[on background layer]
+    \node[draw=gray, dashed, rounded corners, fit=(check) (base) (rec),
+          inner sep=3mm, label={[gray]above left:recursion}] (box) {};
+  \end{scope}
+\end{tikzpicture}
+\end{document}

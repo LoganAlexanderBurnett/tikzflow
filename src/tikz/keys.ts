@@ -569,6 +569,13 @@ export function applyKey(s: State, kv: KeyValue, ctx: KeyContext, depth = 0): vo
     if (key === "matrix anchor") s.placement = { kind: "relative", dir: "unmodelled", of: key };
     return;
   }
+  // tikz-ext's ext.positioning-plus corner placements ("east above=of a", "north left=of a"):
+  // they set the position, so a node using one can't be moved by rewriting another key.
+  if (/^(north|south) (left|right)$|^(east|west) (above|below)$/.test(key)) {
+    s.unrendered.push(key);
+    s.placement = { kind: "relative", dir: "unmodelled", of: key };
+    return;
+  }
 
   const len = (v: string | undefined) => (v === undefined ? null : evalLength(v, fontUnits(s)));
   const num = (v: string | undefined) => (v === undefined ? null : evalNumber(v));

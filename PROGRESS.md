@@ -25,8 +25,8 @@ Also read "Notes for later milestones" below.
 ## M4 plan and status
 | Step | Content | Status |
 |---|---|---|
-| 0 | `m4` branch, CLAUDE.md rule, Report link to `/issues/new`, issue template, the branch's Cloudflare preview | In progress |
-| 1 | Drag a multi-selection as a group | To do |
+| 0 | `m4` branch, CLAUDE.md rule, Report link to `/issues/new`, issue template, the branch's Cloudflare preview | Done (D77); preview: see below |
+| 1 | Drag a multi-selection as a group | Done (D78) |
 | 2 | Chain nodes made draggable: the whole chain converted to explicit positioning (D77 item 4) | To do |
 | 3 | Auto-layout with elk.js, written back as relative positioning (D77 items 1, 2); **checkpoint report** | To do |
 | 4 | Groups and swimlanes with `fit` and `backgrounds` (owner picks the lane code form, D77 item 3) | To do |

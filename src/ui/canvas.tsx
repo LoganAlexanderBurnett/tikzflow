@@ -6,6 +6,7 @@ import type { JSX } from "preact";
 import { memo } from "preact/compat";
 import { useCallback, useEffect, useMemo, useRef } from "preact/hooks";
 import { planMove, positioningText, referenceCandidates } from "../edit/move.ts";
+import { groupBlocker, groupMembers, groupMessage, movingWith, planGroupMove } from "../edit/group.ts";
 import type { Scope } from "../edit/properties.ts";
 import { type Hold, planResize, type ResizeOutcome, resizeBlocker, type SizeWant } from "../edit/resize.ts";
 import { type GapMark, snapNode } from "../edit/snap.ts";
@@ -629,6 +630,23 @@ const HANDLES: Array<{ id: HandleId; fx: -1 | 0 | 1; fy: -1 | 0 | 1; cursor: str
 ];
 
 /** The state of a resize drag: where it started and the last plan that worked. */
+/** Dragging several nodes together (a multi-selection, or a fit node's members). */
+interface GroupDrag {
+  kind: "group";
+  /** The selection being dragged, and the node under the pointer. */
+  ids: string[];
+  grab: string;
+  pointer: Point;
+  center: Point;
+  moved: boolean;
+  target: Point;
+  members: string[];
+  /** Members and what follows them: not snap targets. */
+  moving: Set<string>;
+  /** Why the group can't be moved, or null. */
+  blocked: string | null;
+}
+
 interface ResizeDrag {
   kind: "resize";
   id: string;
@@ -755,6 +773,7 @@ export function Canvas() {
   const drag = useRef<
     | { kind: "node"; id: string; pointer: Point; center: Point; moved: boolean; target: Point; alignedWith: string[] }
     | { kind: "pan"; client: Point; view: View; moved: boolean }
+    | GroupDrag
     | ResizeDrag
     | EndDrag
     | VertexDrag
@@ -955,6 +974,18 @@ export function Canvas() {
         selectFromCanvas({ kind: "node", id }, true);
         return;
       }
+      // A node of a multi-selection drags the whole selection; a fit node drags what it fits.
+      const l = baseLayout.value;
+      const sel = selectedIds.value;
+      const inSelection = sel.length > 1 && sel.includes(id);
+      if (l && n && (inSelection || n.lock?.kind === "fit")) {
+        const ids = inSelection ? [...sel] : [id];
+        if (!inSelection) selectFromCanvas({ kind: "node", id });
+        const { members } = groupMembers(l, ids);
+        drag.current = { kind: "group", ids, grab: id, pointer: toModel(e), center: n.shape.center, moved: false, target: n.shape.center, members, moving: movingWith(l, members), blocked: groupBlocker(l, ids) };
+        svg.setPointerCapture(e.pointerId);
+        return;
+      }
       selectFromCanvas({ kind: "node", id });
       // A node locked only by an undefined reference can still be dragged:
       // dropping it pins it there with plain coordinates.
@@ -1088,6 +1119,30 @@ export function Canvas() {
       if (other) mark(other, axis);
     }
     guides.value = { lines: [], gaps };
+  };
+
+  /** Dragging a group: snap the node under the pointer, and show every member moved by as much. */
+  const groupMove = (d: GroupDrag, e: PointerEvent) => {
+    const p = toModel(e);
+    if (!d.moved && Math.hypot(p.x - d.pointer.x, p.y - d.pointer.y) * view.value.scale < 3) return;
+    d.moved = true;
+    if (d.blocked) {
+      status.value = d.blocked;
+      return;
+    }
+    const l = baseLayout.value;
+    const n = l?.nodes.find((x) => x.id === d.grab);
+    if (!l || !n) return;
+    const raw = { x: d.center.x + p.x - d.pointer.x, y: d.center.y + p.y - d.pointer.y };
+    const snapped = e.altKey ? { center: raw, guides: [], gaps: [] } : snapNode(l, n, raw, 7 / view.value.scale, d.moving);
+    d.target = snapped.center;
+    const dx = d.target.x - d.center.x;
+    const dy = d.target.y - d.center.y;
+    overrides.value = new Map(d.members.flatMap((id) => {
+      const c = l.nodes.find((x) => x.id === id)?.shape.center;
+      return c ? [[id, { x: c.x + dx, y: c.y + dy }] as const] : [];
+    }));
+    guides.value = { lines: snapped.guides, gaps: snapped.gaps };
   };
 
   /** Dragging an end: find the node and anchor under the pointer and show the edge going there. */
@@ -1283,6 +1338,10 @@ export function Canvas() {
       resizeMove(d, e);
       return;
     }
+    if (d.kind === "group") {
+      groupMove(d, e);
+      return;
+    }
     const p = toModel(e);
     const raw = { x: d.center.x + p.x - d.pointer.x, y: d.center.y + p.y - d.pointer.y };
     if (!d.moved && Math.hypot(p.x - d.pointer.x, p.y - d.pointer.y) * view.value.scale < 3) return;
@@ -1348,6 +1407,26 @@ export function Canvas() {
     }
     if (d.kind === "pan") {
       if (!d.moved) selectFromCanvas(null);
+      return;
+    }
+    if (d.kind === "group") {
+      overrides.value = new Map();
+      guides.value = { lines: [], gaps: [] };
+      // A click without a drag selects just that node, as on any node.
+      if (!d.moved) {
+        if (d.ids.length > 1) selectFromCanvas({ kind: "node", id: d.grab });
+        return;
+      }
+      if (d.blocked) return;
+      const l = baseLayout.value;
+      const r = planGroupMove(text.value, currentPicture.value, d.ids, { x: d.target.x - d.center.x, y: d.target.y - d.center.y });
+      if (!r.ok) {
+        status.value = r.reason;
+        return;
+      }
+      if (!r.changes.length) return;
+      applyEdit(r.changes, "move.group");
+      if (l) status.value = groupMessage(l, r, d.members.length);
       return;
     }
     if (d.kind === "resize") {

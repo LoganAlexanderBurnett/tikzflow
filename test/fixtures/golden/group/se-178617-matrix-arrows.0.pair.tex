@@ -1,0 +1,115 @@
+\documentclass[a4paper]{article}
+
+\usepackage[top=1cm,bottom=1cm,left=1cm,landscape]{geometry}
+
+\usepackage{tikz}
+\usetikzlibrary{calc, positioning}
+%\usetikzlibrary{arrows,arrows.meta}
+%\input{arrowsnew}
+
+\begin{document}
+
+
+\tikzstyle{mbigblock} = [rectangle, draw, text width=13cm, text centered, rounded corners, minimum height=1em]
+\tikzstyle{block}  = [rectangle, draw, text width=3.5cm, text centered, minimum height=1em]
+\tikzstyle{lblock} = [rectangle, draw, text width=5cm, text centered, minimum height=1em]
+\tikzstyle{rblock} = [rectangle, draw, text width=3.5cm, text centered, minimum height=1em]
+
+\begin{tikzpicture}[node distance=2cm,scale=0.8]
+
+% middle boxes
+\node (m1) [mbigblock] {Choose an exhaustive summary, $\kappa$, with $p$ parameters $\theta$};
+\node (m2) [mbigblock,below=7mm of m1, xshift=5mm,node distance=1cm] {Find the rank, $r$, of the derivative matrix $D=\partial \kappa / \partial \theta$};
+\node (m3)  [block,below of=m2] {Model is full rank and at least locally identifiable (Th2 a. i.)};
+\node (m4)  [block,below of=m3] {Does the model extend?};
+\node (m5)  [block,below of=m4] {Can the extension theorem be used?};
+\node (m6)  [block,below of=m5] {If $D_{ex}$ is full rank, the model is full rank in general (Th3)};
+\node (m7)  [block,below of=m6,text width=2cm] {Is $r_s \geq p$?};
+\node (m8l) [block,below left  of=m7,node distance=2.5cm,text width=3cm] {Model is full rank and at least locally identifiable (Th 8b).};
+\node (m8r) [block,below right of=m7,node distance=2.5cm,text width=3cm] {Model is parameter redundant and non--identifiable (Th 8b).};
+\node (m9)  [block,below of=m7,node distance=3.5cm,text width=2cm] {Is $r_s = p$?};
+\node (m10l) [block,below left  of=m9,node distance=2.5cm,text width=3cm] {Solve PDE to find a reduced--form exhaustive summary};
+\node (m10r) [block,below right of=m9,node distance=2.5cm,text width=3cm] {$s$ is a reduced--form exhaustive summary};
+
+% left boxes
+\node (l1) [lblock,left  of=m3,node distance=8cm] {Model is parameter redundant and not identifiable. There are $r$ estimable parameters. (Th2a.ii)};
+\node (l2) [lblock,below of=l1,node distance=3cm] {Solve $\alpha^T D=0$ and PDE(9) to find the set of estimable parameters, $\beta$(Th2b). Let $\theta=\beta$ and find the new $D$. What follows applies to the new set of parameters, from this results for the original $\theta$ can be deduced.};
+\node (l3) [lblock,below of=l2,node distance=5cm] {Write $D=PLUR$. Does Det$(U)=0$ have any solutions (for which $R$ is defined)(Th4)? If appropriate write $D_{ex}=P_{ex}L_{ex}U_{ex}R_{ex}$. Does Det$(U_{ex})=0$ have any solutions (Th6)};
+\node (l4l) [block,below left  of=l3,node distance=4cm,text width=6em] {Conditionally Full Rank};
+\node (l4r) [block,below right of=l3,node distance=4cm,text width=6em] {Essentially Full Rank};
+\node (l5l) [block,below of=l4l,text width=6em] {Determine parameter redundant submodels if appropriate.};
+\node (l5r) [block,below of=l4r,text width=6em,minimum height=6em] {Test for global identifiability};
+
+
+
+
+% right boxes
+\node (r1) [block,right of=m3,node distance=8cm] {Choose a reparameterisation $s$ of length $p_s$};
+\node (r2) [block,below of=r1,node distance=4cm] {Rewrite $\kappa$ in terms of $s$. Find the rank $r_s$, of the derivative matrix $D_s=\partial \kappa(s)/\partial s$};
+\node (r3) [block,below of=r2,node distance=3cm] {Is rank$(\partial s / \partial \theta)=p_s$ ?};
+\node (r4) [block,right of=m9,node distance=8cm,text width=2cm] {Is $r_s=p_s$};
+\node (r5l) [block,below left  of=r4,node distance=2.5cm,text width=3cm] {Solve PDE to find an exhaustive summary};
+\node (r5r) [block,below right of=r4,node distance=2.5cm,text width=3cm] {$s$ is an exhaustive summary (remark 6)};
+
+\draw[ultra thick, red ]  (r5r.south) -- ++ (0,-1.0cm);
+
+% Middle flows
+\draw[->] (m1) -- (m2) ;
+\draw[->] (m2) -- node[left] {$r=p$} (m3) ;
+\draw[->] (m3) -- (m4) ;
+\draw[->] (m4) -- node[left] {Yes} (m5) ;
+\draw[->] (m5) -- node[left] {Yes} (m6) ;
+
+\draw[->] (m7) -| node[left]  {Yes} (m8l);
+\draw[->] (m7) -| node[right] {No } (m8r);
+
+\draw[->] (m9) -| node[left]  {No}  (m10l);
+\draw[->] (m9) -| node[right] {Yes} (m10r);
+
+
+% Right flows
+\draw[->] (r1) -- (r2) ;
+\draw[->] (r2) -- (r3) ;
+\draw[->] (r3) -- (r4) ;
+\draw[->] (r4) -| node[left]  {No}  (r5l);
+\draw[->] (r4) -| node[right] {Yes} (r5r);
+
+% Left flows
+\draw[->] (l1) -- (l2) ;
+
+%\draw[->] (l3) |-| node[left]  {Yes} (l4l);
+%\draw[->] (l3) |-| node[right] {No } (l4r);
+
+\draw[->] (l4l) -- (l5l) ;
+\draw[->] (l4r) -- (l5r) ;
+
+
+% Middle to left
+% \draw[->] (m4.west) -| (l3.east) ;
+
+
+% Middle to right
+
+% Right to middle
+\draw[->] (r3.west) -| (m7.north) ;
+
+%% Draw the outer lines
+\coordinate (Above m1) at ($(m1.north)+(0,1.0cm)$);
+\coordinate (Below r5l) at ($(r5l.south) + (0,-1.0cm)$);
+\draw[ultra thick, blue, ->]  
+    (r5l.south) -- (Below r5l)
+    -- ++ (7.5cm,0)
+    |- (Above m1)
+    -- (m1.north)
+    ;
+    
+\draw [ultra thick, orange, ->]
+    (m4.west) --
+    ++(-2.0cm,0) |-
+    (l3.east)
+    ;
+\draw [ultra thick, orange, ->] (m6.west) -- ++(-2.0cm,0);
+
+\end{tikzpicture}
+
+\end{document}

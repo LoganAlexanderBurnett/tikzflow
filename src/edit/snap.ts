@@ -39,11 +39,12 @@ function box(n: LaidOutNode, c: Point = n.shape.center): Box {
 
 /**
  * Snaps a dragged node's centre. `threshold` is in pt (a few screen pixels).
- * Nodes that move along with the dragged one are not snap targets.
+ * Nodes that move along with the dragged one are not snap targets, nor are
+ * those in `moving` (the rest of a group dragged with it).
  */
-export function snapNode(layout: PictureLayout, node: LaidOutNode, raw: Point, threshold: number): SnapResult {
+export function snapNode(layout: PictureLayout, node: LaidOutNode, raw: Point, threshold: number, moving?: ReadonlySet<string>): SnapResult {
   const deps = dependents(layout, node.id);
-  const targets = layout.nodes.filter((n) => n.id !== node.id && !deps.has(n.id) && n.kind !== "coordinate").map((n) => box(n));
+  const targets = layout.nodes.filter((n) => n.id !== node.id && !deps.has(n.id) && !moving?.has(n.id) && n.kind !== "coordinate").map((n) => box(n));
   const me = box(node, raw);
   let x = raw.x;
   let y = raw.y;

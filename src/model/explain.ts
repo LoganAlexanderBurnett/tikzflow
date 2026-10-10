@@ -90,7 +90,7 @@ export function explainLock(layout: PictureLayout, node: LaidOutNode, earlierNam
     case "fit":
       return {
         title: "Fits other nodes",
-        body: "This node's size and position follow the nodes it fits around. Move those nodes and it follows them.",
+        body: "This node's size and position follow the nodes it fits around. Drag it to move those nodes together; it follows them.",
         canPin: false,
         canAttach: false,
       };

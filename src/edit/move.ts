@@ -147,6 +147,23 @@ export function candidateSpecs(layout: PictureLayout, node: LaidOutNode, c: Poin
     return { x: c.x + own.x - theirs.x, y: c.y + own.y - theirs.y };
   };
 
+  /**
+   * Whether the diagonal that would describe a point `cross` off the straight
+   * direction `dir` from `t` has a distance that rounds to nothing: then the
+   * straight relation with a shift is the form to write, even past the overlap.
+   */
+  const degenerateDiagonal = (t: LaidOutNode, dir: string, cross: number): boolean => {
+    const vertical = dir === "below" || dir === "above";
+    const side = vertical ? (cross > 0 ? "right" : "left") : cross > 0 ? "above" : "below";
+    const diag = vertical ? `${dir} ${side}` : `${side} ${dir}`;
+    const off = offsetFor(t, diag);
+    if (!off) return false;
+    const [ux, uy] = positioningDirection(diag);
+    const h = off.x * ux;
+    const v = off.y * uy;
+    return h >= -ALIGN_EPS && v >= -ALIGN_EPS && (formatDistance(h / sx) === "0pt" || formatDistance(v / sy) === "0pt");
+  };
+
   for (const t of targets) {
     const isPrev = t === prevTarget || (prev !== null && t.name === prev.target);
     const onlyPrev = t === prevTarget;
@@ -171,7 +188,7 @@ export function candidateSpecs(layout: PictureLayout, node: LaidOutNode, c: Poin
       // Off-axis: keep the direction and add a shift across it, but only while
       // the two still overlap across the axis; past that it is a diagonal.
       const overlap = vertical ? t.shape.hw + node.shape.hw : t.shape.hh + node.shape.hh;
-      if (Math.abs(cross) >= overlap) continue;
+      if (Math.abs(cross) >= overlap && !degenerateDiagonal(t, dir, cross)) continue;
       const shift = vertical ? { x: cross / sx, y: 0 } : { x: 0, y: cross / sy };
       // A gap that is the node distance stays "below=of a"; only the shift is added.
       const atDistance = Math.abs(local - nodeDist) <= ROUND_TOLERANCE;
@@ -187,6 +204,8 @@ export function candidateSpecs(layout: PictureLayout, node: LaidOutNode, c: Poin
       const h = off.x * ux;
       const v = off.y * uy;
       if (h < -ALIGN_EPS || v < -ALIGN_EPS) continue;
+      // "below right=1cm and 0pt of a" is a straight relation in disguise: the straight loop offers it.
+      if (formatDistance(h / sx) === "0pt" || formatDistance(v / sy) === "0pt") continue;
       const spec: PositionSpec = { kind: "positioning", dir, target: t.name!, v: v / sy, h: h / sx };
       if (isPrev && dir === prev!.dir) kept.push(spec);
       else if (!onlyPrev && h <= NEARBY && v <= NEARBY) diagonal.push(spec);
@@ -225,8 +244,9 @@ function ownShift(syn: NodeSyntax): Point | null {
   let y = 0;
   for (const list of syn.options) {
     for (const item of list.items) {
-      if (item.key !== "xshift" && item.key !== "yshift" && item.key !== "shift") continue;
-      const v = item.key === "shift" ? null : evalLength(item.value ?? "");
+      // A "shift=(...)" item stays as written: TikZ adds xshift and yshift to it, so only those are ours to change.
+      if (item.key !== "xshift" && item.key !== "yshift") continue;
+      const v = evalLength(item.value ?? "");
       if (v === null) return null;
       if (item.key === "xshift") x += v;
       else y += v;
@@ -346,7 +366,7 @@ export function specChanges(text: string, syn: NodeSyntax, spec: PositionSpec, c
     spec.kind === "absolute"
       ? isRelationalItem
       : spec.kind === "shift"
-        ? (i: OptionItem) => /^(xshift|yshift|shift)$/.test(i.key)
+        ? (i: OptionItem) => /^(xshift|yshift)$/.test(i.key)
         : (i: OptionItem) => isPlacementKey(i.key);
   let remove = ownItems(syn, removeTest);
   let replaced: OwnItem | undefined;
