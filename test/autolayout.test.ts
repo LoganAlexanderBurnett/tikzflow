@@ -84,10 +84,24 @@ describe("auto-layout", () => {
     expect(r.corners).toBe(1);
   });
 
-  it("keeps an orthogonal edge orthogonal when its fixed corner goes", async () => {
-    const text = doc("\\node[draw] (a) at (0,0) {A};\n\\node[draw] (b) at (5,-1) {B};\n\\draw[->] (a) -| (3,2) |- (b);\n");
+  it("keeps an orthogonal edge orthogonal when its fixed corner goes, and writes one whose ends now line up with --", async () => {
+    // Two children: one goes under the parent (its edge would run into the child's centre), the other beside it.
+    const text = doc("\\node[draw] (a) at (0,0) {A};\n\\node[draw] (b) at (-4,-3) {B};\n\\node[draw] (c) at (4,-3) {C};\n\\draw[->] (a) -| (-3,2) |- (b);\n\\draw[->] (a) -| (3,2) |- (c);\n");
     const r = await layOut(text);
-    expect(r.text).toContain("\\draw[->] (a) -| (b);");
+    expect(r.corners).toBe(2);
+    expect(r.straightened).toBe(1);
+    expect(r.text).toMatch(/\\draw\[->\] \(a\) -- \((b|c)\);/);
+    expect(r.text).toMatch(/\\draw\[->\] \(a\) -\| \((b|c)\);/);
+    expect(autoLayoutMessage(r)).toMatch(/now runs straight, so it is written with --/);
+  });
+
+  it("puts a label the new line cuts through beside it with auto", async () => {
+    const text = doc("\\node[draw] (a) at (0,0) {A};\n\\node[draw] (b) at (0,-3) {B};\n\\draw[->] (a) -- node[right] {x} (b);\n");
+    const r = await layOut(text, "right");
+    expect(r.text).toContain("\\node[draw, right=of a] (b) {B};");
+    expect(r.text).toMatch(/\\draw\[->\] \(a\) -- node\[auto(, swap)?\] \{x\} \(b\);/);
+    expect(r.labels).toBe(1);
+    expect(autoLayoutMessage(r)).toMatch(/the label "x" was written as right → auto/);
   });
 
   it("lays out only the selection when two or more nodes are selected", async () => {

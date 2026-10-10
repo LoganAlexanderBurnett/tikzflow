@@ -18,7 +18,7 @@ Milestone 0 is done and was approved on 2026-10-07:
 - Push the `m3-engine-ci` branch when needed. Show the download list before CI downloads anything new.
 - All of Milestone 3 is done on `m3-engine-ci` and merged into `trunk` at the end of the milestone (D60).
 
-**Milestone 4 (layout and import): in progress on the `m4` branch (plan approved 2026-10-10, D77).** `trunk` is the live public beta: nothing is merged into it until everything passes (including `npm run test:live` against the branch's Cloudflare preview) and the owner has reviewed the M4 report. There is a checkpoint report after step 3.
+**Milestone 4 (layout and import): in progress on the `m4` branch (plan approved 2026-10-10, D77).** `trunk` is the live public beta: nothing is merged into it until everything passes (including `npm run test:live` against the branch's Cloudflare preview) and the owner has reviewed the M4 report. Steps 0–3 are done; **the step 3 checkpoint report is waiting for the owner** ("M4 step 3" below), with the swimlane form to choose before step 4.
 
 Also read "Notes for later milestones" below.
 
@@ -28,11 +28,150 @@ Also read "Notes for later milestones" below.
 | 0 | `m4` branch, CLAUDE.md rule, Report link to `/issues/new`, issue template, the branch's Cloudflare preview | Done (D77); preview at https://m4.tikzflow.pages.dev, `test:live` passes |
 | 1 | Drag a multi-selection as a group | Done (D78) |
 | 2 | Chain nodes made draggable: the whole chain converted to explicit positioning (D77 item 4) | Done (D79) |
-| 3 | Auto-layout with elk.js, written back as relative positioning (D77 items 1, 2); **checkpoint report** | To do |
+| 3 | Auto-layout with elk.js, written back as relative positioning (D77 items 1, 2); **checkpoint report** | Done (D80); checkpoint report below, waiting for the owner |
 | 4 | Groups and swimlanes with `fit` and `backgrounds` (owner picks the lane code form, D77 item 3) | To do |
 | 5 | Import from Mermaid and DOT, like Open (D77 item 5) | To do |
 | 6 | Grayscale and colour-blind preview modes, contrast warnings (WCAG AA, D77 item 6) | To do |
 | 7 | Goldens, end-to-end, offline and live checks on the preview, docs, report | To do |
+
+## M4 step 3: auto-layout, checkpoint report (2026-10-10)
+Done on `m4`, committed and pushed; nothing is merged into `trunk`. The owner had tested group drag on the preview (works well) but not yet chain drag.
+
+### How to try it
+Open https://m4.tikzflow.pages.dev (or `npm run dev`), paste a flowchart, toolbar **Layout**:
+- The panel says what it will lay out: the whole picture, or the selected nodes when two or more are selected (Shift-click), and which locked nodes stay. **Top to bottom** or **Left to right**; the way the picture runs now is marked "(as now)". One Ctrl+Z undoes it. The status bar says what was written for each node and why anything else changed.
+- Try the corpus: `corpus/se-78697-tikzset-classic.tex` (old-style `below of=`), `corpus/se-218730-arrow-labels.tex` (19 nodes), `corpus/self-document.tex` (a fit box), `corpus/se-349800-wide-39-nodes.tex` (**Left to right**).
+- `npm run autolayout:report [-- <filter>] [-- --right] [-- --full]` prints what it writes for every corpus picture.
+
+### What works (D80)
+- **ELK decides the structure, the code is written as a person would.** elk.js (layered) decides layers, order within layers and columns; each node is then written as a relation to a node before it in the code (`below=of`, `right=of`, `at (a |- b)`, a distance or a diagonal only where needed). The first node stays where it is. A relation already written that still says what the layout says is kept as written, old-style `below of=` included. A node's own `node distance` goes when its relation is rewritten (it served the old relation). Every node is checked to land where it was planned; nodes outside the layout must not move.
+- **Edges keep their form** (D77 item 1): corners written as fixed coordinates on edges whose ends moved are removed (`(a) -- (2,5) -- (b)` → `(a) -- (b)`, `(a) -| (3,2) |- (b)` → `(a) -| (b)`); relative and perpendicular corners stay. Two exceptions, named in the status bar: a one-corner orthogonal edge whose ends now line up becomes `--` (else TikZ draws it into the node's centre), and a label the new line cuts through becomes `auto` (decision 2 below).
+- **Scope** (D77 item 2): whole picture or selection; locked nodes, fit nodes and coordinates stay (fit nodes follow); chains are written out first (D79).
+- **Stable:** a second run changes nothing (checked on every corpus picture in both directions, except the chain picture `se-382997`, where writing the chain out changes the picture's node distance). Sizes are rounded before ELK sees them: it breaks ties on the last bit.
+- **Licence:** elk.js 0.12.0, the first release that is `EPL-2.0 OR GPL-3.0-or-later`; earlier ones are EPL-2.0 only, which GPL-3.0 code can't use. Pinned exactly. Loaded on first use (1.4 MB, 442 kB gzipped), cached by the service worker, works offline and under the CSP.
+- **Speed:** corpus pictures 15–275 ms (ELK's first load ~200 ms of that); the 200-node, 250-edge bench picture 0.9 s.
+
+### Before and after: three corpus pictures (top to bottom)
+**1. `se-78697-tikzset-classic.tex`** (old-style positioning, a loop back). Six relations are kept; `expert` and `system`, which sat left and right of `init`, go above it as ELK puts the sources first; `update` goes beside `test`, where the loop leaves the decision. `update` comes before `decide` and `test` in the code, so it can only refer to `evaluate`: hence the diagonal. The positioning library was added.
+```latex
+% before
+\node [block] (init) {initialize model};
+\node [data, left of=init] (expert) {expert};
+\node [connector, right of=init] (system) {system};
+\node [block, below of=init] (identify) {identify candidate models};
+\node [block, below of=identify] (evaluate) {evaluate candidate models};
+\node [block, left of=evaluate, node distance=3cm] (update) {update     model};
+\node [decision, below of=evaluate] (decide) {is best candidate     better?};
+\node [block, below of=decide, node distance=3cm] (test) {test};
+\node [subroutine, below of=test, node distance=3cm] (sub) {part1\nodepart{two}part2\nodepart{three}part3};
+% after (edges unchanged)
+\node [block] (init) {initialize model};
+\node [data, above=of init] (expert) {expert};
+\node [connector, right=of expert] (system) {system};
+\node [block, below of=init] (identify) {identify candidate models};
+\node [block, below of=identify] (evaluate) {evaluate candidate models};
+\node [block, below right=4.6cm and 2cm of evaluate] (update) {update     model};
+\node [decision, below of=evaluate] (decide) {is best candidate     better?};
+\node [block, below of=decide, node distance=3cm] (test) {test};
+\node [subroutine, below of=test, node distance=3cm] (sub) {part1\nodepart{two}part2\nodepart{three}part3};
+```
+**2. `self-document.tex`** (a decision and a fit box). ELK puts the "yes" branch under the decision and "no" beside it; the orthogonal return path now runs straight down, and the two labels its lines now cut through are written as `auto`. The fit box follows.
+```latex
+% before
+\node[process, right=of check]  (base)   {Return $1$};
+\node[process, below=of check]  (rec)    {Compute\\ $n \cdot f(n-1)$};
+\node[terminal, below=of rec]   (stop)   {Stop};
+\draw[-{Stealth}] (check) -- node[above] {yes} (base);
+\draw[-{Stealth}] (check) -- node[right] {no}  (rec);
+\draw[-{Stealth}] (base)  |- (stop);   % orthogonal return path
+% after (start, read, check and the other edges unchanged)
+\node[process, below=of check]  (base)   {Return $1$};
+\node[process, right=of base]  (rec)    {Compute\\ $n \cdot f(n-1)$};
+\node[terminal, below=of base]   (stop)   {Stop};
+\draw[-{Stealth}] (check) -- node[auto] {yes} (base);
+\draw[-{Stealth}] (check) -- node[auto] {no}  (rec);
+\draw[-{Stealth}] (base)  -- (stop);   % orthogonal return path
+```
+**3. `se-218730-arrow-labels.tex`** (19 nodes in two columns with connector circles). Everything becomes one main column with the decisions' branches beside it; the eight `below of=` relations of the spine are kept. Every `node distance=6cm` that served a `right of=` goes. `trip` is the second node in the code but comes after `decision1` in the flow, so its only possible reference is `init`: `below=20cm of init` (the one ugly line; statements are never reordered).
+```latex
+% before (the 11 statements that change, labels cut short)
+\node [block, right of=init, node distance=6cm] (trip) {…};
+\node [decision, right of=setloadavg, node distance=6cm] (decision2) {…};
+\node [block, right of=decision2, node distance=4.5cm] (stop1) {…};
+\node [decision, right of=setk, node distance=6cm] (decision3) {…};
+\node [mycircle, right of=decision3, node distance=4cm] (circle1) {1};
+\node [block, right of=startsim,  text width=5em, node distance=6cm] (increment) {…};
+\node [mycircle, left of=startsim, node distance=4cm] (circle2) {2};
+\node [decision, right of=setloadlevel, node distance=6cm] (decision4) {…};
+\node [mycircle, right of=decision4, node distance=4cm] (circle4) {2};
+\node [block, right of=runloadflow, text width=5em, node distance=6cm] (stop2) {STOP};
+\node [mycircle, left of=decision1, node distance=4cm] (circle3) {1};
+% after (the other 8 nodes and all edges unchanged)
+\node [block, below=20cm of init] (trip) {…};
+\node [decision, below=of trip] (decision2) {…};
+\node [block, below=of decision2] (stop1) {…};
+\node [decision, right=of stop1] (decision3) {…};
+\node [mycircle, right=of circle5] (circle1) {1};
+\node [block, below=of decision3,  text width=5em] (increment) {…};
+\node [mycircle, right=of setk] (circle2) {2};
+\node [decision, below=of increment] (decision4) {…};
+\node [mycircle, below=10.3cm of circle1] (circle4) {2};
+\node [block, below=of decision4, text width=5em] (stop2) {STOP};
+\node [mycircle, right=of runloadflow] (circle3) {1};
+```
+
+### Swimlane candidates (D77 item 3, for step 4)
+Three code forms on one sample, an order process with three lanes, all compiled with our engine without errors. The files are in `spike/swimlanes/` (paste one into the app to see it). The nodes and edges are the same in all three; only the lanes differ.
+- **A. A fit box per lane** (`A-fit-per-lane.tex`). Each lane is a `fit` node on the background layer around its own nodes, titled with `label`. Membership is the `fit=` list, which the editor already understands (group drag moves a lane's nodes, deleting a node takes it out of the list, D61, D78). Lanes are as tall as their own nodes, so they are uneven, and an edge can run over a lane's title.
+  ```latex
+  \begin{scope}[on background layer]
+    \node[lane, fit=(order) (receive), label={[lane title]north:Customer}] (customer) {};
+    \node[lane, fit=(check) (instock) (refund), label={[lane title]north:Shop}] (shop) {};
+    \node[lane, fit=(pick) (ship), label={[lane title]north:Warehouse}] (warehouse) {};
+  \end{scope}
+  ```
+- **B. A fit box per lane, all as tall** (`B-fit-equal-height.tex`). As A, but every lane also fits two shared coordinates, the top of the highest node and the bottom of the lowest, so the lanes line up like a real swimlane diagram. Membership is still the `fit=` list; the editor writes the two extra items and keeps the coordinates at the extremes when nodes move.
+  ```latex
+  \coordinate (lanes top) at (order.north);
+  \coordinate (lanes bottom) at (receive.south);
+  \begin{scope}[on background layer]
+    \node[lane, fit=(order) (receive) (order |- lanes top) (order |- lanes bottom), label={[lane title]north:Customer}] (customer) {};
+    \node[lane, fit=(check) (instock) (refund) (check |- lanes top) (check |- lanes bottom), label={[lane title]north:Shop}] (shop) {};
+    \node[lane, fit=(pick) (ship) (pick |- lanes top) (pick |- lanes bottom), label={[lane title]north:Warehouse}] (warehouse) {};
+  \end{scope}
+  ```
+- **C. Lane headers first, nodes under them** (`C-lane-headers.tex`). Each lane has a header node of a fixed width, side by side; a node belongs to the lane whose header it is placed under (`below=of shop`, `at (warehouse |- refund)`); the lane backgrounds are rectangles from each header down past the lowest node. Fixed, equal lanes with a header row (draw.io and BPMN look). Membership is position, not a list: moving a node to another lane re-relates it to that lane's column, and auto-layout would have to keep nodes in their lanes' columns.
+  ```latex
+  \node[lane header] (customer) {Customer};
+  \node[lane header, right=0pt of customer] (shop) {Shop};
+  \node[lane header, right=0pt of shop] (warehouse) {Warehouse};
+  \node[process, below=of customer] (order) {Place order};
+  \node[process, below=of shop] (check) {Check stock};
+  …
+  \begin{scope}[on background layer]
+    \draw[lane] (customer.south west) rectangle ([yshift=-5mm]customer.east |- receive.south);
+    \draw[lane] (shop.south west) rectangle ([yshift=-5mm]shop.east |- receive.south);
+    \draw[lane] (warehouse.south west) rectangle ([yshift=-5mm]warehouse.east |- receive.south);
+  \end{scope}
+  ```
+My recommendation is **B**: it looks like a swimlane diagram, its membership is a list the editor already edits, and nodes keep their own relative positions. C is the most familiar look but ties layout to lanes. Each form also has a horizontal-lanes version (rows instead of columns, title on the left).
+
+### Decisions for you
+1. **Swimlane form** for step 4: A, B or C above (and columns, rows, or both).
+2. **Labels after auto-layout.** A label the new line cuts through is rewritten as `auto` (the form-change rule, D63), not left with a warning marker as after a node drag (D65). On the corpus that is 11 labels. Keep, or leave the markers?
+3. **Orthogonal edges whose ends now line up** are written as `--` (13 on the corpus), or TikZ draws them into the node's centre. That changes their form, which D77 item 1 said to keep; I think a straight line is what such a route is. OK?
+
+### Tests
+- **Vitest:** 1,332 tests in 41 files (was 1,260 in 39). New: `test/autolayout.test.ts` (14), `test/golden-autolayout.test.ts` (58: every corpus picture in both directions; changes only in laid-out statements, paths and a positioning library; no new syntax errors; no overlaps; a second run changes nothing; golden files in `test/fixtures/golden/autolayout/`). No existing golden file changed.
+- **Playwright:** 135 end-to-end tests (was 133): `test/e2e/autolayout.spec.ts` (2). `npm run test:offline`: 5 (was 4), auto-layout offline under the production CSP. `npm run test:live`: 10 (was 9), see below.
+- `npm run typecheck`, `npm run build`, `npm run check:dist` (ELK's chunk is in the service worker's list; its only URLs are EMF namespace names, never fetched) and `npm run layout:bench` pass.
+
+### Known limits
+- **Code order:** a node defined early in the code but placed deep in the flow gets a long relation to an earlier node (`below=20cm of init`); statements are never reordered.
+- **Edges ending on a fit box** aren't in ELK's graph, so groups joined only that way are laid out as separate parts.
+- **Edges written with anchors** (`(a.east) -| (b.240)`) and relative corners (`-- ++(-1,0) |-`) keep them, so pictures built that way (`se-30929`, parts of `se-730217`) can look worse after a layout.
+- **Locked nodes stay**, so laid-out nodes can end up on them; the status bar names each one.
+- **The chain picture** `se-382997` isn't stable under a second run (see above).
 
 ## M4 steps 0–2: branch, group drag, chains (2026-10-10)
 Done on `m4` in one go, as the owner asked, with a commit after each step, and pushed. Nothing is merged into `trunk`.
@@ -985,6 +1124,7 @@ These come from the M0 review. The full reasoning is in DECISIONS.md D15 and D16
 ### Milestone 5: license audit items
 - **web2js's license files disagree** (found 2026-10-08, M3 step 1). `drgrice1/web2js` (commit `0114ef5`, used to build `tex.wasm` in CI) declares `"license": "GPL-3.0"` in `package.json`. Its `LICENSE.md` names "Math-expression", apparently pasted from another project, and offers GPL-3.0 or Apache-2.0. GitHub reports the license as NOASSERTION. web2js itself is only a build tool. But its `library.js` runtime and the TikZJax worker code adapted from it in step 7 ship in the app, so the audit must settle their license, upstream (kisonecat/web2js) included.
 
+- **Added in M4 step 3 (D80):** elk.js 0.12.0 (`node_modules/elkjs`, bundled as its own chunk) is `EPL-2.0 OR GPL-3.0-or-later`: its `LICENSE.md` is the EPL-2.0 with Exhibit A naming GPL-3.0-or-later as a secondary licence, and the source headers say the same. Releases before 0.12.0 are EPL-2.0 only, so the pin must not go below 0.12.
 - **Added in M3 steps 6–8:** `src/engine/texlib.ts` is our port of web2js's `library.js` (GPL-3.0 as declared; see the item above). `engine/build/texinputs/pgfsys-tikzflow.def` is derived from pgf's `pgfsys-dvisvgm.def` (LPPL and/or GPL; ours takes GPL-3.0-or-later). The preview's glyphs come from the AMS Type 1 Computer Modern fonts (OFL-1.1). The engine release bundles 44 TeX Live packages (`engine/build/packages.txt`), each to be listed with its licence. dvi2html and the BaKoMa fonts are no longer used.
 
 ### Any time

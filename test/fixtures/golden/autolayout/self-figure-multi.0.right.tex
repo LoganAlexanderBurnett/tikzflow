@@ -31,8 +31,8 @@ Two pictures in one document: the first sits inside a \verb|\resizebox|.
       \node[box, below=of tri]   (half) {$n \gets n/2$};
       \draw[->] (in) -- (odd);
       \draw[->] (odd) -- node[above] {\yes} (tri);
-      \draw[->] (odd) -- node[right] {\no}  (half);
-      \draw[->] (tri) |- (in);
+      \draw[->] (odd) -- node[auto] {\no}  (half);
+      \draw[->] (tri) -- (in);
       \draw[->] (half.west) -- ++(-8mm,0) |- (in.west);
     \end{tikzpicture}%
   }

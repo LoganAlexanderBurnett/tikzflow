@@ -21,7 +21,8 @@ import { withLibraries } from "./libraries.ts";
 import { ALIGN_EPS, formatDistance, planMove, type PositionSpec, positioningText, specChanges } from "./move.ts";
 import { removeItems } from "./optionEdits.ts";
 import type { OptionItem } from "../model/syntax.ts";
-import { edgeVertices, planRemoveVertex } from "./vertices.ts";
+import { labelsOnTheirLine, planLabelBesideLine } from "./labels.ts";
+import { edgeVertices, planRemoveVertex, planStraighten } from "./vertices.ts";
 
 const MM = PT_PER_UNIT.mm!;
 /** A written position must land within this of where the layout put the node, in pt. */
@@ -59,6 +60,10 @@ export type AutoLayoutResult =
       kept: number;
       /** Corners removed from edges. */
       corners: number;
+      /** Orthogonal edges whose ends now line up, written with --. */
+      straightened: number;
+      /** Labels the moved lines now cut through, put beside them with auto. */
+      labels: number;
       conversions: Array<ChainConversion & { ok: true }>;
       added: string[];
       notes: string[];
@@ -709,6 +714,84 @@ function staleCorner(edge: Edge, moved: ReadonlySet<string>): number | null {
   return null;
 }
 
+/**
+ * A one-corner orthogonal edge between bare node names whose ends now line
+ * up: its corner falls inside a node, so TikZ would run the line to that
+ * node's centre.
+ */
+function degenerateCorner(edge: Edge, layout: PictureLayout): boolean {
+  if (edge.lock || edge.mode !== "orthogonal" || edge.segs.length !== 1) return false;
+  const s = edge.route.segs[edge.segs[0]!]!;
+  const a = edge.route.stops[edge.from]!;
+  const b = edge.route.stops[edge.to]!;
+  const corner = s.kind === "vh" ? { x: a.point.x, y: b.point.y } : { x: b.point.x, y: a.point.y };
+  const inside = (stop: typeof a, id: string | undefined) => {
+    const n = id && layout.nodes.find((x) => x.id === id);
+    if (!n || stop.anchor) return false;
+    const { center: c, hw, hh } = n.shape;
+    return Math.abs(corner.x - c.x) < hw - ALIGN_EPS && Math.abs(corner.y - c.y) < hh - ALIGN_EPS;
+  };
+  return inside(a, edge.source) || inside(b, edge.target);
+}
+
+/** What a label is called in a note: its text as written. */
+function labelText(text: string, n: LaidOutNode): string {
+  const t = text.slice(n.syntax.from, n.syntax.to);
+  const m = /\{([^{}]*)\}\s*$/.exec(t);
+  return m ? `"${m[1]!.trim()}"` : "a label";
+}
+
+/**
+ * After the nodes moved: orthogonal edges whose ends now line up run
+ * straight (`--`), and labels that the moved lines now cut through (and
+ * didn't before) are put beside the line with `auto`, as a form change does
+ * (D63). Each through the edge editor's own planners, so each is checked.
+ */
+function tidyEdges(text: string, picIndex: number, before: PictureLayout): { changes: Change[]; text: string; straightened: number; labels: number; notes: string[] } {
+  let current = text;
+  let changes: Change[] = [];
+  let straightened = 0;
+  let labels = 0;
+  const notes: string[] = [];
+  const key = (t: string, l: PictureLayout, labelId: string) => {
+    const edge = pictureEdges(l).find((e) => e.labels.some((n) => n.id === labelId));
+    const n = l.pathNodes.find((x) => x.id === labelId);
+    return `${nameOf(l, edge?.source)}>${nameOf(l, edge?.target)}:${n ? t.slice(n.syntax.from, n.syntax.to) : labelId}`;
+  };
+  const cutBefore = new Set(labelsOnTheirLine(before).map((x) => key(text, before, x.labelId)));
+  const failed = new Set<string>();
+  for (let guard = 0; guard < 500; guard++) {
+    const l = layoutDocumentPicture(analyzeDocument(current), picIndex);
+    if (!l) break;
+    const edge = pictureEdges(l).find((e) => !failed.has(`s${e.source}>${e.target}`) && degenerateCorner(e, l));
+    if (edge) {
+      const r = planStraighten(current, picIndex, edge.id);
+      if (!r.ok) {
+        failed.add(`s${edge.source}>${edge.target}`);
+        continue;
+      }
+      changes = composeChanges(text, changes, r.changes);
+      current = r.text;
+      straightened++;
+      notes.push(`the orthogonal edge ${nameOf(l, edge.source)} → ${nameOf(l, edge.target)} now runs straight, so it is written with --`);
+      continue;
+    }
+    const cut = labelsOnTheirLine(l).find((x) => !failed.has(`l${key(current, l, x.labelId)}`) && !cutBefore.has(key(current, l, x.labelId)));
+    if (!cut) break;
+    const r = planLabelBesideLine(current, picIndex, cut.labelId);
+    if (!r.ok) {
+      failed.add(`l${key(current, l, cut.labelId)}`);
+      continue;
+    }
+    const label = l.pathNodes.find((n) => n.id === cut.labelId)!;
+    notes.push(`the label ${labelText(current, label)} was written as ${r.written}: its line now runs through where it was`);
+    changes = composeChanges(text, changes, r.changes);
+    current = r.text;
+    labels++;
+  }
+  return { changes, text: current, straightened, labels, notes };
+}
+
 /** Removes stale corners, one at a time (each removal is checked by the edge editor). */
 function removeStaleCorners(text: string, picIndex: number, before: PictureLayout): { changes: Change[]; text: string; corners: number; notes: string[] } {
   let current = text;
@@ -805,7 +888,9 @@ export async function planAutoLayout(text: string, picIndex: number, options: Au
   const corners = removeStaleCorners(w.text, picIndex, start);
   let changes = composeChanges(text, pre, w.changes);
   changes = composeChanges(text, changes, corners.changes);
-  const final = corners.text;
+  const tidy = tidyEdges(corners.text, picIndex, start);
+  changes = composeChanges(text, changes, tidy.changes);
+  const final = tidy.text;
   if (applyChanges(text, changes) !== final) return { ok: false, reason: "The layout couldn't be written as one edit." };
 
   // Nodes outside the layout stay where they were, unless they follow a laid-out node.
@@ -819,7 +904,7 @@ export async function planAutoLayout(text: string, picIndex: number, options: Au
       return { ok: false, reason: `The layout would also move ${n.name ?? "a node"}, which isn't part of it, so it wasn't written.` };
     }
   }
-  const notes = [...w.notes, ...corners.notes];
+  const notes = [...w.notes, ...corners.notes, ...tidy.notes];
   const memberSet = new Set(members.map((n) => n.id));
   const crowdedNames = plan.crowded.map((id) => start.nodes.find((n) => n.id === id)?.name ?? "a node");
   if (crowdedNames.length) notes.push(`${listNames(crowdedNames)} couldn't be placed clear of the other nodes`);
@@ -839,6 +924,8 @@ export async function planAutoLayout(text: string, picIndex: number, options: Au
     written: w.written,
     kept: members.length - w.written.length,
     corners: corners.corners,
+    straightened: tidy.straightened,
+    labels: tidy.labels,
     conversions,
     added: w.added,
     notes,
@@ -853,7 +940,7 @@ function listNames(names: readonly string[]): string {
 /** A one-line summary for the status bar. */
 export function autoLayoutMessage(r: AutoLayoutResult & { ok: true }): string {
   const how = r.direction === "down" ? "top to bottom" : "left to right";
-  if (!r.written.length && !r.corners && !r.conversions.length) return `The ${r.count} nodes already follow this layout (${how}); nothing was changed.`;
+  if (!r.changes.length) return `The ${r.count} nodes already follow this layout (${how}); nothing was changed.`;
   const parts = r.written.slice(0, 3).map((x) => `${x.name}: ${x.text}`);
   const more = r.written.length > 3 ? `, and ${r.written.length - 3} more` : "";
   let s = `Laid out ${r.count} nodes ${how}.`;

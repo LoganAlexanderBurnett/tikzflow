@@ -26,9 +26,9 @@
   \draw[-{Stealth}] (start) -- (read);
   \draw[-{Stealth}] (read)  -- (check);
   \draw[-{Stealth}] (check) -- node[above] {yes} (base);
-  \draw[-{Stealth}] (check) -- node[right] {no}  (rec);
+  \draw[-{Stealth}] (check) -- node[auto] {no}  (rec);
   \draw[-{Stealth}] (rec)   -- (stop);
-  \draw[-{Stealth}] (base)  |- (stop);   % orthogonal return path
+  \draw[-{Stealth}] (base)  -- (stop);   % orthogonal return path
 
   \begin{scope}[on background layer]
     \node[draw=gray, dashed, rounded corners, fit=(check) (base) (rec),

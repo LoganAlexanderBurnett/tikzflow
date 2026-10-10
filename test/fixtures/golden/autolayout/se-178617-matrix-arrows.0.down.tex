@@ -57,22 +57,22 @@
 \draw[->] (m1) -- (m2) ;
 \draw[->] (m2) -- node[left] {$r=p$} (m3) ;
 \draw[->] (m3) -- (m4) ;
-\draw[->] (m4) -- node[left] {Yes} (m5) ;
+\draw[->] (m4) -- node[auto, swap] {Yes} (m5) ;
 \draw[->] (m5) -- node[left] {Yes} (m6) ;
 
-\draw[->] (m7) -| node[left]  {Yes} (m8l);
-\draw[->] (m7) -| node[right] {No } (m8r);
+\draw[->] (m7) -| node[auto, swap]  {Yes} (m8l);
+\draw[->] (m7) -- node[right] {No } (m8r);
 
-\draw[->] (m9) -| node[left]  {No}  (m10l);
-\draw[->] (m9) -| node[right] {Yes} (m10r);
+\draw[->] (m9) -| node[auto, swap]  {No}  (m10l);
+\draw[->] (m9) -- node[right] {Yes} (m10r);
 
 
 % Right flows
 \draw[->] (r1) -- (r2) ;
 \draw[->] (r2) -- (r3) ;
 \draw[->] (r3) -- (r4) ;
-\draw[->] (r4) -| node[left]  {No}  (r5l);
-\draw[->] (r4) -| node[right] {Yes} (r5r);
+\draw[->] (r4) -| node[auto, swap]  {No}  (r5l);
+\draw[->] (r4) -- node[right] {Yes} (r5r);
 
 % Left flows
 \draw[->] (l1) -- (l2) ;

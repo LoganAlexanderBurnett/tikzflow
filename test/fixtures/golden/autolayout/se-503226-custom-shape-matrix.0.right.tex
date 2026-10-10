@@ -67,8 +67,8 @@ font=\sffamily]
  \end{scope}
  \begin{scope}[-latex,thick]
   \draw (VS.east) -- (T1.west);
-  \draw (T1) -- (T2) node[midway,right]{Mask test ratings};
-  \draw[shorten >=1mm] (T2) -- (PE) node[midway,right]{Feed the model};
+  \draw (T1) -- (T2) node[midway,auto]{Mask test ratings};
+  \draw[shorten >=1mm] (T2) -- (PE) node[midway,auto]{Feed the model};
   \draw[shorten <=1mm] (PE) -- (PR);
   \draw (PR) -- (CEM);
   \draw[rounded corners] (TT1.east) -- ++ (2em,0) |- (CEM);

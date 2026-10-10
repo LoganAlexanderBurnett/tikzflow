@@ -30,9 +30,9 @@ Two pictures in one document: the first sits inside a \verb|\resizebox|.
       \node[box, below=7mm of odd, xshift=-4mm]   (tri)  {$n \gets 3n+1$};
       \node[box, right=of tri]   (half) {$n \gets n/2$};
       \draw[->] (in) -- (odd);
-      \draw[->] (odd) -- node[above] {\yes} (tri);
-      \draw[->] (odd) -- node[right] {\no}  (half);
-      \draw[->] (tri) |- (in);
+      \draw[->] (odd) -- node[auto, swap] {\yes} (tri);
+      \draw[->] (odd) -- node[auto] {\no}  (half);
+      \draw[->] (tri) -- (in);
       \draw[->] (half.west) -- ++(-8mm,0) |- (in.west);
     \end{tikzpicture}%
   }

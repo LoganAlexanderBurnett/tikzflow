@@ -64,18 +64,18 @@
 
 \path [line] (start) -- (AB);
 \path [line] (Gene_expression_data) -- (Preprocess_box);
-\path [line] (Gene_expression_data) -| (DAVID);
+\path [line] (Gene_expression_data) -- (DAVID);
 \path [line] (Preprocess_box) -- (FCM);
 \path [line] (FCM) -- (Cluster);
 \path [line] (Cluster) -- (FPC);
-\path [line] (Cluster) -| (PBM);
+\path [line] (Cluster) -- (PBM);
 \path [line] (DAVID) -- (FAC);
 \path [line] (FAC) -- (BHI);
 \path [line] (IntScore) -- (PPISCORE);
 \path [line] (PPISCORE) -- (InteractionScore);
 \path [line] (Fitness function) -- (NDS1);
 \path [line] (NDS1) -- (CROWD1);
-\path [line] (Maxgen) -- (NDS2)node[right,midway] {Yes};
+\path [line] (Maxgen) -- (NDS2)node[auto,midway] {Yes};
 \path [line] (NDS2) -- (Silhouette);
 \path [line] (Silhouette) -- (Bestsol);
 \path [line] (Bestsol) -- (Stop);

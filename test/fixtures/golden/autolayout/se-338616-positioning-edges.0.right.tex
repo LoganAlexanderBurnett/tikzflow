@@ -43,15 +43,15 @@ every path/.style = {thick,-Stealth}
         (in1)  edge (pro1)
         (pro1) edge (d1);
 \draw (d1.east) node[above right] {yes} -| (d9);
-\draw (d1.west) node[above left]  {no}  -| (d2);
+\draw (d1.west) -- node[above left]  {no} (d2);
 \draw (d2.east) node[above right] {yes} -| (d3);
-\draw (d2) -- node[left]{no} (d4);
-\draw (d4.east) node[above right] {yes} -| (d5);
+\draw (d2) -- node[auto]{no} (d4);
+\draw (d4.east) -- node[above right] {yes} (d5);
 \draw (d4.west) node[above left]  {no}  -| (d6);
-\draw (d6.east) node[above right] {yes} -| (d7);
+\draw (d6.east) -- node[above right] {yes} (d7);
 \draw (d6.west) node[above left]  {no}  -| (d8);
 \draw (d8.west) node[above left]  {no}  -- ++ (-1,0) |- (d9);
-\draw (d9.south) -- node[right] {yes} (stop.north);
+\draw (d9.south) -- node[auto, swap] {yes} (stop.north);
 %
 \draw (d3.east) node[above right] {no} -- (d3 -| d9);
 \draw (d5.east) node[above right] {no} -- (d5 -| d9);
