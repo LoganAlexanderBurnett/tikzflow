@@ -83,7 +83,7 @@ test.describe("the app", () => {
     expect(engineBytes.gz, "core.dump.gz is fetched from the network once").toBe(1);
     // It's Beta, and the way to report a problem is there.
     await expect(page.getByTestId("beta-label")).toBeVisible();
-    await expect(page.getByTestId("report-link")).toHaveAttribute("href", "https://github.com/LoganAlexanderBurnett/tikzflow/issues");
+    await expect(page.getByTestId("report-link")).toHaveAttribute("href", "https://github.com/LoganAlexanderBurnett/tikzflow/issues/new?template=problem.yml");
   });
 
   test("a second visit reads the engine from the service worker's cache, not the network", async ({ page }) => {

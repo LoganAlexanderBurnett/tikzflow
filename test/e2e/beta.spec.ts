@@ -1,13 +1,13 @@
 // The Beta label and the way to report a problem (D76): in the toolbar at every width, and a plain link
-// to the repository's issue list that opens in a new tab and sends nothing.
+// to a new issue on the repository, with the problem form, that opens in a new tab and sends nothing.
 import { expect, test } from "./base.ts";
 
-test("the toolbar says Beta and links to the repository's issues", async ({ page }) => {
+test("the toolbar says Beta and links to a new issue with the problem form", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("beta-label")).toHaveText("Beta");
   const link = page.getByTestId("report-link");
   await expect(link).toHaveText("Report a problem");
-  await expect(link).toHaveAttribute("href", "https://github.com/LoganAlexanderBurnett/tikzflow/issues");
+  await expect(link).toHaveAttribute("href", "https://github.com/LoganAlexanderBurnett/tikzflow/issues/new?template=problem.yml");
   await expect(link).toHaveAttribute("target", "_blank");
   // No opener and no referrer to the other site.
   await expect(link).toHaveAttribute("rel", "noopener noreferrer");

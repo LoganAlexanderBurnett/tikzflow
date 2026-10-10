@@ -18,7 +18,21 @@ Milestone 0 is done and was approved on 2026-10-07:
 - Push the `m3-engine-ci` branch when needed. Show the download list before CI downloads anything new.
 - All of Milestone 3 is done on `m3-engine-ci` and merged into `trunk` at the end of the milestone (D60).
 
+**Milestone 4 (layout and import): in progress on the `m4` branch (plan approved 2026-10-10, D77).** `trunk` is the live public beta: nothing is merged into it until everything passes (including `npm run test:live` against the branch's Cloudflare preview) and the owner has reviewed the M4 report. There is a checkpoint report after step 3.
+
 Also read "Notes for later milestones" below.
+
+## M4 plan and status
+| Step | Content | Status |
+|---|---|---|
+| 0 | `m4` branch, CLAUDE.md rule, Report link to `/issues/new`, issue template, the branch's Cloudflare preview | In progress |
+| 1 | Drag a multi-selection as a group | To do |
+| 2 | Chain nodes made draggable: the whole chain converted to explicit positioning (D77 item 4) | To do |
+| 3 | Auto-layout with elk.js, written back as relative positioning (D77 items 1, 2); **checkpoint report** | To do |
+| 4 | Groups and swimlanes with `fit` and `backgrounds` (owner picks the lane code form, D77 item 3) | To do |
+| 5 | Import from Mermaid and DOT, like Open (D77 item 5) | To do |
+| 6 | Grayscale and colour-blind preview modes, contrast warnings (WCAG AA, D77 item 6) | To do |
+| 7 | Goldens, end-to-end, offline and live checks on the preview, docs, report | To do |
 
 ## M3 plan and status
 | Step | Content | Status |

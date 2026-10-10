@@ -12,7 +12,8 @@ A free, static, fully client-side web app for creating and editing TikZ flowchar
 - When asked for a plan first, stop after presenting it and wait for approval before writing code.
 - Work one milestone at a time. At the end of each, stop and report what works, what doesn't, how to try it, and which decisions are needed. Wait for approval before starting the next milestone.
 - If part of the spec proves infeasible or a bad idea, say so and propose an alternative. Never work around it silently.
-- Commit after each meaningful step with clear messages. Push to `origin` (branch `trunk`) at the end of each milestone.
+- Commit after each meaningful step with clear messages.
+- **`trunk` deploys automatically to the live public beta (https://tikzflow.pages.dev).** Do each milestone on its own branch (Milestone 4: `m4`) and push that branch as you go. Merge into `trunk` only at the end, after everything passes, including `npm run test:live` against the branch's Cloudflare preview deployment (`TIKZFLOW_URL=https://<branch>.tikzflow.pages.dev`) if one exists, and only after the owner has reviewed the milestone report (D77).
 - Keep DECISIONS.md and PROGRESS.md current as you go, not only at the end of a milestone.
 - Don't build the "Later" features in SPEC.md unless asked.
 - Before downloading engine binaries or TeX packages, list each file's source and size. These assets go in a gitignored folder and never into git.

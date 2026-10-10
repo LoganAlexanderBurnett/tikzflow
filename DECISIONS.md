@@ -1013,3 +1013,16 @@ Items 4–7 are scheduled as small steps early in Milestone 3, right after the e
 5. **Beta label and "Report a problem".** In the toolbar next to the name: a "Beta" pill (title: expect rough edges; work is kept in this browser) and a **Report a problem** link to https://github.com/LoganAlexanderBurnett/tikzflow/issues (new tab, `rel="noopener noreferrer"`). A plain link: the app sends nothing, and the URL carries no code or settings (privacy: nothing of the user's goes into a URL). The CSP doesn't affect it (it limits what the page loads, not where a click goes). `test/e2e/beta.spec.ts`, and `test:live` checks both on the deployed site. Issues are enabled on the repository.
 
 **Why:** the owner's instructions of 2026-10-10 after the first deploy: record the two decisions, run the checks of the Milestone 3 report against the live site, fix what fails, and mark the app as a beta with a way to report problems.
+
+## D77: Milestone 4 plan, as approved (2026-10-10)
+**Decision:** The owner approved the M4 plan (step 0: branch, Report link and issue template; 1: drag a multi-selection as a group; 2: chain nodes made draggable; 3: auto-layout with elk.js; 4: groups and swimlanes; 5: Mermaid and DOT import; 6: accessibility; 7: wrap-up). Answers:
+1. **Edges after auto-layout:** each edge keeps its form (straight, bend, orthogonal); absolute corners that the layout would make wrong are removed.
+2. **Layout scope:** the whole picture, or only the selection when two or more nodes are selected. Locked nodes stay where they are.
+3. **Swimlanes:** after step 3, show the owner two or three candidate code forms on a sample; the owner picks one.
+4. **Chains:** dragging any member of a chain converts the whole chain to explicit positioning.
+5. **Import** works like Open: the work on screen is put aside and can be restored (D74).
+6. **Contrast warnings** follow WCAG AA: 4.5:1, or 3:1 for large text.
+7. **Branching and merging.** `trunk` deploys automatically to the public beta, so all of M4 is done on the `m4` branch. It is merged into `trunk` only after everything passes (including `npm run test:live` against the branch's Cloudflare preview deployment, if one exists) **and** the owner has reviewed the M4 report. There is a checkpoint report after step 3. The rule is in CLAUDE.md.
+8. **Report a problem (step 0).** The toolbar link opens `/issues/new?template=problem.yml`: GitHub shows a template chooser at a plain `/issues/new` once a repository has templates, and the `template` parameter opens the form directly (the parameter is the form's file name, so the URL still carries nothing of the user's). The form (`.github/ISSUE_TEMPLATE/problem.yml`) asks for the TikZ code (required, highlighted as LaTeX; a share link is accepted), the browser and system (required), and what happened (required), labels it `bug`, and says at the top that issues are public. GitHub reads templates from the default branch only, so the form appears once `m4` is merged into `trunk`; until then the parameter is ignored and GitHub shows a blank issue.
+
+**Why:** the owner's answers to the questions in the M4 plan (2026-10-10).

@@ -1,0 +1,35 @@
+name: Report a problem
+description: Something in TikZFlow didn't work, drew the wrong picture, or changed your code in a way it shouldn't have.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting this. **Issues are public:** anything you paste here can be read by anyone, so cut your diagram down to the smallest piece that still shows the problem, and leave out anything you can't share.
+  - type: textarea
+    id: code
+    attributes:
+      label: TikZ code
+      description: The code that shows the problem (the picture, or the whole document if the preamble matters). A share link from the toolbar's Share button works too.
+      render: latex
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser
+      description: Name and version, and the operating system.
+      placeholder: e.g. Edge 141 on Windows 11, Firefox 150 on Ubuntu, Safari 19 on macOS
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead. Screenshots help.
+      placeholder: |
+        1. I dragged the node "Start" below "Input".
+        2. I expected `below=of input`.
+        3. Instead the code pane showed ...
+    validations:
+      required: true

@@ -38,8 +38,8 @@ import {
   undoEdit,
 } from "./store.ts";
 
-/** Where "Report a problem" goes: the repository's issue list. A plain link; the app sends nothing. */
-const REPORT_URL = "https://github.com/LoganAlexanderBurnett/tikzflow/issues";
+/** Where "Report a problem" goes: a new issue with the problem form (`.github/ISSUE_TEMPLATE/problem.yml`). A plain link; the app sends nothing. */
+const REPORT_URL = "https://github.com/LoganAlexanderBurnett/tikzflow/issues/new?template=problem.yml";
 
 function CodePane() {
   const host = useRef<HTMLDivElement>(null);
@@ -203,7 +203,7 @@ function Toolbar() {
       <span class="tf-beta" data-testid="beta-label" title="TikZFlow is in beta: it works, but expect rough edges. Your work is kept in this browser; save a copy of anything important.">
         Beta
       </span>
-      <a class="tf-report" href={REPORT_URL} target="_blank" rel="noopener noreferrer" data-testid="report-link" title="Opens this project's issue list on GitHub in a new tab. Nothing is sent from here.">
+      <a class="tf-report" href={REPORT_URL} target="_blank" rel="noopener noreferrer" data-testid="report-link" title="Opens a new issue on GitHub (in a new tab) with a form asking for the code, the browser and what happened. Nothing is sent from here.">
         Report a problem
       </a>
       <span class="sep" />
