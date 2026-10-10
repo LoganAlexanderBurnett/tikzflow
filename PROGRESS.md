@@ -163,7 +163,8 @@ My recommendation is **B**: it looks like a swimlane diagram, its membership is 
 
 ### Tests
 - **Vitest:** 1,332 tests in 41 files (was 1,260 in 39). New: `test/autolayout.test.ts` (14), `test/golden-autolayout.test.ts` (58: every corpus picture in both directions; changes only in laid-out statements, paths and a positioning library; no new syntax errors; no overlaps; a second run changes nothing; golden files in `test/fixtures/golden/autolayout/`). No existing golden file changed.
-- **Playwright:** 135 end-to-end tests (was 133): `test/e2e/autolayout.spec.ts` (2). `npm run test:offline`: 5 (was 4), auto-layout offline under the production CSP. `npm run test:live`: 10 (was 9), see below.
+- **Playwright:** 135 end-to-end tests (was 133): `test/e2e/autolayout.spec.ts` (2). `npm run test:offline`: 5 (was 4), auto-layout offline under the production CSP.
+- **`TIKZFLOW_URL=https://m4.tikzflow.pages.dev npm run test:live`: all 10 pass** (was 9) on the deploy of commit ba33bc7: headers and CSP, `.gz`, engine download and cache, offline, exports, share links, and the new one: elk.js loads from the site itself under the policy, is cached with the app, and auto-layout works with the network off.
 - `npm run typecheck`, `npm run build`, `npm run check:dist` (ELK's chunk is in the service worker's list; its only URLs are EMF namespace names, never fetched) and `npm run layout:bench` pass.
 
 ### Known limits
