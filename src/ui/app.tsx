@@ -38,6 +38,9 @@ import {
   undoEdit,
 } from "./store.ts";
 
+/** Where "Report a problem" goes: the repository's issue list. A plain link; the app sends nothing. */
+const REPORT_URL = "https://github.com/LoganAlexanderBurnett/tikzflow/issues";
+
 function CodePane() {
   const host = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -197,6 +200,13 @@ function Toolbar() {
   return (
     <header class="tf-toolbar">
       <span class="brand">TikZFlow</span>
+      <span class="tf-beta" data-testid="beta-label" title="TikZFlow is in beta: it works, but expect rough edges. Your work is kept in this browser; save a copy of anything important.">
+        Beta
+      </span>
+      <a class="tf-report" href={REPORT_URL} target="_blank" rel="noopener noreferrer" data-testid="report-link" title="Opens this project's issue list on GitHub in a new tab. Nothing is sent from here.">
+        Report a problem
+      </a>
+      <span class="sep" />
       <button
         onClick={() => {
           // Where the browser can, the file stays linked so Save writes back to it; elsewhere a file chooser.

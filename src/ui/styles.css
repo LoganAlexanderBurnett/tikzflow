@@ -87,6 +87,31 @@ body {
   margin-right: 8px;
 }
 
+.tf-toolbar .tf-beta {
+  margin-left: -2px;
+  padding: 0 6px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: default;
+}
+
+.tf-toolbar .tf-report {
+  color: var(--muted);
+  white-space: nowrap;
+  text-decoration: underline;
+}
+
+.tf-toolbar .tf-report:hover,
+.tf-toolbar .tf-report:focus-visible {
+  color: var(--accent);
+}
+
 .tf-toolbar .sep {
   width: 1px;
   align-self: stretch;
