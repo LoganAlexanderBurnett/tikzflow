@@ -17,6 +17,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:offline": "playwright test --config playwright.offline.config.ts",
+    "test:live": "playwright test --config playwright.live.config.ts",
     "grammar:inspect": "node scripts/grammar-inspect.ts",
     "grammar:bench": "node scripts/grammar-bench.ts",
     "corpus:report": "node scripts/corpus-report.ts",

@@ -62,6 +62,15 @@ All of Milestone 3 is done on `m3-engine-ci` and merged into `trunk` (merge comm
 - All end-to-end specs now import `test` from `test/e2e/base.ts`: the app starts once the kept work has been read, so a page counts as loaded when the code pane exists.
 - `npm run typecheck`, `npm run build` and `npm run layout:bench` (unchanged: parse 7.3 ms, layout 7.4 ms, drop 28 ms) pass.
 
+### Post-deploy checks, run on https://tikzflow.pages.dev/ (2026-10-10, D76)
+The owner kept the CSP and the `mirror.gcr.io` pull (D76 items 1, 2). `npm run test:live` now runs the checks below against the deployed site (9 tests; `TIKZFLOW_URL` for another host). **All passed on the first deploy; nothing needed fixing.**
+- **Headers and CSP:** the policy is exactly `_headers`' line on every response, with `nosniff` and `no-referrer`; `/sw.js` is `no-cache`; `/engine/*` is `immutable`; the HTML is identical to the build's (no injected script).
+- **`.gz`:** served as `application/gzip` with no `Content-Encoding`; `core.dump.gz` is byte-for-byte the release's size. No rename needed.
+- **Engine download and cache:** first visit fetches `core.dump.gz` once, shows the TeX preview and "Works offline", asks no other host, no console error or policy violation; a reload takes every engine file from the service worker.
+- **Offline, exports, share links:** work as on `vite preview` (offline reload with the picture and an SVG export; `.tex`, snippet, SVG, PDF, PNG; a link opened by a new visitor).
+- **To know:** Cloudflare answers unknown paths with the page and status 200 (the worker is safe: it asks only for files the index lists); it adds `Access-Control-Allow-Origin: *` and `Report-To`/`NEL` headers of its own (D76 item 4).
+- **Beta:** a "Beta" pill and a "Report a problem" link to the repository's Issues are in the toolbar (D76 item 5).
+
 ### Cloudflare Pages: what to do and what to look at
 1. Cloudflare dashboard → Workers & Pages → Create → Pages → Connect to Git → this repo, production branch `trunk`.
 2. Build command `npm run build:pages`; build output directory `dist`; Node 24 is picked up from `.node-version`. (The engine is not in git: `build:pages` downloads the pinned release from this repo's GitHub Releases, checks its SHA-256 and unpacks it. The repo must be public, or the release asset reachable without a token.)
@@ -69,7 +78,7 @@ All of Milestone 3 is done on `m3-engine-ci` and merged into `trunk` (merge comm
 4. Custom domain, if wanted: the Pages project's Custom domains tab.
 
 ### Decisions for you
-1. **The Content-Security-Policy (D75).** I added it (nothing in the spec asks for it): it makes the browser refuse any request to another host, which is the hard rule "client-side only" enforced rather than promised. It is tested under `vite preview` but not on Cloudflare itself. It is one line in `public/_headers` to remove or loosen. Keep?
+1. **The Content-Security-Policy (D75): kept (D76).** It makes the browser refuse any request to another host, which is the hard rule "client-side only" enforced rather than promised. Now checked on Cloudflare itself. (The `mirror.gcr.io` pull is kept too.)
 2. **Metered connections (D73).** The Network Information API has no "metered" flag; I use `saveData`, a cellular connection type, or a 2G effective type. On desktop Chrome neither is reported, so the engine is always fetched there. Enough?
 
 ### Known limits
