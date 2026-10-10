@@ -25,7 +25,7 @@ Also read "Notes for later milestones" below.
 ## M4 plan and status
 | Step | Content | Status |
 |---|---|---|
-| 0 | `m4` branch, CLAUDE.md rule, Report link to `/issues/new`, issue template, the branch's Cloudflare preview | Done (D77); preview: see below |
+| 0 | `m4` branch, CLAUDE.md rule, Report link to `/issues/new`, issue template, the branch's Cloudflare preview | Done (D77); preview at https://m4.tikzflow.pages.dev, `test:live` passes |
 | 1 | Drag a multi-selection as a group | Done (D78) |
 | 2 | Chain nodes made draggable: the whole chain converted to explicit positioning (D77 item 4) | Done (D79) |
 | 3 | Auto-layout with elk.js, written back as relative positioning (D77 items 1, 2); **checkpoint report** | To do |
@@ -33,6 +33,35 @@ Also read "Notes for later milestones" below.
 | 5 | Import from Mermaid and DOT, like Open (D77 item 5) | To do |
 | 6 | Grayscale and colour-blind preview modes, contrast warnings (WCAG AA, D77 item 6) | To do |
 | 7 | Goldens, end-to-end, offline and live checks on the preview, docs, report | To do |
+
+## M4 steps 0–2: branch, group drag, chains (2026-10-10)
+Done on `m4` in one go, as the owner asked, with a commit after each step, and pushed. Nothing is merged into `trunk`.
+
+### The branch's Cloudflare preview
+Cloudflare Pages builds every push to `m4` as a preview: **https://m4.tikzflow.pages.dev** (branch alias), and one URL per commit (listed in the commit's "Cloudflare Pages" check on GitHub). `TIKZFLOW_URL=https://m4.tikzflow.pages.dev npm run test:live`: **all 9 checks pass** on the step 2 build (headers and CSP, `.gz`, engine download and cache, offline, exports, share links).
+
+### How to try it
+Open https://m4.tikzflow.pages.dev (or `npm run dev`).
+- **Report a problem** now opens a new issue with a form (TikZ code, browser, what happened). GitHub reads issue forms from the default branch only, so until the merge the link opens a blank issue.
+- **Group drag (D78).** Shift-click two or three nodes, then drag one of them: all move. Only the nodes placed against something outside the selection get new code; one placed against another selected node keeps its line byte for byte. Plain-coordinate pictures keep plain numbers. Corners written as numbers on an edge between two selected nodes move along. A click without dragging selects just that node. One Ctrl+Z undoes the whole move.
+- **Dragging a fit node (D78)** moves the nodes it fits, and the box follows.
+- **Chains (D79).** Paste `corpus/se-382997-chains-indented.tex` or `corpus/se-263754-chains.tex` and drag a node of a chain: every node that chain places gets its position written out after `on chain` (`below=of p0`), unnamed ones that others follow get a name from their label, and the node moves. `on chain` and `join` stay, so the joins are still drawn. One undo step.
+
+### What works
+- Step 0: the CLAUDE.md rule, D77, the issue form, the link.
+- Step 1 (D78): group moves with the single-node emitter, fit nodes, edge corners, the checks; two emitter fixes found by the new goldens (no `… and 0pt` diagonals; `shift=(…)` kept beside xshift/yshift) and tikz-ext's corner placements (`east above=of`) now locked with an explanation instead of misread.
+- Step 2 (D79): chain conversion, exact to 0.01 pt. **Three interpreter bugs about chains were found and fixed with a pdfTeX probe** (`spike/engines/probes/p8-chains-explicit.tex`): a position written before `on chain` must lose to the chain; named chain nodes also answer to `chain-<n>`; `\chainin` takes a number. Full `npm run fidelity`: no corpus node moved, the probe matches exactly. Nodes on a chain that the chain doesn't place (`\node[proc, right=of p1]` with `on chain` in `proc`) are editable now; the summary counts chain nodes as editable.
+
+### Tests
+- **Vitest:** 1,260 tests in 39 files (was 1,198 in 35). New: `test/group.test.ts` (12), `test/golden-group.test.ts` (34), `test/chains.test.ts` (10), `test/golden-chains.test.ts` (5), plus label-word cases. The corpus picture `se-382997-chains-indented.tex` now has editable nodes, so it has new golden files in `test/golden.test.ts`. No existing golden file changed except one group golden for `se-263754-chains.tex`, whose chain nodes are now editable.
+- **Playwright:** 133 tests (was 128), all passing: `group.spec.ts` (3), `chains.spec.ts` (1), and in `core-loop.spec.ts` the old "a fit node can't be dragged" check became "dragging a fit node moves what it fits", with the locked-node check moved to a node placed against a `\matrix` cell.
+- `npm run typecheck`, `npm run build`, `npm run layout:bench` (parse 8.5 ms, layout 8.6 ms, drop 34 ms, run while the end-to-end suite was running; M3: 7.3, 7.4, 28) pass. `test:live` against the preview: above.
+
+### Known limits
+- **Group snapping** uses the node under the pointer only; other members don't snap to guides.
+- **A locked member refuses the whole group drag** (with its name and reason) rather than moving the rest.
+- **Chains placed with `placed {…}`** (rather than `going …`) can't be written out; the drag is refused with that reason. None is in the corpus.
+- **Writing a chain out with `on grid` in its style** adds `on grid=false` to each node (`se-382997`): exact, but wordy. It is what the chain itself does.
 
 ## M3 plan and status
 | Step | Content | Status |
