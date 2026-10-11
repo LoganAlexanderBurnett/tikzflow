@@ -22,8 +22,8 @@ import { withLibraries } from "./libraries.ts";
 import { ALIGN_EPS, formatDistance, planMove, type PositionSpec, positioningText, specChanges } from "./move.ts";
 import { removeItems } from "./optionEdits.ts";
 import type { OptionItem } from "../model/syntax.ts";
-import { labelsOnTheirLine, planLabelBesideLine } from "./labels.ts";
-import { edgeVertices, planRemoveVertex, planStraighten } from "./vertices.ts";
+import { labelsOnTheirLine, planLabelBesideLine, planLabelsBesideLine } from "./labels.ts";
+import { edgeVertices, planRemoveVertex, planStraighten, straightenChanges } from "./vertices.ts";
 
 const MM = PT_PER_UNIT.mm!;
 /** A written position must land within this of where the layout put the node, in pt. */
@@ -645,18 +645,16 @@ export function choosePlacements(
   placed.set(first.id, { spec: "keep", center: first.shape.center });
   refsOf.set(first.id, []);
   /** Where the previous pass put a member, unless that went through `n` (then it carries n's old error). */
+  // Who refers to each member in the previous pass, for following placements back to a node.
+  const referredBy = new Map<string, string[]>();
+  for (const [id, refs] of previous?.refs ?? []) for (const r of refs) referredBy.set(r, [...(referredBy.get(r) ?? []), id]);
   const hintFor = (n: string) => {
     if (!previous) return new Map<string, Point>();
-    const through = new Set<string>();
-    const reaches = (id: string, seen = new Set<string>()): boolean => {
-      if (id === n || through.has(id)) return true;
-      if (seen.has(id)) return false;
-      seen.add(id);
-      const hit = (previous.refs.get(id) ?? []).some((r) => reaches(r, seen));
-      if (hit) through.add(id);
-      return hit;
-    };
-    return new Map([...previous.placements].filter(([id]) => !reaches(id)).map(([id, p]) => [id, p.center]));
+    // The placements that go through n, directly or not.
+    const through = new Set<string>([n]);
+    const queue = [n];
+    while (queue.length) for (const m of referredBy.get(queue.pop()!) ?? []) if (!through.has(m)) through.add(m), queue.push(m);
+    return new Map([...previous.placements].filter(([id]) => !through.has(id)).map(([id, p]) => [id, p.center]));
   };
   const crowded: string[] = [];
   const named = (id: string) => {
@@ -664,9 +662,11 @@ export function choosePlacements(
     return !!m.name && !m.implicitName && SIMPLE_NAME.test(m.name);
   };
   const at = (id: string) => placed.get(id)!.center;
+  // The boxes of the placed members, kept as they are placed: clear() is asked many times per node.
+  const boxes: Array<ReturnType<typeof boxAt>> = [boxAt(first, first.shape.center)];
   const clear = (n: LaidOutNode, c: Point) => {
     const box = boxAt(n, c);
-    return [...placed].every(([id, p]) => !overlaps(box, boxAt(byId.get(id)!, p.center)));
+    return boxes.every((b) => !overlaps(box, b));
   };
   /** The ELK offset between two members, moved onto where the first is placed. */
   const relative = (r: string, n: string): Point => {
@@ -678,6 +678,9 @@ export function choosePlacements(
 
   for (const n of members.slice(1)) {
     const hints = hintFor(n.id);
+    // The other members, nearest to n in ELK's picture first.
+    const tn = target.get(n.id)!;
+    const byNearness = members.map((m) => m.id).filter((id) => id !== n.id).map((id) => ({ id, d: dist(target.get(id)!, tn) })).sort((p, q) => p.d - q.d).map((x) => x.id);
     // Relations written now use the node distance it inherits: its own served the old relation and goes.
     const mv = movers?.get(n.id) ?? n;
     const candidates: Placement[] = [];
@@ -710,8 +713,7 @@ export function choosePlacements(
     const lineUp = (r: string): Point => {
       // Measured from the node nearest in ELK's picture, placed or from the previous pass, so that a
       // distance written to a far-away node doesn't carry the difference between ELK's gaps and TikZ's.
-      const known = members.map((m) => m.id).filter((id) => id !== n.id && (placed.has(id) || hints?.has(id)));
-      const base = known.sort((p, q) => dist(target.get(p)!, target.get(n.id)!) - dist(target.get(q)!, target.get(n.id)!))[0] ?? r;
+      const base = byNearness.find((id) => placed.has(id) || hints.has(id)) ?? r;
       const bp = placed.get(base)?.center ?? hints?.get(base) ?? at(r);
       const t = base === r ? relative(r, n.id) : { x: bp.x + target.get(n.id)!.x - target.get(base)!.x, y: bp.y + target.get(n.id)!.y - target.get(base)!.y };
       const later = (list: string[]) => list.find((id) => !placed.has(id) && hints?.has(id));
@@ -769,6 +771,7 @@ export function choosePlacements(
     if (!chosen) {
       // Nothing to refer to (no named node before it): it stays as written.
       placed.set(n.id, { spec: "keep", center: n.shape.center });
+      boxes.push(boxAt(n, n.shape.center));
       refsOf.set(n.id, []);
       continue;
     }
@@ -779,6 +782,7 @@ export function choosePlacements(
     }
     if (!clear(n, chosen.center)) crowded.push(n.id);
     placed.set(n.id, chosen);
+    boxes.push(boxAt(n, chosen.center));
     // The members it now refers to: the latest placed member of each name it uses.
     const byName = (name: string) => [...placed.keys()].reverse().find((id) => id !== n.id && byId.get(id)!.name === name);
     const names = chosen.spec === "keep" ? (was ? [was.name!] : []) : chosen.spec.kind === "perp" ? [chosen.spec.xFrom, chosen.spec.yFrom] : chosen.spec.kind === "positioning" ? [chosen.spec.target] : [];
@@ -939,10 +943,30 @@ function labelText(text: string, n: LaidOutNode): string {
 }
 
 /**
+ * Whether straightening the edges at `indices` (of pictureEdges) left
+ * everything else as it was: the nodes where they were, the other edges'
+ * points too, and each of those edges now one straight line.
+ */
+function straightenedOnly(a: PictureLayout, b: PictureLayout, indices: ReadonlySet<number>): boolean {
+  if (a.nodes.length !== b.nodes.length || a.nodes.some((n, i) => dist(n.shape.center, b.nodes[i]!.shape.center) > 0.05)) return false;
+  const ea = pictureEdges(a);
+  const eb = pictureEdges(b);
+  if (ea.length !== eb.length) return false;
+  return ea.every((e, i) => {
+    const f = eb[i]!;
+    if (e.source !== f.source || e.target !== f.target) return false;
+    if (indices.has(i)) return f.segs.length === 1 && f.route.segs[f.segs[0]!]!.kind === "line";
+    return e.route.stops.length === f.route.stops.length && e.route.stops.every((s, k) => dist(s.point, f.route.stops[k]!.point) <= 0.05);
+  });
+}
+
+/**
  * After the nodes moved: orthogonal edges whose ends now line up run
  * straight (`--`), and labels that the moved lines now cut through (and
  * didn't before) are put beside the line with `auto`, as a form change does
- * (D63). Each through the edge editor's own planners, so each is checked.
+ * (D63). Each kind is written all at once and checked with one layout (D87);
+ * what doesn't hold in a batch goes through the edge editor's own planners,
+ * one at a time, each checked.
  */
 function tidyEdges(text: string, picIndex: number, before: PictureLayout): { changes: Change[]; text: string; straightened: number; labels: number; notes: string[] } {
   let current = text;
@@ -956,6 +980,29 @@ function tidyEdges(text: string, picIndex: number, before: PictureLayout): { cha
     return `${nameOf(l, edge?.source)}>${nameOf(l, edge?.target)}:${n ? t.slice(n.syntax.from, n.syntax.to) : labelId}`;
   };
   const cutBefore = new Set(labelsOnTheirLine(before).map((x) => key(text, before, x.labelId)));
+  const straightNote = (l: PictureLayout, e: Edge) => `the orthogonal edge ${nameOf(l, e.source)} → ${nameOf(l, e.target)} now runs straight, so it is written with --`;
+
+  // Every orthogonal edge whose ends line up, in one go.
+  const l0 = layoutDocumentPicture(analyzeDocument(current), picIndex);
+  if (l0) {
+    const batch = pictureEdges(l0).flatMap((e, i) => {
+      const c = degenerateCorner(e, l0) ? straightenChanges(current, e) : null;
+      return c ? [{ e, i, c }] : [];
+    });
+    if (batch.length) {
+      const cs = batch.flatMap((x) => x.c).sort((p, q) => p.from - q.from);
+      const next = applyChanges(current, cs);
+      const doc = analyzeDocument(next);
+      const l1 = layoutDocumentPicture(doc, picIndex);
+      if (l1 && doc.errors.length <= analyzeDocument(current).errors.length && straightenedOnly(l0, l1, new Set(batch.map((x) => x.i)))) {
+        changes = composeChanges(text, changes, cs);
+        current = next;
+        straightened += batch.length;
+        for (const x of batch) notes.push(straightNote(l0, x.e));
+      }
+    }
+  }
+
   const failed = new Set<string>();
   for (let guard = 0; guard < 500; guard++) {
     const l = layoutDocumentPicture(analyzeDocument(current), picIndex);
@@ -970,11 +1017,25 @@ function tidyEdges(text: string, picIndex: number, before: PictureLayout): { cha
       changes = composeChanges(text, changes, r.changes);
       current = r.text;
       straightened++;
-      notes.push(`the orthogonal edge ${nameOf(l, edge.source)} → ${nameOf(l, edge.target)} now runs straight, so it is written with --`);
+      notes.push(straightNote(l, edge));
       continue;
     }
-    const cut = labelsOnTheirLine(l).find((x) => !failed.has(`l${key(current, l, x.labelId)}`) && !cutBefore.has(key(current, l, x.labelId)));
-    if (!cut) break;
+    const cuts = labelsOnTheirLine(l).filter((x) => !failed.has(`l${key(current, l, x.labelId)}`) && !cutBefore.has(key(current, l, x.labelId)));
+    if (!cuts.length) break;
+    // All at once; the ones that don't hold there are tried one at a time.
+    const batch = planLabelsBesideLine(current, picIndex, l, cuts.map((x) => x.labelId));
+    for (const f of batch.fixed) {
+      const label = l.pathNodes.find((n) => n.id === f.labelId)!;
+      notes.push(`the label ${labelText(current, label)} was written as ${f.written}: its line now runs through where it was`);
+    }
+    if (batch.fixed.length) {
+      changes = composeChanges(text, changes, batch.changes);
+      current = batch.text;
+      labels += batch.fixed.length;
+      if (batch.rest.length) continue;
+      break;
+    }
+    const cut = cuts[0]!;
     const r = planLabelBesideLine(current, picIndex, cut.labelId);
     if (!r.ok) {
       failed.add(`l${key(current, l, cut.labelId)}`);

@@ -160,9 +160,16 @@ export function pathEdges(path: LaidOutPath, layout: PictureLayout): Edge[] {
   });
 }
 
-/** Every edge of a picture, in drawing order. */
+const edgeCache = new WeakMap<PictureLayout, Edge[]>();
+
+/** Every edge of a picture, in drawing order. Made once per layout (a layout isn't changed once made); don't change what it returns. */
 export function pictureEdges(layout: PictureLayout): Edge[] {
-  return layout.paths.flatMap((p) => pathEdges(p, layout));
+  let edges = edgeCache.get(layout);
+  if (!edges) {
+    edges = layout.paths.flatMap((p) => pathEdges(p, layout));
+    edgeCache.set(layout, edges);
+  }
+  return edges;
 }
 
 const f3 = (v: number) => Math.round(v * 1000) / 1000;

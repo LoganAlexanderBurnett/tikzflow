@@ -359,6 +359,23 @@ function straightOp(text: string, it: PathItemSyntax, list: OptionList | undefin
 }
 
 /**
+ * The change Straighten writes for an edge drawn with `--`, `to`, `|-` or `-|`
+ * operations, without laying the result out: auto-layout writes many at once
+ * and checks them with one layout (D87). Null where Straighten would refuse.
+ */
+export function straightenChanges(text: string, edge: Edge): Change[] | null {
+  if (edge.lock || isEdgeOperation(edge)) return null;
+  const route = edge.route;
+  if (edge.segs.length === 1 && route.segs[edge.segs[0]!]!.kind === "line") return null;
+  const mid = edgeMiddle(edge);
+  if (mid.problem) return null;
+  const items = edge.path.syntax.items;
+  const first = route.segs[edge.segs[0]!]!;
+  const insert = middleText(text, edge, mid, [{ op: straightOp(text, items[first.op]!, opOptions(items, first.op)) }], () => 0);
+  return insert === text.slice(mid.range.from, mid.range.to) ? null : [{ from: mid.range.from, to: mid.range.to, insert }];
+}
+
+/**
  * Straighten: the edge goes straight from end to end, as a plain "--"
  * (D45). Its corners and curve go; its labels, comments and ends stay. An
  * `edge` operation loses its curve keys instead.

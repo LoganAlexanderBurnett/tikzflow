@@ -487,6 +487,63 @@ export function planLabelBesideLine(text: string, picIndex: number, labelId: str
   return { ok: true, changes: fix.changes, text: fix.text, layout: fix.layout, edgeId: edge.id, labelId: moved?.id ?? labelId, written: fix.written };
 }
 
+/** Where offset `pos` of the text before `changes` (sorted, against one text) is after them. */
+function mapPos(changes: readonly Change[], pos: number): number {
+  let d = 0;
+  for (const c of changes) if (c.to <= pos) d += c.insert.length - (c.to - c.from);
+  return pos + d;
+}
+
+/**
+ * Many labels at once, as planLabelBesideLine would put each beside its line,
+ * written together and checked with one layout (auto-layout, D87). A label
+ * whose fix can't be planned here, or doesn't hold in the batch, is returned in
+ * `rest`, for the caller to try on its own.
+ */
+export function planLabelsBesideLine(
+  text: string,
+  picIndex: number,
+  layout: PictureLayout,
+  labelIds: readonly string[],
+): { changes: Change[]; text: string; fixed: Array<{ labelId: string; written: string }>; rest: string[] } {
+  const edges = pictureEdges(layout);
+  const errors = analyzeDocument(text).errors.length;
+  type Fix = { labelId: string; from: number; changes: Change[]; written: string };
+  let fixes: Fix[] = [];
+  const rest: string[] = [];
+  for (const id of labelIds) {
+    const label = layout.pathNodes.find((n) => n.id === id);
+    const edge = label && edgeOfLabel(edges, id);
+    const g = label && edge && labelGeometry(edge, label);
+    const sides = label ? ownSides(label) : [];
+    if (!label || !g || g.overlap <= OVERLAP || label.rotate !== undefined || !sides.length || sides.some((x) => x.item.value !== undefined)) {
+      rest.push(id);
+      continue;
+    }
+    const keys = autoSide(g.angle, sum(sides.map((x) => sideVector(x.item.key))));
+    fixes.push({ labelId: id, from: label.syntax.from, changes: replaceSides(text, sides, keys), written: `${sides.map((x) => x.item.key).join(", ")} → ${keys}` });
+  }
+  // Fixes that don't hold are dropped and the rest written again; a few rounds at most.
+  for (let round = 0; round < 3 && fixes.length; round++) {
+    const changes = fixes.flatMap((f) => f.changes).sort((a, b) => a.from - b.from);
+    const next = applyChanges(text, changes);
+    const doc = analyzeDocument(next);
+    const after = layoutDocumentPicture(doc, picIndex);
+    if (!after || doc.errors.length > errors || !sameDrawing(layout, after)) break;
+    const afterEdges = pictureEdges(after);
+    const bad = new Set(fixes.filter((f) => {
+      const made = after.pathNodes.find((n) => n.syntax.from === mapPos(changes, f.from));
+      const edge = made && edgeOfLabel(afterEdges, made.id);
+      const g = made && edge && labelGeometry(edge, made);
+      return !g || g.overlap > OVERLAP;
+    }));
+    if (!bad.size) return { changes, text: next, fixed: fixes.map((f) => ({ labelId: f.labelId, written: f.written })), rest };
+    rest.push(...[...bad].map((f) => f.labelId));
+    fixes = fixes.filter((f) => !bad.has(f));
+  }
+  return { changes: [], text, fixed: [], rest: [...rest, ...fixes.map((f) => f.labelId)] };
+}
+
 // ---------------------------------------------------------------- Yes/No on decisions
 
 /** The pairs of branch labels the editor knows, in the order it writes them. */
