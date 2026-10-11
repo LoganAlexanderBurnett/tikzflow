@@ -1,0 +1,14 @@
+%% Two teams whose steps alternate: without grouping the two boxes would cross.
+flowchart TD
+  subgraph A [Team A]
+    a1[Draft] --> a2[Revise]
+  end
+  subgraph B [Team B]
+    b1[Review] --> b2[Approve]
+  end
+  x[Intake] --> a1
+  x --> b1
+  a1 --> b1
+  b1 --> a2
+  a2 --> b2
+  b2 --> done([Done])

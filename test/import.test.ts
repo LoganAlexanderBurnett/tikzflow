@@ -339,7 +339,7 @@ describe("the TikZ written", () => {
   it("writes groups as fit nodes on the background layer, inner ones first", () => {
     const t = graphToTikz(parseMermaid("flowchart TD\nsubgraph outer [Outer]\n a --> b\n subgraph inner [Inner]\n  c\n end\nend\nb --> c\nouter --> d"));
     const scope = t.text.slice(t.text.indexOf("\\begin{scope}[on background layer]"));
-    expect(scope).toMatch(/\\node\[group, fit=\(c\), label=\{\[group title\]north:Inner\}\] \(inner\) \{\};\n\s+\\node\[group, inner sep=8mm, fit=\(a\) \(b\) \(inner\), label=\{\[group title\]north:Outer\}\] \(outer\) \{\};/);
+    expect(scope).toMatch(/\\node\[group, fit=\(c\), label=\{\[group title\]north:Inner\}\] \(inner\) \{\};\n\s+\\node\[group, inner sep=6mm, fit=\(a\) \(b\) \(inner\), label=\{\[group title\]north:Outer\}\] \(outer\) \{\};/);
     // An edge to a group comes after the group's node.
     expect(t.text.indexOf("(outer) --")).toBeGreaterThan(t.text.indexOf("\\end{scope}"));
     expect(t.text).toMatch(/\\usetikzlibrary\{positioning, fit, backgrounds/);
@@ -410,7 +410,7 @@ describe("importDiagram", () => {
         }
       }
       // Laying out again changes nothing.
-      const again = await planAutoLayout(r.text, 0, { direction: r.direction });
+      const again = await planAutoLayout(r.text, 0, { direction: r.direction, groups: true });
       expect(again.ok && again.changes).toEqual([]);
     });
   }
@@ -421,6 +421,50 @@ describe("importDiagram", () => {
     if (!r.ok) return;
     for (const word of ["Start", "In stock?", "Pick items", "Back-order list", "Pack and label", "Hand to courier", "Tell the customer", "Delivered", "Yes", "No"]) {
       expect(r.text).toContain(`{${word}}`);
+    }
+  });
+});
+
+describe("groups stay together", () => {
+  const boxesOf = (text: string) => {
+    const layout = layoutDocumentPicture(analyzeDocument(text), 0)!;
+    return layout.nodes.filter((n) => n.position.kind === "fit").map((n) => ({ name: n.name, ...shapeBounds(n.shape) }));
+  };
+  const overlap = (a: ReturnType<typeof boxesOf>[number], b: ReturnType<typeof boxesOf>[number]) => a.minX < b.maxX && b.minX < a.maxX && a.minY < b.maxY && b.minY < a.maxY;
+
+  it("keeps the boxes of interleaved groups apart", async () => {
+    const r = await importDiagram(fixture("interleaved-teams.mmd"));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const boxes = boxesOf(r.text);
+    expect(boxes).toHaveLength(2);
+    expect(overlap(boxes[0]!, boxes[1]!)).toBe(false);
+  });
+
+  it("is what the option does: the same picture laid out without it has overlapping boxes", async () => {
+    const t = graphToTikz(parseMermaid(fixture("interleaved-teams.mmd"))).text;
+    const plain = await planAutoLayout(t, 0, { direction: "down" });
+    expect(plain.ok).toBe(true);
+    if (!plain.ok) return;
+    const boxes = boxesOf(plain.text);
+    expect(overlap(boxes[0]!, boxes[1]!)).toBe(true);
+  });
+
+  it("keeps nested groups inside their parents, and a group's nodes out of other groups' boxes", async () => {
+    const r = await importDiagram("flowchart TD\nsubgraph outer [Outer]\n a --> b\n subgraph inner [Inner]\n  c --> d\n end\n b --> c\nend\nz --> a\nz --> c\nd --> y");
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const boxes = boxesOf(r.text);
+    const inner = boxes.find((b) => b.name === "inner")!;
+    const outer = boxes.find((b) => b.name === "outer")!;
+    expect(inner.minX).toBeGreaterThanOrEqual(outer.minX);
+    expect(inner.maxX).toBeLessThanOrEqual(outer.maxX);
+    expect(inner.minY).toBeGreaterThanOrEqual(outer.minY);
+    expect(inner.maxY).toBeLessThanOrEqual(outer.maxY);
+    const layout = layoutDocumentPicture(analyzeDocument(r.text), 0)!;
+    for (const n of layout.nodes.filter((x) => ["z", "y"].includes(x.name ?? ""))) {
+      const b = shapeBounds(n.shape);
+      expect(overlap({ name: "n", ...b }, outer), `${n.name} is outside the outer box`).toBe(false);
     }
   });
 });

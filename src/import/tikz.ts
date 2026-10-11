@@ -60,7 +60,11 @@ const RESERVED = new Set([
   "dashed", "dotted", "solid", "thick", "thin", "ultra thick", "very thick", "very thin", "ultra thin", "fill", "draw", "color", "text", "step", "grid", "shift", "scale", "rotate", "node", "label", "pin", "text width", "font", "bend left", "bend right", "loop", "help lines", "double", "rounded corners", "shadow", "circle", "ellipse", "rectangle", "diamond", "opacity", "anchor", "name", "pos", "near start", "near end", "auto", "swap", "above", "below", "left", "right", "base", "start", "end", "every node", "every path", "dot", "main", "default", "highlight", "dim", "box",
 ]);
 
-const NODE_DISTANCE = "8mm and 16mm";
+/**
+ * The vertical node distance: a group's box reaches 3mm past its nodes and its title stands above that, so the
+ * gap between layers has to hold both (D84); a group inside a group needs room for the inner title too.
+ */
+const distanceFor = (depth: number): string => `${depth === 0 ? 8 : depth === 1 ? 12 : 16}mm and 16mm`;
 /** Node names that TikZ reads as something else. */
 const BAD_NAMES = new Set(["current bounding box", "current page", "current subpath start", "current subpath end"]);
 
@@ -118,48 +122,52 @@ export function texText(s: string): string {
 
 // ---------------------------------------------------------------- order and names
 
-/** Node ids in the order they are written: breadth first along the edges, so each follows a node before it. */
+/**
+ * Node ids in the order they are written: component by component in the order they first appear, and within one by
+ * how far a node is from the start of its flow (the longest path from a source, loops back ignored), so each
+ * node comes after the nodes it follows and its relation can be to one of them.
+ */
 export function writingOrder(g: ImportGraph): string[] {
   const ids = g.nodes.map((n) => n.id);
   const known = new Set(ids);
-  const out = new Map<string, string[]>();
-  const indeg = new Map<string, number>();
-  for (const id of ids) {
-    out.set(id, []);
-    indeg.set(id, 0);
-  }
+  const index = new Map(ids.map((id, i) => [id, i]));
+  const out = new Map<string, string[]>(ids.map((id) => [id, []]));
+  const neighbours = new Map<string, string[]>(ids.map((id) => [id, []]));
+  const indeg = new Map<string, number>(ids.map((id) => [id, 0]));
   for (const e of g.edges) {
     if (!known.has(e.from) || !known.has(e.to) || e.from === e.to) continue;
     out.get(e.from)!.push(e.to);
+    neighbours.get(e.from)!.push(e.to);
+    neighbours.get(e.to)!.push(e.from);
     indeg.set(e.to, indeg.get(e.to)! + 1);
+  }
+  // Depth first from the sources, then from what is left: edges back to a node still being visited are loops.
+  const state = new Map<string, 1 | 2>();
+  const back = new Set<string>();
+  const post: string[] = [];
+  const visit = (u: string) => {
+    state.set(u, 1);
+    for (const v of out.get(u)!) {
+      if (state.get(v) === 1) back.add(`${u}\u0000${v}`);
+      else if (!state.has(v)) visit(v);
+    }
+    state.set(u, 2);
+    post.push(u);
+  };
+  for (const id of ids) if (indeg.get(id) === 0 && !state.has(id)) visit(id);
+  for (const id of ids) if (!state.has(id)) visit(id);
+  const layer = new Map<string, number>(ids.map((id) => [id, 0]));
+  for (const u of [...post].reverse()) {
+    for (const v of out.get(u)!) if (!back.has(`${u}\u0000${v}`)) layer.set(v, Math.max(layer.get(v)!, layer.get(u)! + 1));
   }
   const order: string[] = [];
   const seen = new Set<string>();
-  const walk = (start: string) => {
-    const queue = [start];
-    seen.add(start);
-    while (queue.length) {
-      const id = queue.shift()!;
-      order.push(id);
-      for (const next of out.get(id)!) {
-        if (!seen.has(next)) {
-          seen.add(next);
-          queue.push(next);
-        }
-      }
-    }
-  };
-  // Components in the order they first appear; each is walked from its sources (nodes nothing points to), else from its first node.
-  const neighbours = new Map<string, string[]>(ids.map((id) => [id, [...out.get(id)!]]));
-  for (const [from, tos] of out) for (const to of tos) neighbours.get(to)!.push(from);
   for (const id of ids) {
     if (seen.has(id)) continue;
     const component = new Set<string>([id]);
     for (const c of component) for (const n of neighbours.get(c)!) component.add(n);
-    const members = ids.filter((m) => component.has(m));
-    for (let left = members.filter((m) => !seen.has(m)); left.length; left = members.filter((m) => !seen.has(m))) {
-      walk(left.find((m) => indeg.get(m) === 0) ?? left[0]!);
-    }
+    for (const m of component) seen.add(m);
+    order.push(...[...component].sort((x, y) => layer.get(x)! - layer.get(y)! || index.get(x)! - index.get(y)!));
   }
   return order;
 }
@@ -256,6 +264,8 @@ export function graphToTikz(g: ImportGraph): Generated {
   const emptyGroups = kept.filter((k) => !k).length;
   if (emptyGroups) notes.push(`${emptyGroups === 1 ? "One empty group was" : `${emptyGroups} empty groups were`} left out.`);
   const anyGroup = kept.some(Boolean);
+  const depthOf = (i: number): number => 1 + (g.groups[i]!.parent === undefined ? 0 : depthOf(g.groups[i]!.parent!));
+  const depth = Math.max(0, ...g.groups.map((_, i) => (kept[i] ? depthOf(i) : 0)));
   if (anyGroup) {
     libs.add("fit");
     libs.add("backgrounds");
@@ -299,7 +309,7 @@ export function graphToTikz(g: ImportGraph): Generated {
   lines.push("}");
   lines.push("");
   lines.push("\\begin{document}");
-  lines.push(`\\begin{tikzpicture}[node distance=${NODE_DISTANCE}]`);
+  lines.push(`\\begin{tikzpicture}[node distance=${distanceFor(depth)}]`);
 
   // ---- nodes
   const nodeStatement = (n: ImportNode, i: number): string => {
@@ -376,7 +386,7 @@ export function graphToTikz(g: ImportGraph): Generated {
     const grp = g.groups[i]!;
     const members = [...(nodesIn.get(i) ?? []).map((id) => names.get(id)!), ...(children.get(i) ?? []).filter((c) => kept[c]).map(groupName)];
     const items = ["group", `fit=${members.map((m) => `(${m})`).join(" ")}`];
-    if ((children.get(i) ?? []).some((c) => kept[c])) items.splice(1, 0, "inner sep=8mm");
+    if ((children.get(i) ?? []).some((c) => kept[c])) items.splice(1, 0, "inner sep=6mm");
     items.push(...lookItems(grp.look).filter((x) => x !== "dashed"));
     if (grp.title) items.push(`label={[group title]north:${texText(grp.title)}}`);
     groupLines.push(`    \\node[${items.join(", ")}] (${groupName(i)}) {};`);

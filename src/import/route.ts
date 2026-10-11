@@ -15,7 +15,7 @@ const DEG = 180 / Math.PI;
 /** TikZ's control distance for looseness 1, as a share of the distance between the ends (tikzlibrarytopaths). */
 const SPAN = 0.3915;
 /** Bend angles tried, smallest first. */
-const ANGLES = [30, 45, 60, 75];
+const ANGLES = [30, 45, 60, 75, 90];
 /** A node counts as in the way when the line comes this close to its box, in pt (shrinks the box). */
 const MARGIN = 1;
 

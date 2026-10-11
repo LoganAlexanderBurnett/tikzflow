@@ -17,7 +17,7 @@ import { evalLength, PT_PER_UNIT } from "../tikz/units.ts";
 import { applyChanges, type Change, composeChanges } from "./changes.ts";
 import { type ChainConversion, conversionMessage, planChainConversion } from "./chains.ts";
 import { groupMembers, movingWith } from "./group.ts";
-import { laneSets, laneUpkeep } from "./lanes.ts";
+import { fitBoxes, laneSets, laneUpkeep } from "./lanes.ts";
 import { withLibraries } from "./libraries.ts";
 import { ALIGN_EPS, formatDistance, planMove, type PositionSpec, positioningText, specChanges } from "./move.ts";
 import { removeItems } from "./optionEdits.ts";
@@ -45,6 +45,12 @@ export interface AutoLayoutOptions {
   direction: LayoutDirection;
   /** The selection: with two or more nodes, only they are laid out (D77 item 2). */
   ids?: readonly string[];
+  /**
+   * Keep the nodes of each group (a `fit` node that isn't a lane) together, groups inside groups
+   * included, so a group's box doesn't run over other nodes (D84). Off by default: a picture laid out
+   * before keeps the layout it had. The importer turns it on. Ignored when the picture has lanes.
+   */
+  groups?: boolean;
 }
 
 export type AutoLayoutResult =
@@ -154,8 +160,91 @@ export function laneOrder(text: string, layout: PictureLayout, members: readonly
   return { index, along: (set.orientation === "columns") === (direction === "down") };
 }
 
+/** Room a group's box takes around what it holds: its inner sep and border, and a title above. */
+const GROUP_PAD = 4 * MM;
+const TITLE_PAD = 5 * MM;
+
+/** The groups to keep together (D84): each fit node with the nodes and fit nodes it lists, and what each member sits in. */
+export interface GroupTree {
+  /** Group (fit node) ids, outermost first. */
+  order: string[];
+  /** Ids of what a group lists directly: laid-out nodes and other groups. */
+  children: Map<string, string[]>;
+  /** The group directly around a node or group. */
+  parent: Map<string, string>;
+  /** Whether a group has a title above it. */
+  titled: Set<string>;
+  /** How far each group's box reaches past what it holds (its inner sep and border), in pt. */
+  pad: Map<string, number>;
+}
+
+/**
+ * The groups of the picture as a tree, for the layout: a fit node counts when
+ * every node it holds is laid out. A node listed by several groups sits in the
+ * smallest; a group that only partly overlaps another is left out.
+ */
+export function groupTree(text: string, layout: PictureLayout, members: readonly LaidOutNode[]): GroupTree | null {
+  const inScope = new Set(members.map((n) => n.id));
+  const boxes = fitBoxes(text, layout).filter((b) => b.members.length > 0);
+  const byId = new Map(boxes.map((b) => [b.node.id, b]));
+  // The laid-out nodes under a group, nested groups included.
+  const leaves = (id: string, seen = new Set<string>()): string[] | null => {
+    if (seen.has(id)) return null;
+    seen.add(id);
+    const box = byId.get(id);
+    if (!box) return inScope.has(id) ? [id] : null;
+    const out: string[] = [];
+    for (const m of box.members) {
+      const l = leaves(m, seen);
+      if (!l) return null;
+      out.push(...l);
+    }
+    return out;
+  };
+  const sizes = new Map<string, number>();
+  const eligible: string[] = [];
+  for (const b of boxes) {
+    const l = leaves(b.node.id);
+    if (l && l.length) {
+      sizes.set(b.node.id, l.length);
+      eligible.push(b.node.id);
+    }
+  }
+  if (!eligible.length) return null;
+  // Each member goes to the smallest group that lists it.
+  const parent = new Map<string, string>();
+  for (const id of eligible) {
+    for (const m of byId.get(id)!.members) {
+      if (!inScope.has(m) && !sizes.has(m)) continue;
+      const was = parent.get(m);
+      if (!was || sizes.get(id)! < sizes.get(was)!) parent.set(m, id);
+    }
+  }
+  const children = new Map<string, string[]>(eligible.map((id) => [id, []]));
+  for (const [m, p] of parent) children.get(p)!.push(m);
+  // A group that lost all its members to smaller ones, or is nested in itself, is dropped.
+  const usable = eligible.filter((id) => children.get(id)!.length > 0);
+  const keep = new Set(usable);
+  for (const [m, p] of [...parent]) if (!keep.has(p) || (sizes.has(m) && !keep.has(m))) parent.delete(m);
+  for (const id of usable) children.set(id, children.get(id)!.filter((m) => parent.get(m) === id));
+  const depth = (id: string): number => (parent.has(id) ? 1 + depth(parent.get(id)!) : 0);
+  const order = usable.filter((id) => children.get(id)!.length).sort((a, b) => depth(a) - depth(b));
+  if (!order.length) return null;
+  const titled = new Set(order.filter((id) => byId.get(id)!.title));
+  // The box's own margin round its members, as drawn now: it doesn't depend on where they are.
+  const nodeById = new Map(layout.nodes.map((n) => [n.id, n]));
+  const pad = new Map<string, number>();
+  for (const id of order) {
+    const box = shapeBounds(nodeById.get(id)!.shape);
+    const held = children.get(id)!.flatMap((m) => nodeById.get(m) ?? []).map((n) => shapeBounds(n.shape));
+    const margin = held.length ? Math.min(box.minX < Infinity ? Math.min(...held.map((b) => b.minX)) - box.minX : 0, box.maxX - Math.max(...held.map((b) => b.maxX)), box.maxY - Math.max(...held.map((b) => b.maxY)), Math.min(...held.map((b) => b.minY)) - box.minY) : 0;
+    pad.set(id, Math.max(GROUP_PAD, margin));
+  }
+  return { order, children, parent, titled, pad };
+}
+
 /** The graph for ELK: the members with their outer sizes, and the edges between them. */
-export function elkGraph(layout: PictureLayout, members: readonly LaidOutNode[], direction: LayoutDirection, lanes: LaneOrder | null = null): ElkNode {
+export function elkGraph(layout: PictureLayout, members: readonly LaidOutNode[], direction: LayoutDirection, lanes: LaneOrder | null = null, groups: GroupTree | null = null): ElkNode {
   const set = new Set(members.map((n) => n.id));
   const size = (n: LaidOutNode) => {
     const b = shapeBounds(n.shape);
@@ -209,9 +298,10 @@ export function elkGraph(layout: PictureLayout, members: readonly LaidOutNode[],
       "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
       "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
       "elk.separateConnectedComponents": "false",
+      ...(groups ? { "elk.hierarchyHandling": "INCLUDE_CHILDREN" } : {}),
       ...(partitions ? { "elk.partitioning.activate": "true" } : {}),
     },
-    children: members.map((n) => ({
+    children: groups ? groupChildren(members, size, groups) : members.map((n) => ({
       id: n.id,
       width: size(n).w,
       height: size(n).h,
@@ -219,6 +309,24 @@ export function elkGraph(layout: PictureLayout, members: readonly LaidOutNode[],
     })),
     edges,
   };
+}
+
+/** ELK's hierarchy for groups: each group is a node holding its members, so its nodes stay together. */
+function groupChildren(members: readonly LaidOutNode[], size: (n: LaidOutNode) => { w: number; h: number }, groups: GroupTree): ElkNode[] {
+  const leaf = new Map(members.map((n) => [n.id, n]));
+  const build = (id: string): ElkNode => {
+    const n = leaf.get(id);
+    if (n) return { id, width: size(n).w, height: size(n).h };
+    const pad = groups.pad.get(id) ?? GROUP_PAD;
+    const top = r2(pad + (groups.titled.has(id) ? TITLE_PAD : 0));
+    return {
+      id,
+      layoutOptions: { "elk.padding": `[top=${top},left=${r2(pad)},bottom=${r2(pad)},right=${r2(pad)}]` },
+      children: (groups.children.get(id) ?? []).map(build),
+    };
+  };
+  const roots = [...members.map((n) => n.id), ...groups.order].filter((id) => !groups.parent.has(id));
+  return roots.map(build);
 }
 
 type ElkLayout = (graph: ElkNode) => Promise<ElkNode>;
@@ -238,7 +346,16 @@ function loadElk(): Promise<ElkLayout> {
 export async function elkCenters(graph: ElkNode): Promise<Map<string, Point>> {
   const out = await (await loadElk())(graph);
   const centers = new Map<string, Point>();
-  for (const c of out.children ?? []) centers.set(c.id, { x: (c.x ?? 0) + (c.width ?? 0) / 2, y: -((c.y ?? 0) + (c.height ?? 0) / 2) });
+  // Nodes in groups are placed relative to their group's corner.
+  const visit = (nodes: readonly ElkNode[], ox: number, oy: number) => {
+    for (const c of nodes) {
+      const x = ox + (c.x ?? 0);
+      const y = oy + (c.y ?? 0);
+      if (c.children?.length) visit(c.children, x, y);
+      else centers.set(c.id, { x: x + (c.width ?? 0) / 2, y: -(y + (c.height ?? 0) / 2) });
+    }
+  };
+  visit(out.children ?? [], 0, 0);
   return centers;
 }
 
@@ -957,7 +1074,8 @@ export async function planAutoLayout(text: string, picIndex: number, options: Au
   const { members } = layoutScope(start, ids);
   if (members.length < 2) return { ok: false, reason: "There are fewer than two nodes that can be moved, so there is nothing to lay out." };
   const lanes = laneOrder(base, start, members, options.direction);
-  const raw = await elkCenters(elkGraph(start, members, options.direction, lanes));
+  const groups = options.groups && !lanes ? groupTree(base, start, members) : null;
+  const raw = await elkCenters(elkGraph(start, members, options.direction, lanes, groups));
   const centers = lanes?.along && members.every((n) => raw.has(n.id)) ? laneColumns(members, raw, options.direction, lanes) : raw;
   if (members.some((n) => !centers.has(n.id))) return { ok: false, reason: "The layout engine left out some nodes, so nothing was changed." };
   // A second pass lines nodes up with the ones the first placed after them in the code.

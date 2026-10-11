@@ -68,7 +68,7 @@ export async function importDiagram(src: string, options: ImportOptions = {}): P
     let text = out.text;
     let laidOut = false;
     if (graph.nodes.length >= 2) {
-      const r = await planAutoLayout(text, 0, { direction });
+      const r = await planAutoLayout(text, 0, { direction, groups: true });
       if (r.ok) {
         text = r.text;
         laidOut = true;
