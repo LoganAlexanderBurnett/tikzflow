@@ -43,6 +43,31 @@ export interface NodeShape {
   /** For tape and cylinder: extra outline detail. */
   detail?: number;
   vertical?: boolean;
+  /**
+   * Degrees the node is turned counterclockwise about its centre (its own rotate, or the picture's
+   * with transform shape, D87). Everything else here is in the node's own, unturned frame.
+   */
+  rotate?: number;
+}
+
+/** `p` turned `deg` degrees counterclockwise about the origin. */
+export function turn(p: Point, deg: number): Point {
+  const r = (deg * Math.PI) / 180;
+  const c = Math.cos(r);
+  const s = Math.sin(r);
+  return { x: p.x * c - p.y * s, y: p.x * s + p.y * c };
+}
+
+/** The shape unturned, centred on the origin: where the turned shape's geometry is worked out. */
+function unturned(sh: NodeShape): NodeShape {
+  const { rotate: _, ...rest } = sh;
+  return { ...rest, center: { x: 0, y: 0 } };
+}
+
+/** A point of the unturned shape at the origin, turned and moved onto the shape's centre. */
+function placed(sh: NodeShape, p: Point): Point {
+  const q = turn(p, sh.rotate!);
+  return { x: sh.center.x + q.x, y: sh.center.y + q.y };
 }
 
 /** Shapes drawn natively. Others fall back to a rectangle. */
@@ -163,6 +188,10 @@ function outerPolygon(sh: NodeShape): Point[] {
 
 /** Where a ray from the centre in direction (dx, dy) meets the outer border. */
 export function borderInDirection(sh: NodeShape, dx: number, dy: number): Point {
+  if (sh.rotate) {
+    const d = turn({ x: dx, y: dy }, -sh.rotate);
+    return placed(sh, borderInDirection(unturned(sh), d.x, d.y));
+  }
   const c = sh.center;
   const len = Math.hypot(dx, dy);
   if (len < 1e-9 || (sh.hw === 0 && sh.hh === 0)) return { ...c };
@@ -240,6 +269,10 @@ const COMPASS: Record<string, [number, number]> = {
 
 /** A named or numeric anchor, or null if the shape doesn't have it. */
 export function anchorPoint(sh: NodeShape, name: string): Point | null {
+  if (sh.rotate) {
+    const p = anchorPoint(unturned(sh), name);
+    return p && placed(sh, p);
+  }
   const c = sh.center;
   const a = sh.hw + sh.outerX;
   const b = sh.hh + sh.outerY;
@@ -383,6 +416,14 @@ export function roundedPolygon(pts: Point[], r: number, f: (v: number) => number
 
 /** The axis-aligned bounding box including outer sep. */
 export function shapeBounds(sh: NodeShape): { minX: number; minY: number; maxX: number; maxY: number } {
+  if (sh.rotate) {
+    const a = sh.hw + sh.outerX;
+    const b = sh.hh + sh.outerY;
+    // A circle looks the same turned; anything else: the box round its turned corners.
+    if (sh.kind === "circle") return { minX: sh.center.x - a, maxX: sh.center.x + a, minY: sh.center.y - a, maxY: sh.center.y + a };
+    const pts = [{ x: a, y: b }, { x: -a, y: b }, { x: a, y: -b }, { x: -a, y: -b }].map((p) => placed(sh, p));
+    return { minX: Math.min(...pts.map((p) => p.x)), maxX: Math.max(...pts.map((p) => p.x)), minY: Math.min(...pts.map((p) => p.y)), maxY: Math.max(...pts.map((p) => p.y)) };
+  }
   return {
     minX: sh.center.x - sh.hw - sh.outerX,
     maxX: sh.center.x + sh.hw + sh.outerX,

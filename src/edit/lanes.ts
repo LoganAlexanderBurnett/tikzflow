@@ -494,8 +494,13 @@ function fitText(members: readonly string[], extra: readonly string[] = []): str
   return [...members.map((m) => `(${m})`), ...extra].join(" ");
 }
 
+/**
+ * A title as a `label=`. Row lanes' titles stand on the lane's left side, turned to read upwards,
+ * as in BPMN (D83 item 1, D87): `rotate=90, anchor=south` puts the turned label's foot against the lane.
+ */
 function titleItem(styleName: string, dir: string, title: string, styled: boolean): string {
-  return `label={${styled ? `[${styleName}]` : ""}${dir}:${title}}`;
+  const opts = [...(styled ? [styleName] : []), ...(dir === "west" ? ["rotate=90", "anchor=south"] : [])];
+  return `label={${opts.length ? `[${opts.join(", ")}]` : ""}${dir}:${title}}`;
 }
 
 /**

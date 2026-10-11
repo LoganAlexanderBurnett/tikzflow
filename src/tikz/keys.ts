@@ -829,7 +829,6 @@ export function applyKey(s: State, kv: KeyValue, ctx: KeyContext, depth = 0): vo
       if (n === null) return unknown();
       const r = (n * Math.PI) / 180;
       s.matrix = multiply(s.matrix, [Math.cos(r), Math.sin(r), -Math.sin(r), Math.cos(r), 0, 0]);
-      s.unrendered.push("rotate");
       return;
     }
     case "x":

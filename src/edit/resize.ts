@@ -56,6 +56,7 @@ export function resizeBlocker(node: LaidOutNode): string | null {
   if (node.kind !== "statement") return "Only nodes can be resized.";
   if (node.lock?.kind === "fit") return "This node's size follows the nodes it fits.";
   if (node.vectorScale !== 1) return "This node is scaled with transform shape; change its size in the code.";
+  if (node.shape.rotate) return "This node is turned (rotate), so its size is changed in the code or in the properties panel.";
   if (node.unrendered.some((u) => /^the .* shape \(drawn as/.test(u))) return "The preview draws this shape approximately, so its size can't be dragged. Change it in the code.";
   return null;
 }

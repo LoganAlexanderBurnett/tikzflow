@@ -474,6 +474,18 @@ function foldShift(st: State) {
   st.yshift = 0;
 }
 
+/** The angle a transformation turns the x axis by, in degrees. */
+function angleOf(m: Matrix): number {
+  return (Math.atan2(m[1], m[0]) * 180) / Math.PI;
+}
+
+/** An angle in (-180, 180], with angles within a millionth of a degree of 0 as 0. */
+function normalizeDegrees(a: number): number {
+  let d = ((a % 360) + 540) % 360 - 180;
+  if (d === -180) d = 180;
+  return Math.abs(d) < 1e-6 ? 0 : d;
+}
+
 function nextId(ctx: Ctx, name: string | undefined): string {
   if (!name) return `#${++ctx.unnamed}`;
   const n = (ctx.ids.get(name) ?? 0) + 1;
@@ -534,6 +546,9 @@ function layoutNode(
   pathPos?: { point: Point; angle: number },
 ): LaidOutNode | null {
   const st = itemCopy(pathState ?? scope.state);
+  // The transformation before the node's own options: its at point is read in it, and what the
+  // options add turns the node itself (D87).
+  const outer = st.matrix;
   const styles = scope.styles.child();
   const kc = keyCtx(ctx, styles);
   if (kind === "coordinate") st.shape = "coordinate";
@@ -648,6 +663,10 @@ function layoutNode(
     shapeBorderRotate: st.shapeBorderRotate,
   };
   const shape0 = makeShape(shapeParams, { x: 0, y: 0 });
+  // A node is turned by the rotation its own options add, or with transform shape by the whole
+  // picture's (checked against pdfTeX: spike/engines/probes/p10-rotated-nodes.tex, D87).
+  const turned = kind === "coordinate" ? 0 : normalizeDegrees(angleOf(st.matrix) - (st.transformShape ? 0 : angleOf(outer)));
+  if (turned && kind === "statement") shape0.rotate = turned;
   const natural = makeShape({ ...shapeParams, minWidth: 0, minHeight: 0 }, { x: 0, y: 0 });
   const sizing: Sizing = {
     natural: { w: 2 * natural.hw, h: 2 * natural.hh },
@@ -671,7 +690,9 @@ function layoutNode(
   const atText = syn.at?.coord.text ?? st.at;
   if (atText !== undefined) {
     posKind = "at";
-    const r = syn.at ? evalCoordText(atText, coordEnv(ctx, st)) : evalLoose(atText, ctx, st);
+    // Read without the node's own turning (a node's rotate turns it about its at point).
+    const atState = turned && !st.transformShape ? { ...st, matrix: [outer[0], outer[1], outer[2], outer[3], st.matrix[4], st.matrix[5]] as Matrix } : st;
+    const r = syn.at ? evalCoordText(atText, coordEnv(ctx, atState)) : evalLoose(atText, ctx, atState);
     refs.push(...r.refs);
     if (r.ok) at = r.point;
     else lockCoord(r);
@@ -817,7 +838,7 @@ function layoutNode(
     if (a > 90) a -= 180;
     if (a < -90) a += 180;
     node.rotate = a;
-  }
+  } else if (turned) node.rotate = turned;
 
   // "label=" and "pin=" extras.
   for (const spec of st.labels) {
@@ -915,10 +936,14 @@ function labelNode(spec: string, owner: LaidOutNode, scope: Scope, ctx: Ctx): La
     s = s.slice(colon + 1);
   }
   const st = itemCopy(scope.state);
+  const outer = st.matrix;
   const styles = scope.styles.child();
   const kc = keyCtx(ctx, styles);
   applyStyle(st, "every label", kc);
-  applyKeys(st, parseOptionString(opts), kc);
+  const parsed = parseOptionString(opts);
+  applyKeys(st, parsed, kc);
+  // A label's own rotate turns it about the point it is attached by (row lanes' titles, D87).
+  const turned = normalizeDegrees(angleOf(st.matrix) - angleOf(outer));
   const text = layoutLabel(s.trim(), { font: st.font, color: st.textColor ?? st.color }, ctx.labelEnv);
   const angleAnchor: Record<string, number> = { right: 0, "above right": 45, above: 90, "above left": 135, left: 180, "below left": 225, below: 270, "below right": 315 };
   let angle = /^-?\d+(\.\d+)?$/.test(dir) ? parseFloat(dir) : angleAnchor[dir];
@@ -950,9 +975,12 @@ function labelNode(spec: string, owner: LaidOutNode, scope: Scope, ctx: Ctx): La
     { x: 0, y: 0 },
   );
   // The label's anchor faces the node: the compass anchor opposite its direction, in 45-degree
-  // sectors ("30:x" puts the label's south west corner on the border; checked against pdfTeX, D81).
+  // sectors ("30:x" puts the label's south west corner on the border; checked against pdfTeX, D81),
+  // unless the label's options give one.
+  if (turned) shape0.rotate = turned;
   const sector = ((Math.round(angle / 45) % 8) + 8) % 8;
-  const edge = anchorOffset(shape0, OPPOSITE_COMPASS[sector]!) ?? { x: 0, y: 0 };
+  const own = parsed.some((kv) => kv.key === "anchor") ? st.anchor : undefined;
+  const edge = anchorOffset(shape0, own ?? OPPOSITE_COMPASS[sector]!) ?? { x: 0, y: 0 };
   const center = { x: attach.x - edge.x, y: attach.y - edge.y };
   const extra: LaidOutNode = {
     id: `${owner.id}/label`,
@@ -980,6 +1008,7 @@ function labelNode(spec: string, owner: LaidOutNode, scope: Scope, ctx: Ctx): La
     layer: owner.layer,
     sizing: { natural: { w: 2 * shape0.hw, h: 2 * shape0.hh }, min: { w: 0, h: 0 }, minContent: () => 0 },
   };
+  if (turned) extra.rotate = turned;
   // "label={[name=t]north:…}" names the label node, so the fidelity check can ask TeX about it.
   if (st.name) extra.name = st.name;
   return extra;

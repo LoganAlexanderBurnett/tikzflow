@@ -152,12 +152,12 @@ describe("making lanes and groups", () => {
     expect(laneSets(text, l)[0]!.lanes.map((x) => x.node.name)).toEqual(["customer", "shop"]);
   });
 
-  it("makes rows, titled on the left, in a picture that runs across", () => {
+  it("makes rows, titled on the left and turned to read upwards, in a picture that runs across", () => {
     const across = doc("  \\node[box] (a) {A};\n  \\node[box, right=of a] (b) {B};\n  \\node[box, below=of a] (c) {C};\n  \\draw[->] (a) -- (b);");
     const one = applied(across, planLane(across, 0, ["a", "b"], "Top"));
     const two = applied(one, planLane(one, 0, ["c"], "Bottom"));
     expect(two).toContain("\\coordinate (lanes left) at (a.west);");
-    expect(two).toContain("\\node[lane, fit=(c) (c -| lanes left) (c -| lanes right), label={[lane title]west:Bottom}] (bottom) {};");
+    expect(two).toContain("\\node[lane, fit=(c) (c -| lanes left) (c -| lanes right), label={[lane title, rotate=90, anchor=south]west:Bottom}] (bottom) {};");
     expectEven(two);
     expect(laneSets(two, layoutOf(two))[0]!.orientation).toBe("rows");
   });

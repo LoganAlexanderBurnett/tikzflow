@@ -431,7 +431,7 @@ const gradId = (id: string) => `sh-${id.replace(/[^A-Za-z0-9_-]/g, "_")}`;
 // The components below are memoised on what they draw: while dragging, only
 // the moved node and the paths touching it change.
 const nodeSig = (n: LaidOutNode) =>
-  [n.id, n.shape.kind, n.shape.center.x, n.shape.center.y, n.shape.hw, n.shape.hh, n.shape.roundedCorners, n.stroke, n.fill, n.lineWidth, n.dash, n.opacity, n.fillOpacity, n.shadow, n.locked, n.shading && JSON.stringify(n.shading)].join("|");
+  [n.id, n.shape.kind, n.shape.center.x, n.shape.center.y, n.shape.hw, n.shape.hh, n.shape.rotate, n.shape.roundedCorners, n.stroke, n.fill, n.lineWidth, n.dash, n.opacity, n.fillOpacity, n.shadow, n.locked, n.shading && JSON.stringify(n.shading)].join("|");
 
 const NodeShape = memo(NodeShapeView, (a, b) => a.scale === b.scale && a.selected === b.selected && nodeSig(a.n) === nodeSig(b.n));
 
@@ -441,8 +441,11 @@ function NodeShapeView({ n, scale, selected }: { n: LaidOutNode; scale: number; 
   const d = outline(n.shape);
   const minStroke = 0.6 / scale;
   const fill = n.shading ? `url(#${gradId(n.id)})` : rgba(n.fill, "transparent");
+  // A turned node (D87): its outline is drawn unturned and turned about its centre, as its text is.
+  // Outlines are drawn y up (the text y down), so the turn is counterclockwise there.
+  const turn = n.shape.rotate ? `rotate(${n.shape.rotate} ${f(n.shape.center.x)} ${f(n.shape.center.y)})` : undefined;
   return (
-    <g data-node={n.id} class={`tf-node${n.locked ? " locked" : ""}${selected ? " selected" : ""}`}>
+    <g data-node={n.id} class={`tf-node${n.locked ? " locked" : ""}${selected ? " selected" : ""}`} transform={turn}>
       {n.shadow && d && <path d={d} transform="translate(2.5 -2.5)" fill="#000" opacity={0.35} />}
       {d && (
         <path
