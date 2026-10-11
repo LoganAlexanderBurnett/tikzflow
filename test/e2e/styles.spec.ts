@@ -100,7 +100,7 @@ test("a name that is already taken is refused", async ({ page }) => {
   );
   const rep = page.getByTestId("repeat");
   await rep.getByLabel("Name for the new style").fill("draw");
-  await expect(rep).toContainText("shadow");
+  await expect(rep).toContainText("would replace it");
   await expect(rep.getByRole("button", { name: "Factor out" })).toBeDisabled();
 });
 

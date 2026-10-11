@@ -1,5 +1,5 @@
 // Milestone 2b step 8 (D55): the edge properties panel's edits: arrow
-// direction and tips, dashes, colour and line width, for one edge or its style.
+// direction and tips, dashes, color and line width, for one edge or its style.
 import { describe, expect, it } from "vitest";
 import { applyChanges } from "../src/edit/changes.ts";
 import { arrowText, type EdgeEdit, type EdgeScope, planEdgeProperty, readEdgeProps } from "../src/edit/edgeprops.ts";
@@ -38,7 +38,7 @@ describe("arrow text", () => {
 });
 
 describe("reading", () => {
-  it("reads arrow, dash, colour and width through styles", () => {
+  it("reads arrow, dash, color and width through styles", () => {
     const text = pic("\\draw[flow, red] (a) -- (b);", "").replace("\\node[draw] (a)", "\\tikzset{flow/.style={<->, dashed, thick}}\n\\node[draw] (a)");
     const p = props(text);
     expect(p).toMatchObject({ direction: "both", tip: "default", arrowVia: "flow", dash: "dashed", dashVia: "flow", color: "red", width: "thick", widthVia: "flow" });
@@ -110,7 +110,7 @@ describe("dashes", () => {
   });
 });
 
-describe("colour", () => {
+describe("color", () => {
   it("keeps the form the edge uses", () => {
     expect(lines(run(pic("\\draw[red, ->] (a) -- (b);"), { kind: "color", value: "blue!60" }).text)).toEqual(["\\draw[blue!60, ->] (a) -- (b);"]);
     expect(lines(run(pic("\\draw[draw=red, ->] (a) -- (b);"), { kind: "color", value: "teal" }).text)).toEqual(["\\draw[draw=teal, ->] (a) -- (b);"]);
@@ -119,7 +119,7 @@ describe("colour", () => {
     expect(lines(run(pic("\\draw (a) -- (b);"), { kind: "color", value: "{rgb,255:red,10;green,20;blue,30}" }).text)).toEqual(["\\draw[draw={rgb,255:red,10;green,20;blue,30}] (a) -- (b);"]);
   });
 
-  it("drops the edge's own colour", () => {
+  it("drops the edge's own color", () => {
     expect(lines(run(pic("\\draw[red, ->] (a) -- (b);"), { kind: "color", value: null }).text)).toEqual(["\\draw[->] (a) -- (b);"]);
     expect(lines(run(pic("\\draw[draw=red] (a) -- (b);"), { kind: "color", value: null }).text)).toEqual(["\\draw (a) -- (b);"]);
   });

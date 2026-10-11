@@ -15,7 +15,7 @@ function lineEnd(text: string, pos: number): number {
 }
 
 /**
- * Removes `remove` from `list`. Each item goes with one neighbouring comma.
+ * Removes `remove` from `list`. Each item goes with one neighboring comma.
  * If an item was alone on its line, the whole line goes. If every item goes,
  * the list's brackets go too.
  */

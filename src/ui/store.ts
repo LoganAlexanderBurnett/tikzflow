@@ -50,7 +50,7 @@ export function selectionOf(hit: Hit | null): Selection {
 export const text = signal("");
 export const pictureIndex = signal(0);
 export const selection = signal<Selection>(null);
-/** Node centres pinned while dragging. */
+/** Node centers pinned while dragging. */
 export const overrides = signal<ReadonlyMap<string, Point>>(new Map());
 export const guides = signal<{ lines: Guide[]; gaps: GapMark[] }>({ lines: [], gaps: [] });
 export const fileName = signal<string | null>(null);
@@ -482,7 +482,7 @@ export function progressText(p: LayoutProgress): string {
  * Auto-layout (D80): the whole picture, or the selection when two or more
  * nodes are selected, as one undoable step. It runs in the layout worker
  * (D87), so the page stays responsive; nothing is written if the code changed
- * meanwhile, or if it was cancelled.
+ * meanwhile, or if it was canceled.
  */
 export async function autoLayout(direction: LayoutDirection): Promise<boolean> {
   const before = text.value;
@@ -506,7 +506,7 @@ export async function autoLayout(direction: LayoutDirection): Promise<boolean> {
     fitRequests.value++;
     return true;
   } catch (e) {
-    status.value = e instanceof LayoutCancelled ? "Layout cancelled; nothing was changed." : `The layout engine failed: ${e instanceof Error ? e.message : String(e)}. Nothing was changed.`;
+    status.value = e instanceof LayoutCancelled ? "Layout canceled; nothing was changed." : `The layout engine failed: ${e instanceof Error ? e.message : String(e)}. Nothing was changed.`;
     return false;
   } finally {
     layoutBusy.value = false;
@@ -764,7 +764,7 @@ export const activeEntry = computed<PaletteEntry | null>(() => {
 export const revealRequest = signal<{ center: Point; hw: number; hh: number; seq: number } | null>(null);
 let revealSeq = 0;
 
-/** Where the canvas is centred, set by the canvas. */
+/** Where the canvas is centered, set by the canvas. */
 export const viewCentre: { get: () => Point } = { get: () => ({ x: 0, y: 0 }) };
 
 /**
@@ -1064,7 +1064,7 @@ export function splitEdge(edgeId: string): boolean {
 }
 
 /**
- * Applies an edge-properties edit (arrow, dash, colour, width) to the edge or
+ * Applies an edge-properties edit (arrow, dash, color, width) to the edge or
  * to a style it uses, as one undoable step. `extra` holds changes that go with
  * it, such as a new \definecolor. Returns false if it was refused.
  */

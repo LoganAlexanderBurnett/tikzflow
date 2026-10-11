@@ -1,11 +1,11 @@
-// Snapping while dragging: line centres up with other nodes and snap gaps to
+// Snapping while dragging: line centers up with other nodes and snap gaps to
 // the node distance, so drops land where a relational form describes them.
 import type { LaidOutNode, PictureLayout } from "../tikz/layout.ts";
 import type { Point } from "../tikz/shapes.ts";
 import { dependents } from "./move.ts";
 
 export interface Guide {
-  /** A vertical ("v", at x) or horizontal ("h", at y) alignment line, from one centre to the other. */
+  /** A vertical ("v", at x) or horizontal ("h", at y) alignment line, from one center to the other. */
   axis: "v" | "h";
   at: number;
   from: number;
@@ -38,7 +38,7 @@ function box(n: LaidOutNode, c: Point = n.shape.center): Box {
 }
 
 /**
- * Snaps a dragged node's centre. `threshold` is in pt (a few screen pixels).
+ * Snaps a dragged node's center. `threshold` is in pt (a few screen pixels).
  * Nodes that move along with the dragged one are not snap targets, nor are
  * those in `moving` (the rest of a group dragged with it).
  */
@@ -53,7 +53,7 @@ export function snapNode(layout: PictureLayout, node: LaidOutNode, raw: Point, t
   let alignX: Box | null = null;
   let alignY: Box | null = null;
 
-  // Centre alignment.
+  // Center alignment.
   for (const t of targets) {
     const dx = Math.abs(t.cx - raw.x);
     if (dx < bestX) {

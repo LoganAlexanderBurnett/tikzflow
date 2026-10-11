@@ -1,5 +1,5 @@
-// Milestone 2a step 3: the properties panel's edits. Colours, font and
-// alignment on nodes or on a style they share, and new named colours.
+// Milestone 2a step 3: the properties panel's edits. Colors, font and
+// alignment on nodes or on a style they share, and new named colors.
 import { describe, expect, it } from "vitest";
 import { applyChanges, diffRange } from "../src/edit/changes.ts";
 import {
@@ -92,7 +92,7 @@ describe("reading options", () => {
   });
 });
 
-describe("colour edits", () => {
+describe("color edits", () => {
   it("set a node's fill in place, changing only that value", () => {
     const r = edit(SAMPLE, nodes("read"), { kind: "color", key: "fill", value: "red!20" });
     expect(r.text).toContain("\\node[io, below=of start, fill=red!20]      (read)");
@@ -129,7 +129,7 @@ describe("colour edits", () => {
     expect(r.ok).toBe(false);
   });
 
-  it("raw colours are valid xcolor", () => {
+  it("raw colors are valid xcolor", () => {
     const value = rawColor([31, 119, 180]);
     expect(value).toBe("{rgb,255:red,31;green,119;blue,180}");
     expect(new ColorTable().parse(value.slice(1, -1))).toEqual([31 / 255, 119 / 255, 180 / 255]);
@@ -190,8 +190,8 @@ describe("alignment", () => {
   });
 });
 
-describe("named colours", () => {
-  it("lists the document's colours first", () => {
+describe("named colors", () => {
+  it("lists the document's colors first", () => {
     const doc = analyzeDocument(hybrid);
     const colors = documentColors(doc, doc.syntax.pictures[0]!);
     expect(colors.map((c) => c.name)).toEqual(["StateFill", "StateDraw", "ControlFill", "ControlDraw", "RhoFill", "RhoDraw", "KinFill", "KinDraw", "NeutFill", "NeutDraw"]);
@@ -202,12 +202,12 @@ describe("named colours", () => {
     const doc = analyzeDocument(hybrid);
     const pic = doc.syntax.pictures[0]!;
     expect(colorNameProblem(doc, pic, "Accent")).toBeNull();
-    expect(colorNameProblem(doc, pic, "StateFill")).toBe('"StateFill" is already a colour.');
-    expect(colorNameProblem(doc, pic, "red")).toBe('"red" is already a colour.');
-    expect(colorNameProblem(doc, pic, "my colour")).toMatch(/letters and digits/);
+    expect(colorNameProblem(doc, pic, "StateFill")).toBe('"StateFill" is already a color.');
+    expect(colorNameProblem(doc, pic, "red")).toBe('"red" is already a color.');
+    expect(colorNameProblem(doc, pic, "my color")).toMatch(/letters and digits/);
   });
 
-  it("adds a definition after the others, in their colour model", () => {
+  it("adds a definition after the others, in their color model", () => {
     const doc = analyzeDocument(hybrid);
     const c = addColorDefinition(doc, doc.syntax.pictures[0]!, "Accent", [31, 119, 180]);
     const out = applyChanges(hybrid, [c]);

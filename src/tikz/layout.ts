@@ -136,7 +136,7 @@ export interface RouteStop {
   /** The text between the parentheses, without comments. */
   text: string;
   relative?: "+" | "++";
-  /** The point the coordinate gives (a bare node name gives the node's centre). */
+  /** The point the coordinate gives (a bare node name gives the node's center). */
   point: Point;
   /** Id of the node or coordinate it names, bare or with an anchor. */
   node?: string;
@@ -304,7 +304,7 @@ function keyCtx(ctx: Ctx, styles: StyleTable) {
   return { styles, colors: ctx.env.colors, shapes: KNOWN_SHAPES };
 }
 
-/** Lays out a picture. `overrides` pins node centres (by id) while dragging. */
+/** Lays out a picture. `overrides` pins node centers (by id) while dragging. */
 export function layoutPicture(pic: PictureSyntax, env: LayoutEnv, overrides: ReadonlyMap<string, Point> = new Map()): PictureLayout {
   setPageLengths(env.page ?? null);
   const out: PictureLayout = {
@@ -749,7 +749,7 @@ function layoutNode(
         if (target.ok) {
           let base = target.point;
           if (target.node) {
-            // A bare node name: measure from its border, or its centre on grid.
+            // A bare node name: measure from its border, or its center on grid.
             base = grid ? target.node.shape.center : (anchorPoint(target.node.shape, OPPOSITE[positioningAnchor(placement.dir)] ?? "center") ?? base);
           }
           if (grid && anchor === positioningAnchor(placement.dir)) anchor = "center";
@@ -1060,7 +1060,7 @@ export function segPoint(seg: Segment, t: number): { point: Point; angle: number
 const f3 = (v: number) => Math.round(v * 1000) / 1000;
 const P = (p: Point) => `${f3(p.x)} ${f3(p.y)}`;
 
-/** Border point of `pp` towards `toward`, or the point itself when it isn't a bare node. */
+/** Border point of `pp` toward `toward`, or the point itself when it isn't a bare node. */
 function clip(pp: PathPoint, toward: Point): Point {
   if (!pp.node) return pp.point;
   if (pp.node.shape.kind === "coordinate") return pp.node.shape.center;
@@ -1082,7 +1082,7 @@ function toSegment(a: PathPoint, b: PathPoint, st: State): Segment {
   }
   const base = (Math.atan2(cb.y - ca.y, cb.x - ca.x) * 180) / Math.PI;
   // "bend left=30" is "out=30, in=150, relative". Relative angles are turned
-  // by the line between the centres to find the border points, and the
+  // by the line between the centers to find the border points, and the
   // control points are then measured from the line between those border
   // points (tikzlibrarytopaths, \tikz@to@compute@relative).
   const rel = st.toRelative ? { out: st.out ?? 0, in: st.in ?? 180 } : null;
@@ -1251,7 +1251,7 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint, 
       if (probe.autoLabels && !explicit && seg && pn.syn.kind !== "coordinate") {
         const right = (probe.autoLabels === "right") !== probe.swap;
         const normal = where.angle + (right ? -Math.PI / 2 : Math.PI / 2);
-        // The anchor faces back towards the path. TikZ takes the corner (`south east`) unless the
+        // The anchor faces back toward the path. TikZ takes the corner (`south east`) unless the
         // line is level or upright to within about 3°, where it takes the side (probe p7).
         const side = (v: number, lo: string, hi: string) => (Math.abs(v) < AUTO_AXIS_EPS ? "" : v < 0 ? lo : hi);
         const ns = side(-Math.sin(normal), "south", "north");

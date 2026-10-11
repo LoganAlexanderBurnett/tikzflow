@@ -30,7 +30,7 @@ const FLOW = [
   "",
 ].join("\n");
 
-async function centre(page: Page, selector: string) {
+async function center(page: Page, selector: string) {
   const b = (await page.locator(selector).boundingBox())!;
   return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
 }
@@ -62,8 +62,8 @@ test("lanes from the selection, a node dropped into another lane, a title, one u
   await expect(page.locator('g[data-node="shop"]')).toBeAttached();
 
   // Drag b into the Shop lane, under d.
-  const from = await centre(page, 'g[data-node="b"]');
-  const d = await centre(page, 'g[data-node="d"]');
+  const from = await center(page, 'g[data-node="b"]');
+  const d = await center(page, 'g[data-node="d"]');
   await page.mouse.move(from.x, from.y);
   await page.mouse.down();
   await page.mouse.move(from.x + 20, from.y + 10, { steps: 3 });

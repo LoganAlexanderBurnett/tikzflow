@@ -8,7 +8,7 @@ import { analyzeDocument, layoutDocumentPicture } from "../src/model/document.ts
 import { SAMPLE } from "../src/ui/sample.ts";
 import { loadCorpusFile } from "./corpus.ts";
 
-/** Pairs of nodes whose centres coincide. */
+/** Pairs of nodes whose centers coincide. */
 function stacked(text: string, pic = 0): string[] {
   const l = layoutDocumentPicture(analyzeDocument(text), pic)!;
   const out: string[] = [];

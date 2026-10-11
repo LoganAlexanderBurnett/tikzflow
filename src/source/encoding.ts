@@ -3,7 +3,7 @@
 // The editor works on JavaScript strings (UTF-16 code units), so loading must
 // map bytes to text in a way that saving can reverse exactly:
 // - A byte-order mark stays in the text as U+FEFF, so it is written back.
-// - UTF-16 files are recognised by their byte-order mark.
+// - UTF-16 files are recognized by their byte-order mark.
 // - Bytes that aren't valid UTF-8 are read as ISO-8859-1, which maps every
 //   byte to one character, so even unknown 8-bit encodings round-trip.
 

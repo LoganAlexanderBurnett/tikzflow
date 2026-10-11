@@ -108,7 +108,7 @@ describe("sliding a segment", () => {
     expect(drawLine(r.text)).toBe("\\draw[->] (a) -- ++(0,-1.5) -| (b);");
   });
 
-  it("drops corners that end up in line: sliding onto b's centre line leaves one corner", () => {
+  it("drops corners that end up in line: sliding onto b's center line leaves one corner", () => {
     const text = pic("\\draw (a) -- ++(0,-1) -| (b);");
     const e = firstEdge(text);
     const r = ok(planSlide(text, 0, e.id, 1, node(layoutOf(text), "b").center.y), text);
@@ -128,7 +128,7 @@ describe("sliding a segment", () => {
     const a = node(layoutOf(text), "a");
     const r = ok(planSlide(text, 0, e.id, 0, a.center.y + 2 * MM), text);
     expect(drawLine(r.text)).toBe("\\draw ([yshift=2mm]a.east) -| (b);");
-    // Back on the centre line: the bare name again.
+    // Back on the center line: the bare name again.
     const back = ok(planSlide(r.text, 0, e.id, 0, a.center.y), r.text);
     expect(drawLine(back.text)).toBe("\\draw (a) -| (b);");
   });

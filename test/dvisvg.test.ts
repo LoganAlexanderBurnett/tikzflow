@@ -84,7 +84,7 @@ describe("DVI to SVG", () => {
     expect(dviToSvg(dvi, fonts).missingFonts).toEqual(["nofont"]);
   });
 
-  it("writes raw SVG with the current position, and colours text from the colour stack", () => {
+  it("writes raw SVG with the current position, and colors text from the color stack", () => {
     const d = new DviWriter().pre().fontDef(0, "testr10", 10 * SP).op(171).right(72.27 * SP).down(72.27 * SP);
     d.special("dvisvgm:raw <g transform=\"translate({?x},{?y})\">");
     d.special("color push rgb 1 0 0").op(65).special("color pop").op(65);
@@ -97,7 +97,7 @@ describe("DVI to SVG", () => {
     expect(uses[1]).not.toContain("fill=");
   });
 
-  it("lets text inherit its group's colour only where the driver says so; black from a special is written", () => {
+  it("lets text inherit its group's color only where the driver says so; black from a special is written", () => {
     // A picture: the driver pushes "inherit"; a node part's text pushes black itself.
     const d = new DviWriter().pre().fontDef(0, "testr10", 10 * SP).op(171);
     d.special("color push tikzflow inherit").special('dvisvgm:raw <g fill="#f3f3f3">').op(65);
@@ -147,8 +147,8 @@ describe("DVI to SVG", () => {
   });
 });
 
-describe("colour specials", () => {
-  it("reads dvips colour models", () => {
+describe("color specials", () => {
+  it("reads dvips color models", () => {
     expect(specialColor("rgb 1 0.5 0")).toBe("#ff8000");
     expect(specialColor("gray 0.5")).toBe("#808080");
     expect(specialColor("cmyk 0 1 1 0")).toBe("#ff0000");

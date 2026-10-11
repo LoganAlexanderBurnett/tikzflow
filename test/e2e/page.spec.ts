@@ -14,7 +14,7 @@ async function setCode(page: Page, text: string) {
   }, text);
 }
 
-/** A figure 4 cm wide (two 1 cm nodes 3 cm apart, centres), bare. */
+/** A figure 4 cm wide (two 1 cm nodes 3 cm apart, centers), bare. */
 const FIGURE = ["\\begin{tikzpicture}", "\\node[draw, minimum width=1cm] (a) at (0,0) {A};", "\\node[draw, minimum width=1cm] (b) at (3,0) {B};", "\\draw[->] (a) -- (b);", "\\end{tikzpicture}", ""].join("\n");
 
 async function openPanel(page: Page) {
@@ -29,7 +29,7 @@ async function openPanel(page: Page) {
   expect(onTop).toBe(true);
 }
 
-test("a pasted preamble gives the page widths and a guide one column wide, centred on the figure", async ({ page }) => {
+test("a pasted preamble gives the page widths and a guide one column wide, centered on the figure", async ({ page }) => {
   await page.goto("/");
   await setCode(page, FIGURE);
   await expect(page.getByTestId("width-guide")).toHaveCount(0);
@@ -46,7 +46,7 @@ test("a pasted preamble gives the page widths and a guide one column wide, centr
   expect(Math.abs(x2! - x1!)).toBeCloseTo(221, 1);
   await expect(guide).not.toHaveClass(/over/);
   await expect(page.getByTestId("page-fit")).toContainText("it fits \\columnwidth");
-  // Centred on the figure: its left and right ends are the same distance inside the lines.
+  // Centered on the figure: its left and right ends are the same distance inside the lines.
   const fig = await page.evaluate(() => {
     const els = [...document.querySelectorAll(".tf-native [data-node] path")].map((e) => e.getBoundingClientRect());
     return { left: Math.min(...els.map((r) => r.left)), right: Math.max(...els.map((r) => r.right)) };

@@ -39,7 +39,7 @@ export interface MoveResult {
   notes: string[];
   /** The whole text after the change. */
   text: string;
-  /** Where the node's centre ends up, which may differ from the request by rounding. */
+  /** Where the node's center ends up, which may differ from the request by rounding. */
   center: Point;
 }
 
@@ -99,7 +99,7 @@ const OPPOSITE_ANCHOR: Record<string, string> = {
   "south west": "north east",
 };
 
-/** Candidate specs for putting `node` with its centre at `c`, best first. */
+/** Candidate specs for putting `node` with its center at `c`, best first. */
 export function candidateSpecs(layout: PictureLayout, node: LaidOutNode, c: Point, exclude?: ReadonlySet<string>): PositionSpec[] {
   const refs = referenceCandidates(layout, node, exclude).sort(
     (a, b) => Math.hypot(a.shape.center.x - c.x, a.shape.center.y - c.y) - Math.hypot(b.shape.center.x - c.x, b.shape.center.y - c.y),
@@ -430,7 +430,7 @@ function mergeInserts(changes: Change[]): Change[] {
 }
 
 /**
- * Plans moving node `nodeId` of picture `picIndex` so its centre is at
+ * Plans moving node `nodeId` of picture `picIndex` so its center is at
  * `center`. Returns null if the node can't be moved.
  */
 export function planMove(text: string, picIndex: number, nodeId: string, center: Point, exclude?: ReadonlySet<string>): MoveResult | null {

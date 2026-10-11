@@ -1,7 +1,7 @@
 // The page panel and the width guide (M3 step 10, D71). The panel takes the
 // preamble of the user's paper (for the TeX preview and the page widths) and
 // chooses what the guide on the canvas shows; the guide is two dashed lines
-// one column apart, centred on the figure, red when the figure is wider.
+// one column apart, centered on the figure, red when the figure is wider.
 
 import { useSignal } from "@preact/signals";
 import { useRef } from "preact/hooks";

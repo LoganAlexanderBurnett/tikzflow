@@ -123,7 +123,7 @@ export function pathReferences(layout: PictureLayout, path: LaidOutPath): LaidOu
   return [...latest.values()];
 }
 
-/** The x (centre, east, west) and y (centre, north, south) lines of a node a point can line up with. */
+/** The x (center, east, west) and y (center, north, south) lines of a node a point can line up with. */
 export function nodeLines(n: LaidOutNode): { xs: Array<{ at: number; ref: string }>; ys: Array<{ at: number; ref: string }> } {
   const c = n.shape.center;
   const at = (a: string) => anchorPoint(n.shape, a);
@@ -144,7 +144,7 @@ export function nodeLines(n: LaidOutNode): { xs: Array<{ at: number; ref: string
 /** "(a |- b)" when `p` has the x of a node line and the y of another node's, or null. */
 export function perpendicularText(layout: PictureLayout, path: LaidOutPath, p: Point, prefer: readonly string[] = []): string | null {
   const refs = pathReferences(layout, path);
-  // Ends of the edge first, then nearer nodes; centres before sides.
+  // Ends of the edge first, then nearer nodes; centers before sides.
   const rank = (n: LaidOutNode) => (prefer.includes(n.id) ? 0 : 1) * 1e6 + Math.hypot(n.shape.center.x - p.x, n.shape.center.y - p.y);
   const sorted = [...refs].sort((a, b) => rank(a) - rank(b));
   let x: { ref: string; node: string } | null = null;
@@ -432,11 +432,11 @@ export interface PointSnap {
 
 /**
  * Snaps a point being dragged on `edge` (route stop `index`, or a new point
- * between stops `index - 1` and `index`): to the centre lines and sides of
+ * between stops `index - 1` and `index`): to the center lines and sides of
  * nodes it can refer to, and level or plumb with the points before and after
  * it, so segments come out straight. `threshold` is in pt.
  */
-export function snapWaypoint(layout: PictureLayout, edge: Edge, neighbours: readonly Point[], raw: Point, threshold: number): PointSnap {
+export function snapWaypoint(layout: PictureLayout, edge: Edge, neighbors: readonly Point[], raw: Point, threshold: number): PointSnap {
   const xs: Array<{ at: number; from: number }> = [];
   const ys: Array<{ at: number; from: number }> = [];
   for (const n of pathReferences(layout, edge.path)) {
@@ -444,7 +444,7 @@ export function snapWaypoint(layout: PictureLayout, edge: Edge, neighbours: read
     for (const l of lines.xs) xs.push({ at: l.at, from: n.shape.center.y });
     for (const l of lines.ys) ys.push({ at: l.at, from: n.shape.center.x });
   }
-  for (const q of neighbours) {
+  for (const q of neighbors) {
     xs.push({ at: q.x, from: q.y });
     ys.push({ at: q.y, from: q.x });
   }
@@ -485,7 +485,7 @@ function endText(layout: PictureLayout, t: EndTarget): string | null {
   return t.anchor ? `(${n.name}.${t.anchor})` : `(${n.name})`;
 }
 
-/** Where the stop for an end at `t` lands: the anchor, or the node's centre (the path clips to the border). */
+/** Where the stop for an end at `t` lands: the anchor, or the node's center (the path clips to the border). */
 function endPoint(layout: PictureLayout, t: EndTarget): Point | null {
   const n = layout.nodes.find((x) => x.id === t.node);
   if (!n) return null;
@@ -652,13 +652,13 @@ export function planConnect(
   const bn = nameOf(b);
   if (!an || !bn) return { ok: false, reason: "A node's name can't be referred to in code (it is made up or contains special characters)." };
   const end = (name: string, anchor?: string) => (anchor ? `(${name}.${anchor})` : `(${name})`);
-  // An edge out of a decision is labelled Yes or No (D45), on the side it leaves by.
+  // An edge out of a decision is labeled Yes or No (D45), on the side it leaves by.
   const branch = branchLabel(text, layout, a);
   const dx = b.shape.center.x - a.shape.center.x;
   const dy = b.shape.center.y - a.shape.center.y;
   const dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : dy < 0 ? "below" : "above";
   const statement = `${head} ${end(an, from.anchor)} -- ${branch ? `${branchLabelText(branch, dir)} ` : ""}${end(bn, to.anchor)};`;
-  if (branch) notes.push(`labelled the branch ${branch}`);
+  if (branch) notes.push(`labeled the branch ${branch}`);
   // After both nodes' statements, and after the last path, as hand-written flowcharts are laid out.
   const after = nodeAnchor(doc, pic, Math.max(a.statement.to, b.statement.to));
   if (!after) return { ok: false, reason: "The code right after the last node has a syntax error, so the edge can't be added safely. Fix that first." };

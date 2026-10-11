@@ -133,7 +133,7 @@ function skipCommand(r: Reader, op: number): boolean {
   return true;
 }
 
-/** An SVG colour for a dvips colour special's value: `rgb 1 0 0`, `gray 0.5`, `cmyk …`, `hsb …` or a dvips name. */
+/** An SVG color for a dvips color special's value: `rgb 1 0 0`, `gray 0.5`, `cmyk …`, `hsb …` or a dvips name. */
 export function specialColor(spec: string): string {
   const parts = spec.trim().split(/\s+/);
   const n = parts.slice(1).map(Number);
@@ -183,9 +183,9 @@ const DVIPS_NAMES: Record<string, string> = {
 };
 
 /**
- * The colour of text that takes the colour of the SVG groups around it: the
- * bottom of the colour stack, and what our driver pushes at the start of a
- * picture (`color push tikzflow inherit`). Any colour a special sets, black
+ * The color of text that takes the color of the SVG groups around it: the
+ * bottom of the color stack, and what our driver pushes at the start of a
+ * picture (`color push tikzflow inherit`). Any color a special sets, black
  * included, is written on the text (dvisvgm writes black as nothing, D66).
  */
 const INHERIT = "inherit";

@@ -1,5 +1,5 @@
 // The edge properties panel's edits (M2b step 8, D55): arrow direction and
-// tips, dashed or dotted, colour and line width, for one edge or for a style it
+// tips, dashed or dotted, color and line width, for one edge or for a style it
 // uses. Every edit replaces or removes only the option items it is about, then
 // is checked by drawing the result again.
 import { analyzeDocument, type DocumentModel, layoutDocumentPicture, pictureEnv } from "../model/document.ts";
@@ -39,7 +39,7 @@ export const WIDTHS: ReadonlyArray<{ key: string; label: string; pt: number }> =
 export type EdgeEdit =
   | { kind: "arrow"; direction?: Direction; tip?: TipName }
   | { kind: "dash"; value: DashName }
-  /** A colour name or xcolor expression, or null to drop the edge's own colour. */
+  /** A color name or xcolor expression, or null to drop the edge's own color. */
   | { kind: "color"; value: string | null }
   /** A named width ("thick"), or null for the default. */
   | { kind: "width"; value: string | null };
@@ -58,7 +58,7 @@ const isDash = (kv: KeyValue) => DASH_KEYS.has(kv.key);
 const isWidth = (kv: KeyValue) => WIDTH_KEYS.has(kv.key);
 const isArrow = (kv: KeyValue) => (kv.value === undefined && isArrowKey(kv.key)) || (kv.key === "arrows" && kv.value !== undefined);
 
-/** Matches a colour: `draw=red`, `color=red`, or a bare colour name. */
+/** Matches a color: `draw=red`, `color=red`, or a bare color name. */
 function colorTest(parse: (e: string) => unknown): (kv: KeyValue) => boolean {
   return (kv) => kv.key === "draw" ? kv.value !== undefined && kv.value !== "none" : kv.key === "color" ? kv.value !== undefined : kv.value === undefined && !DASH_KEYS.has(kv.key) && !WIDTH_KEYS.has(kv.key) && !!parse(kv.key);
 }
@@ -131,7 +131,7 @@ export interface EdgeProps {
   arrowVia?: string | undefined;
   dash: DashName | "other";
   dashVia?: string | undefined;
-  /** The colour as written, if something sets one. */
+  /** The color as written, if something sets one. */
   color?: string | undefined;
   colorVia?: string | undefined;
   /** The named width, "custom" for `line width=…`, or "thin" (the default) when nothing sets one. */
@@ -348,7 +348,7 @@ export function planEdgeProperty(text: string, picIndex: number, edgeId: string,
       // Keep the form the edge already uses: draw=…, color=…, or a bare name.
       if (last && last.value === undefined && /^[A-Za-z][A-Za-z0-9!.]*$/.test(edit.value)) text1 = edit.value;
       else text1 = formatOption(last?.key === "color" ? "color" : "draw", edit.value);
-    } else if (lastMatch(sites, keys, test, true)) notes.push("it falls back to the colour its styles give it");
+    } else if (lastMatch(sites, keys, test, true)) notes.push("it falls back to the color its styles give it");
     changes = editGroup(text, target, own(test), text1);
   } else {
     const current = arrowOf(sites, keys);
@@ -403,7 +403,7 @@ function misread(edit: EdgeEdit, scope: EdgeScope["kind"], path: LaidOutPath, pa
     if (want !== undefined && Math.abs(path.lineWidth - want) > 0.02) return "The line width didn't change.";
   } else if (edit.kind === "color" && edit.value !== null) {
     const want = parse(edit.value);
-    if (want && path.stroke && want.some((v, i) => Math.abs(v - path.stroke![i]!) > 0.02)) return "The colour didn't change.";
+    if (want && path.stroke && want.some((v, i) => Math.abs(v - path.stroke![i]!) > 0.02)) return "The color didn't change.";
   } else if (edit.kind === "arrow" && edit.direction !== undefined && scope === "edge") {
     const n = edit.direction === "none" ? 0 : edit.direction === "both" ? 2 : 1;
     if (path.tips.length !== n) return "The arrow tips didn't come out as asked.";

@@ -1,6 +1,6 @@
 // The side panel for a selected edge (M2b): what it connects, how it is
 // written, what can be dragged, why it is locked if it is, and its properties
-// (arrow, line, colour, width) for the edge or a style it uses.
+// (arrow, line, color, width) for the edge or a style it uses.
 import { useSignal } from "@preact/signals";
 import type { Change } from "../edit/changes.ts";
 import {
@@ -176,7 +176,7 @@ function EdgeProperties({ edge }: { edge: Edge }) {
       </div>
 
       <div class="tf-prop">
-        <span class="tf-prop-label">Colour</span>
+        <span class="tf-prop-label">Color</span>
         <button class={`tf-color-btn${open.value === "color" ? " open" : ""}`} data-testid="edge-color" onClick={() => (open.value = open.value === "color" ? null : "color")} aria-expanded={open.value === "color"}>
           <Swatch rgb={colorShown ?? undefined} />
           <span class="tf-value">{props.color ? `${props.color}${from(props.colorVia)}` : "Default"}</span>
@@ -192,7 +192,7 @@ function EdgeProperties({ edge }: { edge: Edge }) {
             onPick={(value, define) =>
               apply(
                 { kind: "color", value: value === "" ? null : value },
-                define ? `Defined ${define.name} and used it for the colour of the edge` : "Set the colour of the edge",
+                define ? `Defined ${define.name} and used it for the color of the edge` : "Set the color of the edge",
                 define ? [addColorDefinition(d, pic, define.name, define.rgb)] : [],
               )
             }

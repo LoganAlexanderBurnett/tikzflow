@@ -1,5 +1,5 @@
 // Compares the native layout with pdfTeX for every corpus picture: node
-// centres and sizes. Needs the engines from `npm run fetch-engines` and
+// centers and sizes. Needs the engines from `npm run fetch-engines` and
 // `node scripts/pack-texmf.ts`.
 // Usage: npm run fidelity [-- --only=<file part>] [-- --verbose]
 // Output: a table on stdout, and spike/engines/results/fidelity.json.
@@ -35,17 +35,17 @@ try {
     within1 += r.nodes.filter((n) => n.center <= 1 && Math.abs(n.size[0]) <= 1 && Math.abs(n.size[1]) <= 1).length;
     console.log(
       `${`${r.file} #${r.picture}`.padEnd(40)} ${r.ok ? "compiled" : "FAILED  "} nodes ${String(r.nodes.length).padStart(3)}` +
-        `  worst centre ${worst.toFixed(2).padStart(7)} pt  worst size ${sizeWorst.toFixed(2).padStart(7)} pt` +
+        `  worst center ${worst.toFixed(2).padStart(7)} pt  worst size ${sizeWorst.toFixed(2).padStart(7)} pt` +
         (r.missing.length ? `  missing ${r.missing.join(",")}` : "") +
         (r.error ? `  ${r.error}` : ""),
     );
     if (verbose) {
       for (const n of r.nodes.filter((x) => x.center > 1 || Math.abs(x.size[0]) > 1 || Math.abs(x.size[1]) > 1)) {
-        console.log(`    ${n.name.padEnd(20)} centre off ${n.center.toFixed(2)} pt, size off ${n.size.map((v) => v.toFixed(2)).join(" x ")} pt`);
+        console.log(`    ${n.name.padEnd(20)} center off ${n.center.toFixed(2)} pt, size off ${n.size.map((v) => v.toFixed(2)).join(" x ")} pt`);
       }
     }
   }
-  console.log(`\n${within1} of ${all} nodes within 1 pt of pdfTeX (centre and size).`);
+  console.log(`\n${within1} of ${all} nodes within 1 pt of pdfTeX (center and size).`);
 } finally {
   await browser.close();
   await server.close();

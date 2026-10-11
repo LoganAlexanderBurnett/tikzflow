@@ -12,11 +12,11 @@ function render() {
   const ms = performance.now() - t0;
   const cov = checkCoverage(tree, text);
   const { bytes, errorNodes } = breakdown(tree, text);
-  const picture = bytes.modelled + bytes.opaque + bytes.error || 1;
+  const picture = bytes.modeled + bytes.opaque + bytes.error || 1;
   const pct = (n: number) => `${((100 * n) / picture).toFixed(1)}%`;
   stats.textContent =
     `Coverage ${cov.ok ? "OK" : "FAILED"} · parsed in ${ms.toFixed(2)} ms · TikZ bytes: ` +
-    `modelled ${pct(bytes.modelled)}, opaque ${pct(bytes.opaque)}, error ${pct(bytes.error)} · ` +
+    `modeled ${pct(bytes.modeled)}, opaque ${pct(bytes.opaque)}, error ${pct(bytes.error)} · ` +
     `error nodes ${errorNodes}`;
 
   output.replaceChildren();

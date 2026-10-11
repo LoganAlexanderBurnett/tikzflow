@@ -99,9 +99,9 @@ test("auto-layout works offline, under the production Content-Security-Policy", 
   expect(violations).toEqual([]);
 });
 
-// Import (D84) lays the diagram out with elk.js and the colour views (D85) draw through an SVG
+// Import (D84) lays the diagram out with elk.js and the color views (D85) draw through an SVG
 // filter: both must work with the network off, under the production policy.
-test("import and the colour views work offline, under the production Content-Security-Policy", async ({ page, context }) => {
+test("import and the color views work offline, under the production Content-Security-Policy", async ({ page, context }) => {
   const violations: string[] = [];
   page.on("console", (m) => /content security policy|refused to/i.test(m.text()) && violations.push(m.text()));
   page.on("pageerror", (e) => violations.push(String(e)));

@@ -30,7 +30,7 @@ function preambleBody(src: string): { body: string; hadClass: boolean; classOpti
   return { body: from < to ? src.slice(from, to).replace(/^\s*\n/, "").trimEnd() : "", hadClass: !!cls, classOptions: cls?.[1] ?? "" };
 }
 
-/** The definitions the picture depends on that sit outside it: the code's own `\tikzset`, libraries, colours and macros before it. */
+/** The definitions the picture depends on that sit outside it: the code's own `\tikzset`, libraries, colors and macros before it. */
 function definitionsBefore(doc: DocumentModel, index: number, skipBefore: number): string[] {
   const pic = doc.syntax.pictures[index];
   if (!pic) return [];

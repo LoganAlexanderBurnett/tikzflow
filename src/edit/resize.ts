@@ -27,7 +27,7 @@ export interface SizeWant {
 /**
  * Which part of the node stays where it is while it is resized. On each axis,
  * -1 keeps the west (or south) edge, 1 the east (or north) edge, and 0 the
- * centre. Left out, the node grows around its anchor, as TeX draws it.
+ * center. Left out, the node grows around its anchor, as TeX draws it.
  */
 export interface Hold {
   x: -1 | 0 | 1;

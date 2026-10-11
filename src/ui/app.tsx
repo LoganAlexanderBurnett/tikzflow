@@ -170,7 +170,7 @@ function Summary() {
           {lowContrast.length > 0 && (
             <section data-testid="contrast-list">
               <h3>Low contrast</h3>
-              <p>WCAG AA wants 4.5:1 between text and what it sits on (3:1 for large text). Picking a node shows the fix. The picture's colours stay yours to choose.</p>
+              <p>WCAG AA wants 4.5:1 between text and what it sits on (3:1 for large text). Picking a node shows the fix. The picture's colors stay yours to choose.</p>
               <ul>
                 {lowContrast.map((i) => (
                   <li>

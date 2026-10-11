@@ -3,7 +3,7 @@
 
 export type RGB = readonly [number, number, number];
 
-/** xcolor's base colours, always available. */
+/** xcolor's base colors, always available. */
 const BASE: Record<string, RGB> = {
   red: [1, 0, 0],
   green: [0, 1, 0],
@@ -29,7 +29,7 @@ const BASE: Record<string, RGB> = {
 export class ColorTable {
   private names = new Map<string, RGB>();
 
-  /** The colour "." refers to. */
+  /** The color "." refers to. */
   current: RGB = [0, 0, 0];
 
   get(name: string): RGB | undefined {

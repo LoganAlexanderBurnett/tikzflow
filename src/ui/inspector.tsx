@@ -1,5 +1,5 @@
 // The side panel for the selected nodes: why a node is locked and how to fix
-// it, and its properties (colours, font, alignment) for the node or its style.
+// it, and its properties (colors, font, alignment) for the node or its style.
 import { signal, useSignal } from "@preact/signals";
 import type { Change } from "../edit/changes.ts";
 import { attachCandidates } from "../edit/move.ts";
@@ -189,7 +189,7 @@ function Properties({ layout, nodes }: { layout: PictureLayout; nodes: LaidOutNo
           const issue = contrast.value.find((i) => i.id === only.id);
           if (!issue) return null;
           const fixable = issue.text[0] === only.textColor[0] && issue.text[1] === only.textColor[1] && issue.text[2] === only.textColor[2];
-          return <ContrastNote issue={issue} fixable={fixable} onFix={(colour) => applyProperty({ kind: "nodes", ids: [only.id] }, { kind: "color", key: "text", value: colour }, [], "Set the text colour of")} />;
+          return <ContrastNote issue={issue} fixable={fixable} onFix={(color) => applyProperty({ kind: "nodes", ids: [only.id] }, { kind: "color", key: "text", value: color }, [], "Set the text color of")} />;
         })()}
 
       {COLOR_ROWS.map((row) => {
@@ -299,7 +299,7 @@ function Properties({ layout, nodes }: { layout: PictureLayout; nodes: LaidOutNo
                 title={title}
                 onClick={() => apply({ kind: "align", value: a }, [], `Set align=${a} on`)}
               >
-                {a === "left" ? "Left" : a === "center" ? "Centre" : a === "right" ? "Right" : "Justify"}
+                {a === "left" ? "Left" : a === "center" ? "Center" : a === "right" ? "Right" : "Justify"}
               </button>
             );
           })}
@@ -370,7 +370,7 @@ export function Inspector() {
       ) : selection.value?.kind === "path" ? (
         <PathPanel />
       ) : !layout || !primary ? (
-        <p class="tf-empty">Select a node to edit its colours, font and alignment. Shift-click selects several. Click an edge to work on it.</p>
+        <p class="tf-empty">Select a node to edit its colors, font and alignment. Shift-click selects several. Click an edge to work on it.</p>
       ) : (
         <>
           <h2 class="tf-title" title={nodes.length === 1 ? nodeTitle(primary) : undefined}>

@@ -1,5 +1,5 @@
 // Milestone 2b, start to finish: a flowchart with a decision built from an empty
-// picture, its branches labelled, one edge restyled and its label slid
+// picture, its branches labeled, one edge restyled and its label slid
 // from the edge panel, and a node deleted, with the code reading as if it was
 // written by hand at every step.
 import { expect, type Page, test } from "./base.ts";
@@ -27,7 +27,7 @@ async function onEdge(page: Page, index: number, t = 0.5) {
   }, t);
 }
 
-test("a decision with labelled branches, an edge restyled and its label slid, and a node deleted", async ({ page }) => {
+test("a decision with labeled branches, an edge restyled and its label slid, and a node deleted", async ({ page }) => {
   await page.goto("/");
   const doc = ["\\documentclass[tikz]{standalone}", "\\usepackage{tikz}", "\\begin{document}", "\\begin{tikzpicture}", "\\end{tikzpicture}", "\\end{document}", ""].join("\n");
   await setCode(page, doc);

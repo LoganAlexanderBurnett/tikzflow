@@ -988,7 +988,7 @@ export function applyKey(s: State, kv: KeyValue, ctx: KeyContext, depth = 0): vo
     return;
   }
 
-  // Unknown key handler, in pgfkeys' order: style, colour, shape, arrows.
+  // Unknown key handler, in pgfkeys' order: style, color, shape, arrows.
   if (applyStyle(s, key, ctx, value, depth)) return;
   if (value === undefined) {
     if (ctx.shapes.has(key)) {

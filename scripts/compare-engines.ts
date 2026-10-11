@@ -45,7 +45,7 @@ try {
     if (composite) writeFileSync(join(outDir, `${rest.name}.png`), Buffer.from(composite.split(",")[1]!, "base64"));
     summary.push(rest);
     const f = (s?: DiagramResult["raw"]) =>
-      s ? `${s.mismatchPct}% (missing ${s.missing}, extra ${s.extra}, colour ${s.color}; size ref ${s.refSizePt.join("x")} vs ${s.testSizePt.join("x")} pt)` : "n/a";
+      s ? `${s.mismatchPct}% (missing ${s.missing}, extra ${s.extra}, color ${s.color}; size ref ${s.refSizePt.join("x")} vs ${s.testSizePt.join("x")} pt)` : "n/a";
     const ok = (v?: boolean) => (v === undefined ? "-" : v ? "ok" : "FAILED");
     console.log(`${rest.name}: busytex ${ok(rest.busytexOk)}, ours ${ok(rest.oursOk)}${rest.oursMs ? ` (${rest.oursMs} ms)` : ""}, TikZJax ${ok(rest.tikzjaxOk)}`);
     if (rest.ours) console.log(`  ours          ${f(rest.ours)}`);

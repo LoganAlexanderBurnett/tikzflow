@@ -344,7 +344,7 @@ function EdgeDragOverlay({ view, layout, scale }: { view: EdgeDragView; layout: 
 interface View {
   /** Screen pixels per pt. */
   scale: number;
-  /** Model point at the centre of the canvas. */
+  /** Model point at the center of the canvas. */
   cx: number;
   cy: number;
 }
@@ -428,7 +428,7 @@ function Gradient({ id, shading }: { id: string; shading: Shading }) {
 
 const gradId = (id: string) => `sh-${id.replace(/[^A-Za-z0-9_-]/g, "_")}`;
 
-// The components below are memoised on what they draw: while dragging, only
+// The components below are memoized on what they draw: while dragging, only
 // the moved node and the paths touching it change.
 const nodeSig = (n: LaidOutNode) =>
   [n.id, n.shape.kind, n.shape.center.x, n.shape.center.y, n.shape.hw, n.shape.hh, n.shape.rotate, n.shape.roundedCorners, n.stroke, n.fill, n.lineWidth, n.dash, n.opacity, n.fillOpacity, n.shadow, n.locked, n.shading && JSON.stringify(n.shading)].join("|");
@@ -441,7 +441,7 @@ function NodeShapeView({ n, scale, selected }: { n: LaidOutNode; scale: number; 
   const d = outline(n.shape);
   const minStroke = 0.6 / scale;
   const fill = n.shading ? `url(#${gradId(n.id)})` : rgba(n.fill, "transparent");
-  // A turned node (D87): its outline is drawn unturned and turned about its centre, as its text is.
+  // A turned node (D87): its outline is drawn unturned and turned about its center, as its text is.
   // Outlines are drawn y up (the text y down), so the turn is counterclockwise there.
   const turn = n.shape.rotate ? `rotate(${n.shape.rotate} ${f(n.shape.center.x)} ${f(n.shape.center.y)})` : undefined;
   return (
@@ -695,7 +695,7 @@ interface VertexDrag {
   pointer: Point;
   origin: Point;
   /** The points before and after it, to line up with. */
-  neighbours: Point[];
+  neighbors: Point[];
   moved: boolean;
   key: string;
   last: { changes: Change[]; stop: number; layout: PictureLayout; edgeId?: string | undefined; notes: readonly string[] } | null;
@@ -972,13 +972,13 @@ export function Canvas() {
         const stop = Number(vertexEl.getAttribute("data-vertex"));
         const before = segs.find((s) => s.b === stop);
         const after = segs.find((s) => s.a === stop);
-        const neighbours = [before && route.stops[before.a]!.point, after && route.stops[after.b]!.point].filter((q): q is Point => !!q);
-        drag.current = { kind: "vertex", edgeId: edge.id, stop, seg: null, pointer, origin: route.stops[stop]!.point, neighbours, moved: false, key: "", last: null };
+        const neighbors = [before && route.stops[before.a]!.point, after && route.stops[after.b]!.point].filter((q): q is Point => !!q);
+        drag.current = { kind: "vertex", edgeId: edge.id, stop, seg: null, pointer, origin: route.stops[stop]!.point, neighbors, moved: false, key: "", last: null };
       } else {
         const seg = Number(ghostEl!.getAttribute("data-ghost"));
         const s = route.segs[seg]!;
         const origin = { x: (s.from.x + s.to.x) / 2, y: (s.from.y + s.to.y) / 2 };
-        drag.current = { kind: "vertex", edgeId: edge.id, stop: null, seg, pointer, origin, neighbours: [route.stops[s.a]!.point, route.stops[s.b]!.point], moved: false, key: "", last: null };
+        drag.current = { kind: "vertex", edgeId: edge.id, stop: null, seg, pointer, origin, neighbors: [route.stops[s.a]!.point, route.stops[s.b]!.point], moved: false, key: "", last: null };
       }
       svg.setPointerCapture(e.pointerId);
       return;
@@ -1106,7 +1106,7 @@ export function Canvas() {
     if (!l) return;
     const { fx, fy } = d.handle;
     // The edge opposite the handle stays put, as in PowerPoint or Figma. With
-    // Ctrl (Cmd on a Mac) the centre stays and both edges move, so the size
+    // Ctrl (Cmd on a Mac) the center stays and both edges move, so the size
     // changes twice as fast as the pointer. Alt is taken: it turns snapping off.
     const symmetric = e.ctrlKey || e.metaKey;
     const share = symmetric ? 0.5 : 1;
@@ -1232,7 +1232,7 @@ export function Canvas() {
     const edge = edges.value.find((x) => x.id === d.edgeId);
     if (!l || !edge) return;
     const raw = { x: d.origin.x + p.x - d.pointer.x, y: d.origin.y + p.y - d.pointer.y };
-    const snapped = e.altKey ? { point: raw, guides: [] } : snapWaypoint(l, edge, d.neighbours, raw, 7 / view.value.scale);
+    const snapped = e.altKey ? { point: raw, guides: [] } : snapWaypoint(l, edge, d.neighbors, raw, 7 / view.value.scale);
     guides.value = { lines: snapped.guides, gaps: [] };
     // Points are written in whole millimetres: only plan again when that changes.
     const key = `${Math.round(snapped.point.x / MM_PT)}|${Math.round(snapped.point.y / MM_PT)}|${snapped.guides.length}`;
@@ -1778,7 +1778,7 @@ export function Canvas() {
         <VisionFilter />
       </defs>
       {l && <WidthGuide cx={(l.bounds.minX + l.bounds.maxX) / 2} y0={-v.cy - h / 2 / v.scale} y1={-v.cy + h / 2 / v.scale} scale={v.scale} />}
-      {/* The grayscale and colour-blind views (D85) filter the drawing, not the handles and guides. */}
+      {/* The grayscale and colorblind views (D85) filter the drawing, not the handles and guides. */}
       <g filter={visionFilterAttr()} data-testid="drawing">
       <CompiledPicture scale={v.scale} />
       {/* With TeX's picture shown, the native drawing stays only to answer the pointer (D68). */}
@@ -1869,7 +1869,7 @@ export function Canvas() {
                 style={{ cursor: h.cursor }}
                 stroke-width={f(1 / v.scale)}
               >
-                <title>Drag to resize. Ctrl resizes from the centre, Alt turns snapping off.</title>
+                <title>Drag to resize. Ctrl resizes from the center, Alt turns snapping off.</title>
               </rect>
             );
           })}

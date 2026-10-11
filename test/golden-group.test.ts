@@ -1,5 +1,5 @@
 // Minimal-diff golden tests for group moves (M4 step 1): on every corpus
-// picture, two neighbouring editable nodes moved together, and the first fit
+// picture, two neighboring editable nodes moved together, and the first fit
 // node dragged (which moves what it fits). Each move may change only the
 // members' statements, corners of paths between members, and a positioning
 // library it needs; every member lands where it was dropped; nodes outside
@@ -29,7 +29,7 @@ interface GroupCase {
 function scriptedGroups(layout: PictureLayout): GroupCase[] {
   const out: GroupCase[] = [];
   const editable = layout.nodes.filter((n) => !n.locked && n.kind === "statement");
-  // Two neighbours in the code, past the first node (so there is something outside the group to relate to).
+  // Two neighbors in the code, past the first node (so there is something outside the group to relate to).
   const pair = editable.length >= 3 ? editable.slice(1, 3) : editable.slice(0, 2);
   if (pair.length === 2 && !groupBlocker(layout, pair.map((n) => n.id))) out.push({ label: "pair", ids: pair.map((n) => n.id), delta: { x: 0.5 * CM, y: -0.3 * CM } });
   const fit = layout.nodes.find((n) => n.position.kind === "fit" && !groupBlocker(layout, [n.id]));

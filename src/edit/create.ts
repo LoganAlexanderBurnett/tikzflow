@@ -313,7 +313,7 @@ function check(text: string, picIndex: number, changes: readonly Change[], name:
 const mm = (pt: number) => formatDistance(pt);
 
 /**
- * Plans adding a node of `req.entry` labelled `req.label` to picture
+ * Plans adding a node of `req.entry` labeled `req.label` to picture
  * `picIndex`. A child or sibling is placed beside its node, trying the flow's
  * direction first and moving on when the spot is taken; a node dropped at a
  * point is snapped and written as relationally as the move planner can.
@@ -359,7 +359,7 @@ export function planCreate(text: string, picIndex: number, req: CreateRequest): 
   const from = sibling ? incoming?.from : parent;
   const fromName = sibling ? from && usableName(from) : parentName;
   const head = sibling ? incoming?.head : edgeHead(doc, layout);
-  // Branches out of a decision are labelled Yes and No (D45); the label sits on the side the edge leaves by.
+  // Branches out of a decision are labeled Yes and No (D45); the label sits on the side the edge leaves by.
   const branch = from ? branchLabel(text, layout, from) : null;
   const edgeFor = (dir: Direction): string | null => (fromName && head ? `${head} (${fromName}) -- ${branch ? `${branchLabelText(branch, dir)} ` : ""}(${name});` : null);
   const edge = edgeFor(flow);
@@ -414,7 +414,7 @@ export function planCreate(text: string, picIndex: number, req: CreateRequest): 
     }
   }
   if (!chosen) return { ok: false, reason: "There is no free place next to this node; move something out of the way first." };
-  return finish(text, picIndex, last!.changes, name, `${chosen}${edge ? `, with an edge from ${fromName}${branch ? `, labelled ${branch}` : ""}` : ""}`, notes);
+  return finish(text, picIndex, last!.changes, name, `${chosen}${edge ? `, with an edge from ${fromName}${branch ? `, labeled ${branch}` : ""}` : ""}`, notes);
 }
 
 /** How the move planner placed a dropped node, in a few words. */

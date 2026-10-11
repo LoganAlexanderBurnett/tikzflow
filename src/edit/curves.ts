@@ -164,7 +164,7 @@ function bendForMiddle(layout: PictureLayout, a: RouteStop, b: RouteStop, p: Poi
 
 /** The out and in angles and loosenesses that put the control points at `c1` and `c2`. */
 function outInFor(layout: PictureLayout, a: RouteStop, b: RouteStop, c1: Point, c2: Point): { out: number; in: number; l1: number; l2: number } {
-  // A bare node's control point lies on the ray from its centre at the out angle.
+  // A bare node's control point lies on the ray from its center at the out angle.
   const out = Math.round(angleOf(a.point, c1));
   const inA = Math.round(angleOf(b.point, c2));
   const from = endAt(layout, a, out);

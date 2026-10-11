@@ -1,5 +1,5 @@
 // Milestone 2a step 3: the properties panel, with node-or-style scope, the
-// colour picker and multi-select.
+// color picker and multi-select.
 import { expect, type Page, test } from "./base.ts";
 
 async function code(page: Page): Promise<string> {
@@ -72,16 +72,16 @@ test("multi-select changes every selected node in one step", async ({ page }) =>
   expect(await code(page)).toBe(before);
 });
 
-test("a custom colour can be named and added as \\definecolor", async ({ page }) => {
+test("a custom color can be named and added as \\definecolor", async ({ page }) => {
   await clickNode(page, "base");
   await page.getByTestId("color-fill").click();
   const picker = page.getByTestId("color-picker");
-  await picker.getByLabel("Custom colour").fill("#1f77b4");
-  await expect(picker.getByRole("button", { name: "Add named colour" })).toBeDisabled();
-  await picker.getByLabel("Colour name").fill("red");
-  await expect(picker.getByText('"red" is already a colour.')).toBeVisible();
-  await picker.getByLabel("Colour name").fill("Accent");
-  await picker.getByRole("button", { name: "Add named colour" }).click();
+  await picker.getByLabel("Custom color").fill("#1f77b4");
+  await expect(picker.getByRole("button", { name: "Add named color" })).toBeDisabled();
+  await picker.getByLabel("Color name").fill("red");
+  await expect(picker.getByText('"red" is already a color.')).toBeVisible();
+  await picker.getByLabel("Color name").fill("Accent");
+  await picker.getByRole("button", { name: "Add named color" }).click();
   const after = await code(page);
   expect(after).toContain("\\usetikzlibrary{positioning, shapes.geometric, arrows.meta}\n\\definecolor{Accent}{HTML}{1F77B4}\n");
   expect(line(after, "(base)")).toContain("\\node[process, right=of small, fill=Accent] (base)");

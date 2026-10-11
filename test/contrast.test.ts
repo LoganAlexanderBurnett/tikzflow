@@ -12,14 +12,14 @@ describe("the ratio", () => {
   it("matches WCAG's definition", () => {
     expect(contrastRatio([0, 0, 0], [1, 1, 1])).toBeCloseTo(21, 5);
     expect(contrastRatio([1, 1, 1], [1, 1, 1])).toBeCloseTo(1, 5);
-    // #767676 is the lightest grey that passes AA on white; #777777 doesn't.
+    // #767676 is the lightest gray that passes AA on white; #777777 doesn't.
     expect(contrastRatio([0x76 / 255, 0x76 / 255, 0x76 / 255], [1, 1, 1])).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio([0x77 / 255, 0x77 / 255, 0x77 / 255], [1, 1, 1])).toBeLessThan(4.5);
     expect(luminance([1, 1, 1])).toBeCloseTo(1, 6);
     expect(luminance([0, 0, 0])).toBe(0);
   });
 
-  it("is the same whichever colour is on top", () => {
+  it("is the same whichever color is on top", () => {
     expect(contrastRatio([1, 0, 0], [0, 0, 1])).toBeCloseTo(contrastRatio([0, 0, 1], [1, 0, 0]), 10);
   });
 
@@ -31,7 +31,7 @@ describe("the ratio", () => {
     expect(isLargeText(13.9, true)).toBe(false);
   });
 
-  it("blends colours, and rounds the ratio down for display", () => {
+  it("blends colors, and rounds the ratio down for display", () => {
     expect(blend([0, 0, 0], [1, 1, 1], 0.25)).toEqual([0.75, 0.75, 0.75]);
     expect(formatRatio(4.49)).toBe("4.4:1");
     expect(formatRatio(21)).toBe("21.0:1");
@@ -75,12 +75,12 @@ describe("the warnings", () => {
   });
 
   it("uses large text's lower limit", () => {
-    // Mid grey on white: between 3:1 and 4.5:1.
-    const grey = "text={rgb,255:red,140;green,140;blue,140}";
+    // Mid gray on white: between 3:1 and 4.5:1.
+    const gray = "text={rgb,255:red,140;green,140;blue,140}";
     const r = contrastRatio([140 / 255, 140 / 255, 140 / 255], [1, 1, 1]);
     expect(r).toBeGreaterThan(3);
     expect(r).toBeLessThan(4.5);
-    const issues = issuesOf([`\\node[${grey}] (small) {Small};`, `\\node[${grey}, font=\\huge, right=of small] (big) {Big};`, `\\node[${grey}, font=\\Large\\bfseries, right=of big] (bold) {Bold};`, `\\node[${grey}, font=\\Large, right=of bold] (medium) {Medium};`].join("\n"), "\\usetikzlibrary{positioning}\n");
+    const issues = issuesOf([`\\node[${gray}] (small) {Small};`, `\\node[${gray}, font=\\huge, right=of small] (big) {Big};`, `\\node[${gray}, font=\\Large\\bfseries, right=of big] (bold) {Bold};`, `\\node[${gray}, font=\\Large, right=of bold] (medium) {Medium};`].join("\n"), "\\usetikzlibrary{positioning}\n");
     expect(issues.map((i) => i.name)).toEqual(["small", "medium"]);
     expect(issues.every((i) => i.required === 4.5)).toBe(true);
   });
@@ -91,7 +91,7 @@ describe("the warnings", () => {
     expect(issues[0]!.background[0]).toBeCloseTo(0.9, 5);
   });
 
-  it("checks text coloured inside the label, and edge labels", () => {
+  it("checks text colored inside the label, and edge labels", () => {
     const issues = issuesOf(
       [
         "\\node[draw] (a) at (0,0) {Plain \\textcolor{yellow}{pale}};",
@@ -110,7 +110,7 @@ describe("the warnings", () => {
     expect(issues).toEqual([]);
   });
 
-  it("does not warn about the sample's own colours", () => {
+  it("does not warn about the sample's own colors", () => {
     const text = `\\documentclass{article}\n\\usepackage{tikz}\n\\begin{document}\n\\begin{tikzpicture}\n\\node[draw, fill=blue!8] {Normal};\n\\node[draw, fill=teal!15] at (3,0) {Teal};\n\\node[draw, fill=orange!15] at (6,0) {Orange};\n\\end{tikzpicture}\n\\end{document}\n`;
     expect(contrastIssues(layoutDocumentPicture(analyzeDocument(text), 0)!)).toEqual([]);
   });

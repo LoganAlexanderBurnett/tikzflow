@@ -1377,7 +1377,7 @@ button.tf-preview-state.busy {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   font-size: 13px;
 }
-/* The banner is amber in both themes, so its buttons carry their own colours
+/* The banner is amber in both themes, so its buttons carry their own colors
    rather than the panel's (dark text on a dark fill was 1.8:1, D82). */
 .tf-tex-banner button {
   font-size: 12px;
@@ -1556,7 +1556,7 @@ button.tf-preview-state.busy {
   cursor: grab;
 }
 
-/* The grayscale and colour-blind views (M4 step 6, D85). */
+/* The grayscale and colorblind views (M4 step 6, D85). */
 .tf-vision-badge {
   position: absolute;
   left: 10px;

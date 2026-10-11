@@ -14,7 +14,7 @@ const PICTURE = ["\\begin{tikzpicture}", "\\node[draw] (a) at (0,0) {A};", "\\no
 
 const viewBox = (page: Page) => page.locator("svg.tf-canvas").getAttribute("viewBox");
 
-async function centre(page: Page, selector: string) {
+async function center(page: Page, selector: string) {
   const b = (await page.locator(selector).boundingBox())!;
   return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
 }
@@ -80,7 +80,7 @@ test("a menu asked for on press (macOS, Linux) opens on release if the pointer d
 test("a middle drag over a node pans and leaves the node and the selection alone", async ({ page }) => {
   const before = await viewBox(page);
   const text = await code(page);
-  const b = await centre(page, 'g[data-node="b"]');
+  const b = await center(page, 'g[data-node="b"]');
   await page.mouse.move(b.x, b.y);
   await page.mouse.down({ button: "middle" });
   await page.mouse.move(b.x - 80, b.y + 20, { steps: 6 });
@@ -92,7 +92,7 @@ test("a middle drag over a node pans and leaves the node and the selection alone
 test("Space+drag over a node pans instead of moving it", async ({ page }) => {
   const before = await viewBox(page);
   const text = await code(page);
-  const b = await centre(page, 'g[data-node="b"]');
+  const b = await center(page, 'g[data-node="b"]');
   await page.locator("svg.tf-canvas").focus();
   await page.keyboard.down(" ");
   await expect(page.locator("svg.tf-canvas")).toHaveClass(/space-pan/);

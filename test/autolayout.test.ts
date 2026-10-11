@@ -87,7 +87,7 @@ describe("auto-layout", () => {
   });
 
   it("keeps an orthogonal edge orthogonal when its fixed corner goes, and writes one whose ends now line up with --", async () => {
-    // Two children: one goes under the parent (its edge would run into the child's centre), the other beside it.
+    // Two children: one goes under the parent (its edge would run into the child's center), the other beside it.
     const text = doc("\\node[draw] (a) at (0,0) {A};\n\\node[draw] (b) at (-4,-3) {B};\n\\node[draw] (c) at (4,-3) {C};\n\\draw[->] (a) -| (-3,2) |- (b);\n\\draw[->] (a) -| (3,2) |- (c);\n");
     const r = await layOut(text);
     expect(r.corners).toBe(2);

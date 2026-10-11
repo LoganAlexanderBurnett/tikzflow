@@ -91,17 +91,17 @@ export function checkCoverage(tree: Tree, text: string): Coverage {
   };
 }
 
-export type Category = "modelled" | "opaque" | "error" | "document";
+export type Category = "modeled" | "opaque" | "error" | "document";
 
 const OPAQUE = new Set(["Opaque", "UnknownPathItem", "Foreach", "MatrixStatement"]);
-const MODELLED = new Set(["TikzPicture", "Tikzset", "TikzStyle", "UseTikzLibrary"]);
+const MODELED = new Set(["TikzPicture", "Tikzset", "TikzStyle", "UseTikzLibrary"]);
 
 /**
  * Which category a leaf's bytes belong to:
  * - error: inside a parse-error node
  * - opaque: inside a construct kept as generic tokens, \foreach, \matrix, or
  *   a brace group that is an argument of an unknown command
- * - modelled: inside a picture, \tikzset, \tikzstyle, or \usetikzlibrary with
+ * - modeled: inside a picture, \tikzset, \tikzstyle, or \usetikzlibrary with
  *   real structure, including scope markers and scope options
  * - document: ordinary document text outside any of those
  */
@@ -114,7 +114,7 @@ export function categorize(leaf: Leaf, text: string): Category {
       (OPAQUE.has(n.name) || (n.name === "BodyGroup" && bodyGroupRole(n, text) === "argument")) &&
       !isScopeSyntax(n, text);
     if (opaque) category = "opaque";
-    else if (category === "document" && MODELLED.has(n.name)) category = "modelled";
+    else if (category === "document" && MODELED.has(n.name)) category = "modeled";
   }
   return category;
 }
@@ -126,7 +126,7 @@ export interface Breakdown {
 }
 
 export function breakdown(tree: Tree, text: string): Breakdown {
-  const bytes: Record<Category, number> = { modelled: 0, opaque: 0, error: 0, document: 0 };
+  const bytes: Record<Category, number> = { modeled: 0, opaque: 0, error: 0, document: 0 };
   for (const leaf of leaves(tree)) bytes[categorize(leaf, text)] += leaf.to - leaf.from;
   let errorNodes = 0;
   tree.iterate({

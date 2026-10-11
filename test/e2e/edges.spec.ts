@@ -243,7 +243,7 @@ test("dragging a corner moves it, snapping level with the node before it", async
   await expect(page.locator("path[data-edge]")).toHaveCount(1);
   await selectEdge(page, 0);
   const corner = await centerOf(page, '[data-testid="vertex-handle"]');
-  // Near a's centre line and b's: it snaps to both, so it becomes (b |- a).
+  // Near a's center line and b's: it snaps to both, so it becomes (b |- a).
   const a = await nodeBox(page, "a");
   const b = await nodeBox(page, "b");
   await dragTo(page, corner, { x: b.x + b.width / 2 + 2, y: a.y + a.height / 2 + 2 });
@@ -475,7 +475,7 @@ test("dragging a label along its edge writes pos=", async ({ page }) => {
 
 // ---------------------------------------------------------------- step 8: edge properties
 
-test("the edge panel sets dashes, arrow, tip, colour and width, each as one undo step", async ({ page }) => {
+test("the edge panel sets dashes, arrow, tip, color and width, each as one undo step", async ({ page }) => {
   const before = await code(page);
   await selectEdge(page, 4); // rec → stop
   await expect(page.getByTestId("edge-properties")).toBeVisible();

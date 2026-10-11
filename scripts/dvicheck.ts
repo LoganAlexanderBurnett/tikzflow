@@ -36,7 +36,7 @@ try {
     if (composite) writeFileSync(join(outDir, `${rest.name}.png`), Buffer.from(composite.split(",")[1]!, "base64"));
     summary.push(rest);
     const s = rest.stats;
-    console.log(`${rest.name}: ${s ? `${s.mismatchPct}% (missing ${s.missing}, extra ${s.extra}, colour ${s.color}; size ${s.refSizePt.join("x")} vs ${s.testSizePt.join("x")} pt, offset ${s.offsetPt.join(",")})` : "n/a"}; ${rest.glyphs} glyphs, ${rest.ms} ms`);
+    console.log(`${rest.name}: ${s ? `${s.mismatchPct}% (missing ${s.missing}, extra ${s.extra}, color ${s.color}; size ${s.refSizePt.join("x")} vs ${s.testSizePt.join("x")} pt, offset ${s.offsetPt.join(",")})` : "n/a"}; ${rest.glyphs} glyphs, ${rest.ms} ms`);
   }
   writeFileSync(join(outDir, "dvicheck.json"), JSON.stringify({ run, browser: `msedge ${browser.version()}`, date: new Date().toISOString(), results: summary }, null, 2) + "\n");
 } finally {

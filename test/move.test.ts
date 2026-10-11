@@ -13,7 +13,7 @@ function nodes(text: string, index = 0): Map<string, LaidOutNode> {
   return new Map(l.nodes.map((n) => [n.id, n]));
 }
 
-/** The centre `id` would have if its north anchor sat `gap` below `of`'s south anchor. */
+/** The center `id` would have if its north anchor sat `gap` below `of`'s south anchor. */
 function below(text: string, id: string, of: string, gap: number): Point {
   const ns = nodes(text);
   const a = ns.get(of)!;

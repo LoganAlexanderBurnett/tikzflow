@@ -79,7 +79,7 @@ function fallbackBase(fallback: string, style: NameStyle): string {
 }
 
 /**
- * A unique name for a new node labelled `label`. `fallback` is its style or
+ * A unique name for a new node labeled `label`. `fallback` is its style or
  * shape, used when the label has no words. Repeats get a number: "start2";
  * fallback names always do: "decision1".
  */

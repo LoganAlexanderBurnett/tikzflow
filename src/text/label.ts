@@ -14,7 +14,7 @@ export interface Macro {
 
 export interface LabelEnv {
   macros: ReadonlyMap<string, Macro>;
-  /** Resolves a colour name for \color and \textcolor. */
+  /** Resolves a color name for \color and \textcolor. */
   color: (expr: string) => RGB | null;
   /** Size commands of the document class; 10pt if missing. */
   sizes?: Readonly<Record<string, readonly [number, number]>>;
@@ -810,7 +810,7 @@ function envKey(env: LabelEnv): string {
 /**
  * Lays out a label. Results are cached, so an unchanged label keeps the same
  * object across layouts (the canvas relies on that to skip re-rendering).
- * Colour names are resolved through env.color, so a label using \color or
+ * Color names are resolved through env.color, so a label using \color or
  * \textcolor is not cached.
  */
 export function layoutLabel(src: string, opts: LayoutOptions, env: LabelEnv): TextLayout {

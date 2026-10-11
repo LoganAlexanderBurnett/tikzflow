@@ -1,4 +1,4 @@
-// The grayscale and colour-blind views (M4 step 6, D85): the toolbar's choice,
+// The grayscale and colorblind views (M4 step 6, D85): the toolbar's choice,
 // the SVG filter the canvas draws the picture through, and the note over the
 // canvas that says the picture is being shown that way (and the code isn't).
 
@@ -6,7 +6,7 @@ import { filterId, filterValues, isVisionMode, VISION_MODES, visionMode } from "
 
 export function VisionSelect() {
   return (
-    <label class="picker tf-vision-select" title="Look at the picture as it appears in grayscale, or to someone with a kind of colour blindness. Only the preview changes: the code and the exports stay as they are.">
+    <label class="picker tf-vision-select" title="Look at the picture as it appears in grayscale, or to someone with a kind of color blindness. Only the preview changes: the code and the exports stay as they are.">
       View{" "}
       <select
         value={visionMode.value}
@@ -37,7 +37,7 @@ export function VisionFilter() {
   );
 }
 
-/** The `filter` attribute for the drawing, or undefined for normal colours. */
+/** The `filter` attribute for the drawing, or undefined for normal colors. */
 export function visionFilterAttr(): string | undefined {
   const mode = visionMode.value;
   return mode === "normal" ? undefined : `url(#${filterId(mode)})`;
@@ -53,7 +53,7 @@ export function VisionBadge() {
         The picture is shown {info.badge}. Your code and exports are unchanged.
       </span>
       <button onClick={() => (visionMode.value = "normal")} data-testid="vision-normal">
-        Normal colours
+        Normal colors
       </button>
     </div>
   );

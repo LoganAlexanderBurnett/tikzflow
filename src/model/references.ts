@@ -127,7 +127,7 @@ function pathRefs(text: string, p: PathSyntax, statement: Range, out: NameRef[])
   }
 }
 
-/** Every node reference in the picture's modelled code, in source order. */
+/** Every node reference in the picture's modeled code, in source order. */
 export function pictureReferences(text: string, pic: PictureSyntax): NameRef[] {
   const out: NameRef[] = [];
   for (const item of pic.items) {

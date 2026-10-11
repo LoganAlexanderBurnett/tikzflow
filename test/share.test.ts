@@ -31,7 +31,7 @@ describe("share links (D74)", () => {
     expect((await decodeShare(await encodeShare("x", 0)))!.picture).toBe(0);
   });
 
-  it("recognises share links, and refuses damaged ones without throwing", async () => {
+  it("recognizes share links, and refuses damaged ones without throwing", async () => {
     expect(isShareHash("#tf1=abc")).toBe(true);
     expect(isShareHash("#other=abc")).toBe(false);
     expect(isShareHash("")).toBe(false);

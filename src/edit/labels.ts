@@ -45,7 +45,7 @@ export function closestOnSegment(seg: RouteSeg, p: Point): { t: number; point: P
       bestT = i / N;
     }
   }
-  // Refine between the neighbouring samples.
+  // Refine between the neighboring samples.
   let lo = Math.max(0, bestT - 1 / N);
   let hi = Math.min(1, bestT + 1 / N);
   for (let k = 0; k < 24; k++) {
@@ -68,7 +68,7 @@ export type AutoKeys = "auto" | "auto, swap";
 
 /**
  * The keys that put a label beside the path, on the side `toward` points to
- * (from the line towards where the label should sit). TikZ's `auto` keeps a
+ * (from the line toward where the label should sit). TikZ's `auto` keeps a
  * label beside the line on any segment, which `above` or `left` don't. When
  * `toward` doesn't say (it lies along the line), a level edge gets its label
  * above and an upright one on its right.
@@ -93,7 +93,7 @@ export interface LabelGeometry {
   /** Where the label is attached to the path, and which way the path runs there. */
   point: Point;
   angle: number;
-  /** The label's centre relative to that point. */
+  /** The label's center relative to that point. */
   offset: Point;
   /** How far the line cuts into the label's box: about 0 for a label beside the line, more for one on it. */
   overlap: number;

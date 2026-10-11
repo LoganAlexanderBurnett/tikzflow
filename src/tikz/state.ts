@@ -70,7 +70,7 @@ export function invert(m: Matrix): Matrix | null {
 }
 
 export interface ArrowTip {
-  /** Normalised tip name: "to", "stealth", "latex", "triangle", "bar", "circle", "square", "diamond", "kite", "round", "butt". */
+  /** Normalized tip name: "to", "stealth", "latex", "triangle", "bar", "circle", "square", "diamond", "kite", "round", "butt". */
   kind: string;
   open: boolean;
   /** Tip length and width in pt. Undefined means the kind's default for the line width. */
@@ -103,7 +103,7 @@ export type Placement =
     };
 
 export interface Shading {
-  /** Colours from one side to the other. */
+  /** Colors from one side to the other. */
   kind: "vertical" | "horizontal" | "radial";
   from: RGB;
   to: RGB;

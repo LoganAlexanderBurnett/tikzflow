@@ -166,7 +166,7 @@ export function planEdgeToLine(text: string, picIndex: number, edgeId: string): 
 
   const plain = attempt([]);
   if (typeof plain !== "string") return plain;
-  // Style the edge only had from "every edge" (an arrow, a colour): write it out.
+  // Style the edge only had from "every edge" (an arrow, a color): write it out.
   const every = everyEdgeItems(text, picIndex);
   if (every.length) {
     const again = attempt(every);

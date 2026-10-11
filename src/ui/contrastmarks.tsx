@@ -46,8 +46,8 @@ export function ContrastMarks({ scale, hidden }: { scale: number; hidden: boolea
   );
 }
 
-/** For a selected node: the warning and a fix that sets the text colour. */
-export function ContrastNote({ issue, onFix, fixable }: { issue: ContrastIssue; onFix: (colour: "black" | "white") => void; fixable: boolean }) {
+/** For a selected node: the warning and a fix that sets the text color. */
+export function ContrastNote({ issue, onFix, fixable }: { issue: ContrastIssue; onFix: (color: "black" | "white") => void; fixable: boolean }) {
   const best = betterText(issue.background);
   return (
     <div class="tf-contrast-note" data-testid="contrast-note">
@@ -55,11 +55,11 @@ export function ContrastNote({ issue, onFix, fixable }: { issue: ContrastIssue; 
         <strong>Low contrast.</strong> {contrastMessage(issue)}
       </p>
       {fixable ? (
-        <button onClick={() => onFix(best.name)} data-testid="contrast-fix" title={`Set the text colour to ${best.name}, which is ${formatRatio(best.ratio)} against this`}>
+        <button onClick={() => onFix(best.name)} data-testid="contrast-fix" title={`Set the text color to ${best.name}, which is ${formatRatio(best.ratio)} against this`}>
           Use {best.name} text ({formatRatio(best.ratio)})
         </button>
       ) : (
-        <p class="tf-note">Part of the label sets its own colour (<code>\textcolor</code> or <code>\color</code>): change it in the code or the label.</p>
+        <p class="tf-note">Part of the label sets its own color (<code>\textcolor</code> or <code>\color</code>): change it in the code or the label.</p>
       )}
     </div>
   );

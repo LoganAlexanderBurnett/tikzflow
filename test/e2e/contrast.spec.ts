@@ -144,10 +144,10 @@ for (const scheme of ["light", "dark"] as const) {
         }
         await page.getByTestId(`${panel}-button`).click();
       }
-      // A colour-blind view: its note over the canvas (M4 step 6).
+      // A colorblind view: its note over the canvas (M4 step 6).
       await page.getByTestId("vision-select").selectOption("deuteranopia");
       await expect(page.getByTestId("vision-badge")).toBeVisible();
-      await check("colour-blind view");
+      await check("colorblind view");
       await page.getByTestId("vision-normal").click();
       // Text that is hard to read: the summary's list, and the note in the properties panel.
       await setCode(page, "\\begin{tikzpicture}\n\\node[draw, fill=yellow, text=white] (pale) at (0,0) {Pale};\n\\end{tikzpicture}\n");

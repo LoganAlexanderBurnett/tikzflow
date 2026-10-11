@@ -17,8 +17,8 @@ const nodes = (text: string) => layoutDocumentPicture(analyzeDocument(text), 0)!
 describe("turned shapes", () => {
   const box = { ...makeShape({ kind: "rectangle", textWidth: 20, textHeight: 6, textDepth: 2, innerXSep: 0, innerYSep: 0, outerXSep: 0, outerYSep: 0, minWidth: 0, minHeight: 0, roundedCorners: 0, aspect: 1, trapeziumLeftAngle: 60, trapeziumRightAngle: 60, shapeBorderRotate: 0 }, { x: 10, y: 5 }), rotate: 90 };
 
-  it("turns anchors and borders about the centre", () => {
-    // 20 wide and 8 high, turned a quarter: its east anchor is now above the centre.
+  it("turns anchors and borders about the center", () => {
+    // 20 wide and 8 high, turned a quarter: its east anchor is now above the center.
     near(anchorPoint(box, "east")!, { x: 10, y: 15 });
     near(anchorPoint(box, "north")!, { x: 6, y: 5 });
     near(anchorPoint(box, "north east")!, { x: 6, y: 15 });

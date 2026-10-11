@@ -44,7 +44,7 @@ describe("writing lengths and points", () => {
     expect(doc("\\draw (a) -- (b);")).toBe("dims");
   });
 
-  it("finds perpendicular coordinates from centres and sides, never from one node", () => {
+  it("finds perpendicular coordinates from centers and sides, never from one node", () => {
     const text = pic("\\draw (a) -- (b);");
     const l = layoutOf(text);
     const path = l.paths[0]!;
@@ -135,7 +135,7 @@ describe("moving a waypoint", () => {
 });
 
 describe("snapping a waypoint", () => {
-  it("lines up with node centres and sides, and with the points before and after it", () => {
+  it("lines up with node centers and sides, and with the points before and after it", () => {
     const text = pic("\\draw (a) -- (2,1) -- (b);");
     const l = layoutOf(text);
     const e = firstEdge(text);

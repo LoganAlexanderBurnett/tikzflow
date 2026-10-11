@@ -21,7 +21,7 @@ async function center(page: Page, id: string) {
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
 
-/** A node's centre in the picture's coordinates (pt, y up): the canvas may be resized or panned in between. */
+/** A node's center in the picture's coordinates (pt, y up): the canvas may be resized or panned in between. */
 async function modelCenter(page: Page, id: string) {
   return page.evaluate((id) => {
     const w = window as unknown as { tikzflow: { store: { baseLayout: { value: { nodes: Array<{ id: string; shape: { center: { x: number; y: number } } }> } } } } };

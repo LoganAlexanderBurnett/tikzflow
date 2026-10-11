@@ -23,7 +23,7 @@ interface Move {
   to: Point;
 }
 
-/** The centre that puts `n` directly below `t` at its node distance. */
+/** The center that puts `n` directly below `t` at its node distance. */
 function belowOf(n: LaidOutNode, t: LaidOutNode): Point {
   const south = anchorPoint(t.shape, "south")!;
   return { x: t.shape.center.x, y: south.y - n.nodeDistance.v * n.vectorScale - (n.shape.hh + n.shape.outerY) };

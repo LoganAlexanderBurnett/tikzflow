@@ -1,6 +1,6 @@
-// Grayscale and colour-blind views of the picture (M4 step 6, D85). The
-// picture is drawn through an SVG colour matrix; nothing about the code, the
-// exports or the interface changes. The colour-blind matrices are Machado,
+// Grayscale and colorblind views of the picture (M4 step 6, D85). The
+// picture is drawn through an SVG color matrix; nothing about the code, the
+// exports or the interface changes. The colorblind matrices are Machado,
 // Oliveira and Fernandes (2009) at full severity, which work on linear RGB, as
 // SVG filters do by default (`color-interpolation-filters`).
 import { signal } from "@preact/signals";
@@ -25,10 +25,10 @@ export interface VisionInfo {
 }
 
 export const VISION_MODES: readonly VisionInfo[] = [
-  { mode: "normal", label: "Normal colours", badge: "" },
-  { mode: "grayscale", label: "Grayscale", badge: "in grayscale, as on a black-and-white print or to someone who sees no colour" },
+  { mode: "normal", label: "Normal colors", badge: "" },
+  { mode: "grayscale", label: "Grayscale", badge: "in grayscale, as on a black-and-white print or to someone who sees no color" },
   { mode: "protanopia", label: "Red-blind (protanopia)", badge: "by someone with protanopia (no red cones): reds look dark, red and green run together" },
-  { mode: "deuteranopia", label: "Green-blind (deuteranopia)", badge: "by someone with deuteranopia (no green cones, the most common kind of colour blindness): red and green run together" },
+  { mode: "deuteranopia", label: "Green-blind (deuteranopia)", badge: "by someone with deuteranopia (no green cones, the most common kind of color blindness): red and green run together" },
   { mode: "tritanopia", label: "Blue-blind (tritanopia)", badge: "by someone with tritanopia (no blue cones): blue and green, yellow and violet run together" },
 ];
 
@@ -36,7 +36,7 @@ const linear = (v: number): number => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) /
 const gamma = (v: number): number => (v <= 0.0031308 ? v * 12.92 : 1.055 * v ** (1 / 2.4) - 0.055);
 const clamp = (v: number): number => Math.min(1, Math.max(0, v));
 
-/** An sRGB colour (channels 0–1) as it looks in `mode`. */
+/** An sRGB color (channels 0–1) as it looks in `mode`. */
 export function simulate(rgb: readonly [number, number, number], mode: VisionMode): [number, number, number] {
   if (mode === "normal") return [rgb[0], rgb[1], rgb[2]];
   const m = MATRICES[mode];
@@ -44,7 +44,7 @@ export function simulate(rgb: readonly [number, number, number], mode: VisionMod
   return [clamp(m[0] * r + m[1] * g + m[2] * b), clamp(m[3] * r + m[4] * g + m[5] * b), clamp(m[6] * r + m[7] * g + m[8] * b)].map(gamma) as [number, number, number];
 }
 
-/** The `values` of an `feColorMatrix` for `mode`, or null for normal colours. */
+/** The `values` of an `feColorMatrix` for `mode`, or null for normal colors. */
 export function filterValues(mode: VisionMode): string | null {
   if (mode === "normal") return null;
   const m = MATRICES[mode];

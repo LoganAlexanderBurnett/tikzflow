@@ -670,7 +670,7 @@ function paintShape(doc: Doc, segs: readonly Seg[], s: State, pageFromSvg: Matri
     const shading = gradientShading(doc, s.fill.id, bounds(segs), s.ctm, pageFromSvg);
     if (shading) out.emit(`/Pattern cs ${out.pattern(shading)} scn`);
     else {
-      out.warnings.add(`gradient ${s.fill.id} couldn't be read; filled with its first colour`);
+      out.warnings.add(`gradient ${s.fill.id} couldn't be read; filled with its first color`);
       fillOk = false;
     }
   }

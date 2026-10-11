@@ -81,7 +81,7 @@ export type BodyItem =
   | { kind: "opaque"; range: Range; reason: OpaqueReason; names: string[]; text: string }
   | { kind: "definition"; range: Range; def: Definition };
 
-/** Why a block is kept as-is. "environment" is a \begin/\end marker (pgfonlayer, ...) whose content is still modelled. */
+/** Why a block is kept as-is. "environment" is a \begin/\end marker (pgfonlayer, ...) whose content is still modeled. */
 export type OpaqueReason = "foreach" | "matrix" | "command" | "environment" | "error";
 
 /** A style definition: "name/.style={...}", "\tikzstyle{name}=[...]", and so on. */
@@ -302,7 +302,7 @@ function tikzstyleItem(node: SyntaxNode, text: string): BodyItem & { kind: "styl
   const opts = node.getChild("Options");
   let name = nameNode ? stripBraces(cleanText(nameNode, text)) : "";
   let mode: StyleDef["mode"] = node.getChild("+=") ? "append" : "set";
-  // "\tikzstyle arrow+=[...]" tokenises as name "arrow+" then "=".
+  // "\tikzstyle arrow+=[...]" tokenizes as name "arrow+" then "=".
   if (name.endsWith("+")) {
     name = name.slice(0, -1).trim();
     mode = "append";
@@ -357,7 +357,7 @@ function readDefinition(
     last = n1;
     let params = 0;
     let defaultArg: string | undefined;
-    // Optional [n] and [default] (\newcommand), or #1#2 (\def). They tokenise as plain text.
+    // Optional [n] and [default] (\newcommand), or #1#2 (\def). They tokenize as plain text.
     for (let s = nextSibling(last); s && !isGroup(s); s = nextSibling(last)) {
       const t = text.slice(s.from, s.to);
       const count = /^\[(\d)\]$/.exec(t);

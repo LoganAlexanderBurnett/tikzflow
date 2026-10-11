@@ -182,7 +182,7 @@ export function styleNameProblem(doc: DocumentModel, pic: PictureSyntax, name: s
 
 const camel = (words: string[]) => words.map((w, i) => (i === 0 ? w.toLowerCase() : w[0]!.toUpperCase() + w.slice(1).toLowerCase())).join("");
 
-/** A name for a style made of `items`: its fill colour or shape, then "Box" or "Node". */
+/** A name for a style made of `items`: its fill color or shape, then "Box" or "Node". */
 export function suggestStyleName(items: readonly string[]): string {
   const fill = items.map((i) => /^fill\s*=\s*\{?([A-Za-z]+)/.exec(i)?.[1]).find(Boolean);
   const shape = items.find((i) => KNOWN_SHAPES.has(i));

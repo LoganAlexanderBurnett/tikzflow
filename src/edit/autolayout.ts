@@ -271,7 +271,7 @@ export function groupTree(text: string, layout: PictureLayout, members: readonly
 }
 
 /**
- * Whether, laid out without groups (ELK's centres), two groups' boxes would
+ * Whether, laid out without groups (ELK's centers), two groups' boxes would
  * cross (overlap without one holding the other) or a group's box would cover
  * a node of another group. Nodes in no group may sit inside a box: authors
  * often fit only the corner nodes of a row. Depends only on what ELK is given,
@@ -328,7 +328,7 @@ export function elkGraph(layout: PictureLayout, members: readonly LaidOutNode[],
   }
   const gap = (axis: "v" | "h") => {
     const d = median(members.map((n) => n.nodeDistance[axis] * n.vectorScale));
-    // "on grid" measures centre to centre: what is left between the borders.
+    // "on grid" measures center to center: what is left between the borders.
     if (members.filter((n) => n.onGrid).length * 2 > members.length) {
       const s = median(members.map((n) => (axis === "v" ? size(n).h : size(n).w)));
       return Math.max(d - s, 5 * MM);
@@ -356,7 +356,7 @@ export function elkGraph(layout: PictureLayout, members: readonly LaidOutNode[],
     layoutOptions: {
       "elk.algorithm": "layered",
       ...spacing,
-      // Edges into one node meet at one point, so nodes line up centre to centre.
+      // Edges into one node meet at one point, so nodes line up center to center.
       "elk.layered.mergeEdges": "true",
       // Back edges are found by following the code's own order.
       "elk.layered.cycleBreaking.strategy": "DEPTH_FIRST",
@@ -418,7 +418,7 @@ function loadElk(): Promise<ElkLayout> {
   return elkInstance;
 }
 
-/** Runs ELK and returns each member's centre in canvas pt (y up). */
+/** Runs ELK and returns each member's center in canvas pt (y up). */
 export async function elkCenters(graph: ElkNode): Promise<Map<string, Point>> {
   const out = await (await loadElk())(graph);
   const centers = new Map<string, Point>();
@@ -438,7 +438,7 @@ export async function elkCenters(graph: ElkNode): Promise<Map<string, Point>> {
 /**
  * Lanes along the flow (D81): ELK's layers are kept, and each lane gets a band
  * of its own across them, in the lanes' order. Within a lane, the nodes of one
- * layer sit side by side in ELK's order, centred in the band, so a lane with
+ * layer sit side by side in ELK's order, centered in the band, so a lane with
  * one node per layer is one straight column. Nodes in no lane come last.
  */
 export function laneColumns(members: readonly LaidOutNode[], centers: ReadonlyMap<string, Point>, direction: LayoutDirection, lanes: LaneOrder): Map<string, Point> {
@@ -489,7 +489,7 @@ interface Grid {
   layer: Map<string, number>;
   /** Position within its layer. */
   index: Map<string, number>;
-  /** Nodes whose centres line up across layers share a column. */
+  /** Nodes whose centers line up across layers share a column. */
   column: Map<string, number>;
   /** Nodes by layer, in order. */
   layers: string[][];
@@ -540,7 +540,7 @@ export function readGrid(members: readonly LaidOutNode[], centers: ReadonlyMap<s
 
 // ---------------------------------------------------------------- where a relation puts a node
 
-/** The centre `dir=<v and h> of ref` gives `n`, with the ref's centre at `at`; distances in the node's own units, undefined for its node distance. */
+/** The center `dir=<v and h> of ref` gives `n`, with the ref's center at `at`; distances in the node's own units, undefined for its node distance. */
 export function placeRelative(ref: LaidOutNode, at: Point, n: LaidOutNode, dir: string, v?: number, h?: number): Point | null {
   const [ux, uy] = positioningDirection(dir);
   const s = n.vectorScale;
@@ -598,10 +598,10 @@ function straight(ref: LaidOutNode, at: Point, n: LaidOutNode, dir: string, dist
 /**
  * A relation to `ref` that puts `n` at `target`: a straight one when the two
  * line up, else a diagonal, else a straight one with a shift across it.
- * Distances are rounded to whole millimetres, and the centre returned is where
+ * Distances are rounded to whole millimetres, and the center returned is where
  * the rounded relation puts the node.
  */
-function towards(ref: LaidOutNode, at: Point, n: LaidOutNode, target: Point): Placement | null {
+function toward(ref: LaidOutNode, at: Point, n: LaidOutNode, target: Point): Placement | null {
   const s = n.vectorScale;
   for (const dir of STRAIGHT) {
     const zero = placeRelative(ref, at, n, dir, 0, 0);
@@ -779,7 +779,7 @@ export function choosePlacements(
       const dl = L - grid.layer.get(id)!;
       if (Math.abs(dl) === 1) add(straight(byId.get(id)!, at(id), mv, dl > 0 ? frame.next : frame.back));
     }
-    // 3. Beside its neighbour in the layer, at ELK's gap.
+    // 3. Beside its neighbor in the layer, at ELK's gap.
     const rowMates = refs.filter((id) => grid.layer.get(id) === L).sort((p, q) => Math.abs(grid.index.get(p)! - I) - Math.abs(grid.index.get(q)! - I));
     /**
      * ELK's place for `n` seen from `r`, lined up with its column and layer:
@@ -824,11 +824,11 @@ export function choosePlacements(
       add({ spec: { kind: "perp", xFrom: byId.get(xFrom)!.name!, yFrom: byId.get(yFrom)!.name! }, center: { x: at(xFrom).x, y: at(yFrom).y } });
     }
     // 5. Further along its column or layer, at ELK's distance.
-    for (const id of [...colMates, ...rowMates].slice(0, 2)) add(towards(byId.get(id)!, at(id), mv, lineUp(id)));
+    for (const id of [...colMates, ...rowMates].slice(0, 2)) add(toward(byId.get(id)!, at(id), mv, lineUp(id)));
     // 6. Anywhere: from the nearest node placed, lined up with what is placed of its column and layer.
     const near = [...refs].sort((p, q) => dist(target.get(p)!, target.get(n.id)!) - dist(target.get(q)!, target.get(n.id)!))[0];
     let fallback: Placement | null = null;
-    if (near) fallback = towards(byId.get(near)!, at(near), mv, lineUp(near));
+    if (near) fallback = toward(byId.get(near)!, at(near), mv, lineUp(near));
     add(fallback);
 
     // Nothing clear: the nearest clear place to ELK's, searched outwards in 5 mm steps.
@@ -838,7 +838,7 @@ export function choosePlacements(
         const d = k * 5 * MM;
         const tries = [frame.across({ x: 1, y: 0 }) !== 0 ? { x: d, y: 0 } : { x: 0, y: -d }, frame.along({ x: 1, y: 0 }) !== 0 ? { x: d, y: 0 } : { x: 0, y: -d }];
         for (const t of [tries[0]!, { x: -tries[0]!.x, y: -tries[0]!.y }, tries[1]!]) {
-          const p = towards(byId.get(near)!, at(near), mv, { x: goal.x + t.x, y: goal.y + t.y });
+          const p = toward(byId.get(near)!, at(near), mv, { x: goal.x + t.x, y: goal.y + t.y });
           if (p && clear(n, p.center)) {
             add(p);
             break search;
@@ -998,7 +998,7 @@ function staleCorner(edge: Edge, moved: ReadonlySet<string>): number | null {
 /**
  * A one-corner orthogonal edge between bare node names whose ends now line
  * up: its corner falls inside a node, so TikZ would run the line to that
- * node's centre.
+ * node's center.
  */
 function degenerateCorner(edge: Edge, layout: PictureLayout): boolean {
   if (edge.lock || edge.mode !== "orthogonal" || edge.segs.length !== 1) return false;
@@ -1174,7 +1174,7 @@ function nameOf(layout: PictureLayout, id: string | undefined): string {
 
 // ---------------------------------------------------------------- reordering statements (D81 item 4)
 
-/** A placement a person wouldn't write if the node could refer to its neighbour: a distance, a diagonal or a shift. */
+/** A placement a person wouldn't write if the node could refer to its neighbor: a distance, a diagonal or a shift. */
 function roundabout(spec: PositionSpec | "keep"): boolean {
   if (spec === "keep") return false;
   if (spec.kind !== "positioning") return spec.kind !== "perp";
@@ -1383,7 +1383,7 @@ export async function planAutoLayout(text: string, picIndex: number, options: Au
   // ELK's result stays: named nodes keep their ids. Moves that don't end in a plain relation are undone.
   let reordered: Reordered["moved"] = [];
   if (options.reorder) {
-    // Round by round: a moved node can leave the one that followed it without a neighbour before
+    // Round by round: a moved node can leave the one that followed it without a neighbor before
     // it in the code, which the next round moves too. The best state is kept, and only if it has
     // fewer roundabout placements than the plan without moves.
     const count = (p: Plan) => [...p.placements.values()].filter((x) => roundabout(x.spec)).length;

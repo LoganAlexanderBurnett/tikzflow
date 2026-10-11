@@ -41,7 +41,7 @@ test("dragging a node below another writes positioning code, and undo/redo work 
   const before = await code(page);
   const base = await nodeBox(page, "base");
   const stop = await nodeBox(page, "stop");
-  // Put "base" in the same column as "stop", well below it: it snaps to stop's centre line.
+  // Put "base" in the same column as "stop", well below it: it snaps to stop's center line.
   const from = { x: base.x + base.width / 2, y: base.y + base.height / 2 };
   const to = { x: stop.x + stop.width / 2 + 2, y: stop.y + stop.height * 2.6 };
   await drag(page, from, to);
@@ -86,13 +86,13 @@ test("clicking a shape highlights its code; moving the cursor selects the shape"
 });
 
 test("shift-click adds nodes to the selection and takes them out again", async ({ page }) => {
-  const centre = async (id: string) => {
+  const center = async (id: string) => {
     const b = await nodeBox(page, id);
     return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
   };
-  const read = await centre("read");
-  const rec = await centre("rec");
-  const stop = await centre("stop");
+  const read = await center("read");
+  const rec = await center("rec");
+  const stop = await center("stop");
   await page.mouse.click(read.x, read.y);
   await page.keyboard.down("Shift");
   await page.mouse.click(rec.x, rec.y);

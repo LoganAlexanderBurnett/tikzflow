@@ -25,14 +25,14 @@ export type NodeShape =
 /** An arrow tip, in the editor's words. */
 export type Tip = "none" | "arrow" | "open" | "circle" | "open circle" | "cross" | "bar" | "diamond" | "open diamond" | "square";
 
-/** Colours as the source wrote them, resolved to 0–255 channels; `undefined` for "not set". */
+/** Colors as the source wrote them, resolved to 0–255 channels; `undefined` for "not set". */
 export type Rgb = readonly [number, number, number];
 
 /** A look a node or an edge was given in the source (`style`, `classDef`, DOT attributes). */
 export interface Look {
   fill?: Rgb;
   stroke?: Rgb;
-  /** Text colour. */
+  /** Text color. */
   text?: Rgb;
   /** Line width in pt. */
   width?: number;
@@ -100,7 +100,7 @@ export class ImportError extends Error {
   }
 }
 
-// ---------------------------------------------------------------- colours
+// ---------------------------------------------------------------- colors
 
 const NAMED: Record<string, string> = {
   aliceblue: "f0f8ff",
@@ -253,7 +253,7 @@ const NAMED: Record<string, string> = {
 const hex = (s: string): Rgb => [parseInt(s.slice(0, 2), 16), parseInt(s.slice(2, 4), 16), parseInt(s.slice(4, 6), 16)];
 
 /**
- * A colour as CSS or Graphviz writes it: `#f9f`, `#ff99ff`, `#ff99ffaa`, a name
+ * A color as CSS or Graphviz writes it: `#f9f`, `#ff99ff`, `#ff99ffaa`, a name
  * (`lightblue`), Graphviz's `grayNN` and `/scheme/name` forms, `rgb(...)`.
  * Null when it isn't one of these.
  */
@@ -268,12 +268,12 @@ export function parseColor(raw: string): Rgb | null {
   }
   const rgb = /^rgba?\(\s*(\d+)\s*[, ]\s*(\d+)\s*[, ]\s*(\d+)/.exec(s);
   if (rgb) return [Math.min(255, +rgb[1]!), Math.min(255, +rgb[2]!), Math.min(255, +rgb[3]!)];
-  // Graphviz colour schemes: "/x11/red" is "red"; numbered schemes aren't known.
+  // Graphviz color schemes: "/x11/red" is "red"; numbered schemes aren't known.
   const scheme = /^\/x11\/(.+)$/.exec(s);
   if (scheme) s = scheme[1]!;
-  const grey = /^gr[ae]y(\d{1,3})$/.exec(s);
-  if (grey) {
-    const v = Math.round((Math.min(100, +grey[1]!) * 255) / 100);
+  const gray = /^gr[ae]y(\d{1,3})$/.exec(s);
+  if (gray) {
+    const v = Math.round((Math.min(100, +gray[1]!) * 255) / 100);
     return [v, v, v];
   }
   // X11 names with a number (lightblue2) are shades of the name: the plain name is the closest we have.

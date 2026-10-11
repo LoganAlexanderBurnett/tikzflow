@@ -62,7 +62,7 @@ describe.skipIf(!have)(`the engine (${tag})`, () => {
     expect(r.svg!.missingFonts).toEqual([]);
     expect(r.svg!.glyphs).toBe(9); // "Start", and x > 0 ? in math
     const p = r.svg!.picture!;
-    // The node "Start" is centred on TikZ's origin: the box spans it.
+    // The node "Start" is centered on TikZ's origin: the box spans it.
     expect(p.tikz[0]).toBeLessThan(0);
     expect(p.tikz[2]).toBeGreaterThan(0);
     expect(p.tikz[3]).toBeGreaterThan(0);

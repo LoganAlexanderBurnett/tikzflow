@@ -39,7 +39,7 @@ try {
     const s = rest.stats;
     if (s) worst = Math.max(worst, s.mismatchPct);
     console.log(
-      `${rest.name}: ${rest.ok && s ? `${s.mismatchPct}% (missing ${s.missing}, extra ${s.extra}, colour ${s.color}; ${rest.pdfBytes} B PDF vs ${rest.svgBytes} B SVG, ${rest.ms} ms)` : `FAILED ${rest.log}`}${rest.warnings.length ? ` [${rest.warnings.join("; ")}]` : ""}`,
+      `${rest.name}: ${rest.ok && s ? `${s.mismatchPct}% (missing ${s.missing}, extra ${s.extra}, color ${s.color}; ${rest.pdfBytes} B PDF vs ${rest.svgBytes} B SVG, ${rest.ms} ms)` : `FAILED ${rest.log}`}${rest.warnings.length ? ` [${rest.warnings.join("; ")}]` : ""}`,
     );
   }
   console.log(`${results.length} pictures, worst ${worst}%`);

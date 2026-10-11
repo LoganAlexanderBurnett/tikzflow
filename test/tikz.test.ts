@@ -70,7 +70,7 @@ describe("labels", () => {
     expect(l.height).toBeCloseTo(6.83, 2);
     expect(l.depth).toBe(0);
   });
-  it("breaks lines at \\\\ and centres them when asked", () => {
+  it("breaks lines at \\\\ and centers them when asked", () => {
     const l = layoutLabel("Long line\\\\x", { font: NORMAL_FONT, align: "center" }, env);
     expect(l.lines).toHaveLength(2);
     expect(l.lines[1]!.x).toBeGreaterThan(0);
@@ -135,7 +135,7 @@ describe("positioning", () => {
     const l = layout(pic("\\node (a) {A};\n\\node[below=5mm of a] (b) {B};"));
     expect(anchor(node(l, "a"), "south").y - anchor(node(l, "b"), "north").y).toBeCloseTo(5 * 2.845274, 3);
   });
-  it("on grid measures between centres", () => {
+  it("on grid measures between centers", () => {
     const l = layout(pic("\\node (a) {A};\n\\node[below=of a] (b) {B};", "[on grid, node distance=2cm]"));
     expect(node(l, "a").shape.center.y - node(l, "b").shape.center.y).toBeCloseTo(2 * CM, 3);
   });
@@ -179,7 +179,7 @@ describe("positioning", () => {
     expect(gap("a4", "e")).toBeCloseTo(2.5 * CM, 3);
     expect(node(l, "a5").shape.center.y - node(l, "f").shape.center.y).toBeCloseTo(2.5 * CM, 3);
   });
-  it("old below of= measures centre to centre", () => {
+  it("old below of= measures center to center", () => {
     const l = layout(pic("\\node (a) {A};\n\\node[below of=a] (b) {B};", "[node distance=2cm]"));
     expect(node(l, "a").shape.center.y - node(l, "b").shape.center.y).toBeCloseTo(2 * CM, 3);
   });

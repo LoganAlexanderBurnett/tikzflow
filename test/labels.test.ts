@@ -141,7 +141,7 @@ describe("adding a label", () => {
 });
 
 describe("sliding a label", () => {
-  const labelled = pic("\\draw[->] (a) -- node[above] {yes} (b);");
+  const labeled = pic("\\draw[->] (a) -- node[above] {yes} (b);");
   const slide = (text: string, p: { x: number; y: number }, snap = true) => {
     const l = layoutOf(text);
     const label = l.pathNodes[0]!;
@@ -149,14 +149,14 @@ describe("sliding a label", () => {
   };
 
   it("adds pos= to a label that has none", () => {
-    const e = edgesOf(labelled)[0]!;
-    const r = slide(labelled, mid(e, 0.2));
+    const e = edgesOf(labeled)[0]!;
+    const r = slide(labeled, mid(e, 0.2));
     expect(r.ok && lines(r.text)).toEqual(["\\draw[->] (a) -- node[above, pos=0.2] {yes} (b);"]);
     expect(r.ok && edgesOf(r.text)[0]!.labels[0]!.pathPos!.t).toBeCloseTo(0.2, 6);
   });
 
   it("changes pos= in place, and replaces midway and near start", () => {
-    const e = edgesOf(labelled)[0]!;
+    const e = edgesOf(labeled)[0]!;
     const withPos = pic("\\draw[->] (a) -- node[pos=0.2, above] {yes} (b);");
     const r = slide(withPos, mid(e, 0.75));
     expect(r.ok && lines(r.text)).toEqual(["\\draw[->] (a) -- node[pos=0.75, above] {yes} (b);"]);
@@ -166,8 +166,8 @@ describe("sliding a label", () => {
   });
 
   it("writes nothing when the label is already there", () => {
-    const e = edgesOf(labelled)[0]!;
-    const r = slide(labelled, mid(e, 0.5));
+    const e = edgesOf(labeled)[0]!;
+    const r = slide(labeled, mid(e, 0.5));
     expect(r.ok && r.changes).toEqual([]);
   });
 
@@ -486,7 +486,7 @@ describe("creating from a decision", () => {
   it("labels the first branch Yes, the second No, and says so", () => {
     const first = create(dec, { kind: "child", of: firstNode(dec) });
     expect(first.text).toMatch(/\\draw\[->\] \(d\) -- node\[near start, auto(, swap)?\] \{Yes\} \(go\);/);
-    expect(first.written).toContain("labelled Yes");
+    expect(first.written).toContain("labeled Yes");
     const second = create(first.text, { kind: "child", of: firstNode(first.text) });
     expect(second.text).toMatch(/node\[near start, auto(, swap)?\] \{No\} \(go2\);/);
     // A third branch gets no label.
@@ -519,30 +519,30 @@ describe("creating from a decision", () => {
     const r = planConnect(text, 0, { node: l.nodes[0]!.id }, { node: l.nodes[1]!.id }, "\\draw[->]");
     if (!r.ok) throw new Error(r.reason);
     expect(r.text).toContain("\\draw[->] (d) -- node[near start, auto] {Yes} (x);");
-    expect(r.notes.join(" ")).toContain("labelled the branch Yes");
+    expect(r.notes.join(" ")).toContain("labeled the branch Yes");
   });
 });
 
 describe("auto labels sit where pdfTeX puts them (probe p7, D57)", () => {
   const style = "\\tikzset{every node/.style={draw, minimum width=1cm, minimum height=6mm}}\n";
-  const centre = (body: string) => {
+  const center = (body: string) => {
     const l = layoutOf(`\\begin{tikzpicture}\n${style}${body}\n\\end{tikzpicture}\n`);
     return l.pathNodes[0]!.shape.center;
   };
 
-  // The expected centres are TeX's own, measured by `npm run fidelity` (pt).
+  // The expected centers are TeX's own, measured by `npm run fidelity` (pt).
   it("takes the corner anchor on a line that isn't level or upright, and the side on one that is", () => {
-    const level = centre("\\draw (0,0) -- node[auto] {x} +(0:2cm);");
+    const level = center("\\draw (0,0) -- node[auto] {x} +(0:2cm);");
     expect(level.x).toBeCloseTo(28.5, 1);
     expect(level.y).toBeCloseTo(8.7, 1);
     // 10 degrees: TikZ takes south east, not south.
-    const tilted = centre("\\draw (6,0) -- node[auto] {x} +(10:2cm);");
+    const tilted = center("\\draw (6,0) -- node[auto] {x} +(10:2cm);");
     expect(tilted.x).toBeCloseTo(184.3, 1);
     expect(tilted.y).toBeCloseTo(13.7, 1);
-    const steep = centre("\\draw (6,-6) -- node[auto] {x} +(70:2cm);");
+    const steep = center("\\draw (6,-6) -- node[auto] {x} +(70:2cm);");
     expect(steep.x).toBeCloseTo(166.0, 1);
     expect(steep.y).toBeCloseTo(-135.2, 1);
-    const swapped = centre("\\draw (9,0) -- node[auto, swap] {x} +(10:2cm);");
+    const swapped = center("\\draw (9,0) -- node[auto, swap] {x} +(10:2cm);");
     expect(swapped.x).toBeCloseTo(298.5, 1);
     expect(swapped.y).toBeCloseTo(-3.8, 1);
   });

@@ -208,8 +208,8 @@ export async function importSource(src: string, name: string | null, options: Om
     r = await withProgress((onProgress) => runImport(src, options, onProgress), "Importing");
   } catch (e) {
     if (!(e instanceof LayoutCancelled)) throw e;
-    status.value = "Import cancelled; nothing was changed.";
-    return { ok: false, reason: "Import cancelled; nothing was changed." };
+    status.value = "Import canceled; nothing was changed.";
+    return { ok: false, reason: "Import canceled; nothing was changed." };
   }
   if (!r.ok) {
     status.value = `Couldn't import: ${r.reason}`;

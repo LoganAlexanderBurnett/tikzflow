@@ -70,7 +70,7 @@ describe("holding the opposite edge", () => {
     expect(r.text).not.toMatch(/shift/);
   });
 
-  it("keeps the far corner in place for a node centred on its coordinates, with the position written in the same edit", () => {
+  it("keeps the far corner in place for a node centered on its coordinates, with the position written in the same edit", () => {
     const text = pic("\\node[draw] (a) at (2,1) {Hello};");
     const a = node(text, "a");
     const before = edges(a);
@@ -89,7 +89,7 @@ describe("holding the opposite edge", () => {
     expect(d.to).toBeLessThanOrEqual(a.statement.to);
   });
 
-  it("keeps the opposite side for a side handle, and the other axis centred", () => {
+  it("keeps the opposite side for a side handle, and the other axis centered", () => {
     const text = pic("\\node[draw] (a) at (0,0) {Hello};");
     const a = node(text, "a");
     const before = edges(a);
@@ -117,7 +117,7 @@ describe("holding the opposite edge", () => {
     const b = node(text, "b");
     const before = edges(b);
     // South-east corner dragged: the west and north edges are held. North is
-    // held by the anchor; west needs a shift because the node grows around its centre line.
+    // held by the anchor; west needs a shift because the node grows around its center line.
     const r = resize(text, "b", { w: 2 * b.shape.hw + 20 * MM, h: 2 * b.shape.hh + 6 * MM }, SE);
     const after = edges(node(r.text, "b"));
     near(after.l, before.l);
@@ -138,7 +138,7 @@ describe("holding the opposite edge", () => {
     expect(text.match(/xshift/g)?.length).toBe(1);
   });
 
-  it("with the centre held (Ctrl) the node grows both ways and doesn't move", () => {
+  it("with the center held (Ctrl) the node grows both ways and doesn't move", () => {
     const text = pic("\\node[draw] (a) at (0,0) {Hello};");
     const a = node(text, "a");
     const r = resize(text, "a", { w: 2 * a.shape.hw + 20 * MM, h: 2 * a.shape.hh + 10 * MM }, CENTER);
@@ -149,7 +149,7 @@ describe("holding the opposite edge", () => {
     expect(r.text).toContain("at (0,0)");
   });
 
-  it("with the centre held, a node placed below another gets a shift that keeps its middle", () => {
+  it("with the center held, a node placed below another gets a shift that keeps its middle", () => {
     const text = pic("\\node[draw] (a) at (0,0) {Top};\n\\node[draw, below=of a] (b) {Bottom};");
     const b = node(text, "b");
     const r = resize(text, "b", { h: 2 * b.shape.hh + 10 * MM }, CENTER);
@@ -158,7 +158,7 @@ describe("holding the opposite edge", () => {
     near(after.shape.center.x, b.shape.center.x, 0.01);
   });
 
-  it("circles hold the edge opposite the handle on one axis and stay centred on the other", () => {
+  it("circles hold the edge opposite the handle on one axis and stay centered on the other", () => {
     const text = pic("\\node[draw, circle] (a) at (0,0) {A};");
     const a = node(text, "a");
     const before = edges(a);
@@ -198,7 +198,7 @@ describe("holding the opposite edge", () => {
     const after = edges(node(r.text, "a"));
     near(after.l, before.l);
     near(after.r, before.r + 20 * MM);
-    // The other node takes the style's new minimum width and grows around its own centre.
+    // The other node takes the style's new minimum width and grows around its own center.
     near(node(r.text, "b").shape.hw * 2, node(r.text, "a").shape.hw * 2, 0.01);
     expect(r.text).toContain("process/.style={draw, rectangle, minimum width=");
   });

@@ -131,7 +131,7 @@ test("a side whose edge the anchor already holds only changes the size", async (
   expect(after.split("\n").filter((l) => !l.includes("(rec)"))).toEqual(before.split("\n").filter((l) => !l.includes("(rec)")));
 });
 
-test("holding Ctrl resizes from the centre", async ({ page }) => {
+test("holding Ctrl resizes from the center", async ({ page }) => {
   await select(page, "stop");
   const e0 = await edges(page, "stop");
   await page.keyboard.down("Control");

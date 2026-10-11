@@ -226,7 +226,7 @@ describe("the DOT reader", () => {
     ]);
   });
 
-  it("reads colours, styles and arrow directions", () => {
+  it("reads colors, styles and arrow directions", () => {
     const g = parseDot(
       'digraph { a [style=filled, fillcolor=lightblue, color="#336699", fontcolor=white, penwidth=2]; a -> b [color=red, style=dashed, dir=both, arrowtail=odot, arrowhead=vee, label="go"]; b -> c [dir=none]; c -> d [dir=back, arrowtail=diamond]; d -> e [arrowhead=none] }',
     );
@@ -267,7 +267,7 @@ describe("the DOT reader", () => {
   });
 });
 
-describe("colours", () => {
+describe("colors", () => {
   it("reads CSS and Graphviz forms", () => {
     expect(parseColor("#f9f")).toEqual([255, 153, 255]);
     expect(parseColor("#FF99FF")).toEqual([255, 153, 255]);

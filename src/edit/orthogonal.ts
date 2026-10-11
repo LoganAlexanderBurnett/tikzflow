@@ -22,7 +22,7 @@ const ROUND = Math.SQRT2 * 0.75 * MM;
 /** One straight piece of an orthogonal edge: horizontal ("h", y fixed) or vertical ("v", x fixed). */
 export interface Piece {
   axis: "h" | "v";
-  /** Its ends: the edge's own ends (a node's centre for a bare name) or its corners. */
+  /** Its ends: the edge's own ends (a node's center for a bare name) or its corners. */
   from: Point;
   to: Point;
   /** Its ends as drawn, clipped at node borders: where its handle goes. */
@@ -65,7 +65,7 @@ export function orthoPolyline(edge: Edge): { points: Point[]; pieces: Piece[] } 
   return { points, pieces };
 }
 
-/** Drops repeated points and points in line with their neighbours; keeps the first and last. */
+/** Drops repeated points and points in line with their neighbors; keeps the first and last. */
 function simplify(pts: readonly Point[]): Point[] {
   const out: Point[] = [];
   for (const p of pts) {
@@ -360,7 +360,7 @@ function borderAngle(n: LaidOutNode, axis: "h" | "v", side: string, value: numbe
 
 /**
  * Where an end piece now leaves its node, when it slides along the node's
- * side: "(a)" back on the centre line; on a straight part of the side
+ * side: "(a)" back on the center line; on a straight part of the side
  * "(a.east |- c)" when it lines up with another node, else
  * "([yshift=3mm]a.east)"; elsewhere a border angle, "(a.20)".
  */
@@ -375,7 +375,7 @@ function slidEnd(layout: PictureLayout, edge: Edge, which: "from" | "to", piece:
   if (Math.abs((piece.axis === "h" ? stop.point.y : stop.point.x) - value) <= EPS) return "keep";
   const name = node.name;
   if (Math.abs((piece.axis === "h" ? c.y : c.x) - value) <= EPS) return { text: `(${name})`, want: c };
-  // The side it leaves by: towards the other end of the piece.
+  // The side it leaves by: toward the other end of the piece.
   const other = which === "from" ? piece.to : piece.from;
   const side = piece.axis === "h" ? (other.x > c.x ? "east" : "west") : other.y > c.y ? "north" : "south";
   const span = straightSpan(node, piece.axis, side);
@@ -460,7 +460,7 @@ export function planSlide(text: string, picIndex: number, edgeId: string, index:
 }
 
 /**
- * Snaps a piece being slid to the centre lines and sides of nodes it may
+ * Snaps a piece being slid to the center lines and sides of nodes it may
  * refer to, its own end nodes, and the other pieces of the edge that run the
  * same way. `threshold` is in pt.
  */

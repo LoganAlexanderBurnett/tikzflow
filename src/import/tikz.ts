@@ -83,7 +83,7 @@ export interface Generated {
 
 const f1 = (v: number): string => String(Math.round(v * 10) / 10);
 
-/** An xcolor expression for a colour. */
+/** An xcolor expression for a color. */
 export function colorExpr(c: Rgb): string {
   if (c[0] === 0 && c[1] === 0 && c[2] === 0) return "black";
   if (c[0] === 255 && c[1] === 255 && c[2] === 255) return "white";
@@ -134,13 +134,13 @@ export function writingOrder(g: ImportGraph): string[] {
   const known = new Set(ids);
   const index = new Map(ids.map((id, i) => [id, i]));
   const out = new Map<string, string[]>(ids.map((id) => [id, []]));
-  const neighbours = new Map<string, string[]>(ids.map((id) => [id, []]));
+  const neighbors = new Map<string, string[]>(ids.map((id) => [id, []]));
   const indeg = new Map<string, number>(ids.map((id) => [id, 0]));
   for (const e of g.edges) {
     if (!known.has(e.from) || !known.has(e.to) || e.from === e.to) continue;
     out.get(e.from)!.push(e.to);
-    neighbours.get(e.from)!.push(e.to);
-    neighbours.get(e.to)!.push(e.from);
+    neighbors.get(e.from)!.push(e.to);
+    neighbors.get(e.to)!.push(e.from);
     indeg.set(e.to, indeg.get(e.to)! + 1);
   }
   // Depth first from the sources, then from what is left: edges back to a node still being visited are loops.
@@ -167,7 +167,7 @@ export function writingOrder(g: ImportGraph): string[] {
   for (const id of ids) {
     if (seen.has(id)) continue;
     const component = new Set<string>([id]);
-    for (const c of component) for (const n of neighbours.get(c)!) component.add(n);
+    for (const c of component) for (const n of neighbors.get(c)!) component.add(n);
     for (const m of component) seen.add(m);
     order.push(...[...component].sort((x, y) => layer.get(x)! - layer.get(y)! || index.get(x)! - index.get(y)!));
   }

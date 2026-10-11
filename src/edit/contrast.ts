@@ -2,7 +2,7 @@
 // 4.5:1 between text and what it sits on, or 3:1 for large text (18pt, or 14pt
 // bold). A node's text is checked against its fill; text with no fill under it
 // sits on whatever is drawn behind it (a lane, a group) or on the white page.
-// The picture's own colours are the user's to choose: this only says so.
+// The picture's own colors are the user's to choose: this only says so.
 import type { RGB } from "../tikz/colors.ts";
 import type { LaidOutNode, PictureLayout } from "../tikz/layout.ts";
 import { shapeBounds } from "../tikz/shapes.ts";
@@ -14,12 +14,12 @@ const BLACK: RGB = [0, 0, 0];
 
 const linear = (v: number): number => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
 
-/** WCAG's relative luminance of an sRGB colour (channels 0–1). */
+/** WCAG's relative luminance of an sRGB color (channels 0–1). */
 export function luminance(c: RGB): number {
   return 0.2126 * linear(c[0]) + 0.7152 * linear(c[1]) + 0.0722 * linear(c[2]);
 }
 
-/** WCAG's contrast ratio of two colours, from 1 to 21. */
+/** WCAG's contrast ratio of two colors, from 1 to 21. */
 export function contrastRatio(a: RGB, b: RGB): number {
   const x = luminance(a);
   const y = luminance(b);
@@ -71,9 +71,9 @@ export function contrastIssues(layout: PictureLayout): ContrastIssue[] {
   const drawn = inDrawOrder([...layout.nodes, ...layout.pathNodes]);
   const filled = drawn.filter((n) => n.fill && !n.shading && n.shape.kind !== "coordinate");
   const indexOf = new Map(drawn.map((n, i) => [n.id, i]));
-  const colour = new Map<string, RGB>();
+  const color = new Map<string, RGB>();
 
-  /** What is seen at `n`'s centre just before `n` is drawn: the fill behind it, or the page. */
+  /** What is seen at `n`'s center just before `n` is drawn: the fill behind it, or the page. */
   const behind = (n: LaidOutNode): { color: RGB; from: "behind" | "page" } => {
     const at = n.shape.center;
     const mine = indexOf.get(n.id)!;
@@ -87,10 +87,10 @@ export function contrastIssues(layout: PictureLayout): ContrastIssue[] {
   };
   /** A filled node's fill as seen, over what is behind it. */
   const effective = (n: LaidOutNode): RGB => {
-    const known = colour.get(n.id);
+    const known = color.get(n.id);
     if (known) return known;
     const c = n.fillOpacity >= 1 ? n.fill! : blend(n.fill!, behind(n).color, n.fillOpacity);
-    colour.set(n.id, c);
+    color.set(n.id, c);
     return c;
   };
 

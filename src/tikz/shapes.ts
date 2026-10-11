@@ -34,9 +34,9 @@ export interface NodeShape {
   outerX: number;
   outerY: number;
   roundedCorners: number;
-  /** Polygon vertices relative to the centre, for polygonal shapes. */
+  /** Polygon vertices relative to the center, for polygonal shapes. */
   polygon?: Point[];
-  /** Baseline of the text, relative to the centre. */
+  /** Baseline of the text, relative to the center. */
   baseline: number;
   /** Height of the text box's x-height above the baseline, for "mid" anchors. */
   midOffset: number;
@@ -44,7 +44,7 @@ export interface NodeShape {
   detail?: number;
   vertical?: boolean;
   /**
-   * Degrees the node is turned counterclockwise about its centre (its own rotate, or the picture's
+   * Degrees the node is turned counterclockwise about its center (its own rotate, or the picture's
    * with transform shape, D87). Everything else here is in the node's own, unturned frame.
    */
   rotate?: number;
@@ -58,13 +58,13 @@ export function turn(p: Point, deg: number): Point {
   return { x: p.x * c - p.y * s, y: p.x * s + p.y * c };
 }
 
-/** The shape unturned, centred on the origin: where the turned shape's geometry is worked out. */
+/** The shape unturned, centered on the origin: where the turned shape's geometry is worked out. */
 function unturned(sh: NodeShape): NodeShape {
   const { rotate: _, ...rest } = sh;
   return { ...rest, center: { x: 0, y: 0 } };
 }
 
-/** A point of the unturned shape at the origin, turned and moved onto the shape's centre. */
+/** A point of the unturned shape at the origin, turned and moved onto the shape's center. */
 function placed(sh: NodeShape, p: Point): Point {
   const q = turn(p, sh.rotate!);
   return { x: sh.center.x + q.x, y: sh.center.y + q.y };
@@ -75,7 +75,7 @@ export const DRAWN_SHAPES = new Set(["rectangle", "circle", "ellipse", "diamond"
 
 const SQRT2 = Math.SQRT2;
 
-/** Computes the shape's size around a text box whose centre is at `center`. */
+/** Computes the shape's size around a text box whose center is at `center`. */
 export function makeShape(p: ShapeParams, center: Point): NodeShape {
   const kind = DRAWN_SHAPES.has(p.kind) ? p.kind : "rectangle";
   const tw = p.textWidth;
@@ -125,7 +125,7 @@ export function makeShape(p: ShapeParams, center: Point): NodeShape {
       const br = { x: w / 2 + Math.max(0, h * cotR), y: -h / 2 };
       const tr = { x: w / 2 - Math.min(0, h * cotR), y: h / 2 };
       let poly = [tl, tr, br, bl];
-      // Centre the outline on the text box.
+      // Center the outline on the text box.
       const minX = Math.min(...poly.map((q) => q.x));
       const maxX = Math.max(...poly.map((q) => q.x));
       const dx = (minX + maxX) / 2;
@@ -175,7 +175,7 @@ function rotatePolygon(poly: Point[], deg: number): Point[] {
   return poly.map((q) => ({ x: q.x * c - q.y * s, y: q.x * s + q.y * c }));
 }
 
-/** The outline as a polygon (with outer sep added), relative to the centre. */
+/** The outline as a polygon (with outer sep added), relative to the center. */
 function outerPolygon(sh: NodeShape): Point[] {
   if (sh.polygon) {
     // Inflate by outer sep, approximately, by scaling.
@@ -186,7 +186,7 @@ function outerPolygon(sh: NodeShape): Point[] {
   return [];
 }
 
-/** Where a ray from the centre in direction (dx, dy) meets the outer border. */
+/** Where a ray from the center in direction (dx, dy) meets the outer border. */
 export function borderInDirection(sh: NodeShape, dx: number, dy: number): Point {
   if (sh.rotate) {
     const d = turn({ x: dx, y: dy }, -sh.rotate);
@@ -243,7 +243,7 @@ function rayRoundedRect(a: number, b: number, ux: number, uy: number): number {
   const straight = a - b;
   const tFlat = Math.abs(uy) > 1e-12 ? b / Math.abs(uy) : Infinity;
   if (Math.abs(ux * tFlat) <= straight) return tFlat;
-  // Intersect with the circle centred at (±straight, 0).
+  // Intersect with the circle centered at (±straight, 0).
   const cx = Math.sign(ux) * straight;
   const bq = -2 * ux * cx;
   const cq = cx * cx - b * b;
@@ -251,7 +251,7 @@ function rayRoundedRect(a: number, b: number, ux: number, uy: number): number {
   return disc >= 0 ? (-bq + Math.sqrt(disc)) / 2 : tFlat;
 }
 
-/** Where the outer border meets the ray from the centre towards `p`. */
+/** Where the outer border meets the ray from the center toward `p`. */
 export function borderToward(sh: NodeShape, p: Point): Point {
   return borderInDirection(sh, p.x - sh.center.x, p.y - sh.center.y);
 }
@@ -432,7 +432,7 @@ export function shapeBounds(sh: NodeShape): { minX: number; minY: number; maxX: 
   };
 }
 
-/** For anchoring: the offset from the centre to anchor `name` of a shape placed at the origin. */
+/** For anchoring: the offset from the center to anchor `name` of a shape placed at the origin. */
 export function anchorOffset(sh: NodeShape, name: string): Point | null {
   const at0 = { ...sh, center: { x: 0, y: 0 } };
   return anchorPoint(at0, name);

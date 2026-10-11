@@ -1,11 +1,11 @@
-// M4 step 6 (D85): the grayscale and colour-blind views.
+// M4 step 6 (D85): the grayscale and colorblind views.
 import { describe, expect, it } from "vitest";
 import { contrastRatio, luminance } from "../src/edit/contrast.ts";
 import { filterId, filterValues, isVisionMode, simulate, VISION_MODES, type VisionMode } from "../src/ui/vision.ts";
 
 const MODES: Array<Exclude<VisionMode, "normal">> = ["grayscale", "protanopia", "deuteranopia", "tritanopia"];
 
-describe("the colour matrices", () => {
+describe("the color matrices", () => {
   it("leave white and black alone: a row of each matrix sums to 1", () => {
     for (const mode of MODES) {
       const white = simulate([1, 1, 1], mode);
@@ -16,17 +16,17 @@ describe("the colour matrices", () => {
     }
   });
 
-  it("make grayscale equal in every channel, with the luminance of the colour", () => {
+  it("make grayscale equal in every channel, with the luminance of the color", () => {
     for (const c of [[1, 0, 0], [0, 1, 0], [0, 0, 1], [0.8, 0.3, 0.5]] as const) {
       const g = simulate(c, "grayscale");
       expect(g[0]).toBeCloseTo(g[1], 6);
       expect(g[1]).toBeCloseTo(g[2], 6);
-      // The grey has the same luminance as the colour it stands for.
+      // The gray has the same luminance as the color it stands for.
       expect(luminance(g)).toBeCloseTo(luminance(c), 4);
     }
   });
 
-  it("turns red and green into near-equal colours for red-blind and green-blind viewers, and not for the others", () => {
+  it("turns red and green into near-equal colors for red-blind and green-blind viewers, and not for the others", () => {
     const red: [number, number, number] = [0.8, 0.1, 0.1];
     const green: [number, number, number] = [0.1, 0.55, 0.1];
     const gap = (mode: VisionMode) => {

@@ -54,7 +54,7 @@ export function getPageSettings(): PageSettings {
   return pageSettings;
 }
 
-/** Styles, colours, macros and settings defined before `pic`. */
+/** Styles, colors, macros and settings defined before `pic`. */
 export function pictureEnv(doc: DocumentModel, pic: PictureSyntax): LayoutEnv {
   const styles = builtinStyles();
   const colors = new ColorTable();

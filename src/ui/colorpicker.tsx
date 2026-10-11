@@ -1,5 +1,5 @@
-// The colour picker shared by the node and edge panels: the document's own
-// colours first, then xcolor mixes, then a custom colour that can be named.
+// The color picker shared by the node and edge panels: the document's own
+// colors first, then xcolor mixes, then a custom color that can be named.
 import { useSignal } from "@preact/signals";
 import { rawColor } from "../edit/properties.ts";
 import { cssColor, type RGB } from "../tikz/colors.ts";
@@ -16,14 +16,14 @@ export function Swatch({ rgb, none }: { rgb?: RGB | undefined; none?: boolean })
 }
 
 export interface PickerProps {
-  /** Colours by name, for swatches. */
+  /** Colors by name, for swatches. */
   parse: (expr: string) => RGB | null;
   docColors: Array<{ name: string; rgb?: RGB }>;
   allowNone: boolean;
-  /** A button that drops the colour (the edge falls back to its style's), calling `onPick("")`. */
+  /** A button that drops the color (the edge falls back to its style's), calling `onPick("")`. */
   defaultLabel?: string;
   current?: RGB | undefined;
-  /** A named colour, an xcolor expression, or a raw colour; `define` adds a \definecolor first. */
+  /** A named color, an xcolor expression, or a raw color; `define` adds a \definecolor first. */
   onPick: (value: string, define?: { name: string; rgb: [number, number, number] }) => void;
   nameProblem: (name: string) => string | null;
 }
@@ -76,20 +76,20 @@ export function ColorPicker({ parse, docColors, allowNone, defaultLabel, current
       )}
       <h4>Custom</h4>
       <div class="tf-custom">
-        <input type="color" value={custom.value} onInput={(e) => (custom.value = (e.target as HTMLInputElement).value)} aria-label="Custom colour" />
+        <input type="color" value={custom.value} onInput={(e) => (custom.value = (e.target as HTMLInputElement).value)} aria-label="Custom color" />
         <input
           type="text"
           placeholder="Name, e.g. Accent"
           value={name.value}
           onInput={(e) => (name.value = (e.target as HTMLInputElement).value.trim())}
-          aria-label="Colour name"
+          aria-label="Color name"
         />
       </div>
       <div class="tf-custom-actions">
         <button disabled={!!problem} title={problem ?? `Adds \\definecolor{${name.value}} and uses it`} onClick={() => onPick(name.value, { name: name.value, rgb: rgb255() })}>
-          Add named colour
+          Add named color
         </button>
-        <button class="link" onClick={() => onPick(rawColor(rgb255()))} title="Writes the colour as raw RGB values">
+        <button class="link" onClick={() => onPick(rawColor(rgb255()))} title="Writes the color as raw RGB values">
           Use without a name
         </button>
       </div>

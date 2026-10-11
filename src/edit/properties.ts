@@ -1,4 +1,4 @@
-// The properties panel's edits: colours, font and alignment, applied to the
+// The properties panel's edits: colors, font and alignment, applied to the
 // selected nodes or to a style they share (D37). Every edit goes through
 // setOption-style item edits, so only the items it is about change.
 import { type DocumentModel, pictureEnv } from "../model/document.ts";
@@ -341,9 +341,9 @@ export function propertyChanges(doc: DocumentModel, picIndex: number, layout: Pi
   return { ok: true, changes, notes: [...notes] };
 }
 
-// ---------------------------------------------------------------- colours
+// ---------------------------------------------------------------- colors
 
-/** Colours the document defines for the picture, in order: \definecolor and \colorlet before it and in it. */
+/** Colors the document defines for the picture, in order: \definecolor and \colorlet before it and in it. */
 export function documentColors(doc: DocumentModel, pic: PictureSyntax): Array<{ name: string; rgb?: RGB }> {
   const env = pictureEnv(doc, pic);
   const names: string[] = [];
@@ -352,7 +352,7 @@ export function documentColors(doc: DocumentModel, pic: PictureSyntax): Array<{ 
     if (item.kind === "definition" && item.def.kind !== "macro") names.push(item.def.name.trim());
   }
   for (const item of pic.items) if (item.kind === "definition" && item.def.kind !== "macro") names.push(item.def.name.trim());
-  // Colours defined in the picture body aren't in the preamble's table yet.
+  // Colors defined in the picture body aren't in the preamble's table yet.
   for (const item of pic.items) {
     if (item.kind !== "definition") continue;
     if (item.def.kind === "color") env.colors.define(item.def.name, item.def.model, item.def.spec);
@@ -369,23 +369,23 @@ export function documentColors(doc: DocumentModel, pic: PictureSyntax): Array<{ 
   return out;
 }
 
-/** Why `name` can't be a new colour name, or null if it can. */
+/** Why `name` can't be a new color name, or null if it can. */
 export function colorNameProblem(doc: DocumentModel, pic: PictureSyntax, name: string): string | null {
   if (!/^[A-Za-z][A-Za-z0-9]*$/.test(name)) return "Use letters and digits only, starting with a letter.";
-  if (documentColors(doc, pic).some((c) => c.name === name) || pictureEnv(doc, pic).colors.has(name)) return `"${name}" is already a colour.`;
+  if (documentColors(doc, pic).some((c) => c.name === name) || pictureEnv(doc, pic).colors.has(name)) return `"${name}" is already a color.`;
   return null;
 }
 
 const hex2 = (v: number) => Math.round(v).toString(16).padStart(2, "0").toUpperCase();
 
-/** "{rgb,255:red,R;green,G;blue,B}" for a colour given as 0-255 channels. */
+/** "{rgb,255:red,R;green,G;blue,B}" for a color given as 0-255 channels. */
 export function rawColor(rgb: readonly [number, number, number]): string {
   return `{rgb,255:red,${Math.round(rgb[0])};green,${Math.round(rgb[1])};blue,${Math.round(rgb[2])}}`;
 }
 
 /**
  * The change that adds \definecolor{name}{...}{...} for picture `pic`: after
- * the last colour definition before or in it, in the same colour model; else
+ * the last color definition before or in it, in the same color model; else
  * in the preamble after \usetikzlibrary; else at the start of the picture.
  */
 export function addColorDefinition(doc: DocumentModel, pic: PictureSyntax, name: string, rgb: readonly [number, number, number]): Change {

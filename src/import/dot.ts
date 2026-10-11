@@ -1,7 +1,7 @@
 // Graphviz DOT: `digraph` and `graph`, node and edge statements and chains,
 // `node [...]` and `edge [...]` defaults with their scoping, subgraphs
 // (`cluster...` ones become groups), ports (dropped), and the attributes that
-// have a TikZ counterpart: label, shape, style, colours, pen width, arrow
+// have a TikZ counterpart: label, shape, style, colors, pen width, arrow
 // tips, direction and `rankdir` (M4 step 5, D84).
 import { type ImportClass, type ImportEdge, type ImportGraph, type ImportGroup, type ImportNode, ImportError, type Look, type NodeShape, parseColor, parseHsv, type Rgb, type Tip } from "./graph.ts";
 
@@ -132,7 +132,7 @@ function htmlText(html: string): string {
 
 function colorOf(v: string | undefined): Rgb | null {
   if (!v) return null;
-  // A colour list ("red:blue") or weighted list ("red;0.3:blue"): the first colour.
+  // A color list ("red:blue") or weighted list ("red;0.3:blue"): the first color.
   const first = v.split(":")[0]!.split(";")[0]!.trim();
   return parseColor(first) ?? parseHsv(first);
 }

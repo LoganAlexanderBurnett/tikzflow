@@ -1,4 +1,4 @@
-// Milestone 4 step 6: the grayscale and colour-blind views, and contrast warnings (D85).
+// Milestone 4 step 6: the grayscale and colorblind views, and contrast warnings (D85).
 import { expect, type Page, test } from "./base.ts";
 
 async function code(page: Page): Promise<string> {
@@ -51,12 +51,12 @@ test("the views filter the drawing, say so, and leave the code alone", async ({ 
   await expect(page.getByTestId("vision-select")).toHaveValue("normal");
 });
 
-test("a grayscale view turns the picture's colours grey", async ({ page }) => {
+test("a grayscale view turns the picture's colors grey", async ({ page }) => {
   await page.getByTestId("preview-toggle").uncheck();
   const red = page.locator('[data-node="ok"] path').first();
   await expect(red).toBeVisible();
   const colourOf = async () => {
-    // Only the red node: the markers and handles on the canvas keep their own colours.
+    // Only the red node: the markers and handles on the canvas keep their own colors.
     const box = (await red.boundingBox())!;
     const png = await page.screenshot({ clip: { x: box.x + 2, y: box.y + 2, width: box.width - 4, height: box.height - 4 } });
     return page.evaluate(async (b64) => {

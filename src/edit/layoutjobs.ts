@@ -1,6 +1,6 @@
 // The page's side of the layout worker (D87): auto-layout and import run in
 // a worker, so the page stays responsive however long they take, and report
-// their progress. A job can be cancelled: the worker is stopped and a new
+// their progress. A job can be canceled: the worker is stopped and a new
 // one started for the next job. Only the worker loads elk.js: the page has no
 // copy of it to fall back on (module workers are needed by the engine too).
 
@@ -20,10 +20,10 @@ export type LayoutWorkerMessage =
   | { id: number; kind: "done"; result: AutoLayoutResult | ImportResult }
   | { id: number; kind: "failed"; message: string };
 
-/** What a cancelled job's promise rejects with. */
+/** What a canceled job's promise rejects with. */
 export class LayoutCancelled extends Error {
   constructor() {
-    super("cancelled");
+    super("canceled");
   }
 }
 

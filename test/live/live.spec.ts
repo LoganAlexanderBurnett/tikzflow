@@ -149,7 +149,7 @@ test.describe("the app", () => {
     expect(problems).toEqual([]);
   });
 
-  test("import lays a Mermaid and a DOT diagram out under the policy, and the colour views draw, also offline (D84, D85)", async ({ page, context }) => {
+  test("import lays a Mermaid and a DOT diagram out under the policy, and the color views draw, also offline (D84, D85)", async ({ page, context }) => {
     const problems: string[] = [];
     page.on("console", (m) => /content security policy|refused to/i.test(m.text()) && problems.push(m.text()));
     page.on("pageerror", (e) => problems.push(String(e)));
