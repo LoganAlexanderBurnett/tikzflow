@@ -149,6 +149,40 @@ test.describe("the app", () => {
     expect(problems).toEqual([]);
   });
 
+  test("import lays a Mermaid and a DOT diagram out under the policy, and the colour views draw, also offline (D84, D85)", async ({ page, context }) => {
+    const problems: string[] = [];
+    page.on("console", (m) => /content security policy|refused to/i.test(m.text()) && problems.push(m.text()));
+    page.on("pageerror", (e) => problems.push(String(e)));
+    const importBoth = async () => {
+      await page.getByTestId("import-button").click();
+      await page.getByTestId("import-source").fill("flowchart TD\n  s([Begin]) --> q{Ready?}\n  q -->|yes| g[Go]\n  q -->|no| s");
+      await page.getByTestId("import-run").click();
+      await expect(page.getByTestId("import-done")).toContainText("3 nodes, 3 edges", { timeout: 30_000 });
+      await page.getByTestId("import-another").click();
+      await page.getByTestId("import-source").fill("digraph { rankdir=LR; a -> b -> c }");
+      await page.getByTestId("import-run").click();
+      await expect(page.getByTestId("import-done")).toContainText("a Graphviz graph", { timeout: 30_000 });
+      await page.getByTestId("import-close").click();
+      await expect(page.locator(".cm-content")).toContainText("right=of a");
+    };
+    await page.goto("/");
+    await page.evaluate(() => navigator.serviceWorker.ready);
+    await importBoth();
+    await page.getByTestId("vision-select").selectOption("deuteranopia");
+    await expect(page.getByTestId("drawing")).toHaveAttribute("filter", "url(#tf-vision-deuteranopia)");
+    await page.getByTestId("vision-select").selectOption("normal");
+    await expect
+      .poll(() => page.evaluate(async () => {
+        const shell = (await caches.keys()).find((n) => n.startsWith("tikzflow-shell-"));
+        return !!shell && (await (await caches.open(shell)).keys()).some((r) => /elk\.bundled-[^/]*\.js$/.test(r.url));
+      }))
+      .toBe(true);
+    await context.setOffline(true);
+    await page.reload();
+    await importBoth();
+    expect(problems).toEqual([]);
+  });
+
   test("exports are real files: .tex, snippet, SVG, PDF, PNG", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByTestId("compiled-picture")).toBeAttached({ timeout: 45_000 });

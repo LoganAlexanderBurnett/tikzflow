@@ -99,6 +99,34 @@ test("auto-layout works offline, under the production Content-Security-Policy", 
   expect(violations).toEqual([]);
 });
 
+// Import (D84) lays the diagram out with elk.js and the colour views (D85) draw through an SVG
+// filter: both must work with the network off, under the production policy.
+test("import and the colour views work offline, under the production Content-Security-Policy", async ({ page, context }) => {
+  const violations: string[] = [];
+  page.on("console", (m) => /content security policy|refused to/i.test(m.text()) && violations.push(m.text()));
+  page.on("pageerror", (e) => violations.push(String(e)));
+  await page.goto("/");
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await expect
+    .poll(() => page.evaluate(async () => {
+      const shell = (await caches.keys()).find((n) => n.startsWith("tikzflow-shell-"));
+      return !!shell && (await (await caches.open(shell)).keys()).some((r) => /elk\.bundled-[^/]*\.js$/.test(r.url));
+    }))
+    .toBe(true);
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.getByTestId("summary-headline")).toBeVisible();
+  await page.getByTestId("import-button").click();
+  await page.getByTestId("import-source").fill("flowchart TD\n  a([Start]) --> b{Ready?}\n  b -->|yes| c[Go]\n  b -->|no| a\n  subgraph g [Run]\n    c\n  end");
+  await page.getByTestId("import-run").click();
+  await expect(page.getByTestId("import-done")).toContainText("3 nodes", { timeout: 30_000 });
+  await page.getByTestId("import-close").click();
+  await expect(page.locator('[data-node="ready"]').first()).toBeVisible();
+  await page.getByTestId("vision-select").selectOption("tritanopia");
+  await expect(page.getByTestId("drawing")).toHaveAttribute("filter", "url(#tf-vision-tritanopia)");
+  expect(violations).toEqual([]);
+});
+
 test("one cache holds the app and one the engine", async ({ page }) => {
   await page.goto("/");
   await page.evaluate(() => navigator.serviceWorker.ready);

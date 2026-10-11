@@ -397,9 +397,9 @@ describe("importDiagram", () => {
       const layout = layoutDocumentPicture(doc, 0)!;
       const nodes = layout.nodes.filter((n) => n.kind === "statement" && n.position.kind !== "fit");
       expect(nodes).toHaveLength(r.nodes);
-      // Nothing locked, and only the first node has a place of its own.
+      // Nothing locked, and no rough place from the generator left: every node is placed by a relation.
       expect(nodes.filter((n) => n.locked).map((n) => n.name)).toEqual([]);
-      expect(r.text.match(/\) at \(/g) ?? []).toHaveLength(0);
+      expect(r.text.match(/\) at \(-?[\d.]/g) ?? []).toHaveLength(0);
       // No two nodes overlap.
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {

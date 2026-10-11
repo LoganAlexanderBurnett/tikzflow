@@ -90,6 +90,7 @@ export function ImportButton() {
                 </button>
                 <button
                   class="link"
+                  data-testid="import-another"
                   onClick={() => {
                     done.value = null;
                     source.value = "";
