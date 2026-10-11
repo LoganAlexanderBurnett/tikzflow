@@ -145,11 +145,11 @@ describe("repeated options", () => {
     if (!r.ok) expect(r.reason).toMatch(/would change how b looks/);
   });
 
-  it("refuses a name that is taken or would shadow a TikZ key", () => {
+  it("refuses a name that is taken or would replace a TikZ key", () => {
     const doc = analyzeDocument(SAMPLE);
     const p = doc.syntax.pictures[0]!;
     expect(styleNameProblem(doc, p, "process")).toMatch(/already/);
-    expect(styleNameProblem(doc, p, "diamond")).toMatch(/shadow/);
+    expect(styleNameProblem(doc, p, "diamond")).toMatch(/would replace it/);
     expect(styleNameProblem(doc, p, "2fast")).toMatch(/letters/);
     expect(styleNameProblem(doc, p, "myBox")).toBeNull();
   });
