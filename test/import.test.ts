@@ -443,11 +443,20 @@ describe("groups stay together", () => {
 
   it("is what the option does: the same picture laid out without it has overlapping boxes", async () => {
     const t = graphToTikz(parseMermaid(fixture("interleaved-teams.mmd"))).text;
-    const plain = await planAutoLayout(t, 0, { direction: "down" });
+    const plain = await planAutoLayout(t, 0, { direction: "down", groups: false });
     expect(plain.ok).toBe(true);
     if (!plain.ok) return;
     const boxes = boxesOf(plain.text);
     expect(overlap(boxes[0]!, boxes[1]!)).toBe(true);
+  });
+
+  it("is what Layout does by default when the boxes would cross (D87)", async () => {
+    const t = graphToTikz(parseMermaid(fixture("interleaved-teams.mmd"))).text;
+    const r = await planAutoLayout(t, 0, { direction: "down" });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const boxes = boxesOf(r.text);
+    expect(overlap(boxes[0]!, boxes[1]!)).toBe(false);
   });
 
   it("keeps nested groups inside their parents, and a group's nodes out of other groups' boxes", async () => {

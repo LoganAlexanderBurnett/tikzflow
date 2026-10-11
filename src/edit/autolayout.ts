@@ -47,11 +47,34 @@ export interface AutoLayoutOptions {
   ids?: readonly string[];
   /**
    * Keep the nodes of each group (a `fit` node that isn't a lane) together, groups inside groups
-   * included, so a group's box doesn't run over other nodes (D84). Off by default: a picture laid out
-   * before keeps the layout it had. The importer turns it on. Ignored when the picture has lanes.
+   * included, so a group's box doesn't run over other nodes (D84). True always does (the importer);
+   * by default it is done when the plain layout would make groups cross (D86 item 1, D87); false never.
+   * Ignored when the picture has lanes.
    */
   groups?: boolean;
+  /** Told as each stage starts, so a long layout can show how far it is (D83 item 4). */
+  onProgress?: (p: LayoutProgress) => void;
 }
+
+/** How far a layout is: stage `step` of `steps`, and what it is doing. */
+export interface LayoutProgress {
+  step: number;
+  steps: number;
+  what: string;
+}
+
+/** The stages of a layout, in order, as told to onProgress. */
+export const LAYOUT_STAGES = [
+  "writing out chains",
+  "running ELK",
+  "choosing each node's relation",
+  "lining nodes up (second pass)",
+  "lining nodes up (third pass)",
+  "writing the relations",
+  "removing stale corners",
+  "tidying edges and labels",
+  "checking the result",
+] as const;
 
 export type AutoLayoutResult =
   | {
@@ -243,6 +266,40 @@ export function groupTree(text: string, layout: PictureLayout, members: readonly
   return { order, children, parent, titled, pad };
 }
 
+/**
+ * Whether, laid out without groups (ELK's centres), two groups' boxes would
+ * cross (overlap without one holding the other) or a group's box would cover
+ * a node of another group. Nodes in no group may sit inside a box: authors
+ * often fit only the corner nodes of a row. Depends only on what ELK is given,
+ * so a second layout decides the same way.
+ */
+export function groupsCross(layout: PictureLayout, members: readonly LaidOutNode[], centers: ReadonlyMap<string, Point>, groups: GroupTree): boolean {
+  const byId = new Map(members.map((n) => [n.id, n]));
+  const rect = (id: string) => {
+    const n = byId.get(id)!;
+    const c = centers.get(id)!;
+    return shapeBounds({ ...n.shape, center: c });
+  };
+  const leaves = (id: string): string[] => (groups.children.get(id) ?? [id]).flatMap((m) => (groups.children.has(m) ? leaves(m) : byId.has(m) && centers.has(m) ? [m] : []));
+  const boxes = new Map(
+    groups.order.map((g) => {
+      const rs = leaves(g).map(rect);
+      const pad = groups.pad.get(g) ?? GROUP_PAD;
+      return [g, { minX: Math.min(...rs.map((r) => r.minX)) - pad, maxX: Math.max(...rs.map((r) => r.maxX)) + pad, minY: Math.min(...rs.map((r) => r.minY)) - pad, maxY: Math.max(...rs.map((r) => r.maxY)) + pad + (groups.titled.has(g) ? TITLE_PAD : 0) }];
+    }),
+  );
+  const within = (g: string, h: string): boolean => groups.parent.get(g) === h || (groups.parent.has(g) && within(groups.parent.get(g)!, h));
+  const meet = (a: { minX: number; maxX: number; minY: number; maxY: number }, b: typeof a) => Math.min(a.maxX, b.maxX) - Math.max(a.minX, b.minX) > CLEAR && Math.min(a.maxY, b.maxY) - Math.max(a.minY, b.minY) > CLEAR;
+  const groupOf = new Map<string, string>();
+  for (const g of groups.order) for (const id of leaves(g)) if (!groupOf.has(id) || within(g, groupOf.get(id)!)) groupOf.set(id, g);
+  for (const g of groups.order) {
+    const box = boxes.get(g)!;
+    for (const h of groups.order) if (g < h && !within(g, h) && !within(h, g) && meet(box, boxes.get(h)!)) return true;
+    for (const [id, h] of groupOf) if (h !== g && !within(h, g) && meet(box, rect(id))) return true;
+  }
+  return false;
+}
+
 /** The graph for ELK: the members with their outer sizes, and the edges between them. */
 export function elkGraph(layout: PictureLayout, members: readonly LaidOutNode[], direction: LayoutDirection, lanes: LaneOrder | null = null, groups: GroupTree | null = null): ElkNode {
   const set = new Set(members.map((n) => n.id));
@@ -280,17 +337,21 @@ export function elkGraph(layout: PictureLayout, members: readonly LaidOutNode[],
   // the lanes before it. Lanes along the flow are placed after ELK (laneColumns).
   const partitions = lanes && !lanes.along;
   const partition = (n: LaidOutNode) => String(lanes?.index.get(n.id) ?? lanes!.index.size);
+  // The gaps, for the picture and, with groups, inside each group's box too.
+  const spacing = {
+    "elk.direction": direction === "down" ? "DOWN" : "RIGHT",
+    "elk.spacing.nodeNode": String(r2(within)),
+    "elk.layered.spacing.nodeNodeBetweenLayers": String(r2(between)),
+    "elk.spacing.edgeNode": String(r2(within / 2)),
+    "elk.spacing.edgeEdge": String(r2(within / 4)),
+    "elk.layered.spacing.edgeNodeBetweenLayers": "0",
+    "elk.layered.spacing.edgeEdgeBetweenLayers": "0",
+  };
   return {
     id: "picture",
     layoutOptions: {
       "elk.algorithm": "layered",
-      "elk.direction": direction === "down" ? "DOWN" : "RIGHT",
-      "elk.spacing.nodeNode": String(r2(within)),
-      "elk.layered.spacing.nodeNodeBetweenLayers": String(r2(between)),
-      "elk.spacing.edgeNode": String(r2(within / 2)),
-      "elk.spacing.edgeEdge": String(r2(within / 4)),
-      "elk.layered.spacing.edgeNodeBetweenLayers": "0",
-      "elk.layered.spacing.edgeEdgeBetweenLayers": "0",
+      ...spacing,
       // Edges into one node meet at one point, so nodes line up centre to centre.
       "elk.layered.mergeEdges": "true",
       // Back edges are found by following the code's own order.
@@ -301,7 +362,7 @@ export function elkGraph(layout: PictureLayout, members: readonly LaidOutNode[],
       ...(groups ? { "elk.hierarchyHandling": "INCLUDE_CHILDREN" } : {}),
       ...(partitions ? { "elk.partitioning.activate": "true" } : {}),
     },
-    children: groups ? groupChildren(members, size, groups) : members.map((n) => ({
+    children: groups ? groupChildren(members, size, groups, spacing) : members.map((n) => ({
       id: n.id,
       width: size(n).w,
       height: size(n).h,
@@ -312,7 +373,7 @@ export function elkGraph(layout: PictureLayout, members: readonly LaidOutNode[],
 }
 
 /** ELK's hierarchy for groups: each group is a node holding its members, so its nodes stay together. */
-function groupChildren(members: readonly LaidOutNode[], size: (n: LaidOutNode) => { w: number; h: number }, groups: GroupTree): ElkNode[] {
+function groupChildren(members: readonly LaidOutNode[], size: (n: LaidOutNode) => { w: number; h: number }, groups: GroupTree, spacing: Record<string, string>): ElkNode[] {
   const leaf = new Map(members.map((n) => [n.id, n]));
   const build = (id: string): ElkNode => {
     const n = leaf.get(id);
@@ -321,7 +382,7 @@ function groupChildren(members: readonly LaidOutNode[], size: (n: LaidOutNode) =
     const top = r2(pad + (groups.titled.has(id) ? TITLE_PAD : 0));
     return {
       id,
-      layoutOptions: { "elk.padding": `[top=${top},left=${r2(pad)},bottom=${r2(pad)},right=${r2(pad)}]` },
+      layoutOptions: { ...spacing, "elk.padding": `[top=${top},left=${r2(pad)},bottom=${r2(pad)},right=${r2(pad)}]` },
       children: (groups.children.get(id) ?? []).map(build),
     };
   };
@@ -335,10 +396,21 @@ let elkInstance: Promise<ElkLayout> | null = null;
 
 /** elk.js, loaded on first use (it is 1.6 MB). */
 function loadElk(): Promise<ElkLayout> {
-  elkInstance ??= import("elkjs/lib/elk.bundled.js").then((m) => {
-    const elk = new m.default();
-    return (g: ElkNode) => elk.layout(g);
-  });
+  elkInstance ??= (async () => {
+    // Where there is no document (the layout worker, D87), elk.js takes itself for a worker script
+    // and takes over the worker's messages. It is shown a stand-in while it loads and starts, so it
+    // runs as a library here as it does on the page.
+    const g = globalThis as { document?: unknown };
+    const stand = g.document === undefined;
+    if (stand) g.document = {};
+    try {
+      const m = await import("elkjs/lib/elk.bundled.js");
+      const elk = new m.default();
+      return (graph: ElkNode) => elk.layout(graph);
+    } finally {
+      if (stand) delete g.document;
+    }
+  })();
   return elkInstance;
 }
 
@@ -710,6 +782,8 @@ export function choosePlacements(
      * with the nearest of them placed, else with where the previous pass put
      * one defined later in the code.
      */
+    /** Members from the previous pass that lineUp lined n up with: n's place depends on theirs. */
+    const aligned = new Set<string>();
     const lineUp = (r: string): Point => {
       // Measured from the node nearest in ELK's picture, placed or from the previous pass, so that a
       // distance written to a far-away node doesn't carry the difference between ELK's gaps and TikZ's.
@@ -724,6 +798,7 @@ export function choosePlacements(
       const pos = (id: string) => placed.get(id)?.center ?? hints!.get(id)!;
       // A column fixes x when the layers run down, y when they run right; a layer the other.
       const [xFrom, yFrom] = direction === "down" ? [col, row] : [row, col];
+      for (const id of [base, xFrom, yFrom]) if (id && !placed.has(id) && hints.has(id)) aligned.add(id);
       return { x: xFrom ? pos(xFrom).x : t.x, y: yFrom ? pos(yFrom).y : t.y };
     };
     for (const id of rowMates) {
@@ -786,7 +861,8 @@ export function choosePlacements(
     // The members it now refers to: the latest placed member of each name it uses.
     const byName = (name: string) => [...placed.keys()].reverse().find((id) => id !== n.id && byId.get(id)!.name === name);
     const names = chosen.spec === "keep" ? (was ? [was.name!] : []) : chosen.spec.kind === "perp" ? [chosen.spec.xFrom, chosen.spec.yFrom] : chosen.spec.kind === "positioning" ? [chosen.spec.target] : [];
-    refsOf.set(n.id, names.flatMap((name) => byName(name) ?? []));
+    // And the ones it was lined up with, so the next pass doesn't line them up with n's own old place.
+    refsOf.set(n.id, [...new Set([...names.flatMap((name) => byName(name) ?? []), ...aligned])]);
   }
   return { placements: placed, refs: refsOf, crowded };
 }
@@ -1106,6 +1182,8 @@ export function layoutBlocker(layout: PictureLayout, ids?: readonly string[]): s
  * algorithm and writes the result as relative positions, as one edit.
  */
 export async function planAutoLayout(text: string, picIndex: number, options: AutoLayoutOptions): Promise<AutoLayoutResult> {
+  const stage = (k: number) => options.onProgress?.({ step: k + 1, steps: LAYOUT_STAGES.length, what: LAYOUT_STAGES[k]! });
+  stage(0);
   const layout = layoutDocumentPicture(analyzeDocument(text), picIndex);
   if (!layout) return { ok: false, reason: "There is no picture." };
   const blocked = layoutBlocker(layout, options.ids);
@@ -1135,20 +1213,32 @@ export async function planAutoLayout(text: string, picIndex: number, options: Au
   const { members } = layoutScope(start, ids);
   if (members.length < 2) return { ok: false, reason: "There are fewer than two nodes that can be moved, so there is nothing to lay out." };
   const lanes = laneOrder(base, start, members, options.direction);
-  const groups = options.groups && !lanes ? groupTree(base, start, members) : null;
-  const raw = await elkCenters(elkGraph(start, members, options.direction, lanes, groups));
+  const tree = options.groups !== false && !lanes ? groupTree(base, start, members) : null;
+  stage(1);
+  let raw = await elkCenters(elkGraph(start, members, options.direction, lanes, null));
+  // Groups are kept together when asked (the importer), or by default when the plain layout would
+  // make groups cross (D86 item 1, D87).
+  const groups = tree && (options.groups === true || groupsCross(start, members, raw, tree)) ? tree : null;
+  if (groups) raw = await elkCenters(elkGraph(start, members, options.direction, lanes, groups));
   const centers = lanes?.along && members.every((n) => raw.has(n.id)) ? laneColumns(members, raw, options.direction, lanes) : raw;
   if (members.some((n) => !centers.has(n.id))) return { ok: false, reason: "The layout engine left out some nodes, so nothing was changed." };
   // A second pass lines nodes up with the ones the first placed after them in the code.
   const movers = inheritedDistances(base, picIndex, members);
+  stage(2);
   let plan = choosePlacements(start, members, centers, options.direction, undefined, movers);
-  for (let pass = 0; pass < PASSES; pass++) plan = choosePlacements(start, members, centers, options.direction, plan, movers);
+  for (let pass = 0; pass < PASSES; pass++) {
+    stage(3 + pass);
+    plan = choosePlacements(start, members, centers, options.direction, plan, movers);
+  }
+  stage(5);
 
   const w = writePlacements(base, picIndex, members, plan);
   if ("reason" in w) return { ok: false, reason: w.reason };
+  stage(6);
   const corners = removeStaleCorners(w.text, picIndex, start);
   let changes = composeChanges(text, pre, w.changes);
   changes = composeChanges(text, changes, corners.changes);
+  stage(7);
   const tidy = tidyEdges(corners.text, picIndex, start);
   changes = composeChanges(text, changes, tidy.changes);
   // Lanes keep their shared top and bottom at the members' extremes (D81).
@@ -1158,6 +1248,7 @@ export async function planAutoLayout(text: string, picIndex: number, options: Au
   if (applyChanges(text, changes) !== final) return { ok: false, reason: "The layout couldn't be written as one edit." };
 
   // Nodes outside the layout stay where they were, unless they follow a laid-out node.
+  stage(8);
   const after = layoutDocumentPicture(analyzeDocument(final), picIndex);
   if (!after) return { ok: false, reason: "The picture couldn't be laid out after the change." };
   const moving = movingWith(start, members.map((n) => n.id));

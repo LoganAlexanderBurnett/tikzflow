@@ -4,11 +4,12 @@
 // file chooser and Save a download. Nothing leaves the computer.
 
 import { effect, signal } from "@preact/signals";
-import { detectFormat, IMPORT_EXTENSIONS, type ImportOptions, type ImportResult, importDiagram } from "../import/index.ts";
+import { LayoutCancelled, runImport } from "../edit/layoutjobs.ts";
+import { detectFormat, IMPORT_EXTENSIONS, type ImportOptions, type ImportResult } from "../import/index.ts";
 import { decode, encode, type Encoding, UnencodableError } from "../source/encoding.ts";
 import { SAMPLE } from "./sample.ts";
 import { decodeShare, isShareHash } from "./share.ts";
-import { encoding, fileName, pictureIndex, replaceDocument, status, text } from "./store.ts";
+import { encoding, fileName, pictureIndex, replaceDocument, status, text, withProgress } from "./store.ts";
 
 /** The text the editor starts with: the work kept from the last visit, else the sample. Set by `restoreOnStart`. */
 let startText = SAMPLE;
@@ -197,11 +198,19 @@ function importMessage(r: ImportResult & { ok: true }, kept: boolean): string {
 /**
  * Imports a Mermaid or DOT diagram like Open (D77 item 5): the work on screen
  * is put aside and can be restored, and the diagram replaces it as TikZ. The
- * text is read and laid out here; nothing is sent anywhere. Returns the result
- * so the caller can show why it failed.
+ * text is read and laid out in the browser (in the layout worker, D87, with
+ * its progress shown); nothing is sent anywhere. Returns the result so the
+ * caller can show why it failed.
  */
-export async function importSource(src: string, name: string | null, options: ImportOptions = {}): Promise<ImportResult> {
-  const r = await importDiagram(src, options);
+export async function importSource(src: string, name: string | null, options: Omit<ImportOptions, "onProgress"> = {}): Promise<ImportResult> {
+  let r: ImportResult;
+  try {
+    r = await withProgress((onProgress) => runImport(src, options, onProgress), "Importing");
+  } catch (e) {
+    if (!(e instanceof LayoutCancelled)) throw e;
+    status.value = "Import cancelled; nothing was changed.";
+    return { ok: false, reason: "Import cancelled; nothing was changed." };
+  }
   if (!r.ok) {
     status.value = `Couldn't import: ${r.reason}`;
     return r;

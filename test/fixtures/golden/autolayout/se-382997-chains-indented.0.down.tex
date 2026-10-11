@@ -75,7 +75,7 @@
     \node [proc, join, right=of p0] (p1) {Sense AoI and update inforamtion maps.};
     \node [proc, join, right=of p1] (detectTargetsUpdate)      {Detect targets and update inforamtion lists.};
     \node [test, join, below right=3.4cm and 7.5cm of detectTargetsUpdate] (t1) {Is $N_i={\emptyset}$?};
-    \node [proc, below right=2.8cm and 30cm of t1] (p2) {Evaluate the fitness of each target as in Section \ref{sec:Proposed distributed semi-flocking}-A.};
+    \node [proc, below right=2.8cm and 35cm of t1] (p2) {Evaluate the fitness of each target as in Section \ref{sec:Proposed distributed semi-flocking}-A.};
     \node [proc, join, right=of detectTargetsUpdate] (p3) {Dertermin the next operating mode as in Section \ref{sec:Proposed distributed semi-flocking}-B.};
     \node [test, join, right=of p3] (t2) {Track a target $k$?};
     \node [proc, join=by free, right=of t2]  (p7) {Calculate $f_i^t$ as in Eq. (12).};

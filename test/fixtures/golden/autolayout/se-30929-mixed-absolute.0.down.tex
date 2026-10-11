@@ -12,7 +12,7 @@
 \begin{tikzpicture}[auto, node distance=0.5cm and 0.5cm, arr/.style={->,thick}, line/.style={thick}, font=\footnotesize]
 
 \node (stoffVor) [block] {Box 1 text};
-\node (haupt) [block, below=5mm of stoffVor, xshift=2.1cm, align=center] {Box 2 text};
+\node (haupt) [block, below right=5mm and 6mm of stoffVor, align=center] {Box 2 text};
 \node (stoffNach) [block, below left=2.1cm and 3mm of stoffVor] {Box 3 text};
 \node (pfeil1) [arrow,above=3.2cm of stoffNach] {Arrow 1};
 \node (pfeil2) at (haupt |- pfeil1) [arrow] {Arrow 2 text};

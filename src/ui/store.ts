@@ -4,7 +4,8 @@ import { isolateHistory, redo, undo } from "@codemirror/commands";
 import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { batch, computed, effect, signal } from "@preact/signals";
-import { autoLayoutMessage, type LayoutDirection, planAutoLayout } from "../edit/autolayout.ts";
+import { autoLayoutMessage, type LayoutDirection, type LayoutProgress } from "../edit/autolayout.ts";
+import { LayoutCancelled, runAutoLayout } from "../edit/layoutjobs.ts";
 import { applyChanges, type Change, composeChanges } from "../edit/changes.ts";
 import { type ContrastIssue, contrastIssues } from "../edit/contrast.ts";
 import { defaultEntry, edgeHead, type PaletteEntry, paletteEntries, planCreate, type Placement } from "../edit/create.ts";
@@ -422,13 +423,57 @@ export function attachNode(id: string, from: string, to: string): void {
   status.value = `Now placed relative to ${to} instead of ${from}. You can drag it now.`;
 }
 
-/** Whether an auto-layout is being worked out (ELK runs asynchronously). */
+/** Whether an auto-layout is being worked out (in the layout worker, D87). */
 export const layoutBusy = signal(false);
+/** How far the running layout or import is; shown once it has taken a moment (D83 item 4). */
+export const layoutProgress = signal<LayoutProgress | null>(null);
+let cancelJob: (() => void) | null = null;
+
+/** Stops the running layout or import; nothing is written. */
+export function cancelLayout(): void {
+  cancelJob?.();
+}
+
+/** Progress shown only after this long, so quick layouts don't flash a bar. */
+const PROGRESS_DELAY_MS = 250;
+
+/**
+ * Runs a job of the layout worker with its progress shown (after a moment)
+ * in `layoutProgress` and the status bar, and Cancel wired to it.
+ */
+export async function withProgress<T>(start: (onProgress: (p: LayoutProgress) => void) => { result: Promise<T>; cancel(): void }, doing: string): Promise<T> {
+  let last: LayoutProgress | null = null;
+  let shown = false;
+  const show = () => {
+    shown = true;
+    layoutProgress.value = last ?? { step: 0, steps: 1, what: "starting" };
+    status.value = `${doing}… ${progressText(layoutProgress.value)}`;
+  };
+  const timer = setTimeout(show, PROGRESS_DELAY_MS);
+  const job = start((p) => {
+    last = p;
+    if (shown) show();
+  });
+  cancelJob = job.cancel;
+  try {
+    return await job.result;
+  } finally {
+    clearTimeout(timer);
+    cancelJob = null;
+    layoutProgress.value = null;
+  }
+}
+
+/** "Step 3 of 9: choosing each node's relation". */
+export function progressText(p: LayoutProgress): string {
+  return p.step ? `Step ${p.step} of ${p.steps}: ${p.what}.` : "Starting.";
+}
 
 /**
  * Auto-layout (D80): the whole picture, or the selection when two or more
- * nodes are selected, as one undoable step. Nothing is written if the code
- * changed while ELK was working.
+ * nodes are selected, as one undoable step. It runs in the layout worker
+ * (D87), so the page stays responsive; nothing is written if the code changed
+ * meanwhile, or if it was cancelled.
  */
 export async function autoLayout(direction: LayoutDirection): Promise<boolean> {
   const before = text.value;
@@ -437,7 +482,7 @@ export async function autoLayout(direction: LayoutDirection): Promise<boolean> {
   layoutBusy.value = true;
   status.value = "Laying out…";
   try {
-    const r = await planAutoLayout(before, pic, ids ? { direction, ids } : { direction });
+    const r = await withProgress((onProgress) => runAutoLayout(before, pic, ids ? { direction, ids } : { direction }, onProgress), "Laying out");
     if (text.value !== before) {
       status.value = "The code changed while the layout was worked out, so nothing was written. Try again.";
       return false;
@@ -451,7 +496,7 @@ export async function autoLayout(direction: LayoutDirection): Promise<boolean> {
     fitRequests.value++;
     return true;
   } catch (e) {
-    status.value = `The layout engine failed: ${e instanceof Error ? e.message : String(e)}. Nothing was changed.`;
+    status.value = e instanceof LayoutCancelled ? "Layout cancelled; nothing was changed." : `The layout engine failed: ${e instanceof Error ? e.message : String(e)}. Nothing was changed.`;
     return false;
   } finally {
     layoutBusy.value = false;

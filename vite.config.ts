@@ -284,6 +284,8 @@ function pageHeaders(): Record<string, string> {
 export default defineConfig({
   plugins: [rawVendor(), engineFiles(), serviceWorker(), swiftlatexTexlive()],
   oxc: { jsx: { runtime: "automatic", importSource: "preact" } },
+  // Module workers, so the layout worker (D87) can load elk.js as a chunk of its own, as the page does.
+  worker: { format: "es" },
   server: {
     watch: { ignored: ["**/vendor/**"] },
     // Cross-origin isolation, so engines can use SharedArrayBuffer if they need it.

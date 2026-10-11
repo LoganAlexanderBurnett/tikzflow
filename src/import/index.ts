@@ -1,7 +1,7 @@
 // Import from Mermaid and Graphviz DOT (M4 step 5, D84): read the source into a
 // graph, write it as TikZ, and let the auto-layout (D80) turn the rough places
 // into relations. Everything happens in the browser; nothing is sent anywhere.
-import { type LayoutDirection, planAutoLayout } from "../edit/autolayout.ts";
+import { type LayoutDirection, type LayoutProgress, planAutoLayout } from "../edit/autolayout.ts";
 import { parseDot } from "./dot.ts";
 import { ImportError } from "./graph.ts";
 import { parseMermaid } from "./mermaid.ts";
@@ -15,6 +15,8 @@ export interface ImportOptions {
   format?: ImportFormat;
   /** The direction of the flow; the source's own when absent. */
   direction?: LayoutDirection;
+  /** The auto-layout's progress (D83 item 4). */
+  onProgress?: (p: LayoutProgress) => void;
 }
 
 export type ImportResult =
@@ -68,7 +70,7 @@ export async function importDiagram(src: string, options: ImportOptions = {}): P
     let text = out.text;
     let laidOut = false;
     if (graph.nodes.length >= 2) {
-      const r = await planAutoLayout(text, 0, { direction, groups: true });
+      const r = await planAutoLayout(text, 0, { direction, groups: true, ...(options.onProgress ? { onProgress: options.onProgress } : {}) });
       if (r.ok) {
         text = r.text;
         laidOut = true;

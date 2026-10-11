@@ -23,35 +23,35 @@
 \node [block, below of=start, node distance=1.5cm] (Gene_expression_data) {Gene Expression Profile};
 \node[right=of start] (AB) {Initial Population};
 
-\node[block,  below of =Gene_expression_data, node distance=2 cm] (Normalize){Normalize raw intensity over 0 and 1};
-\node[below=of Normalize] (A) {PREPROCESSING};
+\node[block,  below=10.7cm of Gene_expression_data] (Normalize){Normalize raw intensity over 0 and 1};
+\node[above=of Normalize] (A) {PREPROCESSING};
 \node[fit= (A) (Normalize), dashed,draw,inner sep=0.15cm] (Preprocess_box){};
 
-\node [block, below=of A] (FCM) {Apply FCM};
+\node [block, below=of AB] (FCM) {Apply FCM};
 \node [block, right=of FCM] (Cluster) {Co-expressed clusters of Genes};
 
-\node[io,  right=of Gene_expression_data] (DAVID){DAVID};
+\node[io,  below=of FCM] (DAVID){DAVID};
 \node [block, right=of DAVID] (FAC) {Functionally annotated clusters};
-\node[io,  below=of FCM] (IntScore){IntScore};
+\node[io,  below=of DAVID] (IntScore){IntScore};
 \node [block, right=of IntScore] (PPISCORE) {Interaction Score of PPI Network};
-\node [subblock, below=of FAC] (FPC) {FPC};
-\node [subblock,right=of Cluster] (PBM) {PBM};
-\node [subblock,right=of FAC] (BHI) {BHI};
-\node [subblock,right=of PPISCORE] (InteractionScore) {Interaction Score};
-\node[below=of IntScore] (B) {CALCULATE CLUSTER VALIDITY INDEXES};
+\node [subblock, right=of Cluster] (FPC) {FPC};
+\node [subblock,above=of FPC] (PBM) {PBM};
+\node [subblock,below=of FPC] (BHI) {BHI};
+\node [subblock,below=of BHI] (InteractionScore) {Interaction Score};
+\node[above=of PBM] (B) {CALCULATE CLUSTER VALIDITY INDEXES};
 \node[fit= (FPC) (PBM) (BHI) (InteractionScore)(B), dashed,draw,inner sep=0.1cm] (Fitness function){};
-\node [superblock, below=of B] (NDS1) {Non-dominated sorting};
-\node [superblock, right=of NDS1] (CROWD1) {Assigning crowding distance};
-\node[decision,  below=of NDS1] (Maxgen){if maximum generation};
-\node [block1, below=3.3cm of CROWD1] (NDS2) {Obtained a set non-dominated solutions on final pareto optimal front};
+\node [superblock, below=3.3cm of Gene_expression_data] (NDS1) {Non-dominated sorting};
+\node [superblock, below=0pt of NDS1, xshift=3cm] (CROWD1) {Assigning crowding distance};
+\node[decision,  above=of A] (Maxgen){if maximum generation};
+\node [block1, below=5.3cm of CROWD1] (NDS2) {Obtained a set non-dominated solutions on final pareto optimal front};
 \node [block1, right=of NDS2] (Silhouette) {Calculate Silhouette Score of the solutions};
 \node [block1, right=of Silhouette] (Bestsol) {Pick up the best solution among them};
 \node [rblock, right=of Bestsol] (Stop) {Stop};
 \node [block1, right of=Maxgen, node distance=3.9 cm] (tournament) {Tournament Selection};
-\node [block1, right=of tournament] (Crossover) {Crossover and Mutation};
-\node[below=of Maxgen] (GAS) {GA STEPS};
+\node [block1, below of=tournament, node distance=1.5 cm] (Crossover) {Crossover and Mutation};
+\node[above of = tournament] (GAS) {GA STEPS};
 \node[fit= (GAS) (tournament) (Crossover), dashed,draw,inner sep=0.2cm] (GASteps){};
-\node [block1, right=of Crossover] (FCM1) {Assign membership degree using FCM};
+\node [block1, right=of tournament] (FCM1) {Assign membership degree using FCM};
 \node [block1, right=of FCM1] (Fitness) {Assign fitness value of each offspring};
 \node [block1, right of=Fitness, node distance=4 cm] (Newpop) {New population created after merging of parent and children};
 \node [block1, right=of Newpop] (NDS3) {Non-dominated Sorting};
@@ -64,11 +64,11 @@
 
 \path [line] (start) -- (AB);
 \path [line] (Gene_expression_data) -- (Preprocess_box);
-\path [line] (Gene_expression_data) -- (DAVID);
+\path [line] (Gene_expression_data) -| (DAVID);
 \path [line] (Preprocess_box) -- (FCM);
 \path [line] (FCM) -- (Cluster);
 \path [line] (Cluster) -- (FPC);
-\path [line] (Cluster) -- (PBM);
+\path [line] (Cluster) -| (PBM);
 \path [line] (DAVID) -- (FAC);
 \path [line] (FAC) -- (BHI);
 \path [line] (IntScore) -- (PPISCORE);

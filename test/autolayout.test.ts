@@ -1,7 +1,9 @@
 // Auto-layout (M4 step 3, D80): ELK decides layers and order; every node
 // is written as a relation to a node before it; what already agrees is kept.
 import { describe, expect, it } from "vitest";
-import { autoLayoutMessage, guessDirection, layoutBlocker, planAutoLayout } from "../src/edit/autolayout.ts";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { autoLayoutMessage, elkCenters, elkGraph, groupsCross, groupTree, guessDirection, layoutBlocker, layoutScope, planAutoLayout } from "../src/edit/autolayout.ts";
 import { analyzeDocument, layoutDocumentPicture } from "../src/model/document.ts";
 
 const doc = (body: string, preamble = "\\usetikzlibrary{positioning}\n") =>
@@ -143,5 +145,30 @@ describe("auto-layout", () => {
     let t = text;
     for (const c of [...r.changes].sort((p, q) => q.from - p.from)) t = t.slice(0, c.from) + c.insert + t.slice(c.to);
     expect(t).toBe(r.text);
+  });
+});
+
+// D86 item 1, D87: by default, groups are kept together only when the plain layout would make them cross.
+describe("groups by default", () => {
+  async function decision(text: string) {
+    const l = layoutDocumentPicture(analyzeDocument(text), 0)!;
+    const { members } = layoutScope(l);
+    const tree = groupTree(text, l, members)!;
+    const centers = await elkCenters(elkGraph(l, members, "down"));
+    return groupsCross(l, members, centers, tree);
+  }
+
+  it("leaves a group alone that the plain layout keeps clear of other groups (self-document.tex)", async () => {
+    expect(await decision(readFileSync(join(import.meta.dirname, "..", "corpus", "self-document.tex"), "utf8"))).toBe(false);
+  });
+
+  it("keeps two groups whose steps alternate together", async () => {
+    const text = doc(
+      "\\node[draw] (a1) {A1};\n\\node[draw, right=of a1] (b1) {B1};\n\\node[draw, below=of a1] (a2) {A2};\n\\node[draw, below=of b1] (b2) {B2};\n" +
+        "\\draw[->] (a1) -- (b1);\n\\draw[->] (b1) -- (a2);\n\\draw[->] (a2) -- (b2);\n" +
+        "\\node[draw, fit=(a1) (a2)] (ga) {};\n\\node[draw, fit=(b1) (b2)] (gb) {};\n",
+      "\\usetikzlibrary{positioning, fit}\n",
+    );
+    expect(await decision(text)).toBe(true);
   });
 });

@@ -1579,6 +1579,33 @@ button.tf-preview-state.busy {
   font-size: 12px;
 }
 
+/* A long auto-layout or import (D83 item 4, D87): its stage and Cancel, over the top of the canvas. */
+.tf-progress-badge {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 40px);
+  padding: 6px 10px;
+  background: var(--panel);
+  color: var(--fg);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  font-size: 13px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
+}
+.tf-progress-badge progress {
+  width: 120px;
+  accent-color: var(--accent);
+}
+.tf-progress-badge button {
+  font-size: 12px;
+}
+
 /* Text that fails WCAG AA: the marker on the canvas, the summary's count, the note in the panel (D85). */
 .tf-low-contrast {
   white-space: nowrap;

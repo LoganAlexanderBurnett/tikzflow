@@ -19,6 +19,7 @@ import { startPreview } from "./preview.ts";
 import { PreviewStatus, PreviewToggle, TexBanner } from "./previewstatus.tsx";
 import { contrastMessage, selectContrastIssue } from "./contrastmarks.tsx";
 import { VisionBadge, VisionSelect } from "./visionui.tsx";
+import { LayoutProgressBadge } from "./progress.tsx";
 import {
   attachEditor,
   contrast,
@@ -398,6 +399,7 @@ export function App() {
           <div class="tf-stage">
             <TexBanner />
             <VisionBadge />
+            <LayoutProgressBadge />
             <Canvas />
             <Inspector />
           </div>
