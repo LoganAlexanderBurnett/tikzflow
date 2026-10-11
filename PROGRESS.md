@@ -27,8 +27,8 @@ Also read "Notes for later milestones" below.
 ## M5 plan and status
 | Step | Content | Status |
 |---|---|---|
-| 0 | `m5` branch; GitHub Actions test workflow (typecheck, Vitest, build, `check:dist`, Playwright in Edge) on every push | In progress |
-| 1 | Two or three visual directions (palette, type, logo and favicon, home page and editor in one look) as screenshots; **checkpoint: the owner picks one** | Not started |
+| 0 | `m5` branch; GitHub Actions test workflow (typecheck, Vitest, build, `check:dist`, Playwright in Edge) on every push | Done (D90) |
+| 1 | Two or three visual directions (palette, type, logo and favicon, home page and editor in one look) as screenshots; **checkpoint: the owner picks one** | Shown; **waiting for the owner's pick** (see "M5 steps 0 and 1" below) |
 | 2 | Site structure: home page at `/` (with "Continue your diagram" when there is saved work), editor at `/editor/`, help at `/help/`; share links to `/#…` forwarded to the editor; service worker, offline and `404.html` per page; sitemap | Not started |
 | 3 | The chosen design applied to the home page, help and the editor's chrome; light/dark/system switch; self-hosted fonts; contrast rechecked | Not started |
 | 4 | Nine templates (D89 item 4), with no locked blocks, compiled in CI by pdfLaTeX and our engine; gallery on the home page and in the editor's New menu; the state machine's `loop`/`initial`/`accepting` if moderate | Not started |
@@ -38,6 +38,28 @@ Also read "Notes for later milestones" below.
 | 8 | Goldens, end-to-end, offline and live checks on the `m5` preview; docs; **Milestone 5 report** | Not started |
 
 Milestone 6 (after M5's review): smooth dragging with 200 nodes; license audit and `THIRD_PARTY_LICENSES.md` (the items under "Milestone 5: license audit items" below move there); README with features, screenshots, local setup and deployment.
+
+## M5 steps 0 and 1: CI, and the visual directions (2026-10-11)
+### Step 0: tests on every push (D90)
+- `.github/workflows/test.yml`, two jobs on Ubuntu, on every push and pull request:
+  - **Typecheck, Vitest, build:** `npm ci`, the pinned engine (cached by `engine/release.json`'s hash), `typecheck`, `npm test` (the engine tests run too), `build`, `check:dist`.
+  - **Playwright (Edge):** `npx playwright install --with-deps msedge`, then `test:e2e` and `test:offline`.
+- **Found by the first run: right-click on an edge didn't open its menu on Linux or macOS.**
+  - **Cause:** those systems ask for the menu on press. The canvas was holding the pointer then, in case the press became a pan (D82). So the menu event's target was the canvas, not the edge, and the menu opened on release found nothing.
+  - **Fix:** on release the menu now looks up what is under the pointer.
+  - **Why it went unnoticed:** Windows asks on release, so local tests always passed. The same bug is in the live site (since M4 step 4); it will be fixed there when `m5` is merged, unless the owner wants it sooner.
+  - **Tests:** 23 end-to-end tests failed on Linux from this one cause (every test that opens the edge menu).
+
+### Step 1: three visual directions (checkpoint)
+Static mockups in `spike/design/` (`index.html?d=a|b|c&view=home|editor|board&theme=light|dark`; `node spike/design/shoot.ts` saves the screenshots to `spike/design/shots/`). Each shows a style board (logo, favicon at 16/32/64 px, palette, type, controls), the home page, and the editor in light and dark.
+- **The editor's look:**
+  - **Same in every direction:** two rows on top. The first has the logo, the tabs (step 6) and Help. The second has grouped tools: file, undo, build, view, and export and share. The panes keep their places.
+  - **The canvas:** TeX's picture sits on a white sheet in both themes, so a dark theme never changes how the diagram looks.
+- **A · Manuscript:** warm paper, ink and a vermilion accent. Headings in Source Serif 4, interface in Source Sans 3, code in Source Code Pro. The mark is two nodes joined by a `|-` corner.
+- **B · Blueprint:** cool neutrals, one strong blue, a faint grid behind the canvas, and a dark app bar. IBM Plex Sans and Mono throughout. The mark is a decision diamond on a blue tile.
+- **C · Friendly:** cream and green with marigold, rounded shapes. Headings in Space Grotesk, interface in Atkinson Hyperlegible Next, code in JetBrains Mono. The mark is a flow line from a start dot.
+- **Fonts:** all OFL-1.1, self-hosted (the CSP allows only our own files). They are installed for the mockups only (`npm install --no-save`, listed in `spike/design/README.md`); the chosen direction's fonts are added to `package.json` in step 3. Code fonts must have ligatures off (JetBrains Mono turns `|-` into ⊢ and `>=` into ≥); the mockups do.
+- **Placeholders:** the template thumbnails are hand-drawn. The real ones will be compiled by the engine (step 4).
 
 ## M4 plan and status
 | Step | Content | Status |

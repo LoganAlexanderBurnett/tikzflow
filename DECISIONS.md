@@ -1207,3 +1207,17 @@ The owner confirmed that "Report a problem" shows the issue form when signed in 
 6. **Help** is plain static HTML generated at build time (crawlable), searched in the browser with an index built at build time. The search library must be GPL-compatible; MiniSearch (MIT) is the plan.
 
 **Why:** the owner's answers to the Milestone 5 plan (2026-10-11).
+
+## D90: Tests on every push, and right-click menus on Linux and macOS (M5 step 0, 2026-10-11)
+**Decision:**
+- **`.github/workflows/test.yml`** runs on every push and pull request, on Ubuntu 24.04, with actions pinned by commit like the other workflows.
+  - **Jobs:** one job runs `typecheck`, Vitest, `build` and `check:dist`; the other runs the Playwright tests (`test:e2e`, then `test:offline`) in Edge (`npx playwright install --with-deps msedge`).
+  - **The engine:** both jobs fetch the pinned engine with `npm run fetch-engines -- engine` (checked by SHA-256), cached under `engine/release.json`'s hash, so the engine tests run instead of being skipped.
+  - **Superseded runs:** a newer push to the same branch cancels the older run.
+  - **Not in CI:** the fidelity and engine benchmarks (they need busytex, which is not downloaded in CI), and `test:live` (it is run by hand against a deploy).
+- **Linux is now a test platform, and it found a bug.**
+  - **What happened:** on Linux and macOS, Chromium sends `contextmenu` on press. The canvas captured the pointer on that press in case it became a pan (D82). The event's target was therefore the canvas itself, and the menu opened on release (`pendingMenu`) found no edge. Right-clicking an edge did nothing on those systems.
+  - **Fix:** the deferred menu looks up `document.elementFromPoint` at the press's position.
+  - **Why it wasn't caught:** Windows sends `contextmenu` on release, after capture ends, so the bug never showed locally. `pan.spec.ts`'s "asked for on press" test also passed on Windows only because Windows' own release event opened the menu again.
+
+**Why:** SPEC Milestone 5 ("A GitHub Actions workflow that runs the tests on every push"), moved into M5 step 0 by D89.
