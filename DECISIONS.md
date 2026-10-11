@@ -1169,3 +1169,11 @@ New requests:
 - **Tests:** `test/rotate.test.ts` (7), `test/stylekeys.test.ts` (3), `test/stylekeys-engine.test.ts` (1, every listed key through the engine), `test/golden-reorder.test.ts` (60; golden files in `test/fixtures/golden/reorder/` for the 10 cases that move lines, and elsewhere the result must equal the layout without the option), reordering and `groupsCross` cases in `test/autolayout.test.ts`, the default group decision in `test/import.test.ts`, `\$` in `test/import-engine.test.ts`; end to end: `stylekeys.spec.ts`, reordering in `autolayout.spec.ts`, the new summary items in the contrast audit.
 
 **Why:** the items scheduled for step 7 (D81 item 4, D83 items 1, 3 and 4) and the owner's decisions on steps 5 and 6 (D86).
+
+## D88: The owner's decisions on the Milestone 4 report, and the merge (2026-10-11)
+The owner reviewed the Milestone 4 report. Decisions:
+1. **Group-aware layout only when groups would otherwise cross or cover another group's node, and always for import: approved** (D87). Always using the group hierarchy stays rejected for the toolbar's Layout, because it made `self-document.tex` and `se-421789-complicated-fit.tex` worse.
+2. **`\$` drawn from the OT1 Computer Modern fonts, with a quiet note for other TS1 symbols: approved** (D87). The TS1 fonts (5.21 MB gzipped) stay unbundled.
+3. **Merge:** `m4` is merged into `trunk` (the live public beta), then the deploy is checked with `npm run test:live` against https://tikzflow.pages.dev, including that "Report a problem" opens the issue form. Milestone 5 is not started; it waits for its own go-ahead.
+
+**Why:** the owner's answers to "Decisions for you" in the Milestone 4 report (2026-10-11).
