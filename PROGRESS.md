@@ -32,7 +32,41 @@ Also read "Notes for later milestones" below.
 | 4 | Groups and swimlanes with `fit` and `backgrounds`, form B (D81); the banner contrast fix and panning (D82) | Done |
 | 5 | Import from Mermaid and DOT, like Open (D77 item 5) | Done (D84) |
 | 6 | Grayscale and colour-blind preview modes, contrast warnings (WCAG AA, D77 item 6) | Done (D85) |
-| 7 | The opt-in "Allow reordering statements" layout option (D81 item 4); auto-layout speed on large pictures, **with progress shown and the page not frozen for any layout over a second** (D83 item 4); rotated lane titles by teaching the quick preview to draw rotated nodes in general, or to Milestone 5 if that isn't small (D83 item 1); **a warning when a style is named like a TikZ key**, such as `step` (D83 item 3); whether Layout keeps groups together by default (D84, decision 1); goldens, end-to-end, offline and live checks on the preview, docs, report | To do |
+| 7 | The owner's decisions on steps 5–6 (D86): group-aware Layout by default, TS1 fonts for `# Progress
+
+## Current status
+**Milestone 1 (core loop): done and approved (2026-10-07).** The owner's answers and refinements are in DECISIONS.md D31.
+
+Milestone 0 is done and was approved on 2026-10-07:
+- **License:** GPL-3.0-or-later (D14).
+- **Engine:** TikZJax, with our own build in Milestone 3 (D13, D15).
+- **Preview fonts:** always Computer Modern (D16).
+
+**Milestone 2a (nodes and styles): done and approved (2026-10-07).** The owner tested it by hand; their answers are in DECISIONS.md D44 and "M2a review" below.
+
+**Milestone 2b (edges): done and approved (2026-10-08).** The owner tested all of it, and the fixes of D57, by hand. Their answers are in DECISIONS.md D58 and "M2b review" below. SPEC.md's revisions log now covers D53–D58.
+
+**Milestone 3 (accurate preview and export): done, awaiting review (merged into `trunk` on 2026-10-09).** Step 1, the CI feasibility check (D15, D59), passed and the owner approved it (D60). Steps 2–5, the four fixes from the M2b review (D58 items 4–7), are done (D61–D64). The owner's decision on step 4's limit is D65. Steps 6–8 are done (D66–D68): the TeX preview works in the app; see "M3 steps 6–8" below. Steps 9–11 are done (D70–D72, with D69's fixes): offline use, the page, and export; see "M3 steps 9–11" below. The owner answered the step 9–11 questions (D73) and steps 12–14 followed (D74, D75): **Milestone 3 is done, merged into `trunk`, and waiting for the owner's review**; see "Milestone 3 report" below. The owner's standing answers:
+- `gh` is logged in with a token for this repo only (Contents, Actions, Workflows: read/write). Report any missing permission instead of working around it.
+- Engine files are published as GitHub Releases and fetched by hash. The TL2026 Docker image is pinned by digest.
+- Push the `m3-engine-ci` branch when needed. Show the download list before CI downloads anything new.
+- All of Milestone 3 is done on `m3-engine-ci` and merged into `trunk` at the end of the milestone (D60).
+
+**Milestone 4 (layout and import): in progress on the `m4` branch (plan approved 2026-10-10, D77).** `trunk` is the live public beta: nothing is merged into it until everything passes (including `npm run test:live` against the branch's Cloudflare preview) and the owner has reviewed the M4 report. Steps 0–4 are done and the owner has reviewed them (D81–D83). **Steps 5 and 6 are done** ("M4 steps 5 and 6" below): import from Mermaid and DOT (D84), the grayscale and colour-blind views and contrast warnings (D85). Next: step 7.
+
+Also read "Notes for later milestones" below.
+
+## M4 plan and status
+| Step | Content | Status |
+|---|---|---|
+| 0 | `m4` branch, CLAUDE.md rule, Report link to `/issues/new`, issue template, the branch's Cloudflare preview | Done (D77); preview at https://m4.tikzflow.pages.dev, `test:live` passes |
+| 1 | Drag a multi-selection as a group | Done (D78) |
+| 2 | Chain nodes made draggable: the whole chain converted to explicit positioning (D77 item 4) | Done (D79) |
+| 3 | Auto-layout with elk.js, written back as relative positioning (D77 items 1, 2); **checkpoint report** | Done (D80); reviewed by the owner (D81) |
+| 4 | Groups and swimlanes with `fit` and `backgrounds`, form B (D81); the banner contrast fix and panning (D82) | Done |
+| 5 | Import from Mermaid and DOT, like Open (D77 item 5) | Done (D84) |
+| 6 | Grayscale and colour-blind preview modes, contrast warnings (WCAG AA, D77 item 6) | Done (D85) |
+ (or a quiet note), American English in all user-facing text. The opt-in "Allow reordering statements" layout option (D81 item 4); auto-layout speed on large pictures, **with progress shown and the page not frozen for any layout over a second** (D83 item 4); rotated lane titles by teaching the quick preview to draw rotated nodes in general, or to Milestone 5 if that isn't small (D83 item 1); **a warning when a style is named like a TikZ key**, such as `step` (D83 item 3); whether Layout keeps groups together by default (D84, decision 1); goldens, end-to-end, offline and live checks on the preview, docs, report | To do |
 
 ## M4 steps 5 and 6: import, colour views, contrast warnings (2026-10-11)
 Done on `m4`, committed and pushed, one commit per step as asked; nothing is merged into `trunk`. The owner's decisions on step 4 (rotated lane titles, the default look of lanes and groups, the TikZ-key style warning, progress for slow layouts) are recorded in D83; the three that are work for later are in step 7's row of the table.
@@ -1214,6 +1248,9 @@ These come from the M0 review. The full reasoning is in DECISIONS.md D15 and D16
 ### Milestone 5: owner requirements on top of SPEC.md (2026-10-09, D69)
 - **Stop the engine worker while the tab is hidden** (it holds about 330 MB) and start it again when the tab is shown.
 - **Keep the previous TeX picture visible until the new compile is ready,** instead of showing the native drawing for 0.1–0.3 s on every edit.
+
+### Milestone 5: multiple tabs (2026-10-11, D86 item 5)
+- **Multiple tabs**, so a user can work on more than one flowchart at once. Each tab keeps its own code, undo history, autosave and preview. Opening a file, an import or a share link opens in a new tab instead of putting the current work aside (today's "Restore previous work", D74, D77 item 5).
 
 ### Milestone 5: license audit items
 - **web2js's license files disagree** (found 2026-10-08, M3 step 1). `drgrice1/web2js` (commit `0114ef5`, used to build `tex.wasm` in CI) declares `"license": "GPL-3.0"` in `package.json`. Its `LICENSE.md` names "Math-expression", apparently pasted from another project, and offers GPL-3.0 or Apache-2.0. GitHub reports the license as NOASSERTION. web2js itself is only a build tool. But its `library.js` runtime and the TikZJax worker code adapted from it in step 7 ship in the app, so the audit must settle their license, upstream (kisonecat/web2js) included.

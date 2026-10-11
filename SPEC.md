@@ -153,6 +153,7 @@ Features:
 - A license audit of every bundled component (TeX packages, WASM engine, elk.js, KaTeX, and so on). Summarize the results in `THIRD_PARTY_LICENSES.md` and recommend a project license for me to choose.
 - README with features, screenshots, local development setup, and deployment steps.
 - A GitHub Actions workflow that runs the tests on every push.
+- Multiple tabs, so a user can work on more than one flowchart at once. Each tab keeps its own code, undo history, autosave and preview. Opening a file, an import or a share link opens in a new tab instead of putting the current work aside.
 
 ### Later (do not build unless I ask)
 Beamer overlay timeline, visual diff between versions, and natural-language edits via an API.
@@ -215,13 +216,17 @@ Start with Milestone 0. Before writing code, give me a brief plan for the spike 
   - Added to the start of Milestone 3: removing a deleted node from a `fit=` list, "Split and apply" for arrow tips, `auto` labels after a form change, and Flip on a label with no side key.
 - **2026-10-09, after Milestone 3 steps 2–5** (decided by the project owner; reasons in DECISIONS.md D65):
   - Dragging an edge's corners, curve handles, segments or ends also turns an overlapping label side key into `auto`. Moving a node doesn't; overlapping labels get a warning marker with a one-click fix instead.
+- **2026-10-09, the owner's answers on Milestone 3 steps 9–11** (decided by the project owner; reasons in DECISIONS.md D73):
+  - The engine's files are fetched in the background after the first visit, except on a data-saving or metered connection.
+  - The Page panel knows the page of article, report, book, Beamer, elsarticle, IEEEtran, revtex4-2, acmart and llncs (from their options, checked against widths measured with LaTeX itself), takes typed text and column widths that win over the preamble, and saves them under a name per viewer. A class it doesn't know is replaced by article's page in the TeX preview, with a note.
+  - `\textwidth`, `\columnwidth` and `\linewidth` in the quick preview follow the same page as the TeX preview.
 - **2026-10-11, the owner's answers on the Milestone 4 step 3 checkpoint** (decided by the project owner; reasons in DECISIONS.md D81 and D82):
   - Swimlanes are fit boxes on the background layer that share a top and bottom (form B); lanes stand side by side in pictures that run down and lie one above the other in pictures that run across.
   - Added to Milestone 4: an opt-in "Allow reordering statements" option for auto-layout, so a node may be moved later in the code when that is safe and gives a cleaner relation (step 7).
   - Added to Milestone 4: a right-button drag pans the canvas (a right click still opens the menu), as do a middle drag and Space+drag; the interface's own text meets WCAG AA contrast in both themes.
 - **2026-10-11, the owner's decisions on Milestone 4 step 4** (decided by the project owner; reasons in DECISIONS.md D83):
   - Added to Milestone 4: rotated titles for row lanes (by drawing rotated nodes in the quick preview in general), a warning for a style named like a TikZ key, and progress shown, with the page not frozen, for any layout that takes more than a second. The default look of lanes and groups was approved.
-- **2026-10-09, the owner's answers on Milestone 3 steps 9–11** (decided by the project owner; reasons in DECISIONS.md D73):
-  - The engine's files are fetched in the background after the first visit, except on a data-saving or metered connection.
-  - The Page panel knows the page of article, report, book, Beamer, elsarticle, IEEEtran, revtex4-2, acmart and llncs (from their options, checked against widths measured with LaTeX itself), takes typed text and column widths that win over the preamble, and saves them under a name per viewer. A class it doesn't know is replaced by article's page in the TeX preview, with a note.
-  - `\textwidth`, `\columnwidth` and `\linewidth` in the quick preview follow the same page as the TeX preview.
+- **2026-10-11, the owner's decisions on Milestone 4 steps 5 and 6** (decided by the project owner; reasons in DECISIONS.md D86):
+  - The toolbar's auto-layout keeps the nodes of each group together by default.
+  - All user-facing text is in American English ("color", "gray", "center").
+  - Added to Milestone 5: multiple tabs, each with its own code, undo history, autosave and preview; opening a file, an import or a share link opens a new tab.

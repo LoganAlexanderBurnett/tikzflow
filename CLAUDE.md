@@ -30,6 +30,7 @@ A free, static, fully client-side web app for creating and editing TikZ flowchar
 
 ## Conventions
 - Generated TikZ should read as hand-written: `positioning`-library relative placement, named styles in `\tikzset`, meaningful node names, and managed `\usetikzlibrary` lines. Follow the emitter priority order in SPEC.md.
+- User-facing text (the interface, status messages, tooltips, notes, the issue template) is in American English: "color", "gray", "center", "behavior" (D86 item 4). Code identifiers and docs follow it where that is cheap.
 - Test inputs under `corpus/` and any `fixtures/` folder must stay byte-exact. `.gitattributes` marks them `-text` so git never rewrites their line endings.
 - For every corpus file taken from the web, record the source URL and license in `corpus/SOURCES.md`, because the repo is public. Prefer self-written examples.
 

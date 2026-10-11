@@ -1140,3 +1140,17 @@ The owner tried step 4 on the m4 preview (lanes, moving nodes between lanes, aut
 - **Tests:** `test/contrast.test.ts` (13), `test/vision.test.ts` (8), `test/e2e/accessibility.spec.ts` (3: the filter and note, a screenshot check that grayscale leaves no colour in a node, the count, marker, note, fix and undo). On the corpus, `se-194593-styled-colors.tex` (white text on mid-tone fills, 2.4–3.2:1) is the only picture with warnings.
 
 **Why:** SPEC Milestone 4, "Accessibility: grayscale and colorblind preview modes, and contrast warnings for text on fills", with WCAG AA (D77 item 6).
+
+## D86: The owner's decisions on steps 5 and 6, and two new requests (2026-10-11)
+The owner tried Mermaid import and the grayscale and colour-blind views on the m4 preview; they work well. Decisions on the questions of the step 5–6 report:
+1. **Group-aware layout becomes the default for the toolbar's Layout** (the `groups` option of D84). The report shows the before and after of the auto-layout golden files that change (`self-document.tex`, `se-421789-complicated-fit.tex`) for the owner to confirm they are improvements.
+2. **Fills on import stay as they are:** Mermaid's pastel fills, none for DOT (D84).
+3. **`\$` in labels:** check the size of the TS1 font files the TeX preview's engine would need. If small, bundle them so `\$` works in the TeX preview; if not, show a quiet note for it instead of an error.
+
+New requests:
+4. **American English in all user-facing text:** "color", not "colour"; "gray", not "grey"; "center", "behavior", "license" (noun) and so on. The interface, status messages, tooltips, notes and the issue template are swept in step 7. Code identifiers and docs follow the same rule where that is cheap; user-facing text is what matters. From now on, new user-facing text is written this way (CLAUDE.md conventions).
+5. **Added to Milestone 5: multiple tabs**, so a user can work on more than one flowchart at once. Each tab keeps its own code, undo history, autosave and preview. Opening a file, an import or a share link opens in a new tab instead of putting the current work aside (this replaces D74's and D77 item 5's "put aside" for those three once tabs exist).
+
+**Order of work:** step 7 on `m4` with everything scheduled for it plus items 1–4, a commit after each part, push `m4`, `test:live` against the `m4` preview, PROGRESS.md, and the report on all of Milestone 4. No merge into `trunk` before the owner's review (D77 item 7).
+
+**Why:** the owner's notes on steps 5 and 6 (2026-10-11).
