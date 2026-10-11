@@ -432,6 +432,8 @@ export function attachNode(id: string, from: string, to: string): void {
 
 /** Whether an auto-layout is being worked out (in the layout worker, D87). */
 export const layoutBusy = signal(false);
+/** The Layout panel's "Allow reordering statements" (D81 item 4): off until the user turns it on; not kept between visits. */
+export const layoutReorder = signal(false);
 /** How far the running layout or import is; shown once it has taken a moment (D83 item 4). */
 export const layoutProgress = signal<LayoutProgress | null>(null);
 let cancelJob: (() => void) | null = null;
@@ -489,7 +491,8 @@ export async function autoLayout(direction: LayoutDirection): Promise<boolean> {
   layoutBusy.value = true;
   status.value = "Laying out…";
   try {
-    const r = await withProgress((onProgress) => runAutoLayout(before, pic, ids ? { direction, ids } : { direction }, onProgress), "Laying out");
+    const reorder = layoutReorder.value;
+    const r = await withProgress((onProgress) => runAutoLayout(before, pic, { direction, ...(ids ? { ids } : {}), ...(reorder ? { reorder } : {}) }, onProgress), "Laying out");
     if (text.value !== before) {
       status.value = "The code changed while the layout was worked out, so nothing was written. Try again.";
       return false;

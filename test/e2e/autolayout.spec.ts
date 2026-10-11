@@ -1,4 +1,6 @@
 // Milestone 4 step 3: auto-layout with elk.js, from the toolbar's Layout panel (D80).
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { expect, type Page, test } from "./base.ts";
 
 async function code(page: Page): Promise<string> {
@@ -79,4 +81,20 @@ test("lays out only the selected nodes, left to right", async ({ page }) => {
   expect(t).toContain("\\node[draw] (a) at (0,0) {A};");
   expect(t).toContain("\\node[draw] (b) at (4,1) {B};");
   expect(t).toContain("\\node[draw] (d) at (6,-5) {D};");
+});
+
+test("with reordering allowed, a node's line moves after the node it follows, and one undo puts it back (D87)", async ({ page }) => {
+  await page.goto("/");
+  const src = readFileSync(join(import.meta.dirname, "..", "..", "corpus", "se-78697-tikzset-classic.tex"), "utf8");
+  await page.evaluate((t) => (window as unknown as { tikzflow: { store: { replaceDocument: (t: string, n: null, e: string) => void } } }).tikzflow.store.replaceDocument(t, null, "utf-8"), src);
+  await page.getByTestId("layout-button").click();
+  await expect(page.getByTestId("layout-reorder")).not.toBeChecked();
+  await page.getByTestId("layout-reorder").check();
+  await page.getByTestId("layout-down").click();
+  await expect(page.getByTestId("status")).toContainText("Moved update's line after test's");
+  const code = () => page.evaluate(() => (window as unknown as { tikzflow: { store: { text: { value: string } } } }).tikzflow.store.text.value);
+  const after = await code();
+  expect(after.indexOf("(update)")).toBeGreaterThan(after.indexOf("(test)"));
+  await page.keyboard.press("Control+z");
+  await expect.poll(code).toBe(src);
 });

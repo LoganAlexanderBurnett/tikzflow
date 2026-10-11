@@ -172,3 +172,46 @@ describe("groups by default", () => {
     expect(await decision(text)).toBe(true);
   });
 });
+
+// D81 item 4, D87: "Allow reordering statements".
+describe("reordering statements", () => {
+  const body = (between = "") =>
+    "\\node[draw] (a) {A};\n\\node[draw] (c) at (0,-6) {C};\n" + between + "\\node[draw] (b) at (0,-3) {B};\n\\draw[->] (a) -- (b);\n\\draw[->] (b) -- (c);\n";
+
+  it("is off by default: the node written before the one it follows gets a distance", async () => {
+    const r = await layOut(doc(body()));
+    expect(r.reordered).toEqual([]);
+    expect(r.text).toMatch(/\(c\) at|below=[\d.]+(cm|mm) of a/);
+  });
+
+  it("moves the node's line after the node it follows, so it is written below=of it", async () => {
+    const text = doc(body());
+    const r = await planAutoLayout(text, 0, { direction: "down", reorder: true });
+    if (!r.ok) throw new Error(r.reason);
+    expect(r.reordered).toEqual([{ id: "c", name: "c", after: "b", carried: 0 }]);
+    expect(r.text.indexOf("(c)")).toBeGreaterThan(r.text.indexOf("(b)"));
+    expect(r.text).toContain("\\node[draw, below=of b] (c) {C};");
+    expect(autoLayoutMessage(r)).toContain("Moved c's line after b's");
+    const again = await planAutoLayout(r.text, 0, { direction: "down", reorder: true });
+    expect(again.ok && again.changes).toEqual([]);
+  });
+
+  it("carries the lines placed against the moved node, in their order", async () => {
+    const r = await planAutoLayout(doc(body("\\node[draw, right=of c] (d) {D};\n")), 0, { direction: "down", reorder: true });
+    if (!r.ok) throw new Error(r.reason);
+    expect(r.reordered.map((m) => [m.name, m.carried])).toEqual([["c", 1]]);
+    expect(r.text.indexOf("(b)")).toBeLessThan(r.text.indexOf("(c)"));
+    expect(r.text.indexOf("(c)")).toBeLessThan(r.text.indexOf("(d)"));
+  });
+
+  it("doesn't move past a scope, a path or a line it shares", async () => {
+    for (const between of ["\\begin{scope}\n\\end{scope}\n", "\\draw (0,0) -- (1,1);\n"]) {
+      const r = await planAutoLayout(doc(body(between)), 0, { direction: "down", reorder: true });
+      if (!r.ok) throw new Error(r.reason);
+      expect(r.reordered, between).toEqual([]);
+    }
+    const shared = doc("\\node[draw] (a) {A};\n\\node[draw] (c) at (0,-6) {C}; \\node[draw] (x) at (5,5) {X};\n\\node[draw] (b) at (0,-3) {B};\n\\draw[->] (a) -- (b);\n\\draw[->] (b) -- (c);\n");
+    const r = await planAutoLayout(shared, 0, { direction: "down", reorder: true });
+    expect(r.ok && r.reordered).toEqual([]);
+  });
+});

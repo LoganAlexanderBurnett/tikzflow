@@ -5,7 +5,7 @@
 import { useSignal } from "@preact/signals";
 import { useRef } from "preact/hooks";
 import { guessDirection, type LayoutDirection, layoutBlocker, layoutScope } from "../edit/autolayout.ts";
-import { autoLayout, baseLayout, layoutBusy, selectedIds } from "./store.ts";
+import { autoLayout, baseLayout, layoutBusy, layoutReorder, selectedIds } from "./store.ts";
 
 const DIRECTIONS: Array<{ dir: LayoutDirection; label: string }> = [
   { dir: "down", label: "Top to bottom" },
@@ -66,8 +66,12 @@ export function LayoutButton() {
               </button>
             ))}
           </div>
+          <label class="row" title="A node's line may move later in the code, when nothing before its new place depends on it, so it can be placed against the node it follows in the flow instead of by a long distance or a diagonal">
+            <input type="checkbox" checked={layoutReorder.value} onChange={(e) => (layoutReorder.value = e.currentTarget.checked)} data-testid="layout-reorder" />
+            Allow reordering statements
+          </label>
           <p class="note">
-            Each node is placed relative to a node before it in the code (<code>below=of a</code>, <code>right=of b</code>, <code>at (a |- b)</code>); positions already written that agree with the layout are kept. Corners of edges written as fixed coordinates are removed. One Ctrl+Z undoes it.
+            Each node is placed relative to a node before it in the code (<code>below=of a</code>, <code>right=of b</code>, <code>at (a |- b)</code>); positions already written that agree with the layout are kept. With reordering allowed, a node's line may move after the node it follows in the flow, with the lines placed against it. Corners of edges written as fixed coordinates are removed. One Ctrl+Z undoes it.
           </p>
           {scope.staying.length > 0 && (
             <p class="note" data-testid="layout-staying">

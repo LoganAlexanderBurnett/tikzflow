@@ -21,7 +21,7 @@ import { fitBoxes, laneSets, laneUpkeep } from "./lanes.ts";
 import { withLibraries } from "./libraries.ts";
 import { ALIGN_EPS, formatDistance, planMove, type PositionSpec, positioningText, specChanges } from "./move.ts";
 import { removeItems } from "./optionEdits.ts";
-import type { OptionItem } from "../model/syntax.ts";
+import type { OptionItem, Range } from "../model/syntax.ts";
 import { labelsOnTheirLine, planLabelBesideLine, planLabelsBesideLine } from "./labels.ts";
 import { edgeVertices, planRemoveVertex, planStraighten, straightenChanges } from "./vertices.ts";
 
@@ -54,6 +54,8 @@ export interface AutoLayoutOptions {
   groups?: boolean;
   /** Told as each stage starts, so a long layout can show how far it is (D83 item 4). */
   onProgress?: (p: LayoutProgress) => void;
+  /** "Allow reordering statements" (D81 item 4): a node's statement may move later in the code when that is safe and gives it a plain relation. Off unless true. */
+  reorder?: boolean;
 }
 
 /** How far a layout is: stage `step` of `steps`, and what it is doing. */
@@ -95,6 +97,8 @@ export type AutoLayoutResult =
       /** Labels the moved lines now cut through, put beside them with auto. */
       labels: number;
       conversions: Array<ChainConversion & { ok: true }>;
+      /** Statements moved later in the code (reorder), each with the node it now follows and how many moved along. */
+      reordered: Array<{ id: string; name: string; after: string; carried: number }>;
       added: string[];
       notes: string[];
     }
@@ -1168,6 +1172,147 @@ function nameOf(layout: PictureLayout, id: string | undefined): string {
   return (id && layout.nodes.find((n) => n.id === id)?.name) || "a point";
 }
 
+// ---------------------------------------------------------------- reordering statements (D81 item 4)
+
+/** A placement a person wouldn't write if the node could refer to its neighbour: a distance, a diagonal or a shift. */
+function roundabout(spec: PositionSpec | "keep"): boolean {
+  if (spec === "keep") return false;
+  if (spec.kind !== "positioning") return spec.kind !== "perp";
+  return spec.v !== undefined || spec.h !== undefined || !!spec.shift || spec.dir.includes(" ");
+}
+
+/** The range of whole lines a statement fills by itself (comments after it included), or null if it shares a line. */
+function ownLines(text: string, r: Range): Range | null {
+  const start = text.lastIndexOf("\n", r.from - 1) + 1;
+  if (text.slice(start, r.from).trim()) return null;
+  const nl = text.indexOf("\n", r.to);
+  const end = nl < 0 ? text.length : nl + 1;
+  const rest = text.slice(r.to, nl < 0 ? text.length : nl);
+  if (rest.trim() && !rest.trim().startsWith("%")) return null;
+  return { from: start, to: end };
+}
+
+/** Whether `text` uses the name `name` as a whole word. */
+function mentions(text: string, name: string): boolean {
+  const esc = name.replace(/[.*+?^${}()|[\]\\-]/g, "\\$&");
+  return new RegExp(`(^|[^A-Za-z0-9_\\-:])${esc}([^A-Za-z0-9_\\-:]|$)`).test(text);
+}
+
+export interface Reordered {
+  changes: Change[];
+  text: string;
+  /** Each node moved, the node it now follows in the code, and how many statements moved along (placed against it or after it in the flow). */
+  moved: Array<{ id: string; name: string; after: string; carried: number }>;
+}
+
+/**
+ * The opt-in "Allow reordering statements" (D81 item 4): a node the plan
+ * places in a roundabout way (`below=20cm of init`) because the node it
+ * follows in the flow comes later in the code gets its statement moved to
+ * just after that node's, when that is safe: both are top-level statements on
+ * lines of their own, everything in between is a node statement of the layout
+ * (or a coordinate) that doesn't mention the moved node's name, and the node
+ * isn't on a chain. Nothing in between can then depend on it, and the drawing
+ * order only changes among nodes the layout keeps apart. Each move is checked:
+ * no node may move.
+ */
+export function planReorder(text: string, picIndex: number, layout: PictureLayout, members: readonly LaidOutNode[], centers: ReadonlyMap<string, Point>, plan: Plan, direction: LayoutDirection, only?: ReadonlySet<string>): Reordered | null {
+  const frame = FRAMES[direction];
+  const grid = readGrid(members, centers, frame);
+  const order = new Map(members.map((n, i) => [n.id, i]));
+  const named = (n: LaidOutNode) => !!n.name && !n.implicitName && SIMPLE_NAME.test(n.name);
+  const edges = pictureEdges(layout);
+  /**
+   * The nodes a node follows in the flow, in order of preference: the one above it in its column,
+   * the one before it in its layer, the nearest one an edge comes from in the layer above.
+   */
+  const leaders = (n: LaidOutNode): LaidOutNode[] => {
+    const L = grid.layer.get(n.id)!;
+    const above = members.find((m) => grid.column.get(m.id) === grid.column.get(n.id) && grid.layer.get(m.id) === L - 1);
+    const before = members.find((m) => grid.layer.get(m.id) === L && grid.index.get(m.id) === grid.index.get(n.id)! - 1);
+    const across = (m: LaidOutNode) => Math.abs(frame.across(centers.get(m.id)!) - frame.across(centers.get(n.id)!));
+    const from = members.filter((m) => grid.layer.get(m.id) === L - 1 && edges.some((e) => e.source === m.id && e.target === n.id)).sort((p, q) => across(p) - across(q))[0];
+    return [above, before, from].filter((m): m is LaidOutNode => !!m && named(m));
+  };
+  const wanted: Array<{ node: LaidOutNode; after: LaidOutNode }> = [];
+  for (const n of members.slice(1)) {
+    if (only && !only.has(n.id)) continue;
+    if (!roundabout(plan.placements.get(n.id)!.spec) || !named(n) || n.chain || plan.crowded.includes(n.id)) continue;
+    const after = leaders(n).find((m) => order.get(m.id)! > order.get(n.id)!);
+    if (after) wanted.push({ node: n, after });
+  }
+  /** Whom each member follows in the flow, by id: what moves along with a moved node. */
+  const leader = new Map(members.map((m) => [m.id, leaders(m)[0]?.id]));
+  if (!wanted.length) return null;
+  let current = text;
+  let changes: Change[] = [];
+  const moved: Reordered["moved"] = [];
+  const memberIds = new Set(members.map((n) => n.id));
+  for (const w of wanted) {
+    const doc = analyzeDocument(current);
+    const pic = doc.syntax.pictures[picIndex];
+    const l = layoutDocumentPicture(doc, picIndex);
+    if (!pic || !l) break;
+    const n = l.nodes.find((x) => x.id === w.node.id);
+    const a = l.nodes.find((x) => x.id === w.after.id);
+    if (!n || !a) continue;
+    // The top-level items from n's statement to a's.
+    let depth = 0;
+    let from = -1;
+    let to = -1;
+    const top: Array<{ item: (typeof pic.items)[number]; depth: number }> = pic.items.map((item) => {
+      if (item.kind === "scope-begin") depth++;
+      const d = depth;
+      if (item.kind === "scope-end") depth--;
+      return { item, depth: d };
+    });
+    top.forEach(({ item, depth: d }, i) => {
+      if (item.kind !== "node" || d !== 0) return;
+      if (item.node.from === n.syntax.from) from = i;
+      if (item.node.from === a.syntax.from) to = i;
+    });
+    if (from < 0 || to <= from) continue;
+    const between = top.slice(from + 1, to + 1);
+    const nodes = between.map(({ item, depth: d }) => (item.kind === "node" && d === 0 ? l.nodes.find((x) => x.syntax.from === item.node.from) : undefined));
+    if (nodes.some((m) => !m || (!memberIds.has(m.id) && m.shape.kind !== "coordinate"))) continue;
+    // The statements between that are placed against n, or follow it in the flow, directly or not,
+    // move with it, in their order.
+    const carried: LaidOutNode[] = [];
+    const names = [n.name!];
+    const ids = new Set([n.id]);
+    for (const m of nodes.slice(0, -1) as LaidOutNode[]) {
+      const said = current.slice(m.statement.from, m.statement.to);
+      if (names.some((x) => mentions(said, x)) || ids.has(leader.get(m.id) ?? "")) {
+        carried.push(m);
+        ids.add(m.id);
+        if (m.name) names.push(m.name);
+      }
+    }
+    const group = [n, ...carried];
+    const lines = group.map((m) => ownLines(current, m.statement));
+    const target = ownLines(current, a.statement);
+    const chained = group.some((m) => m.chain || m.syntax.options.some((o) => o.items.some((i) => i.key === "on chain" || i.key === "join")));
+    if (!target || lines.some((x) => !x) || chained || names.some((x) => mentions(current.slice(a.statement.from, a.statement.to), x))) continue;
+    const step: Change[] = [
+      ...(lines as Range[]).map((r) => ({ from: r.from, to: r.to, insert: "" })),
+      { from: target.to, to: target.to, insert: (lines as Range[]).map((r) => current.slice(r.from, r.to)).join("") },
+    ];
+    const next = applyChanges(current, step);
+    const doc2 = analyzeDocument(next);
+    const l2 = layoutDocumentPicture(doc2, picIndex);
+    // Nothing may move, and nothing may break.
+    if (!l2 || doc2.errors.length > doc.errors.length || l2.nodes.length !== l.nodes.length) continue;
+    if (l.nodes.some((x) => {
+      const y = l2.nodes.find((z) => z.id === x.id);
+      return !y || dist(x.shape.center, y.shape.center) > 0.01 || !!y.locked !== !!x.locked;
+    })) continue;
+    changes = composeChanges(text, changes, step);
+    current = next;
+    moved.push({ id: n.id, name: n.name!, after: a.name!, carried: carried.length });
+  }
+  return moved.length ? { changes, text: current, moved } : null;
+}
+
 // ---------------------------------------------------------------- the whole edit
 
 /** Why the picture (or the selection) can't be laid out, or null. */
@@ -1208,9 +1353,9 @@ export async function planAutoLayout(text: string, picIndex: number, options: Au
   }
   const ids = options.ids?.map((id) => idMap.get(id) ?? id);
 
-  const start = layoutDocumentPicture(analyzeDocument(base), picIndex);
+  let start = layoutDocumentPicture(analyzeDocument(base), picIndex);
   if (!start) return { ok: false, reason: "The picture couldn't be laid out." };
-  const { members } = layoutScope(start, ids);
+  let { members } = layoutScope(start, ids);
   if (members.length < 2) return { ok: false, reason: "There are fewer than two nodes that can be moved, so there is nothing to lay out." };
   const lanes = laneOrder(base, start, members, options.direction);
   const tree = options.groups !== false && !lanes ? groupTree(base, start, members) : null;
@@ -1223,12 +1368,46 @@ export async function planAutoLayout(text: string, picIndex: number, options: Au
   const centers = lanes?.along && members.every((n) => raw.has(n.id)) ? laneColumns(members, raw, options.direction, lanes) : raw;
   if (members.some((n) => !centers.has(n.id))) return { ok: false, reason: "The layout engine left out some nodes, so nothing was changed." };
   // A second pass lines nodes up with the ones the first placed after them in the code.
-  const movers = inheritedDistances(base, picIndex, members);
-  stage(2);
-  let plan = choosePlacements(start, members, centers, options.direction, undefined, movers);
-  for (let pass = 0; pass < PASSES; pass++) {
-    stage(3 + pass);
-    plan = choosePlacements(start, members, centers, options.direction, plan, movers);
+  const planFor = (l: PictureLayout, ms: readonly LaidOutNode[], t: string, report: boolean) => {
+    const movers = inheritedDistances(t, picIndex, ms);
+    if (report) stage(2);
+    let p = choosePlacements(l, ms, centers, options.direction, undefined, movers);
+    for (let pass = 0; pass < PASSES; pass++) {
+      if (report) stage(3 + pass);
+      p = choosePlacements(l, ms, centers, options.direction, p, movers);
+    }
+    return p;
+  };
+  let plan = planFor(start, members, base, true);
+  // "Allow reordering statements" (D81 item 4): moves, then the plan again in the new code order.
+  // ELK's result stays: named nodes keep their ids. Moves that don't end in a plain relation are undone.
+  let reordered: Reordered["moved"] = [];
+  if (options.reorder) {
+    // Round by round: a moved node can leave the one that followed it without a neighbour before
+    // it in the code, which the next round moves too. The best state is kept, and only if it has
+    // fewer roundabout placements than the plan without moves.
+    const count = (p: Plan) => [...p.placements.values()].filter((x) => roundabout(x.spec)).length;
+    const state = { pre, base, start, members, plan, moved: [] as Reordered["moved"] };
+    let best = { ...state, n: count(plan) };
+    let only: Set<string> | undefined;
+    for (let round = 0; round < 8; round++) {
+      const r = planReorder(state.base, picIndex, state.start, state.members, centers, state.plan, options.direction, only);
+      if (!r) break;
+      const l2 = layoutDocumentPicture(analyzeDocument(r.text), picIndex);
+      const ms2 = l2 ? layoutScope(l2, ids).members : [];
+      if (!l2 || ms2.length !== state.members.length || ms2.some((m) => !centers.has(m.id))) break;
+      const p2 = planFor(l2, ms2, r.text, false);
+      const clean = new Set(r.moved.filter((m) => !roundabout(p2.placements.get(m.id)!.spec)).map((m) => m.id));
+      if (clean.size < r.moved.length) {
+        if (!clean.size) break;
+        only = clean;
+        continue;
+      }
+      only = undefined;
+      Object.assign(state, { pre: composeChanges(text, state.pre, r.changes), base: r.text, start: l2, members: ms2, plan: p2, moved: [...state.moved, ...r.moved] });
+      if (count(p2) < best.n) best = { ...state, n: count(p2) };
+    }
+    if (best.moved.length) ({ pre, base, start, members, plan, moved: reordered } = best);
   }
   stage(5);
 
@@ -1282,6 +1461,7 @@ export async function planAutoLayout(text: string, picIndex: number, options: Au
     straightened: tidy.straightened,
     labels: tidy.labels,
     conversions,
+    reordered,
     added: w.added,
     notes,
   };
@@ -1304,6 +1484,7 @@ export function autoLayoutMessage(r: AutoLayoutResult & { ok: true }): string {
   if (r.corners) s += ` Removed ${r.corners === 1 ? "a corner" : `${r.corners} corners`} written as fixed coordinates.`;
   if (r.added.length) s += ` Loaded ${r.added.join(", ")}.`;
   for (const c of r.conversions) s += ` ${conversionMessage(c)}`;
+  if (r.reordered.length) s += ` Moved ${listNames(r.reordered.map((m) => `${m.name}'s line${m.carried ? ` (and ${m.carried === 1 ? "the line" : `the ${m.carried} lines`} placed against it or after it in the flow)` : ""} after ${m.after}'s`))}, so each can be placed relative to the node before it in the flow.`;
   for (const n of r.notes) s += ` Note: ${n}.`;
   return s;
 }
