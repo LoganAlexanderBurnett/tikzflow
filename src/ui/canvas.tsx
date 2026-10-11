@@ -38,6 +38,7 @@ import {
   activeScope,
   applyEdgeEdit,
   applyEdit,
+  dropIntoLane,
   cornerMessage,
   edgeCode,
   removeVertex,
@@ -768,13 +769,16 @@ function targetAt(l: PictureLayout, p: Point, margin: number, snap: number, excl
   return best ? { node: hit.id, anchor: best.anchor } : { node: hit.id };
 }
 
+/** How far (screen px) a right or middle press may move and still be a click. */
+const PAN_SLOP = 4;
+
 export function Canvas() {
   const svgRef = useRef<SVGSVGElement>(null);
   const size = useSignal({ w: 800, h: 600 });
   const view = useSignal<View>({ scale: 2, cx: 0, cy: 0 });
   const drag = useRef<
     | { kind: "node"; id: string; pointer: Point; center: Point; moved: boolean; target: Point; alignedWith: string[] }
-    | { kind: "pan"; client: Point; view: View; moved: boolean }
+    | { kind: "pan"; client: Point; view: View; moved: boolean; button: number }
     | GroupDrag
     | ResizeDrag
     | EndDrag
@@ -790,6 +794,34 @@ export function Canvas() {
   const edgeDrag = useSignal<EdgeDragView | null>(null);
   /** The edge context menu, at a position in the canvas pane. */
   const menu = useSignal<{ edgeId: string; x: number; y: number; at: EdgeMenuAt } | null>(null);
+  /** Space is held: a left drag pans, as in design tools. */
+  const spaceHeld = useSignal(false);
+  /** A right-button drag panned: the context menu that follows the release is not opened. */
+  const panned = useRef(false);
+  /** A context menu asked for while the right button is still down (macOS and Linux ask on press): opened on release if the pointer didn't move. */
+  const pendingMenu = useRef<{ clientX: number; clientY: number; target: Element } | null>(null);
+
+  // Space+drag pans. Only while the canvas (or nothing in particular) has the focus, so Space still types in the code and in fields.
+  useEffect(() => {
+    const free = (t: EventTarget | null) => t === svgRef.current || t === document.body || t === document.documentElement || t === null;
+    const down = (e: KeyboardEvent) => {
+      if (e.key !== " " || e.ctrlKey || e.metaKey || e.altKey || !free(e.target) || labelEdit.value) return;
+      e.preventDefault();
+      spaceHeld.value = true;
+    };
+    const up = (e: KeyboardEvent) => {
+      if (e.key === " ") spaceHeld.value = false;
+    };
+    const blur = () => (spaceHeld.value = false);
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    window.addEventListener("blur", blur);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", blur);
+    };
+  }, []);
 
   // Track the canvas size.
   useEffect(() => {
@@ -855,12 +887,21 @@ export function Canvas() {
   };
 
   const onPointerDown = (e: PointerEvent) => {
-    if (e.button !== 0 && e.button !== 1) return;
+    if (e.button !== 0 && e.button !== 1 && e.button !== 2) return;
     const target = e.target as Element;
     const nodeEl = target.closest("[data-node]");
     const pathEl = target.closest("[data-path]");
     const svg = svgRef.current!;
     svg.focus({ preventScroll: true });
+    // Right or middle drag, or a left drag with Space held, pans from anywhere, as in design tools.
+    // A right click that doesn't move still opens the menu (onContextMenu).
+    if (e.button === 2 || e.button === 1 || spaceHeld.value) {
+      panned.current = false;
+      pendingMenu.current = null;
+      drag.current = { kind: "pan", client: { x: e.clientX, y: e.clientY }, view: view.value, moved: false, button: e.button === 0 ? -1 : e.button };
+      svg.setPointerCapture(e.pointerId);
+      return;
+    }
     // A label its line runs through (D65): its fixes.
     const warnEl = target.closest("[data-label-warning]");
     if (e.button === 0 && warnEl) {
@@ -1039,7 +1080,7 @@ export function Canvas() {
       return;
     }
     selectedBlock.value = null;
-    drag.current = { kind: "pan", client: { x: e.clientX, y: e.clientY }, view: view.value, moved: false };
+    drag.current = { kind: "pan", client: { x: e.clientX, y: e.clientY }, view: view.value, moved: false, button: 0 };
     svg.setPointerCapture(e.pointerId);
   };
 
@@ -1334,8 +1375,9 @@ export function Canvas() {
     if (d.kind === "pan") {
       const dx = e.clientX - d.client.x;
       const dy = e.clientY - d.client.y;
-      if (Math.hypot(dx, dy) > 3) d.moved = true;
-      view.value = { ...d.view, cx: d.view.cx - dx / d.view.scale, cy: d.view.cy + dy / d.view.scale };
+      if (Math.hypot(dx, dy) > PAN_SLOP) d.moved = true;
+      // Under the slop a right or middle click stays a click: the view doesn't move until it's a drag.
+      if (d.moved || d.button === 0) view.value = { ...d.view, cx: d.view.cx - dx / d.view.scale, cy: d.view.cy + dy / d.view.scale };
       return;
     }
     if (d.kind === "resize") {
@@ -1410,7 +1452,14 @@ export function Canvas() {
       return;
     }
     if (d.kind === "pan") {
-      if (!d.moved) selectFromCanvas(null);
+      // Only a plain left click on the background clears the selection.
+      if (!d.moved && d.button === 0) selectFromCanvas(null);
+      if (d.button === 2) {
+        panned.current = d.moved;
+        const pending = pendingMenu.current;
+        pendingMenu.current = null;
+        if (pending && !d.moved) openContextMenu(pending.target, pending.clientX, pending.clientY);
+      }
       return;
     }
     if (d.kind === "group") {
@@ -1472,7 +1521,9 @@ export function Canvas() {
       status.value = "That position couldn't be written; the node stays where it was.";
       return;
     }
-    applyEdit(result.changes, "move.drag");
+    // Dropped inside another lane: it joins that lane in the same step (D81).
+    const lane = dropIntoLane(result.changes, d.id, d.target);
+    applyEdit(lane.changes, "move.drag");
     const s = result.spec;
     status.value =
       s.kind === "positioning"
@@ -1482,6 +1533,7 @@ export function Canvas() {
           : s.kind === "shift"
             ? "Kept the position as written and adjusted its shift."
             : "Wrote coordinates: nothing nearby lines up.";
+    status.value += lane.note;
     if (result.library) status.value += " Loaded the positioning library.";
     // Explain when a node it lines up with couldn't be used: TikZ only lets a
     // node refer to nodes defined before it.
@@ -1537,11 +1589,30 @@ export function Canvas() {
     menu.value = { edgeId, x: x + dx, y: y + dy, at: { at, vertex, label, scale: view.value.scale } };
   };
 
-  /** Right-click an edge (or one of its labels) for its menu. */
+  /** Right-click an edge (or one of its labels) for its menu. A right drag pans instead, with no menu. */
   const onContextMenu = (e: MouseEvent) => {
+    const d = drag.current;
+    if (d?.kind === "pan" && d.button === 2) {
+      // Asked for on press (macOS, Linux): wait for the release to know whether it was a drag.
+      e.preventDefault();
+      pendingMenu.current = { clientX: e.clientX, clientY: e.clientY, target: e.target as Element };
+      return;
+    }
+    if (panned.current) {
+      // Asked for on release (Windows) after a right drag that panned.
+      panned.current = false;
+      e.preventDefault();
+      return;
+    }
+    if (openContextMenu(e.target as Element, e.clientX, e.clientY)) e.preventDefault();
+  };
+
+  /** Opens the edge menu for what is at a point, if it is an edge or a part of one. Returns whether it did. */
+  const openContextMenu = (el: Element, clientX: number, clientY: number): boolean => {
+    const e = { clientX, clientY };
     // A node's connection handles sit over the edges that leave it: look through them to what is under the pointer.
-    const under = (e.target as Element).closest("[data-connect]") ? document.elementsFromPoint(e.clientX, e.clientY).find((el) => el.closest("[data-edge], [data-label]")) : undefined;
-    const target = under ?? (e.target as Element);
+    const under = el.closest("[data-connect]") ? document.elementsFromPoint(clientX, clientY).find((x) => x.closest("[data-edge], [data-label]")) : undefined;
+    const target = under ?? el;
     const edgeId =
       target.closest("[data-edge]")?.getAttribute("data-edge") ??
       (() => {
@@ -1549,8 +1620,7 @@ export function Canvas() {
         return labelId ? edgeOfLabel(shownEdges.value, labelId)?.id : undefined;
       })() ??
       (target.closest("[data-end], [data-vertex], [data-ghost], [data-segment], [data-control]") ? selectedEdge.value?.id : undefined);
-    if (!edgeId) return;
-    e.preventDefault();
+    if (!edgeId) return false;
     selectFromCanvas({ kind: "edge", id: edgeId });
     // A right-click on a label is about that label.
     const label = target.closest("[data-label]")?.getAttribute("data-label") ?? null;
@@ -1558,6 +1628,7 @@ export function Canvas() {
     const r = svgRef.current!.getBoundingClientRect();
     const corner = target.closest("[data-vertex]")?.getAttribute("data-vertex");
     openMenu(edgeId, e.clientX - r.left, e.clientY - r.top, toModel(e), corner ? Number(corner) : null, label);
+    return true;
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
@@ -1667,7 +1738,7 @@ export function Canvas() {
     <>
     <svg
       ref={svgRef}
-      class="tf-canvas"
+      class={`tf-canvas${spaceHeld.value ? " space-pan" : ""}`}
       viewBox={vb}
       tabindex={0}
       onPointerDown={onPointerDown}
@@ -1678,6 +1749,13 @@ export function Canvas() {
         if (!drag.current) hover.value = null;
       }}
       onContextMenu={onContextMenu}
+      onMouseDown={(e) => {
+        // No autoscroll on a middle press: the middle button pans.
+        if (e.button === 1) e.preventDefault();
+      }}
+      onAuxClick={(e) => {
+        if (e.button === 1) e.preventDefault();
+      }}
       onDblClick={onDoubleClick}
       onKeyDown={onKeyDown}
       onDragOver={onDragOver}

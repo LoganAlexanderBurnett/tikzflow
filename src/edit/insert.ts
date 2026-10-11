@@ -3,7 +3,9 @@
 // hand-written flowcharts are laid out, always at the top level (never inside
 // a scope or layer, whose options would apply to them). Nothing is inserted
 // right after a statement with a syntax error: an unclosed brace there would
-// swallow the new code.
+// swallow the new code. A scope that only holds boxes drawn around other
+// nodes (groups and lanes on the background layer, D81) doesn't count as
+// holding nodes: new nodes go before it, so the boxes can still list them.
 import type { DocumentModel } from "../model/document.ts";
 import type { BodyItem, PictureSyntax, Range } from "../model/syntax.ts";
 import type { Change } from "./changes.ts";
@@ -15,6 +17,8 @@ interface TopItem {
   hasPaths: boolean;
   /** Contains a syntax error, so nothing may go right after it. */
   broken: boolean;
+  /** A scope holding only fit nodes and coordinates: groups and lanes. */
+  boxes: boolean;
 }
 
 /** Positions of syntax errors inside `pic`. */
@@ -40,18 +44,19 @@ function topLevel(doc: DocumentModel, pic: PictureSyntax): TopItem[] {
   const out: TopItem[] = [];
   let depth = 0;
   let group: TopItem | null = null;
-  const add = (range: Range, hasNodes: boolean, hasPaths: boolean) => {
+  const add = (range: Range, hasNodes: boolean, hasPaths: boolean, box = false) => {
     if (group) {
       group.range = { from: group.range.from, to: range.to };
       group.hasNodes ||= hasNodes;
       group.hasPaths ||= hasPaths;
-    } else out.push({ range, hasNodes, hasPaths, broken: false });
+      group.boxes &&= box || (!hasNodes && !hasPaths);
+    } else out.push({ range, hasNodes, hasPaths, broken: false, boxes: false });
   };
   for (const item of pic.items) {
     const opens = item.kind === "scope-begin" || (item.kind === "opaque" && item.reason === "environment" && /^\\begin\b/.test(item.text));
     const closes = item.kind === "scope-end" || (item.kind === "opaque" && item.reason === "environment" && /^\\end\b/.test(item.text));
     if (opens) {
-      if (depth++ === 0) group = { range: { ...item.range }, hasNodes: false, hasPaths: false, broken: false };
+      if (depth++ === 0) group = { range: { ...item.range }, hasNodes: false, hasPaths: false, broken: false, boxes: true };
       else add(item.range, false, false);
       continue;
     }
@@ -66,7 +71,7 @@ function topLevel(doc: DocumentModel, pic: PictureSyntax): TopItem[] {
     }
     switch (item.kind) {
       case "node":
-        add(item.node, true, !!item.trailing);
+        add(item.node, true, !!item.trailing, !item.trailing && (item.node.kind === "coordinate" || item.node.options.some((l) => l.items.some((i) => i.key === "fit"))));
         break;
       case "path":
         add(item.path, false, true);
@@ -79,7 +84,10 @@ function topLevel(doc: DocumentModel, pic: PictureSyntax): TopItem[] {
     }
   }
   if (group) out.push(group);
-  for (const t of out) t.broken = errors.some((e) => e >= t.range.from && e <= t.range.to);
+  for (const t of out) {
+    t.broken = errors.some((e) => e >= t.range.from && e <= t.range.to);
+    t.boxes &&= t.hasNodes;
+  }
   return out;
 }
 
@@ -100,7 +108,7 @@ function bodyStart(pic: PictureSyntax): Anchor {
  */
 export function nodeAnchor(doc: DocumentModel, pic: PictureSyntax, after?: number): Anchor | null {
   const tops = topLevel(doc, pic);
-  let anchor = [...tops].reverse().find((t) => t.hasNodes && !t.broken);
+  let anchor = [...tops].reverse().find((t) => t.hasNodes && !t.boxes && !t.broken);
   if (after !== undefined) {
     const holder = tops.find((t) => t.range.from < after && after <= t.range.to);
     if (holder?.broken) return null;

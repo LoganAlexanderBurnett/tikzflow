@@ -17,6 +17,7 @@ import { evalLength, PT_PER_UNIT } from "../tikz/units.ts";
 import { applyChanges, type Change, composeChanges } from "./changes.ts";
 import { type ChainConversion, conversionMessage, planChainConversion } from "./chains.ts";
 import { groupMembers, movingWith } from "./group.ts";
+import { laneSets, laneUpkeep } from "./lanes.ts";
 import { withLibraries } from "./libraries.ts";
 import { ALIGN_EPS, formatDistance, planMove, type PositionSpec, positioningText, specChanges } from "./move.ts";
 import { removeItems } from "./optionEdits.ts";
@@ -132,8 +133,29 @@ function median(xs: number[]): number {
   return s[Math.floor(s.length / 2)]!;
 }
 
+/**
+ * The lane of each member, by its place in its set (D81), and whether the lanes
+ * run along the flow (columns in a picture laid out top to bottom) or across it.
+ */
+export interface LaneOrder {
+  index: ReadonlyMap<string, number>;
+  along: boolean;
+}
+
+/** The members' lanes, for keeping lanes apart in the layout. Null when there are none. */
+export function laneOrder(text: string, layout: PictureLayout, members: readonly LaidOutNode[], direction: LayoutDirection): LaneOrder | null {
+  const set = laneSets(text, layout)[0];
+  if (!set) return null;
+  const index = new Map<string, number>();
+  set.lanes.forEach((lane, i) => {
+    for (const id of lane.members) if (members.some((m) => m.id === id)) index.set(id, i);
+  });
+  if (!index.size) return null;
+  return { index, along: (set.orientation === "columns") === (direction === "down") };
+}
+
 /** The graph for ELK: the members with their outer sizes, and the edges between them. */
-export function elkGraph(layout: PictureLayout, members: readonly LaidOutNode[], direction: LayoutDirection): ElkNode {
+export function elkGraph(layout: PictureLayout, members: readonly LaidOutNode[], direction: LayoutDirection, lanes: LaneOrder | null = null): ElkNode {
   const set = new Set(members.map((n) => n.id));
   const size = (n: LaidOutNode) => {
     const b = shapeBounds(n.shape);
@@ -165,6 +187,10 @@ export function elkGraph(layout: PictureLayout, members: readonly LaidOutNode[],
   };
   const between = direction === "down" ? gap("v") : gap("h");
   const within = direction === "down" ? gap("h") : gap("v");
+  // Lanes across the flow (D81) are ELK's partitions: each lane's nodes take layers after
+  // the lanes before it. Lanes along the flow are placed after ELK (laneColumns).
+  const partitions = lanes && !lanes.along;
+  const partition = (n: LaidOutNode) => String(lanes?.index.get(n.id) ?? lanes!.index.size);
   return {
     id: "picture",
     layoutOptions: {
@@ -183,8 +209,14 @@ export function elkGraph(layout: PictureLayout, members: readonly LaidOutNode[],
       "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
       "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
       "elk.separateConnectedComponents": "false",
+      ...(partitions ? { "elk.partitioning.activate": "true" } : {}),
     },
-    children: members.map((n) => ({ id: n.id, width: size(n).w, height: size(n).h })),
+    children: members.map((n) => ({
+      id: n.id,
+      width: size(n).w,
+      height: size(n).h,
+      ...(partitions ? { layoutOptions: { "elk.partitioning.partition": partition(n) } } : {}),
+    })),
     edges,
   };
 }
@@ -208,6 +240,54 @@ export async function elkCenters(graph: ElkNode): Promise<Map<string, Point>> {
   const centers = new Map<string, Point>();
   for (const c of out.children ?? []) centers.set(c.id, { x: (c.x ?? 0) + (c.width ?? 0) / 2, y: -((c.y ?? 0) + (c.height ?? 0) / 2) });
   return centers;
+}
+
+/**
+ * Lanes along the flow (D81): ELK's layers are kept, and each lane gets a band
+ * of its own across them, in the lanes' order. Within a lane, the nodes of one
+ * layer sit side by side in ELK's order, centred in the band, so a lane with
+ * one node per layer is one straight column. Nodes in no lane come last.
+ */
+export function laneColumns(members: readonly LaidOutNode[], centers: ReadonlyMap<string, Point>, direction: LayoutDirection, lanes: LaneOrder): Map<string, Point> {
+  const frame = FRAMES[direction];
+  const grid = readGrid(members, centers, frame);
+  const node = new Map(members.map((n) => [n.id, n]));
+  const across = (id: string) => {
+    const b = shapeBounds(node.get(id)!.shape);
+    return direction === "down" ? b.maxX - b.minX : b.maxY - b.minY;
+  };
+  const gap = median(members.map((n) => (direction === "down" ? n.nodeDistance.h : n.nodeDistance.v) * n.vectorScale));
+  const count = lanes.index.size ? Math.max(...lanes.index.values()) + 2 : 1;
+  const laneOf = (id: string) => lanes.index.get(id) ?? count - 1;
+  const width: number[] = [];
+  const widest: number[] = [];
+  for (let i = 0; i < count; i++) {
+    const ids = members.filter((n) => laneOf(n.id) === i).map((n) => n.id);
+    widest[i] = ids.length ? Math.max(...ids.map(across)) : 0;
+    const slots = Math.max(0, ...grid.layers.map((layer) => layer.filter((id) => laneOf(id) === i).length));
+    width[i] = slots ? slots * widest[i]! + (slots - 1) * gap : 0;
+  }
+  // Lanes are a node distance apart, plus room for their own padding.
+  const laneGap = 2 * gap;
+  const start: number[] = [];
+  let at = 0;
+  for (let i = 0; i < count; i++) {
+    start[i] = at;
+    if (width[i]) at += width[i]! + laneGap;
+  }
+  const out = new Map<string, Point>();
+  for (const layer of grid.layers) {
+    for (let i = 0; i < count; i++) {
+      const ids = layer.filter((id) => laneOf(id) === i).sort((a, b) => frame.across(centers.get(a)!) - frame.across(centers.get(b)!));
+      const used = ids.length * widest[i]! + (ids.length - 1) * gap;
+      ids.forEach((id, k) => {
+        const c = start[i]! + (width[i]! - used) / 2 + k * (widest[i]! + gap) + widest[i]! / 2;
+        const along = frame.along(centers.get(id)!);
+        out.set(id, direction === "down" ? { x: c, y: -along } : { x: along, y: -c });
+      });
+    }
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------- reading ELK's grid
@@ -876,7 +956,9 @@ export async function planAutoLayout(text: string, picIndex: number, options: Au
   if (!start) return { ok: false, reason: "The picture couldn't be laid out." };
   const { members } = layoutScope(start, ids);
   if (members.length < 2) return { ok: false, reason: "There are fewer than two nodes that can be moved, so there is nothing to lay out." };
-  const centers = await elkCenters(elkGraph(start, members, options.direction));
+  const lanes = laneOrder(base, start, members, options.direction);
+  const raw = await elkCenters(elkGraph(start, members, options.direction, lanes));
+  const centers = lanes?.along && members.every((n) => raw.has(n.id)) ? laneColumns(members, raw, options.direction, lanes) : raw;
   if (members.some((n) => !centers.has(n.id))) return { ok: false, reason: "The layout engine left out some nodes, so nothing was changed." };
   // A second pass lines nodes up with the ones the first placed after them in the code.
   const movers = inheritedDistances(base, picIndex, members);
@@ -890,7 +972,10 @@ export async function planAutoLayout(text: string, picIndex: number, options: Au
   changes = composeChanges(text, changes, corners.changes);
   const tidy = tidyEdges(corners.text, picIndex, start);
   changes = composeChanges(text, changes, tidy.changes);
-  const final = tidy.text;
+  // Lanes keep their shared top and bottom at the members' extremes (D81).
+  const upkeep = laneUpkeep(tidy.text, picIndex);
+  changes = composeChanges(text, changes, upkeep);
+  const final = applyChanges(tidy.text, upkeep);
   if (applyChanges(text, changes) !== final) return { ok: false, reason: "The layout couldn't be written as one edit." };
 
   // Nodes outside the layout stay where they were, unless they follow a laid-out node.

@@ -1,7 +1,8 @@
 // Golden tests for auto-layout (M4 step 3, D80): every corpus picture laid
 // out top to bottom and left to right. Each layout may change only the
 // statements of the nodes it lays out, paths (corners written as fixed
-// coordinates), and a positioning library; the laid-out nodes don't overlap;
+// coordinates), a positioning library, and the shared coordinates of lanes
+// (moved to the members at the extremes, D81); the laid-out nodes don't overlap;
 // a second run changes nothing; nodes outside the layout stay put (checked by
 // the planner itself).
 // Regenerate with UPDATE_GOLDEN=1 npx vitest run test/golden-autolayout.test.ts
@@ -10,6 +11,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { type LayoutDirection, layoutScope, planAutoLayout } from "../src/edit/autolayout.ts";
 import { applyChanges } from "../src/edit/changes.ts";
+import { laneSets } from "../src/edit/lanes.ts";
 import { analyzeDocument, layoutDocumentPicture } from "../src/model/document.ts";
 import { encode } from "../src/source/encoding.ts";
 import { shapeBounds } from "../src/tikz/shapes.ts";
@@ -43,8 +45,9 @@ describe.each(corpusNames())("%s", (name) => {
     }
     expect(applyChanges(file.text, r.changes)).toBe(r.text);
 
-    // 1. Only the laid-out nodes' statements, paths and a positioning library change.
-    const statements = members.map((n) => n.statement);
+    // 1. Only the laid-out nodes' statements, paths, a positioning library and lanes' shared coordinates change.
+    const ends = laneSets(file.text, layout).flatMap((s) => s.ends.map((e) => e.statement));
+    const statements = [...members.map((n) => n.statement), ...ends];
     const paths = layout.paths.map((p) => p.syntax);
     for (const c of r.changes) {
       const inside = (s: { from: number; to: number }) => c.from >= s.from && c.to <= s.to;

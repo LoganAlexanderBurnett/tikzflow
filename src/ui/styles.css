@@ -10,16 +10,25 @@
   --canvas-bg: #ffffff;
   --guide: #e11d74;
   --opaque: rgba(217, 119, 6, 0.13);
-  --hl-keyword: #7c3aed;
+  --hl-keyword: #6d28d9;
   --hl-definition: #b91c1c;
   --hl-module: #0f766e;
   --hl-macro: #1d4ed8;
   --hl-comment: #6b7280;
-  --hl-key: #0e7490;
+  --hl-key: #0e6578;
   --hl-value: #9a3412;
-  --hl-name: #15803d;
-  --hl-coord: #a16207;
+  --hl-name: #166534;
+  --hl-coord: #854d0e;
   --hl-operator: #be185d;
+  /* Text that reports a problem or a warning, readable on the panels (WCAG AA, D82). */
+  --danger: #b91c1c;
+  --warn-text: #92400e;
+  /* The code of the object selected on the canvas. */
+  --code-selected: rgba(37, 99, 235, 0.1);
+  /* Text on an accent fill. */
+  --on-accent: #ffffff;
+  /* The code pane's current line (CodeMirror's own tint is meant for light pages). */
+  --active-line: rgba(204, 238, 255, 0.27);
   color-scheme: light;
 }
 
@@ -44,6 +53,11 @@
     --hl-name: #86efac;
     --hl-coord: #fde68a;
     --hl-operator: #f9a8d4;
+    --danger: #fca5a5;
+    --warn-text: #fcd34d;
+    --code-selected: rgba(96, 165, 250, 0.16);
+    --on-accent: #0b1220;
+    --active-line: rgba(255, 255, 255, 0.04);
     color-scheme: dark;
   }
 }
@@ -168,8 +182,13 @@ button.link {
   font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
 }
 
+.tf-code .cm-editor .cm-activeLine,
+.tf-code .cm-editor .cm-activeLineGutter {
+  background-color: var(--active-line);
+}
+
 .cm-tf-selected {
-  background: var(--accent-soft);
+  background: var(--code-selected);
   border-radius: 2px;
 }
 
@@ -352,7 +371,7 @@ button.link {
 }
 
 .tf-unknown {
-  color: #b45309;
+  color: var(--lock);
 }
 
 .tf-selection {
@@ -550,6 +569,39 @@ button.link {
   margin-bottom: 12px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--line);
+}
+
+/* Groups and lanes (D81) */
+.tf-groups {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tf-groups .tf-fixes,
+.tf-groups .tf-attach {
+  margin-top: 6px;
+}
+
+.tf-title-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tf-title-field span {
+  color: var(--muted);
+}
+
+.tf-title-field input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  color: var(--fg);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 6px;
 }
 
 .tf-scope {
@@ -1185,7 +1237,7 @@ button:disabled {
 .tf-compass-btn.current {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .tf-curve-end {
@@ -1263,7 +1315,7 @@ button:disabled {
   white-space: nowrap;
 }
 button.tf-preview-state.errors {
-  color: #b91c1c;
+  color: var(--danger);
 }
 button.tf-preview-state.busy {
   opacity: 0.75;
@@ -1325,8 +1377,17 @@ button.tf-preview-state.busy {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   font-size: 13px;
 }
+/* The banner is amber in both themes, so its buttons carry their own colours
+   rather than the panel's (dark text on a dark fill was 1.8:1, D82). */
 .tf-tex-banner button {
   font-size: 12px;
+  color: #78350f;
+  background: #fffbeb;
+  border-color: #b45309;
+}
+.tf-tex-banner button:hover:not(:disabled) {
+  background: #fef3c7;
+  border-color: #78350f;
 }
 .tf-preview-toggle {
   display: inline-flex;
@@ -1407,10 +1468,10 @@ button.tf-preview-state.busy {
   color: var(--muted);
 }
 .tf-page-panel .bad {
-  color: #b91c1c;
+  color: var(--danger);
 }
 .tf-page-panel input.bad {
-  border-color: #b91c1c;
+  border-color: var(--danger);
 }
 .tf-page-panel .choices {
   display: flex;
@@ -1476,16 +1537,21 @@ button.tf-preview-state.busy {
   min-width: 160px;
 }
 .tf-export-panel .bad {
-  color: #b91c1c;
-  border-color: #b91c1c;
+  color: var(--danger);
+  border-color: var(--danger);
 }
 .tf-export-panel .status {
   min-height: 1.4em;
   margin-top: 10px;
 }
 .tf-export-panel .status.warn {
-  color: #92400e;
+  color: var(--warn-text);
 }
 .tf-export-panel .status.error {
-  color: #b91c1c;
+  color: var(--danger);
+}
+
+/* Space held over the canvas: a drag pans. */
+.tf-canvas.space-pan {
+  cursor: grab;
 }

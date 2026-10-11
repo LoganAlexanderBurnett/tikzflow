@@ -26,6 +26,7 @@ import { cssColor, type RGB } from "../tikz/colors.ts";
 import type { LaidOutNode, PictureLayout } from "../tikz/layout.ts";
 import { ColorPicker, Swatch } from "./colorpicker.tsx";
 import { EdgePanel, PathPanel } from "./edgepanel.tsx";
+import { GroupPanel } from "./grouppanel.tsx";
 import { StylePanel } from "./stylepanel.tsx";
 import { applyProperty, attachNode, deleteSelection, baseLayout, currentPicture, doc, matchSize, pinNode, scopeStyle, selectedNodes, selection } from "./store.ts";
 
@@ -375,6 +376,7 @@ export function Inspector() {
               {nodes.length === 1 ? "Delete node" : `Delete ${nodes.length} nodes`}
             </button>
           </div>
+          <GroupPanel layout={layout} nodes={nodes} />
           {statements.length > 0 ? (
             <Properties key={key} layout={layout} nodes={statements} />
           ) : (

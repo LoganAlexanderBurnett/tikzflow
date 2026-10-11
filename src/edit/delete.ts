@@ -16,6 +16,7 @@ import { edgeOpBlocker, planEdgeToLine } from "./edgeop.ts";
 import { findEdge, planWaypoint } from "./edges.ts";
 import { type MoveResult, planMove, planPin, positioningText } from "./move.ts";
 import { planSplit } from "./split.ts";
+import { classifyFitGroup, laneEndRetarget, laneSets } from "./lanes.ts";
 import { lineEnd, lineStart } from "./text.ts";
 import { isEdgeOperation } from "./vertices.ts";
 
@@ -174,6 +175,20 @@ export function planDelete(text: string, picIndex: number, target: DeleteTarget)
     for (const name of names) {
       if (wordIn(name, opaque)) return refused(`${name} is used inside code the editor keeps as written (a loop, a matrix, …), so it can't be deleted here. Delete it in the code.`);
     }
+    // The last lanes of a set take the coordinates they share with them, unless other code uses those (D81).
+    const goneIds = new Set(nodes.map((n) => n.id));
+    for (const set of laneSets(text, layout)) {
+      if (!set.lanes.every((l) => goneIds.has(l.node.id))) continue;
+      const lanes = new Set(set.lanes.map((l) => l.node.statement.from));
+      for (const end of set.ends) {
+        const i = layout.nodes.indexOf(end);
+        if (!end.name || gone.has(i)) continue;
+        if (pictureReferences(text, pic).some((r) => r.name === end.name && !lanes.has(r.statement.from) && r.statement.from !== end.statement.from)) continue;
+        gone.add(i);
+        names.add(end.name);
+        w.notes.push(`removed the coordinate ${end.name}, which only the lanes used`);
+      }
+    }
     // 1. Nodes placed relative to a deleted one are re-attached or pinned where they are.
     for (let guard = 0; guard < 400; guard++) {
       const now = analyzeDocument(w.text);
@@ -202,6 +217,14 @@ export function planDelete(text: string, picIndex: number, target: DeleteTarget)
       }
       if (fitDone) continue;
       if (!owner) break;
+      // A lane set's coordinate at a deleted member goes to the member at the extreme now (D81).
+      const retarget = laneEndRetarget(w.text, picIndex, owner.id, names);
+      if (retarget) {
+        w.apply([retarget]);
+        fitted.add(l.nodes.indexOf(owner));
+        w.notes.push(`${owner.name} now sits at ${w.text.slice(retarget.from, retarget.from + retarget.insert.length)}, the edge of the lanes`);
+        continue;
+      }
       const move = planMove(w.text, picIndex, owner.id, owner.shape.center, names);
       const label2 = owner.name ?? "A node";
       if (move) {
@@ -254,6 +277,8 @@ export function planDelete(text: string, picIndex: number, target: DeleteTarget)
     const l = layoutOf(w.text, picIndex)!;
     const doomed = [...gone].map((i) => l.nodes[i]!).sort((a, b) => b.statement.from - a.statement.from);
     w.apply(doomed.map((n) => statementRemoval(w.text, n.statement.from, n.statement.to)));
+    // A scope the deletion left empty (the block that held the lanes) goes too.
+    w.apply(emptiedScopes(text, w.text, picIndex));
     for (const e of before) {
       const touches = (e.source && gone.has(layout.nodes.findIndex((n) => n.id === e.source))) || (e.target && gone.has(layout.nodes.findIndex((n) => n.id === e.target)));
       if (!touches) count(keep, edgeKey(layout, e, gone));
@@ -299,8 +324,18 @@ function planFitRemoval(text: string, item: Range, names: ReadonlySet<string>): 
     from: item.from + eq + g.at - 1,
     to: item.from + eq + g.at + g.text.length + 1,
     hit: coordNames(g.text).filter((c) => names.has(c.name)).map((c) => c.name),
+    ...classifyFitGroup(g.text),
   }));
   const removed = [...new Set(groups.flatMap((g) => g.hit))];
+  // A lane's line-up with its set's coordinate, "(order |- lanes top)", takes only the
+  // member's x (or y): another member of the lane does as well (D81).
+  const substitute = groups.find((g) => g.kind === "node" && !g.hit.length)?.name;
+  const swaps: Change[] = [];
+  for (const g of groups) {
+    if (g.kind !== "perp" || !substitute || !g.hit.length || names.has(g.perp!.coord)) continue;
+    swaps.push({ from: g.from + 1, to: g.to - 1, insert: `${substitute} ${g.perp!.op} ${g.perp!.coord}` });
+    g.hit = [];
+  }
   let lastKept = -1;
   groups.forEach((g, i) => {
     if (!g.hit.length) lastKept = i;
@@ -312,7 +347,37 @@ function planFitRemoval(text: string, item: Range, names: ReadonlySet<string>): 
     if (g.hit.length && i < lastKept) changes.push({ from: g.from, to: groups[i + 1]!.from, insert: "" });
   });
   if (lastKept < groups.length - 1) changes.push({ from: groups[lastKept]!.to, to: groups[groups.length - 1]!.to, insert: "" });
-  return { ok: true, changes, removed };
+  return { ok: true, changes: [...changes, ...swaps], removed };
+}
+
+/** The scopes of a picture as [begin, end] marker ranges, in order. */
+function scopePairs(text: string, picIndex: number): Array<[Range, Range]> {
+  const pic = analyzeDocument(text).syntax.pictures[picIndex];
+  const out: Array<[Range, Range]> = [];
+  const stack: Range[] = [];
+  for (const item of pic?.items ?? []) {
+    if (item.kind === "scope-begin") stack.push(item.range);
+    else if (item.kind === "scope-end") {
+      const b = stack.pop();
+      if (b) out.push([b, item.range]);
+    }
+  }
+  return out.sort((x, y) => x[0].from - y[0].from);
+}
+
+/** Removals of the scopes that held something in `before` and hold nothing but spaces in `after`. */
+function emptiedScopes(before: string, after: string, picIndex: number): Change[] {
+  const was = scopePairs(before, picIndex);
+  const now = scopePairs(after, picIndex);
+  if (was.length !== now.length) return [];
+  const out: Change[] = [];
+  now.forEach(([b, e], i) => {
+    const [wb, we] = was[i]!;
+    if (!/^\s*$/.test(after.slice(b.to, e.from)) || /^\s*$/.test(before.slice(wb.to, we.from))) return;
+    out.push(statementRemoval(after, b.from, e.to));
+  });
+  // Nested empty scopes: keep only the outermost.
+  return out.filter((c) => !out.some((o) => o !== c && o.from <= c.from && c.to <= o.to));
 }
 
 /** Why an edge or statement can't be deleted at all, or null. */

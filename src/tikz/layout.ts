@@ -921,10 +921,14 @@ function labelNode(spec: string, owner: LaidOutNode, scope: Scope, ctx: Ctx): La
   applyKeys(st, parseOptionString(opts), kc);
   const text = layoutLabel(s.trim(), { font: st.font, color: st.textColor ?? st.color }, ctx.labelEnv);
   const angleAnchor: Record<string, number> = { right: 0, "above right": 45, above: 90, "above left": 135, left: 180, "below left": 225, below: 270, "below right": 315 };
-  const angle = /^-?\d+(\.\d+)?$/.test(dir) ? parseFloat(dir) : angleAnchor[dir];
-  if (angle === undefined) return null;
-  const r = (angle * Math.PI) / 180;
-  const attach = anchorPoint(owner.shape, String(angle)) ?? owner.shape.center;
+  let angle = /^-?\d+(\.\d+)?$/.test(dir) ? parseFloat(dir) : angleAnchor[dir];
+  let attach: Point;
+  if (angle !== undefined) attach = anchorPoint(owner.shape, String(angle)) ?? owner.shape.center;
+  else if (LABEL_COMPASS.has(dir)) {
+    // An anchor of the node ("north:Title"): the label sits at that anchor (D81).
+    attach = anchorPoint(owner.shape, dir) ?? owner.shape.center;
+    angle = LABEL_COMPASS.get(dir)!;
+  } else return null;
   const shape0 = makeShape(
     {
       kind: "rectangle",
@@ -945,11 +949,12 @@ function labelNode(spec: string, owner: LaidOutNode, scope: Scope, ctx: Ctx): La
     },
     { x: 0, y: 0 },
   );
-  // The label's anchor faces the node: the opposite direction.
-  const toward = { x: -Math.cos(r), y: -Math.sin(r) };
-  const edge = borderToward(shape0, toward);
+  // The label's anchor faces the node: the compass anchor opposite its direction, in 45-degree
+  // sectors ("30:x" puts the label's south west corner on the border; checked against pdfTeX, D81).
+  const sector = ((Math.round(angle / 45) % 8) + 8) % 8;
+  const edge = anchorOffset(shape0, OPPOSITE_COMPASS[sector]!) ?? { x: 0, y: 0 };
   const center = { x: attach.x - edge.x, y: attach.y - edge.y };
-  return {
+  const extra: LaidOutNode = {
     id: `${owner.id}/label`,
     kind: "path",
     syntax: owner.syntax,
@@ -975,7 +980,15 @@ function labelNode(spec: string, owner: LaidOutNode, scope: Scope, ctx: Ctx): La
     layer: owner.layer,
     sizing: { natural: { w: 2 * shape0.hw, h: 2 * shape0.hh }, min: { w: 0, h: 0 }, minContent: () => 0 },
   };
+  // "label={[name=t]north:…}" names the label node, so the fidelity check can ask TeX about it.
+  if (st.name) extra.name = st.name;
+  return extra;
 }
+
+/** Anchors a "label=" may be placed at instead of an angle, with the direction each one stands for. */
+const LABEL_COMPASS = new Map([["east", 0], ["north east", 45], ["north", 90], ["north west", 135], ["west", 180], ["south west", 225], ["south", 270], ["south east", 315]]);
+/** The label's own anchor for each 45-degree sector of its direction, from 0 (east) on. */
+const OPPOSITE_COMPASS = ["west", "south west", "south", "south east", "east", "north east", "north", "north west"];
 
 // ---------------------------------------------------------------- paths
 

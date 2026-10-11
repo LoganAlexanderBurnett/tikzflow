@@ -18,7 +18,7 @@ Milestone 0 is done and was approved on 2026-10-07:
 - Push the `m3-engine-ci` branch when needed. Show the download list before CI downloads anything new.
 - All of Milestone 3 is done on `m3-engine-ci` and merged into `trunk` at the end of the milestone (D60).
 
-**Milestone 4 (layout and import): in progress on the `m4` branch (plan approved 2026-10-10, D77).** `trunk` is the live public beta: nothing is merged into it until everything passes (including `npm run test:live` against the branch's Cloudflare preview) and the owner has reviewed the M4 report. Steps 0–3 are done; **the step 3 checkpoint report is waiting for the owner** ("M4 step 3" below), with the swimlane form to choose before step 4.
+**Milestone 4 (layout and import): in progress on the `m4` branch (plan approved 2026-10-10, D77).** `trunk` is the live public beta: nothing is merged into it until everything passes (including `npm run test:live` against the branch's Cloudflare preview) and the owner has reviewed the M4 report. Steps 0–3 are done and the owner reviewed the step 3 checkpoint (D81). **Step 4 is done** ("M4 step 4" below), with the owner's two requests from testing Layout (D82). Next: step 5.
 
 Also read "Notes for later milestones" below.
 
@@ -28,11 +28,56 @@ Also read "Notes for later milestones" below.
 | 0 | `m4` branch, CLAUDE.md rule, Report link to `/issues/new`, issue template, the branch's Cloudflare preview | Done (D77); preview at https://m4.tikzflow.pages.dev, `test:live` passes |
 | 1 | Drag a multi-selection as a group | Done (D78) |
 | 2 | Chain nodes made draggable: the whole chain converted to explicit positioning (D77 item 4) | Done (D79) |
-| 3 | Auto-layout with elk.js, written back as relative positioning (D77 items 1, 2); **checkpoint report** | Done (D80); checkpoint report below, waiting for the owner |
-| 4 | Groups and swimlanes with `fit` and `backgrounds` (owner picks the lane code form, D77 item 3) | To do |
+| 3 | Auto-layout with elk.js, written back as relative positioning (D77 items 1, 2); **checkpoint report** | Done (D80); reviewed by the owner (D81) |
+| 4 | Groups and swimlanes with `fit` and `backgrounds`, form B (D81); the banner contrast fix and panning (D82) | Done |
 | 5 | Import from Mermaid and DOT, like Open (D77 item 5) | To do |
 | 6 | Grayscale and colour-blind preview modes, contrast warnings (WCAG AA, D77 item 6) | To do |
-| 7 | Goldens, end-to-end, offline and live checks on the preview, docs, report | To do |
+| 7 | The opt-in "Allow reordering statements" layout option (D81 item 4); auto-layout speed on large pictures (see step 4's known limits); goldens, end-to-end, offline and live checks on the preview, docs, report | To do |
+
+## M4 step 4: groups and swimlanes, contrast, panning (2026-10-11)
+Done on `m4`, committed and pushed; nothing is merged into `trunk`. The owner's decisions on the step 3 checkpoint are recorded in D81 (swimlanes in form B, following the picture's direction; `auto` labels and `--` for lined-up orthogonal edges kept; the new reordering option scheduled for step 7), and their two requests from trying Layout are in D82.
+
+### How to try it
+Open https://m4.tikzflow.pages.dev (or `npm run dev`).
+- **Lanes.** Paste a flowchart that runs down. Shift-click the nodes of the first role, type a title in the panel's **Group and lanes** section (right), **New lane**. Select the next role's nodes, **New lane** again: the lanes stand side by side, all as tall as each other. In a picture that runs across, the lanes lie one above the other with their titles on the left. Or paste `corpus/self-swimlanes.tex`.
+- **Moving between lanes.** Drag a node into another lane (anywhere in its column, even below the lanes): it moves and joins that lane in one undo step; the lanes stretch to keep their shared top and bottom. Or select nodes and use **Move to lane**. **Take out of** removes nodes from their groups and lanes.
+- **Titles.** Click an empty part of a lane (or group): the panel says what it holds; type a **Title** and press Enter (empty removes it).
+- **Groups.** Select nodes, **Group**: a dashed box behind them, titled if you typed one. Dragging a lane or group moves what it holds (D78).
+- **Delete** a lane member, or every lane: the lanes stay even; deleting all lanes leaves the code as it was before the first one.
+- **Auto-layout** keeps each lane's nodes in their lane, top to bottom and left to right.
+- **Contrast.** In the dark theme, write `{\oops B}` in a node: the banner's buttons are dark amber on light amber.
+- **Panning.** Right-drag anywhere (also over nodes and edges); a right click without moving still opens the edge menu. Middle-drag pans, and so does Space+drag (the cursor becomes a hand); Space still types in the code.
+
+### What works
+- **Lanes in form B** (D81), written as the owner saw in `spike/swimlanes/B-fit-equal-height.tex`, with the shared coordinates inside the background block:
+  ```latex
+  \begin{scope}[on background layer]
+    \coordinate (lanes top) at (a.north);
+    \coordinate (lanes bottom) at (e.south);
+    \node[lane, fit=(a) (b) (e) (a |- lanes top) (a |- lanes bottom), label={[lane title]north:Customer}] (customer) {};
+    \node[lane, fit=(c) (d) (c |- lanes top) (c |- lanes bottom), label={[lane title]north:Shop}] (shop) {};
+  \end{scope}
+  ```
+  Groups: `\node[group, fit=(c) (d), label={[group title]north:Checks}] (checks) {};` in the same block. Styles and the `fit` and `backgrounds` libraries are added when missing; the document's own `lane` and `group` styles are used as they are.
+- **The lanes stay even.** After every visual edit the shared coordinates move to the members at the extremes, in the same undo step (only ones written `at (member.north)` and the like). Deleting a member or a lane keeps the code valid and the lanes even.
+- **New nodes go before the background block** (Tab, Enter, the palette), so they can join a lane.
+- **Auto-layout and lanes** (D81): partitions for lanes across the flow, a band per lane for lanes along it.
+- **The quick preview now draws `label=` at anchors** (`north:`, `west:`, `north east:`) and puts diagonal labels by their corner, as TikZ does: a new pdfTeX probe (`p9-labels-lanes.tex`) matches within 0.34 pt; no corpus node moved in the full `npm run fidelity`.
+- **Contrast** (D82): the banner fixed; a WCAG AA audit of all the interface's text in both themes found and fixed three more (the error count in the dark toolbar, code under the selection highlight, CodeMirror's light current-line tint in the dark theme).
+- **Panning** (D82): right drag, middle drag, Space+drag, with the menu kept for a right click on every platform's timing.
+
+### Tests
+- **Vitest:** 1,375 tests in 42 files (was 1,332 in 41). New: `test/lanes.test.ts` (23: reading lanes, making lanes in columns and rows, groups, naming unnamed members, moving between lanes, titles, upkeep, deleting a member and every lane, dragging a lane, auto-layout in both directions, label positions). The new corpus picture `corpus/self-swimlanes.tex` adds golden files to every golden suite (moves, group drags, edge edits, auto-layout); **no existing golden file changed.** The auto-layout golden test also allows the lanes' shared coordinates to change.
+- **Playwright:** 146 tests (was 135): `contrast.spec.ts` (4: panels, menus, popovers, a selected lane, and the TeX banner and its details, in the light and dark themes), `lanes.spec.ts` (2), `pan.spec.ts` (5). `npm run test:offline`: 5 pass.
+- `npm run typecheck`, `npm run build`, `npm run check:dist` (1,236 files, 13.0 MiB, the largest 2.85 MiB) pass.
+
+### Known limits
+- **Auto-layout on the 200-node bench takes about 19 s top to bottom (9 s left to right), not the 0.9 s step 3's report gave.** The time is already there at commit ba33bc7: it is the last part of step 3 (straightening lined-up orthogonal edges and putting cut labels beside their lines), where each fix is planned and checked by the edge editor with a fresh parse and layout of the whole picture. Corpus pictures still take well under a second. The 0.9 s in the step 3 report was wrong for the committed code (most likely measured before that last part was added). Making those fixes share one layout is planned for step 7.
+- **Lane titles in rows are horizontal**, to the left of each lane, not rotated: the quick preview doesn't draw rotated nodes (D81).
+- **Lanes along the flow make a staircase** when the flow passes from lane to lane at every step: the layered layout gives every step its own layer.
+- **A node defined after the lanes** in the code can't be put in a lane until its line is moved above them (TikZ needs it first); new nodes made in the app always go above.
+- **One lane set per picture** is made by the app; pictures with several are read, and new lanes join the first.
+- **Style names that are TikZ keys:** a style called `step` (TikZ's grid key, which needs a value) is an error in TeX on every node using it, but the quick preview doesn't say so. Found while writing the new corpus picture; the summary could warn about it later.
 
 ## M4 step 3: auto-layout, checkpoint report (2026-10-10)
 Done on `m4`, committed and pushed; nothing is merged into `trunk`. The owner had tested group drag on the preview (works well) but not yet chain drag.
@@ -49,7 +94,7 @@ Open https://m4.tikzflow.pages.dev (or `npm run dev`), paste a flowchart, toolba
 - **Scope** (D77 item 2): whole picture or selection; locked nodes, fit nodes and coordinates stay (fit nodes follow); chains are written out first (D79).
 - **Stable:** a second run changes nothing (checked on every corpus picture in both directions, except the chain picture `se-382997`, where writing the chain out changes the picture's node distance). Sizes are rounded before ELK sees them: it breaks ties on the last bit.
 - **Licence:** elk.js 0.12.0, the first release that is `EPL-2.0 OR GPL-3.0-or-later`; earlier ones are EPL-2.0 only, which GPL-3.0 code can't use. Pinned exactly. Loaded on first use (1.4 MB, 442 kB gzipped), cached by the service worker, works offline and under the CSP.
-- **Speed:** corpus pictures 15–275 ms (ELK's first load ~200 ms of that); the 200-node, 250-edge bench picture 0.9 s.
+- **Speed:** corpus pictures 15–275 ms (ELK's first load ~200 ms of that); the 200-node, 250-edge bench picture 0.9 s. *(Corrected in step 4: about 19 s with this commit's code; see step 4's known limits.)*
 
 ### Before and after: three corpus pictures (top to bottom)
 **1. `se-78697-tikzset-classic.tex`** (old-style positioning, a loop back). Six relations are kept; `expert` and `system`, which sat left and right of `init`, go above it as ELK puts the sources first; `update` goes beside `test`, where the loop leaves the decision. `update` comes before `decide` and `test` in the code, so it can only refer to `evaluate`: hence the diagonal. The positioning library was added.

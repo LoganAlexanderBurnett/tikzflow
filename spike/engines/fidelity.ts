@@ -51,9 +51,10 @@ const COMPASS = ["north", "south", "east", "west"] as const;
 /** Libraries assumed for pictures pasted without their preamble. */
 const BARE_LIBRARIES = ["positioning", "shapes.geometric", "shapes.misc", "arrows.meta", "calc", "fit", "backgrounds", "matrix", "chains"];
 
-/** Every node TeX can be asked about by name: statement nodes and the labels written inside paths. */
+/** Every node TeX can be asked about by name: statement nodes, the labels written inside paths, and named `label=` nodes. */
 function namedNodes(layout: PictureLayout) {
-  return [...layout.nodes, ...layout.pathNodes].filter((n) => n.name && !n.implicitName && SIMPLE.test(n.name));
+  const all = [...layout.nodes, ...layout.pathNodes];
+  return [...all, ...all.flatMap((n) => n.extras)].filter((n) => n.name && !n.implicitName && SIMPLE.test(n.name));
 }
 
 function jobFor(text: string, picIndex: number): { job: Job; names: string[] } {

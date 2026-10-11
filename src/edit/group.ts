@@ -12,6 +12,7 @@ import { PT_PER_UNIT } from "../tikz/units.ts";
 import { applyChanges, type Change, composeChanges } from "./changes.ts";
 import { absoluteText, isPlainStop, writeStops } from "./edges.ts";
 import { type ChainConversion, conversionMessage, planChainConversion } from "./chains.ts";
+import { fitMemberNames } from "./lanes.ts";
 import { dependents, planMove, planPin, positioningText, type PositionSpec } from "./move.ts";
 
 const MM = PT_PER_UNIT.mm!;
@@ -62,7 +63,8 @@ export function groupMembers(layout: PictureLayout, ids: readonly string[]): Gro
     if (!n || members.has(id) || boxes.has(id)) return;
     if (n.position.kind === "fit") {
       boxes.add(id);
-      for (const r of n.position.refs) {
+      // Not the coordinates a lane lines up with: they only make it as tall as its set (D81).
+      for (const r of fitMemberNames(n.syntax)) {
         const m = named(layout, r, n);
         if (m) visit(m.id);
       }

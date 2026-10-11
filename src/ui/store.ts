@@ -5,7 +5,7 @@ import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { batch, computed, effect, signal } from "@preact/signals";
 import { autoLayoutMessage, type LayoutDirection, planAutoLayout } from "../edit/autolayout.ts";
-import type { Change } from "../edit/changes.ts";
+import { applyChanges, type Change, composeChanges } from "../edit/changes.ts";
 import { defaultEntry, edgeHead, type PaletteEntry, paletteEntries, planCreate, type Placement } from "../edit/create.ts";
 import { type EndTarget, findEdge, planConnect, planEnd } from "../edit/edges.ts";
 import { planMakeCurved } from "../edit/curves.ts";
@@ -18,6 +18,7 @@ import { type EdgeEdit, type EdgeScope, planEdgeProperty, planSplitAndApply } fr
 import { draftOf, labelBlocker, labelledNode, labelProblem, planLabelEdit } from "../edit/label.ts";
 import { withLibraries } from "../edit/libraries.ts";
 import { formatDistance, planAttach, planPin } from "../edit/move.ts";
+import { type LaneOutcome, laneAt, planGroup, planJoin, planLane, planLeave, planTitle, withLaneUpkeep } from "../edit/lanes.ts";
 import { type PropEdit, propertyChanges, type Scope, sharedStyles } from "../edit/properties.ts";
 import { planMatch } from "../edit/resize.ts";
 import type { GapMark, Guide } from "../edit/snap.ts";
@@ -296,9 +297,14 @@ export function mapPathId(id: string, changes: readonly Change[]): string {
   });
 }
 
-/** Applies a visual edit as one undoable step. A selected edge or path stays selected. */
-export function applyEdit(changes: Change[], label: string): void {
-  if (!view || !changes.length) return;
+/**
+ * Applies a visual edit as one undoable step. A selected edge or path stays
+ * selected. Lanes keep their shared top and bottom at the members' extremes
+ * (D81), in the same step.
+ */
+export function applyEdit(edit: Change[], label: string): void {
+  if (!view || !edit.length) return;
+  const { changes } = withLaneUpkeep(text.value, currentPicture.value, edit);
   const sel = selection.peek();
   if (sel?.kind === "edge" || sel?.kind === "path") selection.value = { kind: sel.kind, id: mapPathId(sel.id, changes) };
   view.dispatch({
@@ -443,6 +449,63 @@ export async function autoLayout(direction: LayoutDirection): Promise<boolean> {
   } finally {
     layoutBusy.value = false;
   }
+}
+
+// ---------------------------------------------------------------- groups and lanes (D81)
+
+/** Applies a group or lane edit, selects what it is about, and says what was written. */
+function applyLaneEdit(r: LaneOutcome, label: string, select?: readonly string[]): boolean {
+  if (!r.ok) {
+    status.value = r.reason;
+    return false;
+  }
+  applyEdit(r.changes, label);
+  if (select) selectNodes(select.filter((id) => baseLayout.value?.nodes.some((n) => n.id === id)));
+  status.value = `${r.message}.${alsoNotes(r.notes)}`;
+  return true;
+}
+
+/** "Group": a box around the selected nodes, with an optional title. */
+export function groupSelection(title: string): boolean {
+  const r = planGroup(text.value, currentPicture.value, selectedIds.value, title);
+  return applyLaneEdit(r, "input.group", r.ok && r.id ? [r.id] : undefined);
+}
+
+/** "New lane": a lane holding the selected nodes. */
+export function laneFromSelection(title: string): boolean {
+  const r = planLane(text.value, currentPicture.value, selectedIds.value, title);
+  return applyLaneEdit(r, "input.lane", r.ok && r.id ? [r.id] : undefined);
+}
+
+/** Puts the selected nodes (other than `boxId`) into group or lane `boxId`. */
+export function joinBox(ids: readonly string[], boxId: string): boolean {
+  const keep = [...ids];
+  return applyLaneEdit(planJoin(text.value, currentPicture.value, ids.filter((id) => id !== boxId), boxId), "input.group.join", keep);
+}
+
+/** Takes the nodes out of every group and lane that lists them. */
+export function leaveBoxes(ids: readonly string[]): boolean {
+  return applyLaneEdit(planLeave(text.value, currentPicture.value, ids), "input.group.leave", [...ids]);
+}
+
+/** Sets or removes the title of a group or lane. */
+export function setBoxTitle(boxId: string, title: string): boolean {
+  return applyLaneEdit(planTitle(text.value, currentPicture.value, boxId, title), "input.group.title", [boxId]);
+}
+
+/**
+ * A node dropped inside another lane of its set joins that lane, in the same
+ * step as the move (D81). `moved` is the move's changes; returns the changes to
+ * apply and what to add to the message.
+ */
+export function dropIntoLane(moved: Change[], nodeId: string, at: Point): { changes: Change[]; note: string } {
+  const l = baseLayout.value;
+  const lane = l && laneAt(text.value, l, at, nodeId);
+  if (!lane?.node.name) return { changes: moved, note: "" };
+  const after = applyChanges(text.value, moved);
+  const r = planJoin(after, currentPicture.value, [nodeId], lane.node.id);
+  if (!r.ok) return { changes: moved, note: ` It stays in its lane: ${r.reason}` };
+  return { changes: composeChanges(text.value, moved, r.changes), note: ` ${r.message}.` };
 }
 
 export function undoEdit(): void {
