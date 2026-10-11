@@ -1,0 +1,121 @@
+/* Direction A: Manuscript. Warm paper, ink, one vermilion accent; Source Serif 4 / Sans 3 / Code Pro. */
+@import "@fontsource/source-serif-4/600.css";
+@import "@fontsource/source-serif-4/600-italic.css";
+@import "@fontsource/source-sans-3/400.css";
+@import "@fontsource/source-sans-3/600.css";
+@import "@fontsource/source-sans-3/700.css";
+@import "@fontsource/source-code-pro/400.css";
+@import "@fontsource/source-code-pro/500.css";
+
+:root {
+  --font-display: "Source Serif 4", Georgia, serif;
+  --font-ui: "Source Sans 3", system-ui, sans-serif;
+  --font-code: "Source Code Pro", ui-monospace, monospace;
+  --display-weight: 600;
+  --display-tracking: -0.015em;
+  --h1-size: 60px;
+  --eyebrow-case: none;
+  --radius: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 6px;
+
+  --bg: #f7f3ec;
+  --surface: #fffdf9;
+  --surface-2: #f0eadf;
+  --fg: #1e2533;
+  --muted: #5c6270;
+  --line: #e3d9c9;
+  --line-strong: #cfc3b0;
+  --accent: #b3401e;
+  --accent-fg: #ffffff;
+  --accent-text: #a63a1a;
+  --accent-soft: rgba(179, 64, 30, 0.1);
+  --ink-2: #24345a;
+  --guide: #b3401e;
+  --canvas: #ece6db;
+  --paper-shadow: 0 1px 2px rgba(60, 40, 10, 0.12), 0 8px 24px rgba(60, 40, 10, 0.1);
+  --shadow: 0 1px 2px rgba(60, 40, 10, 0.08), 0 12px 32px rgba(60, 40, 10, 0.1);
+  --code-bg: #efe8dc;
+  --code-surface: #fffdf9;
+  --code-fg: #1e2533;
+  --line-num: #a79d8d;
+  --sel-line: rgba(179, 64, 30, 0.08);
+  --t-kw: #24345a;
+  --t-kw-weight: 600;
+  --t-mac: #3d5a8a;
+  --t-name: #2f6b3a;
+  --t-key: #6a4a8c;
+  --t-val: #a63a1a;
+  --t-com: #8a8172;
+  --ok: #2f6b3a;
+  --ok-soft: rgba(47, 107, 58, 0.1);
+  --warn: #8a5a00;
+  --warn-soft: rgba(176, 120, 0, 0.12);
+  --err: #a1281c;
+  --err-soft: rgba(161, 40, 28, 0.1);
+  --privacy-bg: #24345a;
+  --privacy-fg: #f7f3ec;
+  --privacy-ic-bg: rgba(247, 243, 236, 0.12);
+  --privacy-ic-fg: #f7f3ec;
+  --band-bg: #f0eadf;
+  --bar-bg: #f0eadf;
+  --toolbar-bg: #f7f3ec;
+  --tab-active-bg: #f7f3ec;
+  --pill-bg: transparent;
+  --pill-fg: #a63a1a;
+  --logo-ink: #1e2533;
+  --logo-accent: #b3401e;
+  --num-bg: transparent;
+  --num-fg: #a63a1a;
+}
+.pill { border: 1px solid currentColor; }
+.steps .num { border: 1.5px solid var(--accent); font-style: italic; }
+.hero h1 { font-weight: 600; }
+.sec-head { border-bottom: 1px solid var(--line); padding-bottom: 14px; }
+.tcard .tmeta strong { font-family: var(--font-display); font-size: 18px; }
+
+html[data-theme="dark"] {
+  --bg: #17181c;
+  --surface: #1e2026;
+  --surface-2: #24262d;
+  --fg: #ece6dc;
+  --muted: #a59f94;
+  --line: #33353d;
+  --line-strong: #474a54;
+  --accent: #f08a63;
+  --accent-fg: #1a0d07;
+  --accent-text: #f4a07f;
+  --accent-soft: rgba(240, 138, 99, 0.14);
+  --ink-2: #9fb3dc;
+  --canvas: #121317;
+  --paper-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 10px 30px rgba(0, 0, 0, 0.5);
+  --shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 12px 32px rgba(0, 0, 0, 0.45);
+  --code-bg: #2a2c33;
+  --code-surface: #1b1d22;
+  --code-fg: #e6e0d6;
+  --line-num: #5e5f66;
+  --sel-line: rgba(240, 138, 99, 0.1);
+  --t-kw: #a9bde6;
+  --t-mac: #8fb0e8;
+  --t-name: #9fd3a6;
+  --t-key: #cdb3ec;
+  --t-val: #f4a07f;
+  --t-com: #7f7a71;
+  --ok: #8fd19a;
+  --ok-soft: rgba(143, 209, 154, 0.12);
+  --warn: #f0c46b;
+  --warn-soft: rgba(240, 196, 107, 0.12);
+  --err: #f19a8f;
+  --err-soft: rgba(241, 154, 143, 0.12);
+  --privacy-bg: #24262d;
+  --privacy-fg: #ece6dc;
+  --band-bg: #1e2026;
+  --bar-bg: #1e2026;
+  --toolbar-bg: #17181c;
+  --tab-active-bg: #17181c;
+  --pill-fg: #f4a07f;
+  --logo-ink: #ece6dc;
+  --logo-accent: #f08a63;
+  --num-fg: #f4a07f;
+  color-scheme: dark;
+}

@@ -1,0 +1,127 @@
+/* Direction B: Blueprint. Cool neutrals, one strong blue, a grid behind the canvas; IBM Plex Sans and Mono. */
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/ibm-plex-sans/700.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+
+:root {
+  --font-display: "IBM Plex Sans", system-ui, sans-serif;
+  --font-ui: "IBM Plex Sans", system-ui, sans-serif;
+  --font-code: "IBM Plex Mono", ui-monospace, monospace;
+  --display-weight: 600;
+  --display-tracking: -0.025em;
+  --h1-size: 58px;
+  --radius: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  --bg: #f4f6fa;
+  --surface: #ffffff;
+  --surface-2: #edf1f7;
+  --fg: #0f1729;
+  --muted: #536079;
+  --line: #d9e0eb;
+  --line-strong: #c4cddb;
+  --accent: #1f5bd8;
+  --accent-fg: #ffffff;
+  --accent-text: #1a4fc0;
+  --accent-soft: rgba(31, 91, 216, 0.1);
+  --grid: #dfe6f1;
+  --guide: #d6336c;
+  --canvas: #f7f9fc;
+  --canvas-pattern: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  --canvas-pattern-size: 24px 24px;
+  --paper-shadow: 0 1px 3px rgba(15, 23, 41, 0.12), 0 6px 20px rgba(15, 23, 41, 0.08);
+  --paper-radius: 4px;
+  --shadow: 0 1px 3px rgba(15, 23, 41, 0.08), 0 14px 36px rgba(15, 23, 41, 0.12);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 41, 0.08);
+  --card-shadow: 0 1px 2px rgba(15, 23, 41, 0.05);
+  --code-bg: #e7ecf5;
+  --code-surface: #fbfcfe;
+  --code-fg: #0f1729;
+  --line-num: #9aa5b9;
+  --sel-line: rgba(31, 91, 216, 0.08);
+  --t-kw: #1a4fc0;
+  --t-kw-weight: 500;
+  --t-mac: #6c3fc4;
+  --t-name: #0b7a5c;
+  --t-key: #0e6a8a;
+  --t-val: #b4441a;
+  --t-com: #7d879a;
+  --ok: #0b7a5c;
+  --ok-soft: rgba(11, 122, 92, 0.1);
+  --warn: #8a5a00;
+  --warn-soft: rgba(176, 120, 0, 0.12);
+  --err: #b42318;
+  --err-soft: rgba(180, 35, 24, 0.1);
+  --privacy-bg: #0f1f45;
+  --privacy-fg: #e8eefb;
+  --privacy-ic-bg: #1f5bd8;
+  --privacy-ic-fg: #ffffff;
+  --band-bg: #ffffff;
+  --bar-bg: #0f1729;
+  --toolbar-bg: #ffffff;
+  --tab-active-bg: #ffffff;
+  --head-bg: #ffffff;
+  --logo-tile: #1f5bd8;
+  --logo-mark: #ffffff;
+  --num-radius: 6px;
+}
+/* The app bar is dark in both themes: the tool's frame, with the tabs cut into it. */
+.app-bar { color: #e6ecf7; border-bottom-color: #0f1729; }
+.app-bar .tab { color: #9fb0cc; }
+.app-bar .tab.active { color: #0f1729; border-color: #ffffff; }
+.app-bar .icon-btn, .app-bar .link { color: #b9c6dc; }
+.app-bar .pill { background: rgba(110, 162, 255, 0.18); color: #a8c6ff; }
+.wordmark { font-weight: 600; letter-spacing: -0.02em; }
+.hero h1 { font-weight: 600; }
+.eyebrow { font-family: var(--font-code); text-transform: none; letter-spacing: 0; font-weight: 500; }
+.pal-label, .card h3 { font-family: var(--font-code); }
+
+html[data-theme="dark"] {
+  --bg: #0b1220;
+  --surface: #111a2c;
+  --surface-2: #17223a;
+  --fg: #e6ecf7;
+  --muted: #95a2bb;
+  --line: #22304a;
+  --line-strong: #31415f;
+  --accent: #6ea2ff;
+  --accent-fg: #06102a;
+  --accent-text: #8cb5ff;
+  --accent-soft: rgba(110, 162, 255, 0.14);
+  --grid: #16213a;
+  --guide: #f06595;
+  --canvas: #0d1526;
+  --paper-shadow: 0 0 0 1px rgba(110, 162, 255, 0.18), 0 10px 30px rgba(0, 0, 0, 0.5);
+  --shadow: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 14px 36px rgba(0, 0, 0, 0.5);
+  --card-shadow: none;
+  --code-bg: #1b2742;
+  --code-surface: #0e1627;
+  --code-fg: #dfe7f5;
+  --line-num: #4f5d78;
+  --sel-line: rgba(110, 162, 255, 0.1);
+  --t-kw: #8cb5ff;
+  --t-mac: #c3a6ff;
+  --t-name: #6fe0b8;
+  --t-key: #74d3f0;
+  --t-val: #ffab7a;
+  --t-com: #66738c;
+  --ok: #6fe0b8;
+  --ok-soft: rgba(111, 224, 184, 0.12);
+  --warn: #f5c56b;
+  --warn-soft: rgba(245, 197, 107, 0.12);
+  --err: #ff9b91;
+  --err-soft: rgba(255, 155, 145, 0.12);
+  --privacy-bg: #17223a;
+  --band-bg: #0e1627;
+  --bar-bg: #070c17;
+  --toolbar-bg: #111a2c;
+  --tab-active-bg: #111a2c;
+  --head-bg: #0b1220;
+  --logo-tile: #3b7bff;
+  color-scheme: dark;
+}
+html[data-theme="dark"] .app-bar .tab.active { color: #e6ecf7; border-color: #22304a; }

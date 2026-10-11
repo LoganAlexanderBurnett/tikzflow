@@ -1,0 +1,140 @@
+/* Direction C: Friendly. Cream and green with a marigold highlight, rounded shapes;
+   Space Grotesk headings, Atkinson Hyperlegible Next interface, JetBrains Mono code. */
+@import "@fontsource/space-grotesk/500.css";
+@import "@fontsource/space-grotesk/700.css";
+@import "@fontsource/atkinson-hyperlegible-next/400.css";
+@import "@fontsource/atkinson-hyperlegible-next/600.css";
+@import "@fontsource/atkinson-hyperlegible-next/700.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+
+:root {
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-ui: "Atkinson Hyperlegible Next", system-ui, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+  --wordmark-weight: 700;
+  --display-weight: 700;
+  --display-tracking: -0.03em;
+  --h1-size: 60px;
+  --eyebrow-case: none;
+  --radius: 9px;
+  --radius-lg: 14px;
+  --radius-xl: 22px;
+  --tab-radius: 10px 10px 0 0;
+
+  --bg: #fffbf2;
+  --surface: #ffffff;
+  --surface-2: #f6f0e1;
+  --fg: #182a20;
+  --muted: #546459;
+  --line: #e9e1cf;
+  --line-strong: #d6ccb6;
+  --accent: #13795b;
+  --accent-fg: #ffffff;
+  --accent-text: #0f6b50;
+  --accent-soft: rgba(19, 121, 91, 0.1);
+  --highlight: #f2b33d;
+  --guide: #d9480f;
+  --canvas: #f6f0e1;
+  --canvas-pattern: radial-gradient(#e2d8c2 1.2px, transparent 1.3px);
+  --canvas-pattern-size: 20px 20px;
+  --paper-shadow: 0 2px 4px rgba(40, 30, 0, 0.06), 0 12px 30px rgba(40, 30, 0, 0.1);
+  --paper-radius: 12px;
+  --shadow: 0 2px 6px rgba(40, 30, 0, 0.06), 0 16px 40px rgba(40, 30, 0, 0.1);
+  --shadow-sm: 0 1px 3px rgba(40, 30, 0, 0.08);
+  --card-shadow: 0 2px 8px rgba(40, 30, 0, 0.05);
+  --code-bg: #f3ecdb;
+  --code-surface: #fffdf7;
+  --code-fg: #182a20;
+  --line-num: #a8a08c;
+  --sel-line: rgba(242, 179, 61, 0.2);
+  --t-kw: #0f6b50;
+  --t-kw-weight: 600;
+  --t-mac: #2457a6;
+  --t-name: #8a3fa0;
+  --t-key: #0d6b80;
+  --t-val: #b5410f;
+  --t-com: #8c8574;
+  --ok: #0f6b50;
+  --ok-soft: rgba(19, 121, 91, 0.1);
+  --warn: #8a5300;
+  --warn-soft: rgba(242, 179, 61, 0.22);
+  --err: #b42318;
+  --err-soft: rgba(180, 35, 24, 0.1);
+  --privacy-bg: #13795b;
+  --privacy-fg: #ffffff;
+  --privacy-ic-bg: #f2b33d;
+  --privacy-ic-fg: #182a20;
+  --band-bg: #fff4d9;
+  --bar-bg: #ffffff;
+  --toolbar-bg: #fffbf2;
+  --tab-active-bg: #fffbf2;
+  --pill-bg: #f2b33d;
+  --pill-fg: #3a2a00;
+  --logo-tile: #13795b;
+  --logo-mark: #ffffff;
+  --logo-dot: #f2b33d;
+  --num-bg: #f2b33d;
+  --num-fg: #3a2a00;
+}
+.btn, .tb.primary { border-radius: 999px; }
+.btn.lg { border-radius: 999px; }
+.hero h1 { font-weight: 700; }
+.wordmark { font-family: var(--font-display); }
+.eyebrow { display: inline-block; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; color: var(--accent-text); }
+.f-ic { border-radius: 12px; background: #fff; color: var(--accent-text); box-shadow: var(--shadow-sm); }
+.tcard .tmeta strong { font-family: var(--font-display); font-weight: 700; }
+.tgrid { gap: 22px; }
+.pal { border-radius: 999px; }
+.knob.on { background: var(--accent); }
+.cl.sel { box-shadow: inset 3px 0 0 var(--highlight); }
+
+html[data-theme="dark"] {
+  --bg: #111713;
+  --surface: #172019;
+  --surface-2: #1d2920;
+  --fg: #e8f1ea;
+  --muted: #9cb0a2;
+  --line: #2a3a2f;
+  --line-strong: #3a4d40;
+  --accent: #4acb97;
+  --accent-fg: #03140c;
+  --accent-text: #63d7a7;
+  --accent-soft: rgba(74, 203, 151, 0.13);
+  --highlight: #f5c451;
+  --guide: #ff8a4c;
+  --canvas: #0e1410;
+  --canvas-pattern: radial-gradient(#223026 1.2px, transparent 1.3px);
+  --paper-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 12px 30px rgba(0, 0, 0, 0.5);
+  --shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 16px 40px rgba(0, 0, 0, 0.5);
+  --card-shadow: none;
+  --code-bg: #223026;
+  --code-surface: #131b15;
+  --code-fg: #e2ece4;
+  --line-num: #56685b;
+  --sel-line: rgba(245, 196, 81, 0.12);
+  --t-kw: #63d7a7;
+  --t-mac: #8fb7ff;
+  --t-name: #e2a4f0;
+  --t-key: #7fd6e8;
+  --t-val: #ffa36b;
+  --t-com: #6f8274;
+  --ok: #63d7a7;
+  --ok-soft: rgba(99, 215, 167, 0.12);
+  --warn: #f5c451;
+  --warn-soft: rgba(245, 196, 81, 0.14);
+  --err: #ff9b91;
+  --err-soft: rgba(255, 155, 145, 0.12);
+  --privacy-bg: #1d2920;
+  --privacy-fg: #e8f1ea;
+  --privacy-ic-fg: #1a1400;
+  --band-bg: #172019;
+  --bar-bg: #172019;
+  --toolbar-bg: #111713;
+  --tab-active-bg: #111713;
+  --pill-fg: #2a1d00;
+  --logo-tile: #1f8f6b;
+  --num-fg: #2a1d00;
+  color-scheme: dark;
+}
+html[data-theme="dark"] .f-ic { background: var(--surface-2); }
