@@ -158,6 +158,12 @@ for (const scheme of ["light", "dark"] as const) {
       await page.locator('g[data-node="pale"]').click();
       await expect(page.getByTestId("contrast-note")).toBeVisible();
       await check("low contrast note");
+      // A style named like a TikZ key: the summary's button and list (M4 step 7, D87).
+      await setCode(page, "\\tikzset{step/.style={draw}}\n\\begin{tikzpicture}\n\\node[step] (a) at (0,0) {A};\n\\end{tikzpicture}\n");
+      await expect(page.getByTestId("key-style-count")).toBeVisible();
+      await page.getByTestId("key-style-count").click();
+      await expect(page.getByTestId("key-style-list")).toBeVisible();
+      await check("style named like a key");
       await setCode(page, WARNED);
       // A lane selected: its card, and the groups section for a node in it (D81).
       await setCode(page, readFileSync(join(import.meta.dirname, "..", "..", "corpus", "self-swimlanes.tex"), "utf8"));

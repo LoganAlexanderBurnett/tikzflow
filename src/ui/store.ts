@@ -6,6 +6,7 @@ import { EditorView } from "@codemirror/view";
 import { batch, computed, effect, signal } from "@preact/signals";
 import { autoLayoutMessage, type LayoutDirection, type LayoutProgress } from "../edit/autolayout.ts";
 import { LayoutCancelled, runAutoLayout } from "../edit/layoutjobs.ts";
+import { type KeyNamedStyle, keyNamedStyles } from "../edit/stylekeys.ts";
 import { applyChanges, type Change, composeChanges } from "../edit/changes.ts";
 import { type ContrastIssue, contrastIssues } from "../edit/contrast.ts";
 import { defaultEntry, edgeHead, type PaletteEntry, paletteEntries, planCreate, type Placement } from "../edit/create.ts";
@@ -104,6 +105,12 @@ export const summary = computed(() => {
 export const contrast = computed<ContrastIssue[]>(() => {
   const l = baseLayout.value;
   return l ? contrastIssues(l) : [];
+});
+
+/** Styles named like one of TikZ's own keys (D83 item 3, D87). */
+export const keyStyles = computed<KeyNamedStyle[]>(() => {
+  const pic = doc.value.syntax.pictures[currentPicture.value];
+  return pic ? keyNamedStyles(doc.value, pic) : [];
 });
 
 /** \coordinate nodes nothing refers to. */

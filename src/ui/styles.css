@@ -1606,7 +1606,8 @@ button.tf-preview-state.busy {
   font-size: 12px;
 }
 
-/* Text that fails WCAG AA: the marker on the canvas, the summary's count, the note in the panel (D85). */
+/* A style named like a TikZ key (D87), and text that fails WCAG AA: the marker on the canvas, the summary's count, the note in the panel (D85). */
+.tf-key-styles,
 .tf-low-contrast {
   white-space: nowrap;
   color: var(--warn-text);

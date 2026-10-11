@@ -8,6 +8,7 @@
 import { GROUP_STYLES } from "../edit/lanes.ts";
 import { baseName, nameStyle, newNodeName } from "../edit/names.ts";
 import { type ImportGraph, type ImportNode, type Look, type NodeShape, type Rgb, type Tip } from "./graph.ts";
+import { TIKZ_KEY_NAMES } from "../tikz/tikzkeys.ts";
 
 /** Style bodies per shape; `fill` is the pastel fill Mermaid-style charts get (Graphviz draws white nodes). */
 const SHAPE_STYLES: Record<NodeShape, { body: (fill: boolean) => string; libraries: string[] }> = {
@@ -54,8 +55,9 @@ const STYLE_NAME: Record<NodeShape, string> = {
   oval: "oval",
 };
 
-/** Words that are TikZ keys (or colours): a style of this name would shadow the key (D83 item 3). */
+/** Words that are TikZ keys (or colors): a style of this name would replace the key (D83 item 3). */
 const RESERVED = new Set([
+  ...TIKZ_KEY_NAMES,
   "red", "green", "blue", "cyan", "magenta", "yellow", "black", "white", "gray", "darkgray", "lightgray", "brown", "lime", "olive", "orange", "pink", "purple", "teal", "violet",
   "dashed", "dotted", "solid", "thick", "thin", "ultra thick", "very thick", "very thin", "ultra thin", "fill", "draw", "color", "text", "step", "grid", "shift", "scale", "rotate", "node", "label", "pin", "text width", "font", "bend left", "bend right", "loop", "help lines", "double", "rounded corners", "shadow", "circle", "ellipse", "rectangle", "diamond", "opacity", "anchor", "name", "pos", "near start", "near end", "auto", "swap", "above", "below", "left", "right", "base", "start", "end", "every node", "every path", "dot", "main", "default", "highlight", "dim", "box",
 ]);

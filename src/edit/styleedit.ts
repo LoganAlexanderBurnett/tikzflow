@@ -4,6 +4,7 @@
 import { analyzeDocument, type DocumentModel, layoutDocumentPicture } from "../model/document.ts";
 import type { OptionItem, PictureSyntax, Range } from "../model/syntax.ts";
 import { KNOWN_SHAPES } from "../tikz/keys.ts";
+import { TIKZ_KEY_NAMES } from "../tikz/tikzkeys.ts";
 import type { LaidOutNode, PictureLayout } from "../tikz/layout.ts";
 import { applyChanges, type Change, diffRange } from "./changes.ts";
 import { draftOf, labelProblem } from "./label.ts";
@@ -163,8 +164,9 @@ export function findRepeats(doc: DocumentModel, pic: PictureSyntax, layout: Pict
   });
 }
 
-/** Words that are keys or shapes in TikZ, so a style with that name would shadow them. */
+/** Words that are keys or shapes in TikZ, so a style with that name would shadow them (D83 item 3). */
 const RESERVED = new Set([
+  ...TIKZ_KEY_NAMES,
   ...KNOWN_SHAPES,
   "draw", "fill", "text", "font", "shape", "color", "thick", "thin", "dashed", "dotted", "rounded", "align", "scale", "shift", "rotate", "node", "style", "every",
   "above", "below", "left", "right", "inner", "outer", "minimum", "opacity", "shade", "clip", "name", "label", "pin", "anchor", "at", "pos", "bend", "loop", "to", "in", "out",
@@ -174,7 +176,7 @@ const RESERVED = new Set([
 export function styleNameProblem(doc: DocumentModel, pic: PictureSyntax, name: string): string | null {
   if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(name)) return "Use letters, digits, - or _, starting with a letter.";
   if (definedStyleNames(styleSites(doc, pic)).has(name)) return `There is already a style called ${name}.`;
-  if (RESERVED.has(name.toLowerCase())) return `${name} is a TikZ key, so a style with that name would shadow it.`;
+  if (RESERVED.has(name.toLowerCase())) return `${name} is a TikZ key, so a style with that name would replace it.`;
   return null;
 }
 

@@ -20,6 +20,7 @@ import { PreviewStatus, PreviewToggle, TexBanner } from "./previewstatus.tsx";
 import { contrastMessage, selectContrastIssue } from "./contrastmarks.tsx";
 import { VisionBadge, VisionSelect } from "./visionui.tsx";
 import { LayoutProgressBadge } from "./progress.tsx";
+import { keyNamedMessage } from "../edit/stylekeys.ts";
 import {
   attachEditor,
   contrast,
@@ -27,6 +28,7 @@ import {
   doc,
   fileName,
   fitRequests,
+  keyStyles,
   onEditorChange,
   onEditorCursor,
   pictureCount,
@@ -76,7 +78,8 @@ function Summary() {
   }
   const kept = Object.entries(s.kept);
   const lowContrast = contrast.value;
-  const details = s.locked.length + s.unknownKeys.length + s.notes.length + kept.length + s.unresolved.length + s.parseErrors + lowContrast.length;
+  const keyNamed = keyStyles.value;
+  const details = s.locked.length + s.unknownKeys.length + s.notes.length + kept.length + s.unresolved.length + s.parseErrors + lowContrast.length + keyNamed.length;
   const t = text.value;
   const errors = doc.value.errors;
   return (
@@ -93,6 +96,11 @@ function Summary() {
         {s.unresolved.length > 0 && (
           <button class="tf-undefined" onClick={() => (open.value = true)} title="Names the code refers to that aren't defined">
             {s.unresolved.length} undefined {s.unresolved.length === 1 ? "name" : "names"}
+          </button>
+        )}
+        {keyNamed.length > 0 && (
+          <button class="tf-key-styles" data-testid="key-style-count" onClick={() => (open.value = true)} title="Styles with the name of one of TikZ's own keys, which they replace. Details lists each one.">
+            {keyNamed.length === 1 ? `Style ${keyNamed[0]!.name} is a TikZ key` : `${keyNamed.length} styles are TikZ keys`}
           </button>
         )}
         {lowContrast.length > 0 && (
@@ -138,6 +146,22 @@ function Summary() {
                     : {u.kind === "later" ? "defined only later in the code" : "not defined anywhere"}, used{" "}
                     {u.refs.length === 1 ? "once" : `${u.refs.length} times`}
                     {u.refs.some((r) => r.in === "path") && u.refs.some((r) => r.in === "node") ? " (by nodes and paths)" : u.refs[0]!.in === "path" ? " in paths" : " to place nodes"}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {keyNamed.length > 0 && (
+            <section data-testid="key-style-list">
+              <h3>Styles named like TikZ keys</h3>
+              <p>A style defined with the name of one of TikZ's own keys doesn't sit beside the key: it replaces it.</p>
+              <ul>
+                {keyNamed.map((k) => (
+                  <li>
+                    <button class="link" onClick={() => showReference(`style:${k.name}`, k.ranges)} title="Show where it's defined">
+                      {k.name}
+                    </button>
+                    : {keyNamedMessage(k)}
                   </li>
                 ))}
               </ul>
