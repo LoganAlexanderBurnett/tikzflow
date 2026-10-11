@@ -1177,3 +1177,33 @@ The owner reviewed the Milestone 4 report. Decisions:
 3. **Merge:** `m4` is merged into `trunk` (the live public beta), then the deploy is checked with `npm run test:live` against https://tikzflow.pages.dev, including that "Report a problem" opens the issue form. Milestone 5 is not started; it waits for its own go-ahead.
 
 **Why:** the owner's answers to "Decisions for you" in the Milestone 4 report (2026-10-11).
+
+## D89: Milestone 5 plan, as approved: user experience and website; Milestone 6 for performance and paperwork (2026-10-11)
+The owner confirmed that "Report a problem" shows the issue form when signed in (the last open item of D88). With Milestone 4 live, Milestone 5 puts the focus on what new users notice. New scope from the owner: a home page, templates, a searchable help site, and a visual design chosen from candidates.
+
+**Decision:**
+1. **The split.** SPEC Milestone 5 is split in two. **M5: user experience and website:** visual design, home page, templates, first-run experience, the edit flicker (D69 item 4), multiple tabs (D86 item 5), stopping the engine while the tab is hidden (D69 item 4), light and dark themes, the keyboard shortcut reference, and help. **M6: performance and release paperwork:** smooth dragging with 200 nodes, the license audit and `THIRD_PARTY_LICENSES.md`, the README with screenshots, and the release check. The exception: **the GitHub Actions test workflow moves into M5 step 0**, because compiling templates in CI depends on it and it guards every later merge.
+2. **Steps of M5**, all on the `m5` branch, merged into `trunk` only after the owner reviews the report (D77 item 7):
+   - 0: branch and the CI test workflow (typecheck, Vitest, build, `check:dist`, Playwright in Edge, on every push);
+   - 1: two or three visual directions shown as screenshots (palette, type, logo and favicon, home page and editor sharing one look), **a checkpoint where the owner picks one**;
+   - 2: site structure and home page;
+   - 3: the chosen design applied, with a light/dark/system switch;
+   - 4: templates;
+   - 5: first run and the edit flicker;
+   - 6: multiple tabs;
+   - 7: help;
+   - 8: wrap-up and report.
+3. **Site structure.** `/` is a static, crawlable home page (pitch, templates gallery, getting started, the privacy promise); the editor moves to `/editor/`; help to `/help/…`.
+   - **`/` always shows the home page.** When this browser has saved work it shows a prominent **Continue your diagram** button. `Referrer-Policy: no-referrer` stays.
+   - **Share links to `/#…` still open in the editor:** a small script on `/` (its own file, since the CSP forbids inline scripts) sends `#tf1=…` on to `/editor/#tf1=…`.
+   - The home page and help say that `/editor/` can be bookmarked directly.
+   - The service worker caches every page and falls back per page when offline. Only the editor starts the engine download. A real `404.html` is added.
+4. **Templates: the nine candidates, approved.**
+   - **The list:** basic process, decision flowchart (what the owner meant by "decision tree"; no classification tree for now), algorithm with a loop, swimlane process, left-to-right pipeline, feedback block diagram, PRISMA 2020, state machine, hierarchy.
+   - **Written as hand-written TikZ:** each is idiomatic, opens with no locked blocks, and compiles in CI with pdfLaTeX (the pinned TL2026 image) and with our engine.
+   - **The state machine:** the editor learns `loop above` (and the other loops) and the `automata` library's `initial` and `accepting` if that is moderate work; otherwise the template is written without the `automata` library.
+   - **Opening a template** opens a new tab.
+5. **First run.** A first visit shows an empty state with **Paste TikZ**, **Start blank** and **Start from a template** instead of the sample. The current sample (`src/ui/sample.ts`) becomes the **Basic process** template.
+6. **Help** is plain static HTML generated at build time (crawlable), searched in the browser with an index built at build time. The search library must be GPL-compatible; MiniSearch (MIT) is the plan.
+
+**Why:** the owner's answers to the Milestone 5 plan (2026-10-11).

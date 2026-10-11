@@ -18,9 +18,26 @@ Milestone 0 is done and was approved on 2026-10-07:
 - Push the `m3-engine-ci` branch when needed. Show the download list before CI downloads anything new.
 - All of Milestone 3 is done on `m3-engine-ci` and merged into `trunk` at the end of the milestone (D60).
 
-**Milestone 4 (layout and import): done, reviewed by the owner, merged into `trunk` and live at https://tikzflow.pages.dev (2026-10-11, D88).** The owner approved the two decisions of the report (groups kept together only when they would otherwise cross, and always for import; `$` drawn from Computer Modern with a quiet note for other TS1 symbols). `m4` was merged by fast-forward (`trunk` e76cde4), the production deploy serves the same build as the `m4` preview, and `npm run test:live` against it passes (11 of 11). See "Milestone 4: merged and live" below. **Milestone 5 has not been started** and waits for the owner's go-ahead.
+**Milestone 4 (layout and import): done, reviewed by the owner, merged into `trunk` and live at https://tikzflow.pages.dev (2026-10-11, D88).** The owner approved the two decisions of the report (groups kept together only when they would otherwise cross, and always for import; `$` drawn from Computer Modern with a quiet note for other TS1 symbols). `m4` was merged by fast-forward (`trunk` e76cde4), the production deploy serves the same build as the `m4` preview, and `npm run test:live` against it passes (11 of 11). See "Milestone 4: merged and live" below. The owner has since confirmed that "Report a problem" shows the issue form when signed in.
+
+**Milestone 5 (user experience and website): in progress on `m5` (D89).** SPEC Milestone 5 is split: M5 is the user-facing work, M6 the performance target and the release paperwork (license audit, README). See "M5 plan and status" below.
 
 Also read "Notes for later milestones" below.
+
+## M5 plan and status
+| Step | Content | Status |
+|---|---|---|
+| 0 | `m5` branch; GitHub Actions test workflow (typecheck, Vitest, build, `check:dist`, Playwright in Edge) on every push | In progress |
+| 1 | Two or three visual directions (palette, type, logo and favicon, home page and editor in one look) as screenshots; **checkpoint: the owner picks one** | Not started |
+| 2 | Site structure: home page at `/` (with "Continue your diagram" when there is saved work), editor at `/editor/`, help at `/help/`; share links to `/#…` forwarded to the editor; service worker, offline and `404.html` per page; sitemap | Not started |
+| 3 | The chosen design applied to the home page, help and the editor's chrome; light/dark/system switch; self-hosted fonts; contrast rechecked | Not started |
+| 4 | Nine templates (D89 item 4), with no locked blocks, compiled in CI by pdfLaTeX and our engine; gallery on the home page and in the editor's New menu; the state machine's `loop`/`initial`/`accepting` if moderate | Not started |
+| 5 | First run (Paste TikZ, Start blank, Start from a template; the sample becomes Basic process), the `?` shortcut overlay, the edit flicker (D69 item 4) | Not started |
+| 6 | Multiple tabs (D86 item 5): own code, undo, file, autosave and TeX picture per tab; open, import, share links and templates open a tab; engine stopped while the browser tab is hidden (D69 item 4) | Not started |
+| 7 | Help: static pages from Markdown, client-side search (MiniSearch), screenshots made by a script | Not started |
+| 8 | Goldens, end-to-end, offline and live checks on the `m5` preview; docs; **Milestone 5 report** | Not started |
+
+Milestone 6 (after M5's review): smooth dragging with 200 nodes; license audit and `THIRD_PARTY_LICENSES.md` (the items under "Milestone 5: license audit items" below move there); README with features, screenshots, local setup and deployment.
 
 ## M4 plan and status
 | Step | Content | Status |

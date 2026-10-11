@@ -147,6 +147,7 @@ Features:
 - A layout that takes more than a second shows progress and doesn't freeze the page.
 
 ### Milestone 5: Polish and launch prep
+(Split by D89 into M5, user experience and website, and M6, performance and release paperwork; see "Spec revisions".)
 - Onboarding: an empty state with a "Paste TikZ" button and a "Start blank" button, plus 3–5 example diagrams.
 - Keyboard shortcut reference, plus light and dark themes.
 - Performance target: smooth dragging with 200 nodes.
@@ -230,3 +231,7 @@ Start with Milestone 0. Before writing code, give me a brief plan for the spike 
   - The toolbar's auto-layout keeps the nodes of each group together by default.
   - All user-facing text is in American English ("color", "gray", "center").
   - Added to Milestone 5: multiple tabs, each with its own code, undo history, autosave and preview; opening a file, an import or a share link opens a new tab.
+- **2026-10-11, approving the Milestone 5 plan** (approved by the project owner; reasons in DECISIONS.md D89):
+  - Milestone 5 is split. M5 (user experience and website) keeps onboarding, themes, the shortcut reference and multiple tabs, and adds a home page at `/` (the editor moves to `/editor/`; share links to `/#…` still open in it), nine templates compiled in CI, a searchable static help site, and a visual design picked from two or three directions. The GitHub Actions test workflow moves into M5.
+  - A new Milestone 6 (performance and release paperwork) takes the 200-node drag target, the license audit and `THIRD_PARTY_LICENSES.md`, and the README.
+  - The empty state offers Paste TikZ, Start blank and Start from a template; the templates gallery replaces the "3–5 example diagrams".
