@@ -18,7 +18,7 @@ Milestone 0 is done and was approved on 2026-10-07:
 - Push the `m3-engine-ci` branch when needed. Show the download list before CI downloads anything new.
 - All of Milestone 3 is done on `m3-engine-ci` and merged into `trunk` at the end of the milestone (D60).
 
-**Milestone 4 (layout and import): in progress on the `m4` branch (plan approved 2026-10-10, D77).** `trunk` is the live public beta: nothing is merged into it until everything passes (including `npm run test:live` against the branch's Cloudflare preview) and the owner has reviewed the M4 report. Steps 0–3 are done and the owner reviewed the step 3 checkpoint (D81). **Step 4 is done** ("M4 step 4" below), with the owner's two requests from testing Layout (D82). Next: step 5.
+**Milestone 4 (layout and import): in progress on the `m4` branch (plan approved 2026-10-10, D77).** `trunk` is the live public beta: nothing is merged into it until everything passes (including `npm run test:live` against the branch's Cloudflare preview) and the owner has reviewed the M4 report. Steps 0–4 are done and the owner has reviewed them (D81–D83). **Steps 5 and 6 are done** ("M4 steps 5 and 6" below): import from Mermaid and DOT (D84), the grayscale and colour-blind views and contrast warnings (D85). Next: step 7.
 
 Also read "Notes for later milestones" below.
 
@@ -30,9 +30,56 @@ Also read "Notes for later milestones" below.
 | 2 | Chain nodes made draggable: the whole chain converted to explicit positioning (D77 item 4) | Done (D79) |
 | 3 | Auto-layout with elk.js, written back as relative positioning (D77 items 1, 2); **checkpoint report** | Done (D80); reviewed by the owner (D81) |
 | 4 | Groups and swimlanes with `fit` and `backgrounds`, form B (D81); the banner contrast fix and panning (D82) | Done |
-| 5 | Import from Mermaid and DOT, like Open (D77 item 5) | To do |
-| 6 | Grayscale and colour-blind preview modes, contrast warnings (WCAG AA, D77 item 6) | To do |
-| 7 | The opt-in "Allow reordering statements" layout option (D81 item 4); auto-layout speed on large pictures (see step 4's known limits); goldens, end-to-end, offline and live checks on the preview, docs, report | To do |
+| 5 | Import from Mermaid and DOT, like Open (D77 item 5) | Done (D84) |
+| 6 | Grayscale and colour-blind preview modes, contrast warnings (WCAG AA, D77 item 6) | Done (D85) |
+| 7 | The opt-in "Allow reordering statements" layout option (D81 item 4); auto-layout speed on large pictures, **with progress shown and the page not frozen for any layout over a second** (D83 item 4); rotated lane titles by teaching the quick preview to draw rotated nodes in general, or to Milestone 5 if that isn't small (D83 item 1); **a warning when a style is named like a TikZ key**, such as `step` (D83 item 3); whether Layout keeps groups together by default (D84, decision 1); goldens, end-to-end, offline and live checks on the preview, docs, report | To do |
+
+## M4 steps 5 and 6: import, colour views, contrast warnings (2026-10-11)
+Done on `m4`, committed and pushed, one commit per step as asked; nothing is merged into `trunk`. The owner's decisions on step 4 (rotated lane titles, the default look of lanes and groups, the TikZ-key style warning, progress for slow layouts) are recorded in D83; the three that are work for later are in step 7's row of the table.
+
+### How to try it
+Open https://m4.tikzflow.pages.dev (or `npm run dev`).
+- **Import.** Toolbar **Import**, paste this and press **Import**:
+  ```
+  flowchart TD
+    start([Start]) --> check{In stock?}
+    check -->|yes| pick[Pick items]
+    check -->|no| backorder[(Back-order list)]
+    pick --> ship[/Hand to courier/]
+    backorder -.-> notify>Tell the customer]
+    notify ==> check
+    subgraph fulfil [Fulfilment]
+      pick
+      ship
+    end
+  ```
+  The code pane now holds a standalone TikZ document: styles in `\tikzset`, `\node[decision, below=of start] (check) {In stock?};`, one `\draw` per link, and a `fit` node for the subgraph on the background layer. Drag any node. **Restore previous work** brings back what was on screen; Ctrl+Z undoes the import. Try a DOT graph too (`digraph { rankdir=LR; node [shape=box]; a -> b -> c; subgraph cluster_x { label="Group"; b; c } }`), a wrong one (the error names the line), a sequence diagram (refused by name), and **Direction** in the panel. **Open…** and dropping a `.mmd`, `.dot` or `.gv` file do the same. `test/fixtures/import/` holds six sample files, and `npm run import:report` prints what each becomes.
+- **Colour views.** Toolbar **View**: Grayscale, Red-blind, Green-blind, Blue-blind. The picture is redrawn through the colour matrix; a note over the canvas says so and that the code and exports are unchanged. Try it on an imported diagram with classes (the Mermaid sample above, plus `classDef warn fill:#fde8c8; class backorder,notify warn`).
+- **Contrast.** Paste `\node[draw, fill=yellow, text=white] (pale) at (0,0) {Pale};` in a picture, or open `corpus/se-194593-styled-colors.tex`: the summary says **N low contrast**, a marker sits at the node's corner, Details lists each with its ratio, and with the node selected the properties panel offers **Use black text (21:1)**: one click, one undo step.
+
+### What works
+- **Import (D84).** Mermaid flowcharts and DOT with the features listed in D84: shapes, link kinds, labels, tips, subgraphs and clusters (nested), styles and classes, colours; the rest is named in a note, never dropped silently. The TikZ reads as hand-written and every node comes out editable, placed by `below=of`, `right=of` or `at (a |- b)`.
+- **Group-aware auto-layout (D84).** New option `groups` of `planAutoLayout`: ELK gets the groups as a hierarchy, so a group's nodes stay together and the boxes of interleaved groups don't cross (the fixture `interleaved-teams.mmd` has two teams whose steps alternate: without the option the boxes overlap, with it they don't). **Off by default**, so no picture laid out before changes; the importer turns it on.
+- **Edges that would run through nodes** get the smallest `bend left` or `bend right` that clears them (a loop back to an earlier step, an edge that skips a layer).
+- **Colour views (D85)** and **contrast warnings (D85)** as above. The interface's own text still meets AA in both themes, with the new elements audited too.
+
+### Tests
+- **Vitest:** 1,453 tests in 46 files (was 1,375 in 42). New: `test/import.test.ts` (readers, writer, every fixture through `importDiagram`, groups), `test/import-engine.test.ts` (every fixture, shape, tip and line compiles in TeX without errors; skipped without the engine), `test/contrast.test.ts` (13), `test/vision.test.ts` (8). **No existing golden file changed.**
+- **Playwright:** 154 tests (was 146), all passing: `import.spec.ts` (5), `accessibility.spec.ts` (3), and `contrast.spec.ts` now audits the import panel, the view note, the low-contrast list and the properties note in both themes. `npm run test:offline`: 6 pass (was 5), the new one runs import and the colour views offline under the production policy.
+- `npm run typecheck`, `npm run build` and `npm run check:dist` (1,236 files, 13.1 MiB, the largest 2.85 MiB) pass.
+- **`TIKZFLOW_URL=https://m4.tikzflow.pages.dev npm run test:live`: all 11 pass** (was 10) on the deploy of commit 03ea281: headers and CSP, `.gz`, engine download and cache, offline, elk.js under the policy, **the new check** (a Mermaid and a DOT import laid out under the policy, the colour view drawing, and both again offline), exports, share links.
+
+### Decisions for you
+1. **Group-aware layout for Layout too?** The `groups` option is what keeps an imported diagram's subgraphs from overlapping. As the default for the toolbar's Layout it would also keep every `fit` box's nodes together in hand-written pictures, but it would change the auto-layout golden files of `self-document.tex` and `se-421789-complicated-fit.tex`. I left it off; say if you want it on (step 7 would do it and review the goldens).
+2. **Pastel fills on imported Mermaid, none on DOT.** Mermaid nodes get the sample's pastel fills (`blue!8`, `teal!15`, `orange!15`); DOT nodes are unfilled like Graphviz's. A one-line change per style if you want them the same.
+3. **`\$` in an imported label** is written as TeX wants it, but the TeX preview's engine has no TS1 font (D16), so the preview reports an error on it; real LaTeX is fine. Same limit as for any `\$` in the app today.
+
+### Known limits
+- **Large imports.** 100 nodes import in about a quarter of a second (the edges are straight lines, so the slow part of auto-layout, D80's last stage, has nothing to do). Speed of Layout on large hand-written pictures is still step 7's work, with the owner's requirement of progress for anything over a second (D83 item 4).
+- **An edge to a subgraph** is a straight line to the group's centre and may run through nodes; the bend pass leaves edges to groups alone.
+- **Mermaid:** `click`, icons, markdown strings' emphasis, `direction` inside a subgraph, `@{ }` options other than `shape` and `label`, and the other diagram types aren't imported. **DOT:** ports, `headlabel`/`taillabel`, `constraint`, `rank`, `lhead`/`ltail` and record structure (fields become lines) aren't. Bottom-to-top and right-to-left diagrams are laid out top to bottom and left to right, with a note.
+- **Contrast:** shaded nodes and `text opacity` aren't checked; an edge label's fix is made in the code (the panel for edges has no text colour yet); the page is taken to be white.
+- **Colour views** change the preview only. PDF, SVG and PNG exports are always in the picture's own colours.
 
 ## M4 step 4: groups and swimlanes, contrast, panning (2026-10-11)
 Done on `m4`, committed and pushed; nothing is merged into `trunk`. The owner's decisions on the step 3 checkpoint are recorded in D81 (swimlanes in form B, following the picture's direction; `auto` labels and `--` for lined-up orthogonal edges kept; the new reordering option scheduled for step 7), and their two requests from trying Layout are in D82.
