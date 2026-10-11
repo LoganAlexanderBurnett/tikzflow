@@ -48,7 +48,8 @@ Milestone 6 (after M5's review): smooth dragging with 200 nodes; license audit a
   - **Cause:** those systems ask for the menu on press. The canvas was holding the pointer then, in case the press became a pan (D82). So the menu event's target was the canvas, not the edge, and the menu opened on release found nothing.
   - **Fix:** on release the menu now looks up what is under the pointer.
   - **Why it went unnoticed:** Windows asks on release, so local tests always passed. The same bug is in the live site (since M4 step 4); it will be fixed there when `m5` is merged, unless the owner wants it sooner.
-  - **Tests:** 23 end-to-end tests failed on Linux from this one cause (every test that opens the edge menu).
+  - **Tests:** 23 end-to-end tests failed on Linux from this one cause (every test that opens the edge menu). `pan.spec.ts`'s press-time menu test now stops the browser's own menu events and dispatches a real `MouseEvent`, so it fails on Windows too without the fix (D90).
+- **CI on `m5` (commit 9495c87): green.** Typecheck, Vitest with the engine, build and `check:dist` pass; Playwright passes 156 of 156 end-to-end tests and 6 of 6 offline tests in Edge on Linux.
 
 ### Step 1: three visual directions (checkpoint)
 Static mockups in `spike/design/` (`index.html?d=a|b|c&view=home|editor|board&theme=light|dark`; `node spike/design/shoot.ts` saves the screenshots to `spike/design/shots/`). Each shows a style board (logo, favicon at 16/32/64 px, palette, type, controls), the home page, and the editor in light and dark.
