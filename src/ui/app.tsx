@@ -17,8 +17,11 @@ import { ImportButton } from "./importpanel.tsx";
 import { LayoutButton } from "./layoutpanel.tsx";
 import { startPreview } from "./preview.ts";
 import { PreviewStatus, PreviewToggle, TexBanner } from "./previewstatus.tsx";
+import { contrastMessage, selectContrastIssue } from "./contrastmarks.tsx";
+import { VisionBadge, VisionSelect } from "./visionui.tsx";
 import {
   attachEditor,
+  contrast,
   currentPicture,
   doc,
   fileName,
@@ -71,7 +74,8 @@ function Summary() {
     );
   }
   const kept = Object.entries(s.kept);
-  const details = s.locked.length + s.unknownKeys.length + s.notes.length + kept.length + s.unresolved.length + s.parseErrors;
+  const lowContrast = contrast.value;
+  const details = s.locked.length + s.unknownKeys.length + s.notes.length + kept.length + s.unresolved.length + s.parseErrors + lowContrast.length;
   const t = text.value;
   const errors = doc.value.errors;
   return (
@@ -88,6 +92,11 @@ function Summary() {
         {s.unresolved.length > 0 && (
           <button class="tf-undefined" onClick={() => (open.value = true)} title="Names the code refers to that aren't defined">
             {s.unresolved.length} undefined {s.unresolved.length === 1 ? "name" : "names"}
+          </button>
+        )}
+        {lowContrast.length > 0 && (
+          <button class="tf-low-contrast" data-testid="contrast-count" onClick={() => (open.value = true)} title="Text that is hard to read against its fill (WCAG AA). Details lists each one.">
+            {lowContrast.length} low contrast
           </button>
         )}
         <PreviewStatus />
@@ -128,6 +137,22 @@ function Summary() {
                     : {u.kind === "later" ? "defined only later in the code" : "not defined anywhere"}, used{" "}
                     {u.refs.length === 1 ? "once" : `${u.refs.length} times`}
                     {u.refs.some((r) => r.in === "path") && u.refs.some((r) => r.in === "node") ? " (by nodes and paths)" : u.refs[0]!.in === "path" ? " in paths" : " to place nodes"}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {lowContrast.length > 0 && (
+            <section data-testid="contrast-list">
+              <h3>Low contrast</h3>
+              <p>WCAG AA wants 4.5:1 between text and what it sits on (3:1 for large text). Picking a node shows the fix. The picture's colours stay yours to choose.</p>
+              <ul>
+                {lowContrast.map((i) => (
+                  <li>
+                    <button class="link" onClick={() => selectContrastIssue(i.id)}>
+                      {i.edgeLabel ? `Label "${i.label}"` : (i.name ?? `"${i.label}"`)}
+                    </button>
+                    : {contrastMessage(i)}
                   </li>
                 ))}
               </ul>
@@ -274,6 +299,7 @@ function Toolbar() {
         </label>
       )}
       <PreviewToggle />
+      <VisionSelect />
       <LayoutButton />
       <PageButton />
       <ExportButton />
@@ -371,6 +397,7 @@ export function App() {
           <Palette />
           <div class="tf-stage">
             <TexBanner />
+            <VisionBadge />
             <Canvas />
             <Inspector />
           </div>

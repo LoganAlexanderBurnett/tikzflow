@@ -25,10 +25,11 @@ import { explainLock } from "../model/explain.ts";
 import { cssColor, type RGB } from "../tikz/colors.ts";
 import type { LaidOutNode, PictureLayout } from "../tikz/layout.ts";
 import { ColorPicker, Swatch } from "./colorpicker.tsx";
+import { ContrastNote } from "./contrastmarks.tsx";
 import { EdgePanel, PathPanel } from "./edgepanel.tsx";
 import { GroupPanel } from "./grouppanel.tsx";
 import { StylePanel } from "./stylepanel.tsx";
-import { applyProperty, attachNode, deleteSelection, baseLayout, currentPicture, doc, matchSize, pinNode, scopeStyle, selectedNodes, selection } from "./store.ts";
+import { applyProperty, attachNode, contrast, deleteSelection, baseLayout, currentPicture, doc, matchSize, pinNode, scopeStyle, selectedNodes, selection } from "./store.ts";
 
 function LockCard({ layout, node }: { layout: PictureLayout; node: LaidOutNode }) {
   const candidates = attachCandidates(layout, node).map((n) => n.name!);
@@ -181,6 +182,15 @@ function Properties({ layout, nodes }: { layout: PictureLayout; nodes: LaidOutNo
           <span class="tf-note">To {nodeTitle(nodes[0]!)}, the first node selected.</span>
         </div>
       )}
+
+      {nodes.length === 1 &&
+        (() => {
+          const only = nodes[0]!;
+          const issue = contrast.value.find((i) => i.id === only.id);
+          if (!issue) return null;
+          const fixable = issue.text[0] === only.textColor[0] && issue.text[1] === only.textColor[1] && issue.text[2] === only.textColor[2];
+          return <ContrastNote issue={issue} fixable={fixable} onFix={(colour) => applyProperty({ kind: "nodes", ids: [only.id] }, { kind: "color", key: "text", value: colour }, [], "Set the text colour of")} />;
+        })()}
 
       {COLOR_ROWS.map((row) => {
         const r = resolve(row.key);

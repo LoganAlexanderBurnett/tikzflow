@@ -6,6 +6,7 @@ import { EditorView } from "@codemirror/view";
 import { batch, computed, effect, signal } from "@preact/signals";
 import { autoLayoutMessage, type LayoutDirection, planAutoLayout } from "../edit/autolayout.ts";
 import { applyChanges, type Change, composeChanges } from "../edit/changes.ts";
+import { type ContrastIssue, contrastIssues } from "../edit/contrast.ts";
 import { defaultEntry, edgeHead, type PaletteEntry, paletteEntries, planCreate, type Placement } from "../edit/create.ts";
 import { type EndTarget, findEdge, planConnect, planEnd } from "../edit/edges.ts";
 import { planMakeCurved } from "../edit/curves.ts";
@@ -96,6 +97,12 @@ export const shownEdges = computed<Edge[]>(() => {
 export const summary = computed(() => {
   const l = baseLayout.value;
   return l ? summarize(doc.value, l, currentPicture.value) : null;
+});
+
+/** Text that fails WCAG AA against its fill or what is behind it (D85), in drawing order. */
+export const contrast = computed<ContrastIssue[]>(() => {
+  const l = baseLayout.value;
+  return l ? contrastIssues(l) : [];
 });
 
 /** \coordinate nodes nothing refers to. */

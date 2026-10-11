@@ -1555,3 +1555,57 @@ button.tf-preview-state.busy {
 .tf-canvas.space-pan {
   cursor: grab;
 }
+
+/* The grayscale and colour-blind views (M4 step 6, D85). */
+.tf-vision-badge {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  z-index: 6;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  max-width: calc(100% - 330px);
+  padding: 6px 10px;
+  background: var(--panel);
+  color: var(--fg);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  font-size: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+.tf-vision-badge button {
+  font-size: 12px;
+}
+
+/* Text that fails WCAG AA: the marker on the canvas, the summary's count, the note in the panel (D85). */
+.tf-low-contrast {
+  white-space: nowrap;
+  color: var(--warn-text);
+  border-color: currentColor;
+  font-weight: 600;
+}
+.tf-contrast-mark {
+  cursor: pointer;
+}
+.tf-contrast-mark circle {
+  fill: #fef3c7;
+  stroke: #b45309;
+}
+.tf-contrast-mark path {
+  fill: #78350f;
+}
+.tf-contrast-note {
+  margin: 6px 0 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--lock);
+  border-radius: 6px;
+  font-size: 12px;
+}
+.tf-contrast-note p {
+  margin: 0 0 6px;
+}
+.tf-contrast-note strong {
+  color: var(--warn-text);
+}

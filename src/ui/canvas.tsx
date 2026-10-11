@@ -32,7 +32,9 @@ import type { Shading } from "../tikz/state.ts";
 import { katexMacros, labelHtml } from "./labelHtml.ts";
 import { CompiledPicture } from "./compiled.tsx";
 import { WidthGuide } from "./pagepanel.tsx";
+import { ContrastMarks, selectContrastIssue } from "./contrastmarks.tsx";
 import { labelFix, LabelFixMenu, LabelWarnings } from "./labelwarning.tsx";
+import { VisionFilter, visionFilterAttr } from "./visionui.tsx";
 import { pickBlock, selectedBlock, showingCompiled } from "./preview.ts";
 import {
   activeScope,
@@ -910,6 +912,12 @@ export function Canvas() {
       labelFix.value = { labelId: warnEl.getAttribute("data-label-warning")!, x: e.clientX - (pane?.left ?? 0) + 8, y: e.clientY - (pane?.top ?? 0) + 8 };
       return;
     }
+    // A node whose text is hard to read (D85): select it, or the edge a label is on.
+    const markEl = target.closest("[data-contrast-mark]");
+    if (e.button === 0 && markEl) {
+      selectContrastIssue(markEl.getAttribute("data-contrast-mark")!);
+      return;
+    }
     // An end of the selected edge: drag it to another anchor or node.
     const endEl = target.closest("[data-end]");
     const edge = selectedEdge.value;
@@ -1762,8 +1770,13 @@ export function Canvas() {
       onDrop={onDrop}
       data-testid="canvas"
     >
-      <defs>{gradients}</defs>
+      <defs>
+        {gradients}
+        <VisionFilter />
+      </defs>
       {l && <WidthGuide cx={(l.bounds.minX + l.bounds.maxX) / 2} y0={-v.cy - h / 2 / v.scale} y1={-v.cy + h / 2 / v.scale} scale={v.scale} />}
+      {/* The grayscale and colour-blind views (D85) filter the drawing, not the handles and guides. */}
+      <g filter={visionFilterAttr()} data-testid="drawing">
       <CompiledPicture scale={v.scale} />
       {/* With TeX's picture shown, the native drawing stays only to answer the pointer (D68). */}
       <g class={`tf-native${showingCompiled.value ? " ghost" : ""}`} data-testid="native-drawing">
@@ -1808,6 +1821,7 @@ export function Canvas() {
         </g>
       ))}
       </g>
+      </g>
       {l?.nodes.map((n) =>
         n.kind === "coordinate" ? (
           <CoordinateMark key={`mark-${n.id}`} n={n} scale={v.scale} selected={selIds.includes(n.id)} unused={unusedCoords.value.has(n.id)} />
@@ -1824,6 +1838,7 @@ export function Canvas() {
         {hoverNode && <ConnectHandles n={hoverNode} scale={v.scale} />}
         {edgeDrag.value && l && <EdgeDragOverlay view={edgeDrag.value} layout={l} scale={v.scale} />}
         <LabelWarnings scale={v.scale} hidden={!!overrides.value.size || !!previewLayout.value || !!edgeDrag.value || !!labelEdit.value} />
+        <ContrastMarks scale={v.scale} hidden={!!overrides.value.size || !!previewLayout.value || !!edgeDrag.value || !!labelEdit.value} />
         {selected.map((n) => (
           <rect
             x={f(n.shape.center.x - n.shape.hw - 3 / v.scale)}

@@ -124,12 +124,41 @@ for (const scheme of ["light", "dark"] as const) {
       await expect(page.getByTestId("edge-menu")).toBeVisible();
       await check("edge menu");
       await page.keyboard.press("Escape");
-      for (const panel of ["layout", "page", "share", "export"]) {
+      for (const panel of ["layout", "page", "share", "export", "import"]) {
         await page.getByTestId(`${panel}-button`).click();
         await expect(page.getByTestId(`${panel}-panel`)).toBeVisible();
         await check(`${panel} panel`);
+        if (panel === "import") {
+          // The panel with something to say: an error, then the result with its notes (M4 step 5).
+          await page.getByTestId("import-source").fill("digraph {\n a -> ;\n}");
+          await page.getByTestId("import-run").click();
+          await expect(page.getByTestId("import-error")).toBeVisible();
+          await check("import error");
+          await page.getByTestId("import-source").fill("digraph { a [shape=weirdo]; a -> b [label=<x>] }");
+          await page.getByTestId("import-run").click();
+          await expect(page.getByTestId("import-notes")).toBeVisible();
+          await check("import result");
+          await page.getByTestId("import-close").click();
+          await setCode(page, WARNED);
+          continue;
+        }
         await page.getByTestId(`${panel}-button`).click();
       }
+      // A colour-blind view: its note over the canvas (M4 step 6).
+      await page.getByTestId("vision-select").selectOption("deuteranopia");
+      await expect(page.getByTestId("vision-badge")).toBeVisible();
+      await check("colour-blind view");
+      await page.getByTestId("vision-normal").click();
+      // Text that is hard to read: the summary's list, and the note in the properties panel.
+      await setCode(page, "\\begin{tikzpicture}\n\\node[draw, fill=yellow, text=white] (pale) at (0,0) {Pale};\n\\end{tikzpicture}\n");
+      await expect(page.getByTestId("contrast-count")).toBeVisible();
+      await page.getByTestId("contrast-count").click();
+      await expect(page.getByTestId("contrast-list")).toBeVisible();
+      await check("low contrast list");
+      await page.locator('g[data-node="pale"]').click();
+      await expect(page.getByTestId("contrast-note")).toBeVisible();
+      await check("low contrast note");
+      await setCode(page, WARNED);
       // A lane selected: its card, and the groups section for a node in it (D81).
       await setCode(page, readFileSync(join(import.meta.dirname, "..", "..", "corpus", "self-swimlanes.tex"), "utf8"));
       await page.locator('g[data-node="manager"]').click({ position: { x: 8, y: 8 } });
