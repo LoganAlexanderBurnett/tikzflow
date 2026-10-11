@@ -18,7 +18,7 @@ Milestone 0 is done and was approved on 2026-10-07:
 - Push the `m3-engine-ci` branch when needed. Show the download list before CI downloads anything new.
 - All of Milestone 3 is done on `m3-engine-ci` and merged into `trunk` at the end of the milestone (D60).
 
-**Milestone 4 (layout and import): in progress on the `m4` branch (plan approved 2026-10-10, D77).** `trunk` is the live public beta: nothing is merged into it until everything passes (including `npm run test:live` against the branch's Cloudflare preview) and the owner has reviewed the M4 report. Steps 0–4 are done and the owner has reviewed them (D81–D83). **Steps 5 and 6 are done** ("M4 steps 5 and 6" below): import from Mermaid and DOT (D84), the grayscale and colour-blind views and contrast warnings (D85). Next: step 7.
+**Milestone 4 (layout and import): done on the `m4` branch, waiting for the owner's review (plan approved 2026-10-10, D77).** `trunk` is the live public beta: nothing is merged into it until everything passes (including `npm run test:live` against the branch's Cloudflare preview) and the owner has reviewed the M4 report. Steps 0–4 are done and the owner has reviewed them (D81–D83). Steps 5 and 6 are done (D84, D85) and the owner decided on them (D86). **Step 7 is done (D87): Milestone 4 is complete on `m4` and waits for the owner's review** ("Milestone 4 report" below); `test:live` passes on the m4 preview. Nothing is merged into `trunk` yet.
 
 Also read "Notes for later milestones" below.
 
@@ -32,41 +32,68 @@ Also read "Notes for later milestones" below.
 | 4 | Groups and swimlanes with `fit` and `backgrounds`, form B (D81); the banner contrast fix and panning (D82) | Done |
 | 5 | Import from Mermaid and DOT, like Open (D77 item 5) | Done (D84) |
 | 6 | Grayscale and colour-blind preview modes, contrast warnings (WCAG AA, D77 item 6) | Done (D85) |
-| 7 | The owner's decisions on steps 5–6 (D86): group-aware Layout by default, TS1 fonts for `# Progress
+| 7 | The owner's decisions on steps 5–6 (D86): group-aware Layout by default, TS1 fonts for `\$` (or a quiet note), American English in all user-facing text. The opt-in "Allow reordering statements" layout option (D81 item 4); auto-layout speed on large pictures, **with progress shown and the page not frozen for any layout over a second** (D83 item 4); rotated lane titles by teaching the quick preview to draw rotated nodes in general, or to Milestone 5 if that isn't small (D83 item 1); **a warning when a style is named like a TikZ key**, such as `step` (D83 item 3); whether Layout keeps groups together by default (D84, decision 1); goldens, end-to-end, offline and live checks on the preview, docs, report | Done (D86, D87); **Milestone 4 report** below |
 
-## Current status
-**Milestone 1 (core loop): done and approved (2026-10-07).** The owner's answers and refinements are in DECISIONS.md D31.
+## Milestone 4 report: layout and import (2026-10-11)
+All of Milestone 4 is done on `m4`, committed and pushed; **nothing is merged into `trunk`** (D77 item 7): it waits for the owner's review. Step 7 followed the owner's decisions on steps 5 and 6 (D86) and is recorded in D87; the earlier steps are in the sections below and D77–D85.
 
-Milestone 0 is done and was approved on 2026-10-07:
-- **License:** GPL-3.0-or-later (D14).
-- **Engine:** TikZJax, with our own build in Milestone 3 (D13, D15).
-- **Preview fonts:** always Computer Modern (D16).
+### How to try it
+Open https://m4.tikzflow.pages.dev (or `npm run dev`). New in step 7:
+- **Speed and progress.** Paste a big picture (or run `npm run layout:bench` for the 200-node one) and press **Layout**: it runs in a worker, so the page stays responsive; after a quarter of a second a badge over the canvas says "Step n of 9: …" with **Cancel**. Imports show the same badge.
+- **Allow reordering statements.** Open `corpus/se-218730-arrow-labels.tex`, **Layout**, tick **Allow reordering statements**, **Top to bottom**: `trip` was `below=20cm of init`; now its line (with the nine lines after it in the flow) moves after `decision1` and it reads `below=of decision1`. The status bar names the move; one Ctrl+Z undoes all of it. `corpus/se-78697-tikzset-classic.tex` is a small one (`update` moves after `test`).
+- **Turned nodes.** Paste `spike/engines/probes/p10-rotated-nodes.tex`: nodes with `rotate=` are drawn turned in the quick preview, as TeX draws them. Make lanes in a picture that runs left to right: the titles now stand turned on the lanes' left side.
+- **Styles named like TikZ keys.** Paste `\tikzset{step/.style={draw}}` above a picture that uses `step`: the summary says "Style step is a TikZ key"; Details explains and shows the definition.
+- **`\$`** in a label now draws in the TeX preview. `\textdegree` and other TS1 symbols give a quiet notice, not an error.
+- **American English** everywhere in the interface: "Normal colors", "colorblind", "gray".
 
-**Milestone 2a (nodes and styles): done and approved (2026-10-07).** The owner tested it by hand; their answers are in DECISIONS.md D44 and "M2a review" below.
+Steps 0–6, briefly: **Report a problem** opens the issue form (once merged: GitHub reads forms from the default branch); **group drag** of a multi-selection or a fit node (D78); **chain nodes** made draggable by writing the chain out (D79); **auto-layout** with elk.js written back as relations (D80); **groups and swimlanes** in form B, interface contrast to WCAG AA, panning (D81, D82); **import** from Mermaid and DOT (D84); **grayscale and colorblind views** and **contrast warnings** (D85).
 
-**Milestone 2b (edges): done and approved (2026-10-08).** The owner tested all of it, and the fixes of D57, by hand. Their answers are in DECISIONS.md D58 and "M2b review" below. SPEC.md's revisions log now covers D53–D58.
+### What works (step 7, D87)
+- **Auto-layout speed:** the 200-node, 250-edge bench in **0.8–0.9 s top to bottom and 0.6–0.7 s left to right** (was 22 s and 10 s): straightened edges and labels moved beside their lines are written in batches checked with one layout; the edge model is built once per layout. No golden file changed from this.
+- **Progress and Cancel** for layouts and imports, in a worker (the page's longest stall during a 1.8 s layout: 17 ms).
+- **Groups kept together by default (D86 item 1), when they would otherwise cross:** see "Before and after" below; this is a change from what you asked for, for you to confirm.
+- **Allow reordering statements** (D81 item 4): off by default; safe moves only (top-level lines of their own, nothing in between that names the moved nodes, no paths, scopes or chains passed; every node checked to stay put). On the corpus it improves 10 picture-directions.
+- **Turned nodes** in the quick preview, in general (D83 item 1): shape, text, anchors, borders, positioning and edges. pdfTeX probe `p10-rotated-nodes.tex`: 15 of 17 within 1 pt (was 4); full `npm run fidelity`: no corpus node moved. Row lanes get turned titles.
+- **Warning for styles named like TikZ keys** (D83 item 3), with which keys make TeX stop checked against the engine.
+- **`\$`:** the TS1 fonts would be 5.21 MB gzipped (187 fonts, measured in CI), so they aren't bundled; the preview draws `\$` from Computer Modern with LaTeX's own pre-2020 definition (same width), and other TS1 symbols give a quiet note (D86 item 3, D87).
+- **American English** in all user-facing text, and in identifiers and comments too (D86 item 4).
 
-**Milestone 3 (accurate preview and export): done, awaiting review (merged into `trunk` on 2026-10-09).** Step 1, the CI feasibility check (D15, D59), passed and the owner approved it (D60). Steps 2–5, the four fixes from the M2b review (D58 items 4–7), are done (D61–D64). The owner's decision on step 4's limit is D65. Steps 6–8 are done (D66–D68): the TeX preview works in the app; see "M3 steps 6–8" below. Steps 9–11 are done (D70–D72, with D69's fixes): offline use, the page, and export; see "M3 steps 9–11" below. The owner answered the step 9–11 questions (D73) and steps 12–14 followed (D74, D75): **Milestone 3 is done, merged into `trunk`, and waiting for the owner's review**; see "Milestone 3 report" below. The owner's standing answers:
-- `gh` is logged in with a token for this repo only (Contents, Actions, Workflows: read/write). Report any missing permission instead of working around it.
-- Engine files are published as GitHub Releases and fetched by hash. The TL2026 Docker image is pinned by digest.
-- Push the `m3-engine-ci` branch when needed. Show the download list before CI downloads anything new.
-- All of Milestone 3 is done on `m3-engine-ci` and merged into `trunk` at the end of the milestone (D60).
+### Before and after: the auto-layout golden files
+**Your two pictures, `self-document.tex` and `se-421789-complicated-fit.tex`, don't change** under the default I chose, because always keeping groups together made both worse. This is what "always" would have written (top to bottom):
+```latex
+% self-document.tex, always group-aware (not what Layout does now)
+-  \node[process, below=of check]  (base)   {Return $1$};
++  \node[process, below=8mm of check, xshift=-4mm]  (base)   {Return $1$};
+-  \node[terminal, below=of base]   (stop)   {Stop};
++  \node[terminal, below=of rec]   (stop)   {Stop};
+-  \draw[-{Stealth}] (base)  -- (stop);   % orthogonal return path
++  \draw[-{Stealth}] (base)  |- (stop);   % orthogonal return path
+% se-421789-complicated-fit.tex, always group-aware (not what Layout does now)
+-    \node (r6) [rblock,right=of r3,text width=2cm] {…};
++    \node (r6) [rblock,right=58.8cm of r3,text width=2cm] {…};
+```
+In the first the "yes" edge leans and the return path gets a corner; the second fits only the corner nodes of its row (`fit=(r6) (r9) (r11)`), so the nodes between them were pushed out of the group. Renders of both layouts of each picture are in `spike/autolayout-groups/`. So **Layout keeps groups together only when the plain layout would make two groups' boxes cross, or put a box over another group's node** (the case the importer needed); the importer always does. The golden files that do change:
+- `se-349800-wide-39-nodes.tex` (both directions; its three dashed groups cross in the plain layout), 36 and 38 lines, for example `\node[block, right=of Gene_expression_data] (Normalize)` becomes `\node[block, right=20.4cm of Gene_expression_data] (Normalize)` and `\node[io, below=of Gene_expression_data] (DAVID)` becomes `\node[io, right=of FCM] (DAVID)`. Honestly, neither version of this 39-node picture is good: the plain one runs boxes over other nodes, the grouped one keeps the boxes apart but packs some nodes edge to edge (see the two renders).
+- From a fix to the layout passes (a node no longer lines up with its own old place through another node), two pictures without groups: `se-30929-mixed-absolute.tex` top to bottom, `below=5mm of stoffVor, xshift=2.1cm` becomes `below right=5mm and 6mm of stoffVor`; `se-382997-chains-indented.tex` top to bottom (already listed as unstable), `below right=2.8cm and 30cm of t1` becomes `… and 35cm of t1`.
 
-**Milestone 4 (layout and import): in progress on the `m4` branch (plan approved 2026-10-10, D77).** `trunk` is the live public beta: nothing is merged into it until everything passes (including `npm run test:live` against the branch's Cloudflare preview) and the owner has reviewed the M4 report. Steps 0–4 are done and the owner has reviewed them (D81–D83). **Steps 5 and 6 are done** ("M4 steps 5 and 6" below): import from Mermaid and DOT (D84), the grayscale and colour-blind views and contrast warnings (D85). Next: step 7.
+### Tests
+- **Vitest:** 1,532 tests in 50 files (was 1,453 in 46). New: `test/rotate.test.ts`, `test/stylekeys.test.ts`, `test/stylekeys-engine.test.ts`, `test/golden-reorder.test.ts` (golden files in `test/fixtures/golden/reorder/`), plus reordering and group-decision cases in `test/autolayout.test.ts` and `test/import.test.ts`, and `\$` in `test/import-engine.test.ts`.
+- **Playwright:** 156 tests, all passing (was 154): `stylekeys.spec.ts`, reordering in `autolayout.spec.ts`, and the contrast audit covers the new summary items. `npm run test:offline`: 6 pass (layout and import now run through the worker, under the production policy).
+- `npm run typecheck`, `npm run build`, `npm run check:dist` (sw.js lists 25 app files; elk.js ships once, in the worker's chunk), `npm run layout:bench` and the full `npm run fidelity` pass.
+- **`TIKZFLOW_URL=https://m4.tikzflow.pages.dev npm run test:live`: all 11 pass** on the deploy of commit c46f474 (the preview serves the same build as the local one: same worker file): headers and CSP, `.gz`, engine download and cache, offline, elk.js under the policy and offline, import and the color views, exports, share links.
 
-Also read "Notes for later milestones" below.
+### Decisions for you
+1. **Groups by default:** confirm "only when groups would otherwise cross" instead of always (above). Say if you want always anyway.
+2. **`\$`:** I didn't bundle the TS1 fonts (5.21 MB) and didn't stop at a note either: the preview draws `\$` from Computer Modern, as LaTeX did before 2020. OK?
+3. **Merge:** with your approval of this report, `m4` is merged into `trunk` (the public beta). The issue form starts working then.
 
-## M4 plan and status
-| Step | Content | Status |
-|---|---|---|
-| 0 | `m4` branch, CLAUDE.md rule, Report link to `/issues/new`, issue template, the branch's Cloudflare preview | Done (D77); preview at https://m4.tikzflow.pages.dev, `test:live` passes |
-| 1 | Drag a multi-selection as a group | Done (D78) |
-| 2 | Chain nodes made draggable: the whole chain converted to explicit positioning (D77 item 4) | Done (D79) |
-| 3 | Auto-layout with elk.js, written back as relative positioning (D77 items 1, 2); **checkpoint report** | Done (D80); reviewed by the owner (D81) |
-| 4 | Groups and swimlanes with `fit` and `backgrounds`, form B (D81); the banner contrast fix and panning (D82) | Done |
-| 5 | Import from Mermaid and DOT, like Open (D77 item 5) | Done (D84) |
-| 6 | Grayscale and colour-blind preview modes, contrast warnings (WCAG AA, D77 item 6) | Done (D85) |
- (or a quiet note), American English in all user-facing text. The opt-in "Allow reordering statements" layout option (D81 item 4); auto-layout speed on large pictures, **with progress shown and the page not frozen for any layout over a second** (D83 item 4); rotated lane titles by teaching the quick preview to draw rotated nodes in general, or to Milestone 5 if that isn't small (D83 item 1); **a warning when a style is named like a TikZ key**, such as `step` (D83 item 3); whether Layout keeps groups together by default (D84, decision 1); goldens, end-to-end, offline and live checks on the preview, docs, report | To do |
+### Known limits
+- **Reordering, a second run:** with "Allow reordering statements" on, a second Layout can come out differently, because ELK takes the new code order as the author's (on the corpus: `se-30929` left to right, 2 lines). Without the option, a second run changes nothing, as before.
+- **Turned nodes** can't be resized by dragging (their handles are on the bounding box); the panel and the code can. Path nodes (labels on edges) with their own `rotate` have their text turned but not a drawn border.
+- **Group-aware layout** on hand-written pictures with several groups whose code places nodes far from their flow (`se-349800`) can still give long relations.
+- **Other TS1 symbols** (`\textdegree`, `\texteuro`, `\textmu`) aren't drawn by the TeX preview (a quiet note says so).
+- The limits of steps 0–6 below still hold (large-import edges as straight lines, edges to a subgraph, the importer's unsupported Mermaid and DOT features, contrast of shaded nodes, colorblind views changing the preview only).
+- **Milestone 5** now also has multiple tabs (D86 item 5) in its list.
 
 ## M4 steps 5 and 6: import, colour views, contrast warnings (2026-10-11)
 Done on `m4`, committed and pushed, one commit per step as asked; nothing is merged into `trunk`. The owner's decisions on step 4 (rotated lane titles, the default look of lanes and groups, the TikZ-key style warning, progress for slow layouts) are recorded in D83; the three that are work for later are in step 7's row of the table.
