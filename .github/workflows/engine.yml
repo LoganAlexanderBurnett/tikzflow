@@ -8,7 +8,8 @@ name: Engine
 on:
   push:
     # Milestone 3 ended with the merge into trunk (D75); the work branch's trigger moved here.
-    branches: [trunk]
+    # m4: the TS1 fonts (D87) are built and measured before a release is tagged.
+    branches: [trunk, m4]
     tags: ['engine-*']
 
 permissions:
