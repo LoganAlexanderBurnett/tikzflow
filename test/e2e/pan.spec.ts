@@ -62,16 +62,25 @@ test("a right click that doesn't move opens the edge menu as before", async ({ p
 
 test("a menu asked for on press (macOS, Linux) opens on release if the pointer didn't move, and not after a drag", async ({ page }) => {
   const p = await onEdge(page);
-  const canvas = page.locator("svg.tf-canvas");
+  // The same on every system: the browser's own menu events (on press on Linux, on release on
+  // Windows) are stopped, and the test asks for the menu on press itself, as macOS and Linux do,
+  // with the press's coordinates and the canvas as target (it holds the pointer then, D90).
+  await page.evaluate(() => {
+    window.addEventListener("contextmenu", (e) => { if (e.isTrusted) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
+  });
+  const askOnPress = () =>
+    page.evaluate(({ x, y }) => {
+      document.querySelector("svg.tf-canvas")!.dispatchEvent(new MouseEvent("contextmenu", { clientX: x, clientY: y, button: 2, bubbles: true, cancelable: true }));
+    }, p);
   await page.mouse.move(p.x, p.y);
   await page.mouse.down({ button: "right" });
-  await canvas.dispatchEvent("contextmenu", { clientX: p.x, clientY: p.y, button: 2 });
+  await askOnPress();
   await expect(page.getByTestId("edge-menu")).toHaveCount(0);
   await page.mouse.up({ button: "right" });
   await expect(page.getByTestId("edge-menu")).toBeVisible();
   await page.keyboard.press("Escape");
   await page.mouse.down({ button: "right" });
-  await canvas.dispatchEvent("contextmenu", { clientX: p.x, clientY: p.y, button: 2 });
+  await askOnPress();
   await page.mouse.move(p.x + 50, p.y, { steps: 5 });
   await page.mouse.up({ button: "right" });
   await expect(page.getByTestId("edge-menu")).toHaveCount(0);

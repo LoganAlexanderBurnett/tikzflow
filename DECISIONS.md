@@ -1218,6 +1218,7 @@ The owner confirmed that "Report a problem" shows the issue form when signed in 
 - **Linux is now a test platform, and it found a bug.**
   - **What happened:** on Linux and macOS, Chromium sends `contextmenu` on press. The canvas captured the pointer on that press in case it became a pan (D82). The event's target was therefore the canvas itself, and the menu opened on release (`pendingMenu`) found no edge. Right-clicking an edge did nothing on those systems.
   - **Fix:** the deferred menu looks up `document.elementFromPoint` at the press's position.
-  - **Why it wasn't caught:** Windows sends `contextmenu` on release, after capture ends, so the bug never showed locally. `pan.spec.ts`'s "asked for on press" test also passed on Windows only because Windows' own release event opened the menu again.
+  - **Why it wasn't caught:** Windows sends `contextmenu` on release, after capture ends, so the bug never showed locally. `pan.spec.ts`'s "asked for on press" test also passed on Windows only because Windows' own release event opened the menu again. And its stand-in for the press-time event was Playwright's `dispatchEvent("contextmenu")`, which a diagnostic run on Linux showed to be a plain `Event`, with no button and no coordinates.
+  - **The test now behaves the same on every system.** It stops the browser's own `contextmenu` events, then dispatches a real `MouseEvent` on the canvas at press time. Checked: it fails on Windows without the fix and passes with it.
 
 **Why:** SPEC Milestone 5 ("A GitHub Actions workflow that runs the tests on every push"), moved into M5 step 0 by D89.
