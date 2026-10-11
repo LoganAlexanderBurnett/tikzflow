@@ -18,7 +18,7 @@ Milestone 0 is done and was approved on 2026-10-07:
 - Push the `m3-engine-ci` branch when needed. Show the download list before CI downloads anything new.
 - All of Milestone 3 is done on `m3-engine-ci` and merged into `trunk` at the end of the milestone (D60).
 
-**Milestone 4 (layout and import): done on the `m4` branch, waiting for the owner's review (plan approved 2026-10-10, D77).** `trunk` is the live public beta: nothing is merged into it until everything passes (including `npm run test:live` against the branch's Cloudflare preview) and the owner has reviewed the M4 report. Steps 0–4 are done and the owner has reviewed them (D81–D83). Steps 5 and 6 are done (D84, D85) and the owner decided on them (D86). **Step 7 is done (D87): Milestone 4 is complete on `m4` and waits for the owner's review** ("Milestone 4 report" below); `test:live` passes on the m4 preview. Nothing is merged into `trunk` yet.
+**Milestone 4 (layout and import): done, reviewed by the owner, merged into `trunk` and live at https://tikzflow.pages.dev (2026-10-11, D88).** The owner approved the two decisions of the report (groups kept together only when they would otherwise cross, and always for import; `$` drawn from Computer Modern with a quiet note for other TS1 symbols). `m4` was merged by fast-forward (`trunk` e76cde4), the production deploy serves the same build as the `m4` preview, and `npm run test:live` against it passes (11 of 11). See "Milestone 4: merged and live" below. **Milestone 5 has not been started** and waits for the owner's go-ahead.
 
 Also read "Notes for later milestones" below.
 
@@ -33,6 +33,13 @@ Also read "Notes for later milestones" below.
 | 5 | Import from Mermaid and DOT, like Open (D77 item 5) | Done (D84) |
 | 6 | Grayscale and colour-blind preview modes, contrast warnings (WCAG AA, D77 item 6) | Done (D85) |
 | 7 | The owner's decisions on steps 5–6 (D86): group-aware Layout by default, TS1 fonts for `\$` (or a quiet note), American English in all user-facing text. The opt-in "Allow reordering statements" layout option (D81 item 4); auto-layout speed on large pictures, **with progress shown and the page not frozen for any layout over a second** (D83 item 4); rotated lane titles by teaching the quick preview to draw rotated nodes in general, or to Milestone 5 if that isn't small (D83 item 1); **a warning when a style is named like a TikZ key**, such as `step` (D83 item 3); whether Layout keeps groups together by default (D84, decision 1); goldens, end-to-end, offline and live checks on the preview, docs, report | Done (D86, D87); **Milestone 4 report** below |
+
+## Milestone 4: merged and live (2026-10-11)
+- **Decisions (D88):** groups by default only when they would otherwise cross or cover another group's node, and always for import: approved. `$` from the OT1 Computer Modern fonts with a quiet note for other TS1 symbols: approved.
+- **Merge:** `m4` into `trunk` by fast-forward (`trunk` had no commits `m4` lacked), pushed. The `m4` branch stays on the remote.
+- **Deploy:** https://tikzflow.pages.dev serves `assets/index-r6u77pWV.js`, the same build as https://m4.tikzflow.pages.dev.
+- **`npm run test:live` against https://tikzflow.pages.dev (the default URL): all 11 pass** (headers and CSP, `.gz`, engine download and cache, offline, elk.js under the policy and offline, import and the color views, exports, share links).
+- **"Report a problem":** the live toolbar link is `https://github.com/LoganAlexanderBurnett/tikzflow/issues/new?template=problem.yml` (opens in a new tab), and `.github/ISSUE_TEMPLATE/problem.yml` is on `trunk`, the default branch. **Not yet confirmed that GitHub shows the form:** GitHub asks for sign-in before showing any new-issue page, so it can't be opened without an account, and GitHub's API (`issueTemplates`, community profile) still lists no template several minutes after the push. The file reads as a valid issue form. Open the link while signed in once; if it shows a blank issue instead of the form, tell me and I'll look at the template's syntax.
 
 ## Milestone 4 report: layout and import (2026-10-11)
 All of Milestone 4 is done on `m4`, committed and pushed; **nothing is merged into `trunk`** (D77 item 7): it waits for the owner's review. Step 7 followed the owner's decisions on steps 5 and 6 (D86) and is recorded in D87; the earlier steps are in the sections below and D77–D85.
