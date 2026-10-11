@@ -1,0 +1,81 @@
+# Runs the tests on every push and pull request (SPEC Milestone 5, moved to M5 step 0 by D89):
+# strict type checks, Vitest (with the engine, so the TeX tests run too), the production build and
+# its Cloudflare Pages checks, and the Playwright tests in Edge, including the offline ones.
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  unit:
+    name: Typecheck, Vitest, build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci
+
+      # The engine is not in git (D8): the pinned release, checked by its SHA-256 (engine/release.json).
+      - name: Cache the engine
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: vendor/engine
+          key: engine-${{ hashFiles('engine/release.json') }}
+
+      - run: npm run fetch-engines -- engine
+
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm run check:dist
+
+  e2e:
+    name: Playwright (Edge)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci
+
+      - name: Cache the engine
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: vendor/engine
+          key: engine-${{ hashFiles('engine/release.json') }}
+
+      - run: npm run fetch-engines -- engine
+
+      - name: Install Edge
+        run: npx playwright install --with-deps msedge
+
+      - run: npm run grammar
+      - run: npm run test:e2e
+      - run: npm run test:offline
