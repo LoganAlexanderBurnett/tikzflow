@@ -13,6 +13,7 @@ import { offlineState } from "./offline.ts";
 import { ExportButton } from "./exportpanel.tsx";
 import { ShareButton } from "./sharepanel.tsx";
 import { PageButton } from "./pagepanel.tsx";
+import { ImportButton } from "./importpanel.tsx";
 import { LayoutButton } from "./layoutpanel.tsx";
 import { startPreview } from "./preview.ts";
 import { PreviewStatus, PreviewToggle, TexBanner } from "./previewstatus.tsx";
@@ -215,7 +216,7 @@ function Toolbar() {
             if (!handled) input.current?.click();
           });
         }}
-        title="Open a .tex file"
+        title="Open a .tex file (or a Mermaid or DOT file, which is imported)"
         data-testid="open-button"
       >
         Open…
@@ -223,7 +224,7 @@ function Toolbar() {
       <input
         ref={input}
         type="file"
-        accept=".tex,.tikz,.txt,.pgf"
+        accept=".tex,.tikz,.txt,.pgf,.mmd,.mermaid,.dot,.gv"
         hidden
         onChange={(e) => {
           const f = (e.target as HTMLInputElement).files?.[0];
@@ -245,6 +246,7 @@ function Toolbar() {
       <button onClick={() => replaceDocument(SAMPLE, null, "utf-8")} title="Replace the code with the sample flowchart">
         Sample
       </button>
+      <ImportButton />
       <span class="sep" />
       <button onClick={undoEdit} title="Undo (Ctrl+Z)" aria-label="Undo">
         ↶ Undo

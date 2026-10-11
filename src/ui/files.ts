@@ -4,6 +4,7 @@
 // file chooser and Save a download. Nothing leaves the computer.
 
 import { effect, signal } from "@preact/signals";
+import { detectFormat, IMPORT_EXTENSIONS, type ImportOptions, type ImportResult, importDiagram } from "../import/index.ts";
 import { decode, encode, type Encoding, UnencodableError } from "../source/encoding.ts";
 import { SAMPLE } from "./sample.ts";
 import { decodeShare, isShareHash } from "./share.ts";
@@ -46,7 +47,7 @@ interface PickerWindow {
   showSaveFilePicker?(o: unknown): Promise<FsHandle>;
 }
 const picker = (): PickerWindow => window as unknown as PickerWindow;
-const TEX_TYPES = [{ description: "TeX files", accept: { "text/x-tex": [".tex", ".tikz", ".pgf"], "text/plain": [".txt"] } }];
+const TEX_TYPES = [{ description: "TeX, Mermaid and DOT files", accept: { "text/x-tex": [".tex", ".tikz", ".pgf"], "text/plain": [".txt", ...IMPORT_EXTENSIONS] } }];
 
 /** The browser can open and save files in place. */
 export const canSaveInPlace = (): boolean => typeof picker().showSaveFilePicker === "function" && typeof picker().showOpenFilePicker === "function";
@@ -170,9 +171,58 @@ export async function restorePrevious(): Promise<void> {
 
 // ---- Open ------------------------------------------------------------------------------------
 
+/** Whether a file is a Mermaid or DOT diagram rather than TikZ: by its extension, or by how its text starts. */
+export function isDiagramFile(name: string, t: string): boolean {
+  const lower = name.toLowerCase();
+  if (IMPORT_EXTENSIONS.some((e) => lower.endsWith(e))) return true;
+  return /\.(txt|md)$/.test(lower) && detectFormat(t) !== null;
+}
+
+/** The name an imported diagram is saved under: its own, as .tex. */
+function texName(name: string): string {
+  return name.replace(/\.[^.]*$/, "") + ".tex";
+}
+
+/** What the status bar says after an import. */
+function importMessage(r: ImportResult & { ok: true }, kept: boolean): string {
+  const what = r.format === "mermaid" ? "a Mermaid flowchart" : "a Graphviz graph";
+  const count = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
+  let m = `Imported ${what}: ${count(r.nodes, "node")}, ${count(r.edges, "edge")}${r.groups ? `, ${count(r.groups, "group")}` : ""}, laid out ${r.direction === "down" ? "top to bottom" : "left to right"}.`;
+  if (!r.laidOut) m = m.replace("laid out", "not laid out (placed in a loose grid),");
+  if (kept) m += " Your previous work is kept: Restore previous work brings it back.";
+  for (const n of r.notes) m += ` Note: ${n}`;
+  return m;
+}
+
+/**
+ * Imports a Mermaid or DOT diagram like Open (D77 item 5): the work on screen
+ * is put aside and can be restored, and the diagram replaces it as TikZ. The
+ * text is read and laid out here; nothing is sent anywhere. Returns the result
+ * so the caller can show why it failed.
+ */
+export async function importSource(src: string, name: string | null, options: ImportOptions = {}): Promise<ImportResult> {
+  const r = await importDiagram(src, options);
+  if (!r.ok) {
+    status.value = `Couldn't import: ${r.reason}`;
+    return r;
+  }
+  await putAside();
+  fileHandle.value = null;
+  void del("handle");
+  replaceDocument(r.text, name ? texName(name) : null, "utf-8");
+  // Not saved anywhere yet: the name only suggests where Save puts it.
+  savedText.value = "";
+  status.value = importMessage(r, previousWork.value !== null);
+  return r;
+}
+
 /** Puts a file's text on the canvas. `handle` lets Save write back to it. */
 export async function openBytes(bytes: Uint8Array, name: string, handle: FsHandle | null): Promise<void> {
   const { text: t, encoding: enc } = decode(bytes);
+  if (isDiagramFile(name, t)) {
+    await importSource(t, name);
+    return;
+  }
   await putAside();
   replaceDocument(t, name, enc);
   savedText.value = t;

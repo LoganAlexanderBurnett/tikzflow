@@ -1,0 +1,23 @@
+// A build pipeline: defaults, shapes, a cluster, labels and styles.
+digraph build {
+    rankdir=TB;
+    node [shape=box, style=rounded, fontname="Helvetica"];
+    edge [color=gray30];
+
+    source [label="Source\ncode", shape=folder];
+    lint [label="Lint"];
+    test [label="Unit tests"];
+    ok [label="All green?", shape=diamond];
+    subgraph cluster_deploy {
+        label="Deploy";
+        style=dashed;
+        stage [label="Stage"];
+        prod [label="Production", style="rounded,filled", fillcolor=lightblue];
+        stage -> prod [label="approve"];
+    }
+    source -> lint -> test -> ok;
+    ok -> stage [label="yes"];
+    ok -> source [label="no", style=dashed, color=red];
+    prod -> done [arrowhead=odot];
+    done [shape=doublecircle, label="Done"];
+}

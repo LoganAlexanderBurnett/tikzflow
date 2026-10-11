@@ -1,0 +1,13 @@
+%% An order process: shapes, labels on links, a loop back, styles and classes.
+flowchart TD
+    start([Start]) --> check{In stock?}
+    check -->|Yes| pick[Pick items]
+    check -- No --> backorder[(Back-order list)]
+    pick --> pack[[Pack and label]]
+    pack --> ship[/Hand to courier/]
+    backorder -.-> notify>Tell the customer]
+    notify ==> check
+    ship --> done(((Delivered)))
+    classDef warn fill:#fde8c8,stroke:#d08000,color:#402800
+    class backorder,notify warn
+    style done fill:#d4f4dd,stroke:#2b8a3e,stroke-width:3px

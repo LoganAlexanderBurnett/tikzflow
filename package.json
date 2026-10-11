@@ -28,6 +28,7 @@
     "fidelity": "node scripts/fidelity.ts",
     "layout:bench": "node scripts/layout-bench.ts",
     "autolayout:report": "node scripts/autolayout-report.ts",
+    "import:report": "node scripts/import-report.ts",
     "golden:review": "node scripts/golden-review.ts",
     "dvicheck": "node scripts/dvicheck.ts",
     "pdfcheck": "node scripts/pdfcheck.ts",

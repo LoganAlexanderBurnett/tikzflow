@@ -1,0 +1,10 @@
+graph network {
+    layout=dot;
+    a [label="Router A"];
+    b [label="Router B"];
+    c [label="Switch"];
+    d [label="Server"];
+    a -- b -- c;
+    a -- c [style=bold];
+    c -- d [dir=forward, label="uplink"];
+}

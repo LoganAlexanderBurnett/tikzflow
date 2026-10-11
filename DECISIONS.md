@@ -1110,3 +1110,13 @@ Items 4–7 are scheduled as small steps early in Milestone 3, right after the e
 2. **Panning.** A right-button drag pans from anywhere on the canvas, over nodes and edges too; a right click that moves less than 4 px still opens the edge menu as before. Browsers ask for the menu at different times (on release on Windows, on press on macOS and Linux): a request after a drag that panned is dropped, and one that comes while the button is down waits for the release. A middle drag pans (without the browser's autoscroll), and so does a left drag while Space is held (the cursor shows a hand); Space does that only while the canvas, or nothing, has the focus, so it still types in the code pane and in fields. Only a plain left click on the background clears the selection. `test/e2e/pan.spec.ts`.
 
 **Why:** the owner's notes from trying Layout on the m4 preview (2026-10-11).
+
+## D83: The owner's decisions on step 4 (2026-10-11)
+The owner tried step 4 on the m4 preview (lanes, moving nodes between lanes, auto-layout with lanes, right-click panning, the error banner) and it all works well. Decisions:
+1. **Rotated titles for row lanes: yes**, by teaching the quick preview to draw rotated nodes in general (not by a special case for lane titles). Done in step 7 if small, otherwise moved to Milestone 5.
+2. **The default look of lanes and groups is approved:** light grey lanes, 3 mm padding, a dashed group outline (D81).
+3. **New: warn when a style is defined with the name of a TikZ key** (`step`, which needs a value, is one; found while writing `self-swimlanes.tex`). Step 7.
+4. **New requirement for the auto-layout speed fix (step 7):** a layout that takes more than a second must show progress and must not freeze the page.
+5. **Order of work:** steps 5 and 6 are done one after the other without a pause, a commit after each, then push `m4`, run `test:live` against the `m4` preview, update PROGRESS.md and stop (D77 item 7 still holds: nothing is merged into `trunk` before the owner reviews the M4 report).
+
+**Why:** the owner's notes on step 4 (2026-10-11).

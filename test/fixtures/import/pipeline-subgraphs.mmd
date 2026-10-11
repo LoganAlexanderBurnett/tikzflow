@@ -1,0 +1,14 @@
+graph LR
+    subgraph ingest [Ingest]
+        direction TB
+        api[API] & files[File drop] --> queue[Queue]
+    end
+    subgraph process ["Processing &amp; storage"]
+        parse[Parse] --> validate{Valid?}
+        validate -->|yes| store[(Store)]
+        validate -->|no| reject[Reject]
+    end
+    queue --> parse
+    store --> report[Report]
+    reject -- "retry<br/>later" --> queue
+    report --- ingest
