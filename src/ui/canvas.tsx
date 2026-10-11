@@ -1469,7 +1469,9 @@ export function Canvas() {
         panned.current = d.moved;
         const pending = pendingMenu.current;
         pendingMenu.current = null;
-        if (pending && !d.moved) openContextMenu(pending.target, pending.clientX, pending.clientY);
+        // The event asked for on press went to the canvas, which held the pointer for a pan, so its
+        // target is the canvas itself: look up what is under the pointer instead.
+        if (pending && !d.moved) openContextMenu(document.elementFromPoint(pending.clientX, pending.clientY) ?? pending.target, pending.clientX, pending.clientY);
       }
       return;
     }
