@@ -142,6 +142,9 @@ Features:
 - Accessibility: grayscale and colorblind preview modes, and contrast warnings for text on fills.
 - Auto-layout may reorder statements when the user allows it (off by default).
 - Pan the canvas with a right-button or middle-button drag, or Space+drag; the interface's own text meets WCAG AA contrast.
+- Row lanes get rotated titles, by teaching the quick preview to draw rotated nodes in general (Milestone 5 if that isn't small).
+- Warn when a style is defined with the name of a TikZ key (such as `step`).
+- A layout that takes more than a second shows progress and doesn't freeze the page.
 
 ### Milestone 5: Polish and launch prep
 - Onboarding: an empty state with a "Paste TikZ" button and a "Start blank" button, plus 3–5 example diagrams.
@@ -216,6 +219,8 @@ Start with Milestone 0. Before writing code, give me a brief plan for the spike 
   - Swimlanes are fit boxes on the background layer that share a top and bottom (form B); lanes stand side by side in pictures that run down and lie one above the other in pictures that run across.
   - Added to Milestone 4: an opt-in "Allow reordering statements" option for auto-layout, so a node may be moved later in the code when that is safe and gives a cleaner relation (step 7).
   - Added to Milestone 4: a right-button drag pans the canvas (a right click still opens the menu), as do a middle drag and Space+drag; the interface's own text meets WCAG AA contrast in both themes.
+- **2026-10-11, the owner's decisions on Milestone 4 step 4** (decided by the project owner; reasons in DECISIONS.md D83):
+  - Added to Milestone 4: rotated titles for row lanes (by drawing rotated nodes in the quick preview in general), a warning for a style named like a TikZ key, and progress shown, with the page not frozen, for any layout that takes more than a second. The default look of lanes and groups was approved.
 - **2026-10-09, the owner's answers on Milestone 3 steps 9–11** (decided by the project owner; reasons in DECISIONS.md D73):
   - The engine's files are fetched in the background after the first visit, except on a data-saving or metered connection.
   - The Page panel knows the page of article, report, book, Beamer, elsarticle, IEEEtran, revtex4-2, acmart and llncs (from their options, checked against widths measured with LaTeX itself), takes typed text and column widths that win over the preamble, and saves them under a name per viewer. A class it doesn't know is replaced by article's page in the TeX preview, with a note.
