@@ -17,18 +17,14 @@ export interface FontData {
   chars: Record<string, [number, number, number, string?]>;
 }
 
-/**
- * Combines a TFM file and, when there is one, the Type 1 font with the same name.
- * `encoding` (glyph names by code, from a dvips .enc file) replaces the font's
- * own encoding, as a map line's ReEncodeFont does (cm-super's TS1 fonts, D87).
- */
-export function buildFontData(name: string, tfm: Uint8Array, pfb?: Uint8Array, encoding?: readonly string[]): { font: FontData; missing: number[] } {
+/** Combines a TFM file and, when there is one, the Type 1 font with the same name. */
+export function buildFontData(name: string, tfm: Uint8Array, pfb?: Uint8Array): { font: FontData; missing: number[] } {
   const metrics = parseTfm(tfm);
   const outlines = pfb ? parseType1(pfb) : null;
   const chars: FontData["chars"] = {};
   const missing: number[] = [];
   for (const [code, m] of metrics.chars) {
-    const glyph = encoding ? encoding[code] : outlines?.encoding.get(code);
+    const glyph = outlines?.encoding.get(code);
     const d = glyph !== undefined ? outlines!.glyphs.get(glyph) : undefined;
     if (outlines && d === undefined) missing.push(code);
     chars[code] = d === undefined ? [m.width, m.height, m.depth] : [m.width, m.height, m.depth, d];

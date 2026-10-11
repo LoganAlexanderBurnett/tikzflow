@@ -62,6 +62,15 @@ const BUILT_IN = new Set(["tikz", "pgf", "xcolor", "color", "graphics", "graphic
 /** Packages that would break the compile or the picture's placement, left out silently. */
 const SKIPPED = new Set(["hyperref", "geometry", "fullpage", "showframe", "preview", "tikzexternal", "microtype", "babel", "polyglossia", "csquotes"]);
 
+/**
+ * `\$` and `\textdollar` as LaTeX's OT1 encoding gave them before 2020 (D87): the
+ * dollar of the Computer Modern font in use (slanted in italic, whose slot 36
+ * is a pound sign). LaTeX now takes them from TS1, whose fonts the engine
+ * doesn't carry (5 MB); the CM glyph has the same width. On the first line, so
+ * no line numbers move. Not in exports: the user's own document is untouched.
+ */
+const OT1_DOLLAR = String.raw`\makeatletter\ProvideTextCommand{\textdollar}{OT1}{\hmode@bgroup\ifdim\fontdimen\@ne\font>\z@\slshape\else\upshape\fi\char36\egroup}\makeatother`;
+
 /** Font size commands for the class options 11pt and 12pt (size11.clo, size12.clo): the format is 10pt. */
 /** Classes the preview typesets with as they are: the format's own (standalone, on article's base) and the ones of the same page. Any other class is replaced (D73). */
 const ENGINE_CLASSES = new Set(["article", "report", "book", "standalone", "beamer"]);
@@ -121,7 +130,7 @@ export function buildCompileInput(doc: DocumentModel, index: number, available: 
   };
 
   // Errors don't stop TeX: it carries on and the log says what went wrong (D15 item 5).
-  emit("\\scrollmode\\errorcontextlines=5\\relax");
+  emit(`\\scrollmode\\errorcontextlines=5\\relax${OT1_DOLLAR}`);
 
   /**
    * A preamble: the class's font sizes, then the text before \begin{document} (from the line after

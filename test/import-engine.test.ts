@@ -42,7 +42,7 @@ describe.skipIf(!have)("imported diagrams in TeX", () => {
       lookup: (name) => (files.has(name) ? Promise.resolve(read(`tex_files/${name}.gz`)) : null),
     });
     const log = new TextDecoder("latin1").decode(run.written.get("input.log"));
-    return { errors: parseTexLog(log), missing: run.missing, dvi: run.written.get("input.dvi") };
+    return { errors: parseTexLog(log), missing: run.missing, dvi: run.written.get("input.dvi"), log };
   }
 
   for (const name of existsSync(fixtures) ? readdirSync(fixtures).filter((f) => /\.(mmd|dot|gv)$/.test(f)) : []) {
@@ -87,11 +87,27 @@ describe.skipIf(!have)("imported diagrams in TeX", () => {
   }, 60_000);
 
   it("text with TeX's special characters compiles", async () => {
-    // No "$": the engine has no TS1 font, so \$ is an error there (a limit of the preview, not of the TeX written).
-    const r = await importDiagram('flowchart TD\n a["50% of x & y_z #35;1 {a} ~ ^ \\ <b> | >"] --> b["two<br/>lines"]');
+    // "$" too: the preview draws \$ from Computer Modern (D87).
+    const r = await importDiagram('flowchart TD\n a["50% of x & y_z #35;1 {a} ~ ^ \\ <b> | > $5"] --> b["two<br/>lines"]');
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     const c = await compile(r.text);
     expect(c.errors.map((e) => `${e.line}: ${e.message}`)).toEqual([]);
+    expect(c.log).not.toMatch(/Missing character/);
+  }, 60_000);
+
+  it("\\$ draws in every family, shape and size (D87)", async () => {
+    const c = await compile(String.raw`\documentclass{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+\node {Costs \$5, \textdollar 3, \textbf{\$1} \textit{\$2} \textsl{\$3} \textsf{\$4 \itshape\$5} \texttt{\$6 \itshape\$7} \textbf{\itshape\$8}};
+\node at (0,-1) {\tiny\$ \scriptsize\$ \footnotesize\$ \small\$ \large\$ \Large\$ \LARGE\$ \huge\$ \Huge\$ $\$$};
+\end{tikzpicture}
+\end{document}
+`);
+    expect(c.errors.map((e) => `${e.line}: ${e.message}`)).toEqual([]);
+    expect(c.log).not.toMatch(/Missing character|not loadable/);
+    expect(c.missing.filter((n) => n.endsWith(".tfm"))).toEqual([]);
   }, 60_000);
 });

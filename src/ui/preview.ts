@@ -91,9 +91,16 @@ const classErrors = computed<PreviewError[]>(() => {
   return c?.input.substitutedClass ? allErrors.value.filter((e) => e.inPreamble) : [];
 });
 
+/**
+ * A TS1 font that couldn't be loaded: a text symbol such as \textdegree or \texteuro, whose fonts the
+ * engine doesn't carry (5 MB for all of them, D87; \$ is drawn from Computer Modern instead). Not the
+ * user's to fix, so a quiet notice rather than an error.
+ */
+const ts1Errors = computed<PreviewError[]>(() => allErrors.value.filter((e) => /^Font TS1\//.test(e.message)));
+
 /** Errors of the latest compile that are the user's to fix. */
 export const previewErrors = computed<PreviewError[]>(() => {
-  const hidden = new Set(classErrors.value);
+  const hidden = new Set([...classErrors.value, ...ts1Errors.value]);
   return allErrors.value.filter((e) => !hidden.has(e));
 });
 
@@ -135,6 +142,7 @@ export const previewNotices = computed<string[]>(() => {
   // tikzlibrary… before pgflibrary…), and not finding those is normal.
   const files = c.outcome.missingFiles.filter((f) => /\.(sty|cls)$/.test(f));
   if (files.length) out.push(`TeX asked for files the preview doesn't have: ${list(files.slice(0, 6))}${files.length > 6 ? ", …" : ""}.`);
+  if (ts1Errors.value.length) out.push("The preview has no fonts for text symbols such as \\textdegree or \\texteuro (LaTeX's TS1 encoding), so they are left out of the picture here. LaTeX draws them in your document.");
   if (c.outcome.missingFonts.length) out.push(`Text in ${list(c.outcome.missingFonts)} isn't drawn: the preview has only Computer Modern and the AMS fonts.`);
   if (c.outcome.aborted) out.push("TeX gave up before the end of the picture, so the accurate preview is missing.");
   return out;
