@@ -20,7 +20,7 @@ Milestone 0 is done and was approved on 2026-10-07:
 
 **Milestone 4 (layout and import): done, reviewed by the owner, merged into `trunk` and live at https://tikzflow.pages.dev (2026-10-11, D88).** The owner approved the two decisions of the report (groups kept together only when they would otherwise cross, and always for import; `$` drawn from Computer Modern with a quiet note for other TS1 symbols). `m4` was merged by fast-forward (`trunk` e76cde4), the production deploy serves the same build as the `m4` preview, and `npm run test:live` against it passes (11 of 11). See "Milestone 4: merged and live" below. The owner has since confirmed that "Report a problem" shows the issue form when signed in.
 
-**Milestone 5 (user experience and website): done on `m5`, waiting for the owner's review (D89).** SPEC Milestone 5 is split: M5 is the user-facing work, M6 the performance target and the release paperwork (license audit, README). Steps 0–8 are done; the bug found in the step 6 review is fixed (D98); help (D99) and the neural-network templates (D100) followed. **Nothing is merged into `trunk`.** See "Milestone 5 report" below. See "M5 plan and status" below. **Milestone 7 (neural network diagrams)** was added after M6 by the owner (D96), to be planned later.
+**Milestone 5 (user experience and website): done, reviewed by the owner, merged into `trunk` and live at https://tikzflow.pages.dev (2026-10-12, D101).** SPEC Milestone 5 was split (D89): M5 is the user-facing work, M6 the performance target and the release paperwork (license audit, README). Steps 0–8 are done; the owner's review answers (marker beyond 3 pt, a Neural networks heading, the toolbar wrapping at laptop widths) are D101. See "Milestone 5: merged and live" and "Milestone 5 report" below, and "M5 plan and status". **Milestone 7 (neural network diagrams)** was added after M6 by the owner (D96), to be planned later.
 
 Also read "Notes for later milestones" below.
 
@@ -35,11 +35,19 @@ Also read "Notes for later milestones" below.
 | 5 | First run (Paste TikZ, Start blank, Start from a template; the sample becomes Basic process), the `?` shortcut overlay, the edit flicker (D69 item 4); the summary counts groups (D96 item 3) | Done (D96); reviewed and approved by the owner (D97) |
 | 6 | Multiple tabs (D86 item 5): own code, undo, file, autosave and TeX picture per tab; open, import, share links and templates open a tab; engine stopped while the browser tab is hidden (D69 item 4) | Done (D97); approved (D98). The bug found in review (a node placed diagonally from a trapezium) is fixed, with TeX now reporting where it puts each node (D98; see "Fix after the step 6 review" below) |
 | 7 | Help: static pages from Markdown, client-side search (MiniSearch), screenshots made by a script; what the owner asked for on saving, Recently closed and two windows (D98 item 3) | Done (D99); see "M5 step 7" below |
-| 8 | Goldens, end-to-end, offline and live checks on the `m5` preview; docs; if time allows, two or three neural-network templates the editor handles fully, with which Milestone 7 features they show are needed most (D96 item 4); **Milestone 5 report** | Done (D100); **Milestone 5 report** below, waiting for the owner's review |
+| 8 | Goldens, end-to-end, offline and live checks on the `m5` preview; docs; if time allows, two or three neural-network templates the editor handles fully, with which Milestone 7 features they show are needed most (D96 item 4); **Milestone 5 report** | Done (D100); **Milestone 5 report** below; reviewed, merged and live (D101) |
 
 Milestone 6 (after M5's review): smooth dragging with 200 nodes; license audit and `THIRD_PARTY_LICENSES.md` (the items under "Milestone 5: license audit items" below move there); README with features, screenshots, local setup and deployment; a friendly note on phone-sized screens instead of a cramped editor (D97).
 
 Milestone 7 (after M6, to be planned later; D96 item 4): neural network diagrams. See "Notes for later milestones".
+
+## Milestone 5: merged and live (2026-10-12)
+- **The owner's review (D101):** the placement marker shows only beyond 3 pt (1–3 pt drifts stay in the TeX preview's notes); the neural-network templates have their own "Neural networks" heading in the gallery, the New menu and the start screen; help screenshots without a staleness test: approved; the toolbar must not be cut off down to about 1,100 px. The owner tested the help pages (reading and search) and the three neural-network templates on the `m5` preview and found them working well.
+- **The toolbar:** it wraps instead of scrolling sideways: the file and editing tools, then the picture's view, Export and Share, which drop to their own right-aligned row when the first group takes the width. Checked at 1,100, 1,280, 1,366 and 1,440 px in both themes (`test/e2e/toolbar.spec.ts`, 9 tests): nothing outside the window, no sideways scroll, the Export and Share panels inside the window. With one picture it is one row from 1,366 px up; with a Picture picker or Save as it wraps at 1,440 px too. The 73 px height when it wraps is the cost. Not a "More" menu: every button stays one click away.
+- **Merge:** `m5` into `trunk` by fast-forward (`trunk` had no commits `m5` lacked), 72bb6b2, pushed. The `m5` branch stays on the remote.
+- **Before the merge:** CI on `m5` (72bb6b2) green in all three jobs; locally Vitest 1,715 passed (9 skipped), Playwright 200 of 200, `test:offline` 9 of 9, `typecheck`, `build` and `check:dist` pass; `test:live` against the `m5` preview 16 of 16.
+- **Deploy:** https://tikzflow.pages.dev serves `assets/editor-CYnMst3d.js`, the same build as https://m5.tikzflow.pages.dev. **`npm run test:live` against https://tikzflow.pages.dev (the default URL): all 16 pass.**
+- **Next:** Milestone 6 (smooth dragging with 200 nodes; license audit and `THIRD_PARTY_LICENSES.md`; README; a friendly note on phone-sized screens), when the owner says to start.
 
 ## Milestone 5 report: user experience and website (2026-10-12)
 All of Milestone 5 is on `m5`, committed and pushed; **nothing is merged into `trunk`** (D77 item 7). Steps 0–6 were reviewed one by one (D91, D94, D96, D97, D98); this report covers the fix after the step 6 review and steps 7 and 8, then the milestone as a whole.
@@ -72,6 +80,7 @@ The three templates are in `src/templates/neural-network.tex`, `lstm-cell.tex` a
 - **CI and `test:live`:** **CI on `m5` (6ab8f13): green**, all three jobs (the pdfLaTeX job compiled all thirteen template files with no errors or warnings); CI on the fix commit (ea081a4) was green too. **`TIKZFLOW_URL=https://m5.tikzflow.pages.dev npm run test:live`: 16 of 16** on the deploy of 6ab8f13 (the preview serves `assets/editor-CuByHRu5.js`, the same as the local build), with two new checks: the help pages and search under the policy, and TeX's placement report on the owner's case.
 
 ### Decisions for you
+*(All four were answered on 2026-10-12: see D101.)*
 1. **The placement flag's bar (D98).** You asked for 1pt. Templates: nothing flagged. Hand-written corpus pictures: 50 nodes in 9 of 28 pictures, mostly 1–3pt from estimated text widths, up to 16pt with matrices, `esizebox` or chains. The marker is small and the note quiet; keep 1pt, or flag only beyond 2–3pt?
 2. **Neural-network templates in the one gallery (D100).** They follow the nine in the gallery and New menu (twelve cards). Keep them there, or give them their own heading?
 3. **Help screenshots (D99)** are regenerated by a script but not checked for staleness (interface pictures aren't byte-stable across machines). OK?
@@ -355,6 +364,7 @@ In the first the "yes" edge leans and the return path gets a corner; the second 
 - **`TIKZFLOW_URL=https://m4.tikzflow.pages.dev npm run test:live`: all 11 pass** on the deploy of commit c46f474 (the preview serves the same build as the local one: same worker file): headers and CSP, `.gz`, engine download and cache, offline, elk.js under the policy and offline, import and the color views, exports, share links.
 
 ### Decisions for you
+*(All four were answered on 2026-10-12: see D101.)*
 1. **Groups by default:** confirm "only when groups would otherwise cross" instead of always (above). Say if you want always anyway.
 2. **`\$`:** I didn't bundle the TS1 fonts (5.21 MB) and didn't stop at a note either: the preview draws `\$` from Computer Modern, as LaTeX did before 2020. OK?
 3. **Merge:** with your approval of this report, `m4` is merged into `trunk` (the public beta). The issue form starts working then.
@@ -403,6 +413,7 @@ Open https://m4.tikzflow.pages.dev (or `npm run dev`).
 - **`TIKZFLOW_URL=https://m4.tikzflow.pages.dev npm run test:live`: all 11 pass** (was 10) on the deploy of commit 03ea281: headers and CSP, `.gz`, engine download and cache, offline, elk.js under the policy, **the new check** (a Mermaid and a DOT import laid out under the policy, the colour view drawing, and both again offline), exports, share links.
 
 ### Decisions for you
+*(All four were answered on 2026-10-12: see D101.)*
 1. **Group-aware layout for Layout too?** The `groups` option is what keeps an imported diagram's subgraphs from overlapping. As the default for the toolbar's Layout it would also keep every `fit` box's nodes together in hand-written pictures, but it would change the auto-layout golden files of `self-document.tex` and `se-421789-complicated-fit.tex`. I left it off; say if you want it on (step 7 would do it and review the goldens).
 2. **Pastel fills on imported Mermaid, none on DOT.** Mermaid nodes get the sample's pastel fills (`blue!8`, `teal!15`, `orange!15`); DOT nodes are unfilled like Graphviz's. A one-line change per style if you want them the same.
 3. **`\$` in an imported label** is written as TeX wants it, but the TeX preview's engine has no TS1 font (D16), so the preview reports an error on it; real LaTeX is fine. Same limit as for any `\$` in the app today.
@@ -583,6 +594,7 @@ Three code forms on one sample, an order process with three lanes, all compiled 
 My recommendation is **B**: it looks like a swimlane diagram, its membership is a list the editor already edits, and nodes keep their own relative positions. C is the most familiar look but ties layout to lanes. Each form also has a horizontal-lanes version (rows instead of columns, title on the left).
 
 ### Decisions for you
+*(All four were answered on 2026-10-12: see D101.)*
 1. **Swimlane form** for step 4: A, B or C above (and columns, rows, or both).
 2. **Labels after auto-layout.** A label the new line cuts through is rewritten as `auto` (the form-change rule, D63), not left with a warning marker as after a node drag (D65). On the corpus that is 11 labels. Keep, or leave the markers?
 3. **Orthogonal edges whose ends now line up** are written as `--` (13 on the corpus), or TikZ draws them into the node's centre. That changes their form, which D77 item 1 said to keep; I think a straight line is what such a route is. OK?
@@ -688,6 +700,7 @@ The owner kept the CSP and the `mirror.gcr.io` pull (D76 items 1, 2). `npm run t
 4. Custom domain, if wanted: the Pages project's Custom domains tab.
 
 ### Decisions for you
+*(All four were answered on 2026-10-12: see D101.)*
 1. **The Content-Security-Policy (D75): kept (D76).** It makes the browser refuse any request to another host, which is the hard rule "client-side only" enforced rather than promised. Now checked on Cloudflare itself. (The `mirror.gcr.io` pull is kept too.)
 2. **Metered connections (D73).** The Network Information API has no "metered" flag; I use `saveData`, a cellular connection type, or a 2G effective type. On desktop Chrome neither is reported, so the engine is always fetched there. Enough?
 
@@ -721,6 +734,7 @@ Done in one go on `m3-engine-ci`, as the owner asked, with a commit after each s
 - `npm run typecheck` and `npm run build` pass; `npm run pdfcheck` (diagrams and corpus) is above.
 
 ### Decisions for you
+*(All four were answered on 2026-10-12: see D101.)*
 1. **The background fetch of the whole engine (D70).** After the first visit the app fetches the other ~7 MB of the engine so that every package works offline, not only those the first visit used. The alternative is lazy only (a package not used on the first visit would fail offline). It is one call, `prefetchEngine`, in `startPreview`. Keep?
 2. **Classes whose width is unknown (D71).** Page widths are worked out for article, report, book and Beamer; for IEEEtran, acmart, revtex and the like the panel says it doesn't know and asks for a typed width. I would rather show nothing than a guess. Do you want presets for particular classes (give me the ones you use)?
 3. **Quick preview and `\textwidth` (D71).** The quick preview still reads `\textwidth` and `\columnwidth` inside the picture as 345 pt; the TeX preview now uses the page's values. Fixing it means passing the page through the interpreter. Worth doing in this milestone?
@@ -760,6 +774,7 @@ Done in one go on `m3-engine-ci`, as the owner asked, with commits along the way
 - Screenshots and checks in the app's browser pane, which works this session.
 
 ### Decisions for you
+*(All four were answered on 2026-10-12: see D101.)*
 1. **Our own DVI-to-SVG converter instead of adapting dvi2html (D66 item 2).** The plan said "dvi2html adapted". I wrote our own (about 800 lines with the font readers): dvi2html was only available minified, depends on Node polyfills, targets the ximera driver, and draws text with BaKoMa web fonts whose licence the M5 audit would have to clear and that exports would have to embed. Ours draws text as paths from the AMS fonts (OFL-1.1). dvi2html is no longer used. OK, or do you want dvi2html adapted after all?
 2. **The engine release.** I published `engine-2026-10-09` as a GitHub prerelease of this repo (the plan's "fetch the release by hash"); D59 recorded approval for one prerelease, in step 1. Fine to publish engine releases this way from now on?
 3. **What is compiled.** The user's preamble and the picture, not the document's other text. Font packages are left out (D16), and so are `hyperref`, `geometry`, `babel` and similar ones that only affect pages. `11pt`/`12pt` are honoured; other class options aren't (the format is `standalone`). Is that the right line?
@@ -1118,6 +1133,7 @@ Not answered yet: whether a palette click with nothing selected should continue 
 - Firefox is still untested (see "Any time" below).
 
 ### Decisions for you
+*(All four were answered on 2026-10-12: see D101.)*
 1. **Resizing precision (D40).** Is "within 0.5 mm when the position is relational" acceptable, or should a held edge win over round numbers (shifts in tenths of a millimetre)?
 2. **Enter in the label box applies; Tab applies and adds the next one** (D41). Should Enter add a sibling instead, as in mind-map tools? I kept Enter as "apply" so that the box behaves like the label editor.
 3. **A palette click with nothing selected** puts the node at the view's centre. Would you rather it continue after the last node?
