@@ -65,7 +65,8 @@ Open https://m5.tikzflow.pages.dev/editor/ in a private window (or `npm run dev`
   - `test/e2e/base.ts`: a page's first `goto("/")` opens the Basic process template (D96). `properties.spec.ts` waits for autosave before its reload, since a reload now opens the kept work rather than the sample. Headlines with groups updated (`core-loop`, `templates`).
   - The specs step 5 touched (`firstrun`, `preview`, `properties`) passed 3 times in a row (69 of 69).
 - **`npm run test:offline`:** 8 of 8. The tests open the Basic process template first; the home-page test now checks that the editor offline shows the start screen with the templates' pictures.
-- **`test:live`:** the checks that need a picture open the Basic process template first; the templates check also opens a fresh `/editor/` and checks the start screen and its pictures under the policy.
+- **`test:live`:** the checks that need a picture open the Basic process template first; the templates check also opens a fresh `/editor/` and checks the start screen and its pictures under the policy. **`TIKZFLOW_URL=https://m5.tikzflow.pages.dev npm run test:live`: 13 of 13** on the deploy of the step 5 commit (39058f4; the preview serves `assets/editor-BXIsy5fK.js`, the same as the local build).
+- **CI on `m5` (39058f4): green**, all three jobs.
 - **`typecheck`, `build`, `check:dist`:** pass.
 
 ### Known limits
