@@ -8,7 +8,7 @@ import { addLabelBlocker, flipBlocker } from "../edit/labels.ts";
 import { endBlocker, endStop } from "../edit/edges.ts";
 import { splitBlocker } from "../edit/split.ts";
 import { edgeVertices, isEdgeOperation, nearestLineSegment } from "../edit/vertices.ts";
-import type { Edge } from "../model/edges.ts";
+import { type Edge, LOOP_REASON } from "../model/edges.ts";
 import { anchorPoint, type Point } from "../tikz/shapes.ts";
 import { curveBlocker } from "../edit/curves.ts";
 import { addVertex, baseLayout, deleteSelection, flipLabel, makeCurved, makeOrthogonal, moveEnd, removeVertex, selectedLabelId, splitEdge, startAddLabel, straightenEdge } from "./store.ts";
@@ -285,7 +285,7 @@ export function EdgeMenu({ edge, x, y, at, onClose }: { edge: Edge; x: number; y
 
 /** Add vertex here, Remove vertex. */
 function CornerItems({ edge, at, close, hover }: { edge: Edge; at: EdgeMenuAt; close: () => void; hover: () => void }) {
-  const locked = edge.lock ? "This edge is kept as written." : null;
+  const locked = edge.lock ? "This edge is kept as written." : edge.mode === "loop" ? LOOP_REASON : null;
   const seg = nearestLineSegment(edge, at.at);
   const addWhy =
     locked ??
@@ -313,7 +313,7 @@ function CornerItems({ edge, at, close, hover }: { edge: Edge; at: EdgeMenuAt; c
 
 /** The edge's form: straight, orthogonal or curved. The current one is ticked; the others are what the edge can be turned into. */
 function FormItems({ edge, close, hover }: { edge: Edge; close: () => void; hover: () => void }) {
-  const locked = edge.lock ? "This edge is kept as written." : null;
+  const locked = edge.lock ? "This edge is kept as written." : edge.mode === "loop" ? LOOP_REASON : null;
   const a = edge.route.stops[edge.from]!.point;
   const b = edge.route.stops[edge.to]!.point;
   const lined = Math.abs(a.x - b.x) < 0.5 || Math.abs(a.y - b.y) < 0.5;

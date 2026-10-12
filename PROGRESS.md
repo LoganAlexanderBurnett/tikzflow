@@ -30,14 +30,52 @@ Also read "Notes for later milestones" below.
 | 0 | `m5` branch; GitHub Actions test workflow (typecheck, Vitest, build, `check:dist`, Playwright in Edge) on every push | Done (D90) |
 | 1 | Two or three visual directions (palette, type, logo and favicon, home page and editor in one look) as screenshots; **checkpoint: the owner picks one** | Done: direction A, Manuscript (D91); the edge-menu fix went to `trunk` and is live (D91) |
 | 2 | Site structure: home page at `/` (with "Continue your diagram" when there is saved work), editor at `/editor/`, help at `/help/`; share links to `/#…` forwarded to the editor; service worker, offline and `404.html` per page; sitemap | Done (D92); help pages come in step 7 |
-| 3 | The chosen design applied to the home page, help and the editor's chrome; light/dark/system switch; self-hosted fonts; contrast rechecked | Done (D93); **waiting for the owner's review of the look** (see "M5 steps 2 and 3" below) |
-| 4 | Nine templates (D89 item 4), with no locked blocks, compiled in CI by pdfLaTeX and our engine; gallery on the home page and in the editor's New menu; the state machine's `loop`/`initial`/`accepting` if moderate | Not started |
+| 3 | The chosen design applied to the home page, help and the editor's chrome; light/dark/system switch; self-hosted fonts; contrast rechecked | Done (D93); reviewed and approved by the owner (D94) |
+| 4 | Nine templates (D89 item 4), with no locked blocks, compiled in CI by pdfLaTeX and our engine; gallery on the home page and in the editor's New menu; the state machine's `loop`/`initial`/`accepting` if moderate | Done (D95); **waiting for the owner's review of the templates** (see "M5 step 4" below) |
 | 5 | First run (Paste TikZ, Start blank, Start from a template; the sample becomes Basic process), the `?` shortcut overlay, the edit flicker (D69 item 4) | Not started |
 | 6 | Multiple tabs (D86 item 5): own code, undo, file, autosave and TeX picture per tab; open, import, share links and templates open a tab; engine stopped while the browser tab is hidden (D69 item 4) | Not started |
 | 7 | Help: static pages from Markdown, client-side search (MiniSearch), screenshots made by a script | Not started |
 | 8 | Goldens, end-to-end, offline and live checks on the `m5` preview; docs; **Milestone 5 report** | Not started |
 
 Milestone 6 (after M5's review): smooth dragging with 200 nodes; license audit and `THIRD_PARTY_LICENSES.md` (the items under "Milestone 5: license audit items" below move there); README with features, screenshots, local setup and deployment.
+
+## M5 step 4: templates (2026-10-12)
+The owner approved steps 2 and 3 (D94): the look, the canvas colors, and committed pictures with a staleness test, which the thumbnails now use too. Then step 4 (D95). **Stopped here for the owner's review of the templates.**
+
+### How to try it
+Open https://m5.tikzflow.pages.dev (or `npm run dev`, then http://localhost:5173/).
+- **The home page's gallery:** the thumbnails are TeX's own pictures. Each card opens its template in the editor (`/editor/#template=<id>`); the work that was there is kept (Restore previous work).
+- **The editor's New button** (it replaces Sample): a blank diagram and the nine templates, with thumbnails.
+- **The state machine:** loops, the start arrow and the double circle are drawn by the quick preview too (turn TeX preview off to see it). Right-click a loop: shape changes are disabled with the reason; labels, properties and Delete work.
+- **The code:** `src/templates/*.tex`. All nine are in the step 4 report.
+
+### What works
+- **Nine templates:** Basic process (the sample, unchanged), Decision flowchart, Algorithm with a loop, Swimlane process, Left-to-right pipeline, Feedback block diagram, PRISMA 2020, State machine, Hierarchy.
+  - **Fully editable:** each opens with nothing kept as-is, no unknown keys, nothing the preview can't draw, every edge editable, and every node draggable except group and lane boxes, which follow their members.
+  - **Compiled:** each compiles cleanly with our engine (Vitest) and with pdfLaTeX (a new CI job, which also fails on LaTeX warnings).
+  - **Accurate preview:** each lays out within 1pt of pdfTeX in the quick preview.
+- **The `automata` library and loops are understood** (D95): `state`, `initial`, `accepting` and their variants, `double` lines, loops on all four sides, `every loop`, and the `min`/`max distance` keys.
+- **Quick-preview fixes found on the way** (D95): labels inherit a bare `above` from their path; the default outer sep follows the line width; `\pgflinewidth` follows it too; the trapezium is sized as pgf sizes it. Fidelity for the corpus and older probes went from 376 to 391 of 469 nodes within 1pt; the templates and the new probe are 78 of 78.
+- **An untouched template is not "work":** opening another template doesn't put it aside, and the home page doesn't offer to continue it.
+
+### Tests
+- **Vitest:** 1,589 (45 new).
+  - `test/templates.test.ts`, 34: the catalog; each template fully understood, its nodes draggable, its engine compile and its committed thumbnail; the home page's gallery matches the catalog.
+  - `test/automata.test.ts`, 12.
+  - `site.test.ts`'s picture check moved to `templates.test.ts` (one test fewer there).
+  - Six golden files changed by one rounding step (listed in D95).
+- **Playwright:** 166 end-to-end tests, all passing; `npm run test:offline` 8 of 8.
+  - `templates.spec.ts` is new, 4 tests: the New menu, every template's headline, the home page's link, a loop's menu.
+  - `fixes.spec.ts` now uses `xslant` for its "not drawn" marker, since `double` is drawn.
+  - `core-loop.spec.ts`'s locked-node drag failed once in 15 runs: it could start before the view had fitted the new picture. It now waits for the node to stop moving (45 of 45 since).
+- **Fidelity:** `npm run fidelity` now includes the templates and `p11-automata.tex`; `spike/engines/results/fidelity.json` is updated.
+- **Live:** `test:live` has a new check: the gallery's pictures load under the policy, a card opens its template, and New lists all ten.
+
+### Known limits
+- **Templates replace the work on screen** (it is put aside, as with Open) until tabs come in step 6.
+- **A loop's side and size come from its key:** the editor won't drag or reshape it.
+- **Wide or tall templates** (the pipeline, PRISMA) are small in a gallery card.
+- **The quick preview's text widths are estimates.** PRISMA's boxes are 66mm wide so a line that just fits in TeX doesn't wrap in the preview.
 
 ## M5 steps 2 and 3: the site and the look (2026-10-11)
 The owner chose direction A (D91). The edge-menu fix of D90 went to `trunk` on its own: production serves it, `test:live` passed 11 of 11 there, and a script confirmed the menu opens on a press-time right click (D91). Then steps 2 (D92) and 3 (D93) on `m5`. **Stopped here for the owner's review of the look.**
@@ -57,7 +95,7 @@ Open https://m5.tikzflow.pages.dev (or `npm run dev`, then http://localhost:5173
 - Continue your diagram, read from the kept session without creating the database for a first-time visitor.
 - The service worker keeps both pages, each answering for its own address offline; the home page doesn't fetch the engine.
 - The editor in direction A, light and dark. Dark now follows the switch, not only the system.
-- **Placeholders:** the gallery's thumbnails are the mockup's drawings, and its cards open the editor, until step 4 makes the templates.
+- **Placeholders:** the gallery's thumbnails are the mockup's drawings, and its cards open the editor, until step 4 makes the templates (done: D95).
 
 ### Tests
 - **Vitest:** 1,544 (12 new in `test/site.test.ts`: `pageFor` and the committed home-page picture).

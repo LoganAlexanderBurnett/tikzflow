@@ -261,4 +261,27 @@ test.describe("the site", () => {
     expect(problems).toEqual([]);
     expect(engineAsked).toEqual([]);
   });
+
+  test("the templates (D95): the gallery's pictures load, a card opens its template in the editor, and New lists them all", async ({ page }) => {
+    const problems: string[] = [];
+    page.on("console", (m) => /content security policy|refused to/i.test(m.text()) && problems.push(m.text()));
+    page.on("pageerror", (e) => problems.push(String(e)));
+    await page.goto("/");
+    const thumbs = page.locator(".tcard img");
+    await expect(thumbs).toHaveCount(9);
+    for (const img of await thumbs.all()) {
+      await img.scrollIntoViewIfNeeded();
+      await expect.poll(() => img.evaluate((i) => (i as HTMLImageElement).naturalWidth), { message: (await img.getAttribute("src")) ?? "" }).toBeGreaterThan(0);
+    }
+    await page.locator('a.tcard[href="/editor/#template=state-machine"]').click();
+    await page.waitForSelector(".cm-editor");
+    await expect(page).toHaveURL(/\/editor\/$/);
+    await expect(page.locator(".cm-content")).toContainText("\\usetikzlibrary{automata, positioning, arrows.meta}");
+    await expect(page.getByTestId("summary-headline")).toHaveText("3 nodes and 6 edges editable");
+    await page.getByTestId("new-button").click();
+    await expect(page.getByTestId("new-panel").locator(".tf-new-card")).toHaveCount(10);
+    await page.getByTestId("new-prisma-2020").click();
+    await expect(page.getByTestId("summary-headline")).toHaveText("9 nodes of 12 and 8 edges editable");
+    expect(problems).toEqual([]);
+  });
 });

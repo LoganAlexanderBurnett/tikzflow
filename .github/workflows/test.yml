@@ -49,6 +49,47 @@ jobs:
       - run: npm run build
       - run: npm run check:dist
 
+  # The templates (D95) must compile with real LaTeX too, not only with our engine (the Vitest job):
+  # pdfLaTeX in the pinned TeX Live 2026 image the engine is built from, through Google's mirror of
+  # Docker Hub by the same digest (as page-widths.yml). Any error or LaTeX warning fails the job; the
+  # PDFs are kept as an artifact.
+  templates:
+    name: Templates (pdfLaTeX)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    container:
+      image: mirror.gcr.io/texlive/texlive@sha256:f1c4d2c23f297caee8654dc23eed022c854ca59e899e40666abbd45bab70dceb
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Compile every template
+        run: |
+          mkdir -p out
+          failed=0
+          for f in src/templates/*.tex; do
+            name=$(basename "$f" .tex)
+            if ! pdflatex -interaction=nonstopmode -halt-on-error -output-directory=out "$f" > /dev/null; then
+              echo "::error file=$f::$name doesn't compile with pdfLaTeX"
+              grep -A6 '^!' "out/$name.log" || tail -n 30 "out/$name.log"
+              failed=1
+            elif grep -E 'LaTeX Warning|Package [A-Za-z]+ Warning|Overfull|Underfull|Missing character' "out/$name.log"; then
+              echo "::error file=$f::$name compiles with warnings"
+              failed=1
+            else
+              echo "$name: ok"
+            fi
+          done
+          exit $failed
+
+      - name: Keep the PDFs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: templates-pdf
+          path: out/*.pdf
+
   e2e:
     name: Playwright (Edge)
     runs-on: ubuntu-24.04

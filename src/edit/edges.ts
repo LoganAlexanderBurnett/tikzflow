@@ -11,7 +11,7 @@
 // writes land where they should (to the millimetre), every other point of
 // the path stays exactly where it was, and nothing else in the picture moves.
 import { analyzeDocument, type DocumentModel, layoutDocumentPicture } from "../model/document.ts";
-import { type Edge, pictureEdges } from "../model/edges.ts";
+import { type Edge, LOOP_REASON, pictureEdges } from "../model/edges.ts";
 import { coordNames } from "../model/references.ts";
 import type { PictureSyntax, Range } from "../model/syntax.ts";
 import type { LaidOutNode, LaidOutPath, PictureLayout, Route, RouteStop } from "../tikz/layout.ts";
@@ -345,6 +345,7 @@ export function editPath(text: string, picIndex: number, edge: Edge, edit: PathE
   const pic = doc.syntax.pictures[picIndex];
   if (!layout || !pic) return { ok: false, reason: "There is no picture." };
   if (edge.lock) return { ok: false, reason: `This edge can't be edited: ${edge.lock.message}.` };
+  if (edge.mode === "loop") return { ok: false, reason: LOOP_REASON };
   const route = edge.route;
   const map = edit.map ?? ((k: number) => k);
   const keep = new Map<number, Kept>();
@@ -495,6 +496,7 @@ function endPoint(layout: PictureLayout, t: EndTarget): Point | null {
 /** Why `which` end of `edge` can't be moved, or null if it can. */
 export function endBlocker(edge: Edge, which: "from" | "to"): string | null {
   if (edge.lock) return `This edge can't be edited: ${edge.lock.message}.`;
+  if (edge.mode === "loop") return LOOP_REASON;
   const stop = endStop(edge, which);
   if (stop.item < 0) return "This edge starts at the node its code is written on (\\node ... edge); change that in the code.";
   const split = 'Right-click the edge and choose "Split into separate edges" to give each edge its own \\draw (arrow tips stay where they are), then move it.';

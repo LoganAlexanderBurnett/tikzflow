@@ -146,7 +146,14 @@ test("locked nodes can't be dragged and say why", async ({ page }) => {
   }, "\\begin{tikzpicture}\n\\matrix (m) [matrix of nodes] { a \\\\ };\n\\node[draw, below=of m-1-1] (c) {C};\n\\end{tikzpicture}\n");
   await expect(page.getByTestId("summary-headline")).toContainText("0 nodes of 1");
   const before = await code(page);
-  const box = await nodeBox(page, "c");
+  // The view fits the new picture just after it is drawn: wait until the node stops moving.
+  let box = await nodeBox(page, "c");
+  await expect(async () => {
+    const prev = box;
+    await page.waitForTimeout(100);
+    box = await nodeBox(page, "c");
+    expect([box.x, box.y, box.width]).toEqual([prev.x, prev.y, prev.width]);
+  }).toPass({ timeout: 5000 });
   await drag(page, { x: box.x + box.width / 2, y: box.y + box.height / 2 }, { x: box.x + 60, y: box.y + box.height / 2 + 40 });
   expect(await code(page)).toBe(before);
   await expect(page.getByTestId("status")).toContainText("Locked");

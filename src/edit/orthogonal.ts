@@ -3,7 +3,7 @@
 // `-|` chains, with a single corner where it can (D45): `(a) -| (b)`, else
 // `(a) -- ++(0,-6mm) -| (b)`. Points are written in emitter order (D47).
 import { analyzeDocument, layoutDocumentPicture } from "../model/document.ts";
-import type { Edge } from "../model/edges.ts";
+import { type Edge, LOOP_REASON } from "../model/edges.ts";
 import type { LaidOutNode, PictureLayout, Route } from "../tikz/layout.ts";
 import { anchorPoint, type Point } from "../tikz/shapes.ts";
 import { applyLinear, invert } from "../tikz/state.ts";
@@ -247,6 +247,7 @@ function edgeIn(text: string, picIndex: number, edgeId: string) {
 /** Why an edge can't be made orthogonal or slid, or null. */
 function blocker(edge: Edge): string | null {
   if (edge.lock) return `This edge can't be edited: ${edge.lock.message}.`;
+  if (edge.mode === "loop") return LOOP_REASON;
   if (isEdgeOperation(edge)) return 'This edge is an "edge" operation, which joins its ends directly. Write it with "--" to give it corners.';
   return edgeMiddle(edge).problem;
 }

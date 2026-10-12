@@ -276,7 +276,10 @@ export function EdgePanel() {
             </ul>
           </div>
         )}
-        {!help && <p class="tf-note">{howTo(edge.mode)} Drag an end to another anchor or node. Right-click the edge for more (Add label here too). Drag a label to slide it along the edge; double-click it to edit it.</p>}
+        {!help && edge.mode === "loop" && (
+          <p class="tf-note">A loop starts and ends at the same node. Its side is the key in the code: <code>loop above</code>, <code>below</code>, <code>left</code> or <code>right</code>. Right-click it to add a label; drag a label to slide it along; double-click it to edit it.</p>
+        )}
+        {!help && edge.mode !== "loop" && <p class="tf-note">{howTo(edge.mode)} Drag an end to another anchor or node. Right-click the edge for more (Add label here too). Drag a label to slide it along the edge; double-click it to edit it.</p>}
       </section>
       <EdgeProperties key={edge.id} edge={edge} />
       <div class="tf-actions">

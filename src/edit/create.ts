@@ -213,7 +213,7 @@ function connectionHead(text: string, p: LaidOutPath): string | null {
 /** The `\draw` head of the edge that leads into `node` from another node, for a sibling to copy. */
 function incomingEdge(doc: DocumentModel, layout: PictureLayout, node: LaidOutNode): { from: LaidOutNode; head: string } | null {
   for (const p of layout.paths) {
-    const hit = p.edges.find(([, to]) => to === node.id);
+    const hit = p.edges.find(([f, to]) => to === node.id && f !== node.id);
     if (!hit) continue;
     const from = layout.nodes.find((n) => n.id === hit[0]);
     const head = connectionHead(doc.text, p);

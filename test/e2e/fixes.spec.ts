@@ -83,10 +83,10 @@ test("nodes with options the preview can't draw get a marker", async ({ page }) 
   await page.locator(".cm-line", { hasText: "{Stop}" }).first().click();
   await page.keyboard.press("End");
   await page.keyboard.press("Enter");
-  await page.keyboard.type("  \\node[process, double, right=of stop] (extra) {Extra};");
+  await page.keyboard.type("  \\node[process, xslant=0.3, right=of stop] (extra) {Extra};");
   const marker = page.getByTestId("undrawn-marker");
   await expect(marker).toHaveCount(1);
-  await expect(marker.locator("title")).toHaveText(/The preview doesn't draw: double\./);
+  await expect(marker.locator("title")).toHaveText(/The preview doesn't draw: xslant\./);
 });
 
 test("dragging a node locked by an undefined reference pins it where it is dropped", async ({ page }) => {

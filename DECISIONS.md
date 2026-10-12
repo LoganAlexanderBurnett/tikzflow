@@ -1294,3 +1294,77 @@ The owner confirmed that "Report a problem" shows the issue form when signed in 
 - **Vitest's timeout is 30 s** (was the 5 s default). The corpus-wide tests run each edit on every edge of every picture, or load the engine's packages, and take 2–5 s. Under load they crossed 5 s: locally while the dev server and Edge were busy, and once in CI (`edge-ends.test.ts` on commit 856ab16). The timeout only catches hangs; speed has its own benchmarks.
 
 **Why:** the owner's choice of direction A (D91) and D89 step 3.
+
+## D94: The owner's review of M5 steps 2 and 3 (2026-10-12)
+The owner reviewed the home page, both themes, phone width, Continue your diagram and the 404 page on the `m5` preview.
+
+**Decision:**
+1. **The look (D92, D93): approved.**
+2. **Canvas colors: approved.** Selection and handles are vermilion, alignment guides blue, locked nodes amber (D93).
+3. **Generated pictures are committed, with a test that fails when they are stale, instead of being made at build time (D92): approved.** The template thumbnails follow the same approach (D95).
+
+**Why:** the owner's answers at the review of steps 2 and 3.
+
+## D95: The templates (M5 step 4, 2026-10-12)
+**Decision:**
+- **Files.**
+  - `src/templates/<id>.tex`: the nine templates of D89 item 4, plus `blank.tex` (the New menu's blank diagram; step 5's Start blank reuses it).
+  - `src/templates/catalog.ts`: ids, titles and one-line blurbs, without TeX, so Node scripts can read it.
+  - `src/templates/index.ts`: bundles the code with `import.meta.glob(…, { query: "?raw" })`.
+  - **Basic process is the editor's sample, byte for byte.** `src/ui/sample.ts` imports it, so a session holding the untouched sample still counts as untouched.
+- **One house style.** Every template is a standalone document with `positioning`, named styles in one `\tikzset`, meaningful names, and `>={Stealth[length=2.5mm]}`. The flowchart colors are the sample's: terminals teal, processes blue, decisions orange, I/O gray. Comments say what the less obvious lines do.
+- **What each one shows:**
+  - **Basic process:** the sample: terminal, I/O, decision, processes, one `|-` edge.
+  - **Decision flowchart:** two decisions with Yes/No, a branch that ends, and two branches that meet again (`|-`).
+  - **Algorithm with a loop:** Euclid's algorithm; the way back is `(step.west) -- ++(-8mm,0) |- (test.west)`.
+  - **Swimlane process:** three column lanes in form B (D81): fit boxes on the background layer sharing `lanes top` and `lanes bottom`, with titles.
+  - **Left-to-right pipeline:** seven stages with `right=of`, two of them grouped by a titled `fit` box.
+  - **Feedback block diagram:** a sum junction, controller, plant, branch point and sensor; signs and signals as edge labels with `pos`.
+  - **PRISMA 2020:** the flow diagram for new reviews of databases and registers. Its phases are row lanes (form B, `lanes left` and `lanes right`) with turned titles (D87), so they are groups the editor keeps even.
+  - **State machine:** the `automata` library: states, `initial`, `accepting`, loops and bends, labels by `auto`.
+  - **Hierarchy:** a three-level tree. Lines drop halfway and turn once: `(a.south) -- ++(0,-5mm) -| (b)`.
+- **"No locked blocks"** is tested (`test/templates.test.ts`):
+  - **What it means:**
+    - nothing is kept as-is;
+    - no unknown keys;
+    - nothing that the quick preview can't draw;
+    - no unresolved references and no layout issues;
+    - every edge is editable;
+    - every node except group and lane boxes can be dragged, and the code stays fully understood after the drag.
+  - **Group and lane boxes:** they follow the nodes they fit, so the headline counts them as not editable ("7 nodes of 10"), as it does for the corpus. Dragging one moves its group (D78).
+- **Opening a template.**
+  - **New** replaces Sample in the toolbar. It opens a panel with a blank diagram and the nine templates, each with its thumbnail.
+  - **The home page's cards** link to `/editor/#template=<id>`. Like a share link, the fragment is read on load (or on `hashchange`) and removed from the address.
+  - **The work on screen is put aside, as Open does.** Restore previous work brings it back, and Ctrl+Z undoes. Step 6 changes this to a new tab (D89 item 4).
+  - **An untouched template isn't work** (`isPristine`): it is neither put aside nor offered as Continue your diagram.
+- **Thumbnails are TeX's pictures, committed (D94 item 3).**
+  - **The files:** `npm run site:assets` compiles each template with our engine in Node into `src/site/thumbs/<id>.svg`. The home page's large picture is now `thumbs/basic-process.svg`, so `src/site/assets/sample.svg` is gone.
+  - **Kept current:** `test/templates.test.ts` compiles every template with the engine, requires no errors, and requires that the committed SVG is what the engine draws now.
+  - **The editor:** the New panel imports the same files, so the service worker keeps them for offline use.
+- **pdfLaTeX in CI.** A `templates` job in `test.yml` compiles every `src/templates/*.tex` with pdfLaTeX in the pinned TeX Live 2026 image (the engine's, by digest through `mirror.gcr.io`). It fails on any error or LaTeX warning (overfull and underfull boxes included). The PDFs are kept as an artifact.
+- **The editor learned the `automata` library and loops**, for the state machine (D89 item 4: "if moderate"; it was).
+  - **The library's styles:** `state`, `every state`, `initial` (with `initial text`, `initial where`, `initial distance`, and `initial above` and the like) and `accepting` (`accepting by double`, and `accepting by arrow` with its text, side and distance). They are known only where the document loads `automata`, or has no preamble. They are set before the document's own styles, so the document can redefine `every state`.
+  - **Double lines:** `double` and `double distance` are now drawn natively, on nodes and paths, as pgf draws them: a wide line, with the gap drawn over it. `double` is no longer listed as not drawn.
+  - **The initial and accepting arrows:** an arrow and its text, `initial distance` (3ex) out from the border on the chosen side, drawn with the surrounding state as pgf's "after node path" does.
+  - **Loops:**
+    - **The keys:** `loop`, `loop above`, `below`, `left` and `right`, and `every loop` (`->, shorten >=1pt`).
+    - **What `loop` does:** the `to` ends where it starts, whatever its target says, so the manual's `()` works. When the curve is drawn, `looseness=8` and `min distance=5mm` apply, then `every loop`.
+    - **New keys for any curve:** `min distance`, `max distance`, `distance`, and their `in` and `out` forms now bound the control distances (they were ignored).
+  - **Loops are their own edge form (`loop`).**
+    - **Shape changes are refused,** each with the same reason: Straight, Orthogonal, Curved, corners, curve handles and moving an end. TikZ draws a loop from its key alone. No handles are shown on a selected loop.
+    - **What works on a loop:** labels (add, slide, flip, edit), the edge properties panel, Split, and Delete.
+    - **The panel's note** says how to change a loop's side: change its key in the code.
+  - **One statement per edge.** The state machine writes each edge as its own `\draw (q0) to[loop above] … (q0);`, rather than the manual's single `\path` with chained `edge` operations. That way each edge can be dragged, split and deleted on its own. The chained form is understood too (probe p11).
+- **Found while checking the templates against pdfTeX, and fixed in the quick preview:**
+  1. **Labels and `auto`:**
+     - A bare `above` (or `below`, `left`, `right`) on a path, or on its `to`, sets the anchor of the labels on it. `loop above` relies on this.
+     - `anchor=` and the placement keys turn `auto` off, as in `tikz.code.tex`.
+  2. **The default `outer sep`** is half the node's own line width. It was a fixed 0.2pt, so every `thick` node sat 0.4pt off per step.
+  3. **`\pgflinewidth`** in a length now follows the line width. An `outer sep` that uses it is worked out when the node is made, with the node's final line width, as pgf does.
+  4. **The trapezium's size** now follows `pgflibraryshapes.geometric`. A minimum height or width enlarges the whole shape with its angles kept, unless `trapezium stretches` is set. The text box stays centered. Before, the sample's I/O node was 11pt too narrow, and the loop template's was 57pt too narrow.
+- **Fidelity (`npm run fidelity`, which now also checks the templates).**
+  - **Templates and the new probe:** 78 of 78 nodes within 1pt of pdfTeX. The probe is `spike/engines/probes/p11-automata.tex`: states, `initial` on two sides, `accepting`, loops on all four sides, `every loop` redefined, `()` as a loop's target.
+  - **Corpus and older probes:** 391 of 469 within 1pt, up from 376. No node got worse by more than 0.4pt, and all of those are still within 1pt.
+- **Golden files:** six change, each by one rounding step from the more accurate geometry: two auto-layout distances (`8.2cm`→`8.1cm`, `10.7cm`→`10.8cm`, the latter also in reorder), a nudge (`3mm`→`2mm`), an orthogonal corner (`-7mm`→`-8mm`), and a label side (`auto, swap`→`auto` on a vertical line).
+
+**Why:** D89 item 4 and the owner's approval of the M5 plan; D94 item 3 for the thumbnails.

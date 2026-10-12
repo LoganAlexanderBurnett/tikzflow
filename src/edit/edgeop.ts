@@ -7,7 +7,7 @@
 // draw the same picture, apart from the route, which the edit that asked for
 // the conversion decides.
 import { analyzeDocument, layoutDocumentPicture } from "../model/document.ts";
-import { type Edge, itemFrom, itemTo, pathEdges } from "../model/edges.ts";
+import { type Edge, itemFrom, itemTo, LOOP_REASON, pathEdges } from "../model/edges.ts";
 import type { OptionList, PathItemSyntax } from "../model/syntax.ts";
 import type { LaidOutPath, PictureLayout } from "../tikz/layout.ts";
 import { applyChanges, type Change, composeChanges } from "./changes.ts";
@@ -71,6 +71,7 @@ function removal(text: string, from: number, to: number): Change {
 export function edgeOpBlocker(edge: Edge): string | null {
   if (!isEdgeOperation(edge)) return "This edge isn't an \"edge\" operation.";
   if (edge.lock) return `This edge can't be edited: ${edge.lock.message}.`;
+  if (edge.mode === "loop") return LOOP_REASON;
   const syn = edge.path.syntax;
   if (syn.command !== "\\draw" && syn.command !== "\\path") return `A ${syn.command} statement can't be changed to a plain line without changing how it looks. Write it with "--" in the code.`;
   const start = edge.route.stops[0];

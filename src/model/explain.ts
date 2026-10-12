@@ -129,6 +129,8 @@ export function describeMode(mode: EdgeMode): string {
       return "Orthogonal (|- and -|)";
     case "curved":
       return "Curved";
+    case "loop":
+      return "A loop";
   }
 }
 

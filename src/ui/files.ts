@@ -8,6 +8,7 @@ import { LayoutCancelled, runImport } from "../edit/layoutjobs.ts";
 import { detectFormat, IMPORT_EXTENSIONS, type ImportOptions, type ImportResult } from "../import/index.ts";
 import { decode, encode, type Encoding, UnencodableError } from "../source/encoding.ts";
 import { del, get, put, type Session } from "./kv.ts";
+import { isPristine, templateInfo, templateText } from "../templates/index.ts";
 import { SAMPLE } from "./sample.ts";
 import { decodeShare, isShareHash } from "./share.ts";
 import { encoding, fileName, pictureIndex, replaceDocument, status, text, withProgress } from "./store.ts";
@@ -105,12 +106,18 @@ export function startAutosave(): () => void {
   };
 }
 
-/** Sets the work aside before something replaces it, unless there is nothing worth keeping. */
-async function putAside(): Promise<void> {
+/** Sets the work aside before something replaces it, unless there is nothing worth keeping (empty, or a template as it comes). Says whether it did. */
+async function putAside(): Promise<boolean> {
   const s = currentSession();
-  if (!s.text.trim() || s.text === SAMPLE) return;
+  if (!worthKeeping(s.text)) return false;
   previousWork.value = s;
   await put("previous", s);
+  return true;
+}
+
+/** Work worth putting aside or continuing: not empty, and not a template (or the sample) untouched. */
+export function worthKeeping(text: string): boolean {
+  return !!text.trim() && !isPristine(text);
 }
 
 /** Brings back the work that was put aside. */
@@ -289,6 +296,35 @@ async function takeLink(): Promise<{ text: string; picture: number } | "damaged"
   return shared ?? "damaged";
 }
 
+/** "#template=<id>" in the address, as the home page's gallery links: the template's id, removed from the address like a share link. */
+function takeTemplate(): string | null {
+  const m = /^#template=([a-z0-9-]+)$/.exec(location.hash);
+  if (!m) return null;
+  history.replaceState(null, "", location.pathname + location.search);
+  return m[1]!;
+}
+
+function templateStatus(id: string, kept: boolean): string {
+  const what = templateInfo(id) ? `the ${templateInfo(id)!.title} template` : "a blank diagram";
+  return `Opened ${what}.${kept ? " Your previous work is kept: Restore previous work brings it back." : ""}`;
+}
+
+/** Opens a template (or the blank diagram) in place of the work on screen, which is put aside (D95; a new tab in step 6). */
+export async function openTemplate(id: string): Promise<void> {
+  const t = templateText(id);
+  if (t === undefined) {
+    status.value = "There is no such template.";
+    return;
+  }
+  const kept = text.peek() !== t && (await putAside());
+  fileHandle.value = null;
+  void del("handle");
+  replaceDocument(t, null, "utf-8");
+  savedText.value = t;
+  pictureIndex.value = 0;
+  status.value = templateStatus(id, kept);
+}
+
 /**
  * Chooses what the editor starts with: a shared link if the address has one (the work kept from the last
  * visit is put aside, not lost), else the work kept from the last visit, else the sample.
@@ -297,7 +333,7 @@ export async function restoreOnStart(): Promise<void> {
   const session = await loadSession().catch(() => null);
   const link = await takeLink();
   if (link && link !== "damaged") {
-    previousWork.value = session && session.text !== link.text && session.text.trim() && session.text !== SAMPLE ? session : previousWork.value;
+    previousWork.value = session && session.text !== link.text && worthKeeping(session.text) ? session : previousWork.value;
     if (previousWork.value) void put("previous", previousWork.value);
     fileHandle.value = null;
     void del("handle");
@@ -306,16 +342,37 @@ export async function restoreOnStart(): Promise<void> {
     status.value = "Opened from a link. Your previous work is kept: Restore previous work brings it back.";
     return;
   }
+  const tpl = takeTemplate();
+  const tplText = tpl ? templateText(tpl) : undefined;
+  if (tpl && tplText) {
+    const kept = !!session && session.text !== tplText && worthKeeping(session.text);
+    if (kept) {
+      previousWork.value = session;
+      void put("previous", session);
+    }
+    fileHandle.value = null;
+    void del("handle");
+    setInitialText(tplText);
+    adoptSession({ text: tplText, savedText: tplText, fileName: null, encoding: "utf-8", pictureIndex: 0, savedAt: Date.now() });
+    status.value = templateStatus(tpl, kept);
+    return;
+  }
   if (session) {
     setInitialText(session.text);
     adoptSession(session);
   }
+  if (tpl) status.value = "That template link names no template we have. Your own work is as you left it.";
   if (link === "damaged") status.value = "That link couldn't be read: it may have been cut short. Your own work is as you left it.";
 }
 
 /** Opens a link pasted into the address bar of a page that is already open. */
 export function listenForLinks(): () => void {
   const onHash = () => {
+    const tpl = takeTemplate();
+    if (tpl) {
+      void openTemplate(tpl);
+      return;
+    }
     void takeLink().then(async (link) => {
       if (!link) return;
       if (link === "damaged") {

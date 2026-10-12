@@ -22,6 +22,8 @@ export const CM = PT_PER_UNIT.cm!;
 export interface FontUnits {
   em: number;
   ex: number;
+  /** The current line width, for \pgflinewidth (0.4pt when not given). */
+  lineWidth?: number;
 }
 
 export const DEFAULT_FONT_UNITS: FontUnits = { em: 10, ex: 4.30554 };
@@ -76,6 +78,11 @@ function knownLength(name: string): number | undefined {
   }
 }
 
+/** A length macro's value: \pgflinewidth follows the line width when it is known. */
+function macroLength(name: string, font: FontUnits): number | undefined {
+  return name === "\\pgflinewidth" &&font.lineWidth !== undefined ? font.lineWidth : knownLength(name);
+}
+
 function tokenize(s: string, font: FontUnits): Token[] | null {
   const out: Token[] = [];
   let i = 0;
@@ -102,7 +109,7 @@ function tokenize(s: string, font: FontUnits): Token[] | null {
       } else {
         // A length macro right after a number multiplies it: "0.5\pgflinewidth".
         const cs = /^\s*(\\[a-zA-Z]+)/.exec(rest);
-        const known = cs ? knownLength(cs[1]!) : undefined;
+        const known = cs ? macroLength(cs[1]!, font) : undefined;
         if (cs && known !== undefined) {
           out.push(t, { kind: "op", op: "*" }, { kind: "num", value: known, unit: "pt" });
           i += cs[0].length;
@@ -117,7 +124,7 @@ function tokenize(s: string, font: FontUnits): Token[] | null {
       i += cs[0].length;
       continue;
     }
-    const known = cs ? knownLength(cs[0]) : undefined;
+    const known = cs ? macroLength(cs[0], font) : undefined;
     if (cs && known !== undefined) {
       out.push({ kind: "num", value: known, unit: "pt" });
       i += cs[0].length;
@@ -125,7 +132,6 @@ function tokenize(s: string, font: FontUnits): Token[] | null {
     }
     return null;
   }
-  void font;
   return out;
 }
 

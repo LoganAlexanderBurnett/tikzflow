@@ -22,6 +22,8 @@ export interface ShapeParams {
   aspect: number;
   trapeziumLeftAngle: number;
   trapeziumRightAngle: number;
+  /** "trapezium stretches": a minimum size stretches it instead of enlarging it with its angles kept. */
+  trapeziumStretches?: boolean;
   shapeBorderRotate: number;
 }
 
@@ -114,23 +116,39 @@ export function makeShape(p: ShapeParams, center: Point): NodeShape {
       return { ...base, hw: x, hh: y, polygon: [{ x: 0, y }, { x, y: 0 }, { x: 0, y: -y }, { x: -x, y: 0 }] };
     }
     case "trapezium": {
-      const h = Math.max(2 * iy, p.minHeight);
-      const cotL = 1 / Math.tan((p.trapeziumLeftAngle * Math.PI) / 180);
-      const cotR = 1 / Math.tan((p.trapeziumRightAngle * Math.PI) / 180);
-      const slant = h * (Math.abs(cotL) + Math.abs(cotR));
-      const w = Math.max(2 * ix, p.minWidth - slant);
-      // Interior angles at the bottom: under 90° the bottom side is longer.
-      const bl = { x: -w / 2 - Math.max(0, h * cotL), y: -h / 2 };
-      const tl = { x: -w / 2 + Math.min(0, h * cotL), y: h / 2 };
-      const br = { x: w / 2 + Math.max(0, h * cotR), y: -h / 2 };
-      const tr = { x: w / 2 - Math.min(0, h * cotR), y: h / 2 };
-      let poly = [tl, tr, br, bl];
-      // Center the outline on the text box.
-      const minX = Math.min(...poly.map((q) => q.x));
-      const maxX = Math.max(...poly.map((q) => q.x));
-      const dx = (minX + maxX) / 2;
-      poly = poly.map((q) => ({ x: q.x - dx, y: q.y }));
-      poly = rotatePolygon(poly, p.shapeBorderRotate);
+      // As pgflibraryshapes.geometric does it: the slanted sides add 2y·cot(angle) each. A minimum
+      // height or width enlarges the whole trapezium, angles kept, unless "trapezium stretches".
+      const turn = ((Math.round(p.shapeBorderRotate / 90) * 90) % 360 + 360) % 360;
+      let [x, y] = turn === 90 || turn === 270 ? [iy, ix] : [ix, iy];
+      const cot = (a: number) => {
+        const m = ((a % 360) + 360) % 360;
+        return m === 0 ? 0 : 1 / Math.tan((m * Math.PI) / 180);
+      };
+      let xa = 2 * y * cot(p.trapeziumLeftAngle);
+      let xb = 2 * y * cot(p.trapeziumRightAngle);
+      if (y < p.minHeight / 2) {
+        if (!p.trapeziumStretches) {
+          const k = p.minHeight / 2 / y;
+          x *= k;
+          xa *= k;
+          xb *= k;
+        }
+        y = p.minHeight / 2;
+      }
+      const across = 2 * x + Math.abs(xa) + Math.abs(xb);
+      if (across < p.minWidth) {
+        const k = p.minWidth / across;
+        x *= k;
+        xa *= k;
+        xb *= k;
+        if (!p.trapeziumStretches) y *= k;
+      }
+      // Interior angles at the bottom: under 90° the bottom side is longer. The text box stays centered.
+      const bl = { x: -x - Math.max(0, xa), y: -y };
+      const tl = { x: -x + Math.min(0, xa), y };
+      const br = { x: x + Math.max(0, xb), y: -y };
+      const tr = { x: x - Math.min(0, xb), y };
+      const poly = rotatePolygon([tl, tr, br, bl], p.shapeBorderRotate);
       const hw = Math.max(...poly.map((q) => Math.abs(q.x)));
       const hh = Math.max(...poly.map((q) => Math.abs(q.y)));
       return { ...base, hw, hh, polygon: poly };

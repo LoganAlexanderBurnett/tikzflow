@@ -39,8 +39,10 @@ declare global {
   }
 }
 
-// The corpus, plus targeted probes that pin down one TeX behaviour each.
+// The corpus, the templates (D95), plus targeted probes that pin down one TeX behaviour each.
 const sources = {
+  // The blank diagram draws nothing, so it has nothing to compare.
+  ...Object.fromEntries(Object.entries(import.meta.glob("../../src/templates/*.tex", { query: "?url", import: "default", eager: true }) as Record<string, string>).filter(([k]) => !k.endsWith("/blank.tex"))),
   ...(import.meta.glob("../../corpus/*.tex", { query: "?url", import: "default", eager: true }) as Record<string, string>),
   ...(import.meta.glob("./probes/*.tex", { query: "?url", import: "default", eager: true }) as Record<string, string>),
 };

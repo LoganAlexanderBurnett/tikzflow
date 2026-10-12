@@ -8,7 +8,7 @@ import { Inspector } from "./inspector.tsx";
 import { Palette } from "./palette.tsx";
 import { editorExtensions } from "./editor.ts";
 import { initialText, openFile, openWithPicker, previousWork, restorePrevious, saveFile, saveFileAs, savedText, canSaveInPlace, download } from "./files.ts";
-import { SAMPLE } from "./sample.ts";
+import { NewButton } from "./newpanel.tsx";
 import { offlineState } from "./offline.ts";
 import { ExportButton } from "./exportpanel.tsx";
 import { ShareButton } from "./sharepanel.tsx";
@@ -36,7 +36,6 @@ import {
   pictureCount,
   pictureIndex,
   redoEdit,
-  replaceDocument,
   selectFromCanvas,
   showError,
   showReference,
@@ -340,9 +339,7 @@ function Toolbar() {
       <button onClick={download} title="Download the code as a .tex file" data-testid="download-button">
         <Icon name="download" />Download
       </button>
-      <button onClick={() => replaceDocument(SAMPLE, null, "utf-8")} title="Replace the code with the sample flowchart">
-        <Icon name="file" />Sample
-      </button>
+      <NewButton />
       <ImportButton />
       <span class="sep" />
       <button class="icon-only" onClick={undoEdit} title="Undo (Ctrl+Z)" aria-label="Undo">

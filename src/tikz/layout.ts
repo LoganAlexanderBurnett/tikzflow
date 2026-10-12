@@ -7,7 +7,7 @@ import { type CoordEnv, type CoordResult, evalCoordText, type NameEntry, splitNo
 import { applyKeys, applyStyle, defaultTipLength, defaultTipWidth, KNOWN_SHAPES, parseNodeDistance, SHAPE_LIBRARY, StyleTable } from "./keys.ts";
 import { type KeyValue, parseOptionString } from "./options.ts";
 import { anchorOffset, anchorPoint, borderToward, makeShape, type NodeShape, outline, type Point, shapeBounds } from "./shapes.ts";
-import { applyLinear, applyMatrix, type ArrowTip, initialState, itemCopy, type Matrix, multiply, scopeCopy, type Shading, type SizeTable, type State } from "./state.ts";
+import { applyLinear, applyMatrix, type ArrowTip, type AutomataArrow, initialState, itemCopy, type Matrix, multiply, scopeCopy, type Shading, type SizeTable, type State } from "./state.ts";
 import { CM, evalQuantity, type PageLengths, setPageLengths } from "./units.ts";
 
 export interface LayoutEnv {
@@ -45,6 +45,8 @@ export interface LaidOutNode {
   shading?: Shading;
   shadow: boolean;
   textColor: RGB;
+  /** "double": drawn as two lines with this color between them. */
+  double?: DoubleLine;
   lineWidth: number;
   dash: number[] | null;
   opacity: number;
@@ -76,6 +78,12 @@ export interface LaidOutNode {
   sizing: Sizing;
   /** For a node "on chain": which chain, and whether (and how) the chain placed it. */
   chain?: ChainPlace;
+}
+
+/** A line drawn double: the color between its two lines and the gap (pt). */
+export interface DoubleLine {
+  color: RGB;
+  distance: number;
 }
 
 /** How a chain placed a node: "dir=of prev", with the grid and node distance in effect when "on chain" ran. */
@@ -162,6 +170,8 @@ export interface RouteSeg {
   controls?: number[];
   /** The segment closes the subpath ("cycle"). */
   cycle?: boolean;
+  /** A "loop": it starts and ends at the same node. */
+  loop?: boolean;
 }
 
 /** How a path runs, for editing edges (M2b). */
@@ -187,6 +197,8 @@ export interface LaidOutPath {
   stroke?: RGB;
   fill?: RGB;
   shading?: Shading;
+  /** "double": drawn as two lines with this color between them. */
+  double?: DoubleLine;
   lineWidth: number;
   dash: number[] | null;
   opacity: number;
@@ -603,8 +615,8 @@ function layoutNode(
       st.font = { ...st.font, size: st.font.size * k, baselineskip: st.font.baselineskip * k };
       st.innerXSep *= k;
       st.innerYSep *= k;
-      st.outerXSep *= k;
-      st.outerYSep *= k;
+      st.outerXSep = outerSep(st, st.outerXSep) * k;
+      st.outerYSep = outerSep(st, st.outerYSep) * k;
       st.minWidth *= k;
       st.minHeight *= k;
       st.roundedCorners *= k;
@@ -652,14 +664,15 @@ function layoutNode(
     textDepth: td,
     innerXSep: st.innerXSep,
     innerYSep: st.innerYSep,
-    outerXSep: st.outerXSep,
-    outerYSep: st.outerYSep,
+    outerXSep: outerSep(st, st.outerXSep),
+    outerYSep: outerSep(st, st.outerYSep),
     minWidth,
     minHeight,
     roundedCorners: st.roundedCorners,
     aspect: st.aspect,
     trapeziumLeftAngle: st.trapeziumLeftAngle,
     trapeziumRightAngle: st.trapeziumRightAngle,
+    trapeziumStretches: st.trapeziumStretches,
     shapeBorderRotate: st.shapeBorderRotate,
   };
   const shape0 = makeShape(shapeParams, { x: 0, y: 0 });
@@ -827,6 +840,7 @@ function layoutNode(
   if (name && !syn.name && !st.name) node.implicitName = true;
   if (text) node.text = text;
   if (st.draw && strokeColor) node.stroke = strokeColor;
+  if (st.double) node.double = { color: st.double, distance: st.doubleDistance };
   if (st.fill && fillColor && !st.shading) node.fill = fillColor;
   if (st.shading) node.shading = st.shading;
   if (locked.length) {
@@ -844,6 +858,11 @@ function layoutNode(
   for (const spec of st.labels) {
     const extra = labelNode(spec, node, scope, ctx);
     if (extra) node.extras.push(extra);
+  }
+  // The automata library's "initial" and "accepting" arrows, drawn after the node.
+  for (const which of ["initial", "accepting"] as const) {
+    const arrow = st[which];
+    if (arrow?.on && kind !== "coordinate") automataArrow(which, arrow, node, scope, ctx);
   }
 
   if (name) ctx.names.set(name, { shape, nodeId: id });
@@ -1014,6 +1033,81 @@ function labelNode(spec: string, owner: LaidOutNode, scope: Scope, ctx: Ctx): La
   return extra;
 }
 
+/**
+ * automata's "initial by arrow" and "accepting by arrow" (tikzlibraryautomata.code.tex): a text node
+ * "initial distance" (3ex) out from the node's border on the chosen side, anchored to face it, and an
+ * arrow from that point into the node ("initial") or from the node out to it ("accepting"). The arrow
+ * is drawn with the surrounding state, as an "edge" after the node is.
+ */
+function automataArrow(which: "initial" | "accepting", a: AutomataArrow, owner: LaidOutNode, scope: Scope, ctx: Ctx): void {
+  const angle = { right: 0, above: 90, left: 180, below: 270 }[a.where];
+  const anchor = { right: "west", above: "south", left: "east", below: "north" }[a.where];
+  const st = itemCopy(scope.state);
+  const kc = keyCtx(ctx, scope.styles.child());
+  const dist = evalQuantity(a.distance, { em: st.font.size, ex: st.font.size * 0.430554 });
+  const border = anchorPoint(owner.shape, String(angle));
+  if (!dist || !border) return;
+  const r = (angle * Math.PI) / 180;
+  const at = { x: border.x + Math.cos(r) * dist.value, y: border.y + Math.sin(r) * dist.value };
+
+  const text = layoutLabel(a.text, { font: st.font, color: st.textColor ?? st.color }, ctx.labelEnv);
+  const shape0 = makeShape({ ...LABEL_SHAPE, textWidth: text.width, textHeight: text.height, textDepth: text.depth, innerXSep: st.innerXSep, innerYSep: st.innerYSep }, { x: 0, y: 0 });
+  const off = anchorOffset(shape0, anchor) ?? { x: 0, y: 0 };
+  const center = { x: at.x - off.x, y: at.y - off.y };
+  if (a.text.trim()) {
+    owner.extras.push({
+      id: `${owner.id}/${which}`,
+      kind: "path",
+      syntax: owner.syntax,
+      statement: owner.statement,
+      shape: { ...shape0, center },
+      text,
+      textOrigin: { x: center.x - text.width / 2, y: center.y + (text.height + text.depth) / 2 },
+      shadow: false,
+      textColor: st.textColor ?? st.color,
+      lineWidth: st.lineWidth,
+      dash: null,
+      opacity: st.opacity,
+      fillOpacity: 1,
+      extras: [],
+      position: { kind: "path", refs: [], anchor },
+      frame: st.matrix,
+      units: { x: Math.hypot(...st.xUnit), y: Math.hypot(...st.yUnit) },
+      vectorScale: 1,
+      nodeDistance: st.nodeDistance,
+      onGrid: false,
+      unknownKeys: [],
+      unrendered: [],
+      layer: owner.layer,
+      sizing: { natural: { w: 2 * shape0.hw, h: 2 * shape0.hh }, min: { w: 0, h: 0 }, minContent: () => 0 },
+    });
+  }
+
+  // "[->, double=none, every initial by arrow] (at) node {…} -- (node)", as an edge.
+  applyStyle(st, "every edge", kc);
+  st.draw = true;
+  applyKeys(st, [{ key: "->" }, { key: "double", value: "none" }], kc);
+  applyStyle(st, `every ${which} by arrow`, kc);
+  const onBorder = borderToward(owner.shape, at);
+  const seg: Segment = which === "initial" ? { kind: "line", from: at, to: onBorder } : { kind: "line", from: onBorder, to: at };
+  const syn: PathSyntax = { from: owner.statement.from, to: owner.statement.to, command: which, keyword: owner.statement, items: [] };
+  emitPath(`${which}@${owner.id}`, syn, owner.statement, { segments: [seg], subpathStarts: [0], extra: [], connects: [owner.id], edges: [], issues: [] }, st, ctx);
+}
+
+/** The shape options of a plain text node (a label or an automata arrow's text). */
+const LABEL_SHAPE = {
+  kind: "rectangle",
+  outerXSep: 0,
+  outerYSep: 0,
+  minWidth: 0,
+  minHeight: 0,
+  roundedCorners: 0,
+  aspect: 1,
+  trapeziumLeftAngle: 60,
+  trapeziumRightAngle: 60,
+  shapeBorderRotate: 0,
+} as const;
+
 /** Anchors a "label=" may be placed at instead of an angle, with the direction each one stands for. */
 const LABEL_COMPASS = new Map([["east", 0], ["north east", 45], ["north", 90], ["north west", 135], ["west", 180], ["south west", 225], ["south", 270], ["south east", 315]]);
 /** The label's own anchor for each 45-degree sector of its direction, from 0 (east) on. */
@@ -1103,8 +1197,8 @@ function toSegment(a: PathPoint, b: PathPoint, st: State): Segment {
     to = clipAngle(b, inA);
   }
   const dist = Math.hypot(to.x - from.x, to.y - from.y) * 0.3915;
-  const d1 = dist * st.outLooseness;
-  const d2 = dist * st.inLooseness;
+  const d1 = Math.min(Math.max(dist * st.outLooseness, st.outMin), st.outMax);
+  const d2 = Math.min(Math.max(dist * st.inLooseness, st.inMin), st.inMax);
   const r1 = (outA * Math.PI) / 180;
   const r2 = (inA * Math.PI) / 180;
   return {
@@ -1246,6 +1340,12 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint, 
       const t = probe.pos ?? (pn.after ? 0.5 : 1);
       const where = seg ? segPoint(seg, t) : { point: at, angle: 0 };
       let synEff = pn.syn;
+      // A bare "above" (or the like) on the path or its "to" sets the anchor of the labels on it, as "loop above" does.
+      const inherited = nodeState.placement?.kind === "relative" && !nodeState.placement.of && !nodeState.placement.shift ? nodeState.placement.dir : null;
+      if (inherited && pn.syn.kind !== "coordinate") {
+        const item = { from: 0, to: 0, key: inherited, keyRange: { from: 0, to: 0 } };
+        synEff = { ...pn.syn, options: [{ from: 0, to: 0, items: [item], commas: [] }, ...pn.syn.options] };
+      }
       // "auto" puts the label on the left of the direction of travel ("swap": right).
       const explicit = pn.syn.options.some((o) => o.items.some((i) => /^(above|below|left|right)( (left|right))?$|^anchor$/.test(i.key)));
       if (probe.autoLabels && !explicit && seg && pn.syn.kind !== "coordinate") {
@@ -1257,7 +1357,7 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint, 
         const ns = side(-Math.sin(normal), "south", "north");
         const ew = side(-Math.cos(normal), "west", "east");
         const anchorItem = { from: 0, to: 0, key: "anchor", keyRange: { from: 0, to: 0 }, value: [ns, ew].filter(Boolean).join(" ") };
-        synEff = { ...pn.syn, options: [...pn.syn.options, { from: 0, to: 0, items: [anchorItem], commas: [] }] };
+        synEff = { ...synEff, options: [...synEff.options, { from: 0, to: 0, items: [anchorItem], commas: [] }] };
       }
       // Path coordinates ("coordinate (m)") are named points, kept with the nodes.
       const placed = layoutNode(synEff, scope, ctx, pn.syn.kind === "coordinate" ? "coordinate" : "path", nodeState, syn, where);
@@ -1416,7 +1516,9 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint, 
             break;
           }
         }
-        const r = evalAt(it.coord, base);
+        // "loop" (topaths) ends the "to" where it started, whatever its target says: often "()".
+        const loopFrom = (op === "to" || op === "edge") && opState?.loop ? cur : null;
+        const r: CoordResult = loopFrom ? { ok: true, point: loopFrom.point, ...(loopFrom.node ? { node: loopFrom.node } : {}), refs: [] } : evalAt(it.coord, base);
         pathRefs.push(...r.refs);
         if (!r.ok) {
           const opaqueRef = r.refs.find((n) => mayBeOpaqueName(ctx.out, n));
@@ -1488,12 +1590,22 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint, 
         } else if (op === "-|") {
           const corner = { x: target.point.x, y: cur.point.y };
           seg = { kind: "hv", from: clip(cur, corner), to: clip(target, corner) };
-        } else seg = toSegment(cur, target, opState ?? st);
+        } else {
+          if (loopFrom && opState) {
+            // What the loop's own "to path" sets when it runs, after the options written with it.
+            applyKeys(opState, [{ key: "looseness", value: "8" }, { key: "min distance", value: "5mm" }], kc);
+            applyStyle(opState, "every loop", kc);
+            // Arrow tips and shortening belong to the whole path ("edge" is a path of its own).
+            if (op === "to") applyStyle(st, "every loop", kc);
+          }
+          seg = toSegment(cur, target, opState ?? st);
+        }
 
         const info: RouteSeg = { kind: seg.kind, from: seg.from, to: seg.to, a: curStop, b: -1, op: opItem };
         if (seg.c1) info.c1 = seg.c1;
         if (seg.c2) info.c2 = seg.c2;
         if (op === "controls") info.controls = ctrlItems;
+        if (loopFrom) info.loop = true;
         if (op === "edge") {
           // An edge is its own path and leaves the current point where it was.
           const ids = [cur.ref, refId].filter((x): x is string => !!x);
@@ -1519,7 +1631,7 @@ function layoutPath(syn: PathSyntax, scope: Scope, ctx: Ctx, start?: PathPoint, 
         placeNodes(pending.splice(0), seg, seg.to, opState ?? st);
         if (refId) {
           main.connects.push(refId);
-          if (chainRef && chainRef !== refId) main.edges.push([chainRef, refId]);
+          if (chainRef && (chainRef !== refId || loopFrom)) main.edges.push([chainRef, refId]);
           chainRef = refId;
         }
         cur = target;
@@ -1613,6 +1725,7 @@ function emitPath(id: string, syn: PathSyntax, range: Range, build: PathBuild, s
   };
   if (build.route) path.route = build.route;
   if (st.draw && stroke) path.stroke = stroke;
+  if (st.double) path.double = { color: st.double, distance: st.doubleDistance };
   const fill = st.fillColor === "none" ? undefined : (st.fillColor ?? st.color);
   if (st.fill && fill && !st.shading) path.fill = fill;
   if (st.shading) path.shading = st.shading;
@@ -1675,3 +1788,10 @@ function computeBounds(out: PictureLayout) {
 }
 
 export { outline, applyMatrix };
+
+/** A node's outer sep as pgf works it out when it makes the node: half its line width unless set. */
+function outerSep(st: State, v: number | string | undefined): number {
+  if (typeof v === "number") return v;
+  const units = { em: st.baseFontSize, ex: st.baseFontSize * 0.430554, lineWidth: st.lineWidth };
+  return (v !== undefined ? evalQuantity(v, units)?.value : undefined) ?? st.lineWidth / 2;
+}

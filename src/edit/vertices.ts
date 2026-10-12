@@ -3,7 +3,7 @@
 // rewriting the code between an edge's two ends while keeping its labels,
 // comments and ends as written.
 import { analyzeDocument, layoutDocumentPicture } from "../model/document.ts";
-import { type Edge, itemFrom, itemTo } from "../model/edges.ts";
+import { type Edge, itemFrom, itemTo, LOOP_REASON } from "../model/edges.ts";
 import type { OptionList, PathItemSyntax, Range } from "../model/syntax.ts";
 import type { LaidOutNode, PictureLayout, Route, RouteSeg } from "../tikz/layout.ts";
 import type { Point } from "../tikz/shapes.ts";
@@ -272,6 +272,7 @@ export function planAddVertex(text: string, picIndex: number, edgeId: string, se
   const { doc, layout, edge } = edgeIn(text, picIndex, edgeId);
   if (!layout || !edge) return { ok: false, reason: "There is no such edge." };
   if (edge.lock) return { ok: false, reason: `This edge can't be edited: ${edge.lock.message}.` };
+  if (edge.mode === "loop") return { ok: false, reason: LOOP_REASON };
   if (!edge.segs.includes(seg)) return { ok: false, reason: "That isn't part of this edge." };
   const s = edge.route.segs[seg]!;
   if (s.kind === "curve") return { ok: false, reason: "Corners go on straight edges: straighten this one first." };
@@ -322,6 +323,7 @@ export function planRemoveVertex(text: string, picIndex: number, edgeId: string,
   const { layout, edge } = edgeIn(text, picIndex, edgeId);
   if (!layout || !edge) return { ok: false, reason: "There is no such edge." };
   if (edge.lock) return { ok: false, reason: `This edge can't be edited: ${edge.lock.message}.` };
+  if (edge.mode === "loop") return { ok: false, reason: LOOP_REASON };
   if (!edgeVertices(edge).includes(stop)) return { ok: false, reason: "That isn't a corner of this edge." };
   const route = edge.route;
   const items = edge.path.syntax.items;
@@ -364,7 +366,7 @@ function straightOp(text: string, it: PathItemSyntax, list: OptionList | undefin
  * and checks them with one layout (D87). Null where Straighten would refuse.
  */
 export function straightenChanges(text: string, edge: Edge): Change[] | null {
-  if (edge.lock || isEdgeOperation(edge)) return null;
+  if (edge.lock || edge.mode === "loop" || isEdgeOperation(edge)) return null;
   const route = edge.route;
   if (edge.segs.length === 1 && route.segs[edge.segs[0]!]!.kind === "line") return null;
   const mid = edgeMiddle(edge);
@@ -388,6 +390,7 @@ function straighten(text: string, picIndex: number, edgeId: string): EditOutcome
   const { layout, edge } = edgeIn(text, picIndex, edgeId);
   if (!layout || !edge) return { ok: false, reason: "There is no such edge." };
   if (edge.lock) return { ok: false, reason: `This edge can't be edited: ${edge.lock.message}.` };
+  if (edge.mode === "loop") return { ok: false, reason: LOOP_REASON };
   const route = edge.route;
   const straight = edge.segs.length === 1 && route.segs[edge.segs[0]!]!.kind === "line";
   if (straight) return { ok: false, reason: "It is already straight." };

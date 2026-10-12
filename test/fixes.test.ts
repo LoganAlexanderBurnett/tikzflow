@@ -214,9 +214,9 @@ describe("coordinates", () => {
 
 describe("undrawable options", () => {
   it("lists options and shapes the preview can't draw", () => {
-    const text = pic("\\node[draw, double, star] (a) {A};\n\\node[draw, decorate, decoration=zigzag] (b) {B};\n\\node[draw] (c) {C};");
+    const text = pic("\\node[draw, xslant=0.3, star] (a) {A};\n\\node[draw, decorate, decoration=zigzag] (b) {B};\n\\node[draw] (c) {C};");
     const l = layout(text);
-    expect(undrawable(node(l, "a"))).toEqual(["double", "the star shape (drawn as a rectangle)"]);
+    expect(undrawable(node(l, "a"))).toEqual(["xslant", "the star shape (drawn as a rectangle)"]);
     expect(undrawable(node(l, "b"))).toEqual(["decorate", "decoration"]);
     expect(undrawable(node(l, "c"))).toEqual([]);
   });

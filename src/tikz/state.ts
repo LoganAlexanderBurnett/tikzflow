@@ -163,8 +163,12 @@ export interface State {
   shape: string;
   innerXSep: number;
   innerYSep: number;
-  outerXSep: number;
-  outerYSep: number;
+  /**
+   * Undefined until set: then it is half the node's own line width, as pgf's ".5\pgflinewidth" is. A
+   * length that uses \pgflinewidth is kept as written, since pgf works it out when the node is made.
+   */
+  outerXSep?: number | string;
+  outerYSep?: number | string;
   minWidth: number;
   minHeight: number;
   textWidth?: number;
@@ -213,10 +217,33 @@ export interface State {
   /** "out looseness" and "in looseness"; "looseness" sets both. */
   outLooseness: number;
   inLooseness: number;
+  /** "min distance", "max distance" and their "in" and "out" forms (pt): bounds on a curve's control distances. */
+  outMin: number;
+  outMax: number;
+  inMin: number;
+  inMax: number;
+  /** "loop" (topaths): the "to" ends where it starts. */
+  loop?: boolean;
+  /** "double": the color between the two lines; "double distance" (pt) is the gap. */
+  double?: RGB;
+  doubleDistance: number;
+  /** The automata library's "initial by arrow" and "accepting by arrow". */
+  initial?: AutomataArrow;
+  accepting?: AutomataArrow;
   /** Keys the interpreter didn't understand, as written. */
   unknown: string[];
   /** Keys it understood but can't show natively (decorations, rotation). */
   unrendered: string[];
+}
+
+/** An arrow the automata library draws at a node, with its text, side and length. */
+export interface AutomataArrow {
+  /** "initial by arrow" (or "accepting by arrow") was given: "initial text" and the like only set the details. */
+  on: boolean;
+  text: string;
+  where: "left" | "right" | "above" | "below";
+  /** As written ("3ex" by default): ex depends on the node's font. */
+  distance: string;
 }
 
 export const DEFAULT_TIP: ArrowTip = { kind: "to", open: false, count: 1, reversed: false };
@@ -251,8 +278,6 @@ export function initialState(): State {
     shape: "rectangle",
     innerXSep: 3.33333,
     innerYSep: 3.33333,
-    outerXSep: 0.2,
-    outerYSep: 0.2,
     minWidth: 1,
     minHeight: 1,
     anchor: "center",
@@ -268,6 +293,11 @@ export function initialState(): State {
     labels: [],
     outLooseness: 1,
     inLooseness: 1,
+    outMin: 0,
+    outMax: 10000,
+    inMin: 0,
+    inMax: 10000,
+    doubleDistance: 0.6,
     unknown: [],
     unrendered: [],
   };
@@ -297,6 +327,13 @@ export function itemCopy(s: State): State {
   c.yshift = 0;
   c.outLooseness = 1;
   c.inLooseness = 1;
+  c.outMin = 0;
+  c.outMax = 10000;
+  c.inMin = 0;
+  c.inMax = 10000;
+  delete c.loop;
+  delete c.initial;
+  delete c.accepting;
   delete c.name;
   delete c.at;
   delete c.placement;

@@ -5,7 +5,7 @@
 // and `.. controls +(…) and +(…) ..`, which is kept for curves already
 // written that way. "Make curved" writes a plain `bend left` (D45).
 import { analyzeDocument, layoutDocumentPicture } from "../model/document.ts";
-import { type Edge, itemFrom } from "../model/edges.ts";
+import { type Edge, itemFrom, LOOP_REASON } from "../model/edges.ts";
 import type { OptionList, PathItemSyntax } from "../model/syntax.ts";
 import type { LaidOutNode, PictureLayout, RouteSeg, RouteStop } from "../tikz/layout.ts";
 import { anchorPoint, type Point } from "../tikz/shapes.ts";
@@ -69,6 +69,7 @@ function makeCurved(text: string, picIndex: number, edgeId: string): EditOutcome
   const { layout, edge } = edgeIn(text, picIndex, edgeId);
   if (!layout || !edge) return { ok: false, reason: "There is no such edge." };
   if (edge.lock) return { ok: false, reason: `This edge can't be edited: ${edge.lock.message}.` };
+  if (edge.mode === "loop") return { ok: false, reason: LOOP_REASON };
   if (edge.mode === "curved") return { ok: false, reason: "It is already curved: drag its control points to shape it." };
   const isCurve = (r: { segs: RouteSeg[] }) => (r.segs.some((s) => s.kind === "curve") ? null : "The edge would still be straight.");
   if (isEdgeOperation(edge)) {
@@ -224,6 +225,7 @@ export function planCurve(text: string, picIndex: number, edgeId: string, seg: n
   const pic = doc.syntax.pictures[picIndex];
   if (!layout || !edge || !pic) return { ok: false, reason: "There is no such edge." };
   if (edge.lock) return { ok: false, reason: `This edge can't be edited: ${edge.lock.message}.` };
+  if (edge.mode === "loop") return { ok: false, reason: LOOP_REASON };
   const s = edge.route.segs[seg];
   if (!s || s.kind !== "curve" || !edge.segs.includes(seg)) return { ok: false, reason: "That isn't a curve of this edge." };
   const op = curveOp(edge, s);
@@ -324,6 +326,7 @@ export function stopNode(layout: PictureLayout, s: RouteStop): LaidOutNode | und
 /** Why an edge can't be made curved, or null. */
 export function curveBlocker(edge: Edge): string | null {
   if (edge.lock) return "This edge is kept as written.";
+  if (edge.mode === "loop") return LOOP_REASON;
   if (edge.mode === "curved") return "It is already curved: drag its control points to shape it.";
   if (!isEdgeOperation(edge)) return edgeMiddle(edge).problem;
   return null;

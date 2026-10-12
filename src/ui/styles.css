@@ -1784,3 +1784,67 @@ button.tf-preview-state.busy {
 .tf-contrast-note strong {
   color: var(--warn-text);
 }
+
+/* The New menu (D95): a blank diagram and the templates, with the home page's thumbnails. */
+.tf-new-panel {
+  width: min(660px, 94vw);
+}
+.tf-new-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  margin: 8px 0 2px;
+}
+/* Inside the toolbar, so its button rules are overridden here. */
+.tf-toolbar .tf-new-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  height: auto;
+  padding: 0 0 8px;
+  white-space: normal;
+  overflow: hidden;
+  text-align: left;
+  font: inherit;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.tf-toolbar .tf-new-card:hover,
+.tf-toolbar .tf-new-card:focus-visible {
+  border-color: var(--accent);
+}
+.tf-new-card .thumb {
+  display: block;
+  margin-bottom: 4px;
+  padding: 8px 10px 6px;
+  background: var(--canvas-bg);
+  border-bottom: 1px solid var(--line);
+}
+.tf-new-card .thumb img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 240 / 150;
+  object-fit: contain;
+}
+.tf-new-card .thumb.blank {
+  aspect-ratio: 240 / 150;
+  background:
+    linear-gradient(var(--canvas-bg), var(--canvas-bg)) padding-box,
+    repeating-linear-gradient(45deg, var(--line) 0 6px, transparent 6px 12px) border-box;
+  border: 6px solid transparent;
+  border-bottom: 1px solid var(--line);
+}
+.tf-new-card .name {
+  padding: 0 10px;
+  font-weight: 600;
+}
+.tf-new-card .blurb {
+  padding: 0 10px;
+  font-size: 12px;
+  color: var(--muted);
+}

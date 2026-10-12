@@ -1,9 +1,9 @@
 // A small interpreter for TikZ keys: applies "key=value" lists to a State,
 // expanding styles the way pgfkeys does. Keys it doesn't know are recorded in
 // state.unknown, never guessed at.
-import type { ColorTable } from "./colors.ts";
+import type { ColorTable, RGB } from "./colors.ts";
 import { indexTopLevel, type KeyValue, parseOptionString, stripBraces } from "./options.ts";
-import { type ArrowTip, initialState, multiply, type State } from "./state.ts";
+import { type ArrowTip, type AutomataArrow, initialState, multiply, type State } from "./state.ts";
 import { CM, evalLength, evalNumber, evalQuantity, type FontUnits } from "./units.ts";
 
 export interface StyleEntry {
@@ -64,7 +64,31 @@ export function builtinStyles(): StyleTable {
   t.set("every edge", "draw");
   t.set("every label", "");
   t.set("every pin", "");
+  // tikzlibrarytopaths, part of TikZ itself. "loop" ends the "to" where it starts (layout.ts).
+  t.set("every loop", "->, shorten >=1pt");
+  t.set("loop right", "right, out=15, in=-15, loop");
+  t.set("loop above", "above, out=105, in=75, loop");
+  t.set("loop left", "left, out=195, in=165, loop");
+  t.set("loop below", "below, out=285, in=255, loop");
   return t;
+}
+
+/** The automata library's styles (tikzlibraryautomata.code.tex), set before the document's own so it can redefine them. */
+export function addAutomataStyles(t: StyleTable): void {
+  t.set("every state", "");
+  t.set("state without output", "circle, draw, minimum size=2.5em, every state");
+  t.set("state with output", "circle split, draw, minimum size=2.5em, every state");
+  t.set("state", "state without output");
+  t.set("every initial by arrow", "");
+  t.set("every accepting by arrow", "");
+  t.set("accepting by double", "double, outer sep=.5\\pgflinewidth+.3pt");
+  t.set("initial by diamond", "shape=diamond");
+  for (const where of ["above", "below", "left", "right"]) {
+    t.set(`initial ${where}`, `initial by arrow, initial where=${where}`);
+    t.set(`accepting ${where}`, `accepting by arrow, accepting where=${where}`);
+  }
+  t.set("accepting", "accepting by double");
+  t.set("initial", "initial by arrow");
 }
 
 export const KNOWN_SHAPES = new Set([
@@ -224,9 +248,6 @@ const UNRENDERED = new Set([
   "decoration",
   "postaction",
   "preaction",
-  "double",
-  "double distance",
-
   "xslant",
   "yslant",
   "path picture",
@@ -243,7 +264,7 @@ export const UNMODELLED_PLACEMENT = new Set(["start branch", "below delimiter", 
  * "font=" only applies inside node text (checked against pdfTeX).
  */
 function fontUnits(s: State): FontUnits {
-  return { em: s.baseFontSize, ex: s.baseFontSize * 0.430554 };
+  return { em: s.baseFontSize, ex: s.baseFontSize * 0.430554, lineWidth: s.lineWidth };
 }
 
 /** A coordinate-like length: unitless numbers are multiples of the x unit (1cm by default). */
@@ -495,6 +516,11 @@ function readDash(v: string): number[] | null {
   return out.length ? out : null;
 }
 
+/** A node's "initial" or "accepting" arrow as set so far, else the automata library's defaults (off). */
+function automataArrow(s: State, which: "initial" | "accepting"): AutomataArrow {
+  return { ...(s[which] ?? { on: false, text: which === "initial" ? "start" : "", where: which === "initial" ? "left" : "right", distance: "3ex" }) };
+}
+
 /** Applies a list of keys in order. `depth` guards against recursive styles. */
 export function applyKeys(s: State, keys: KeyValue[], ctx: KeyContext, depth = 0): void {
   for (const kv of keys) applyKey(s, kv, ctx, depth);
@@ -712,8 +738,10 @@ export function applyKey(s: State, kv: KeyValue, ctx: KeyContext, depth = 0): vo
       if (l === null) return unknown();
       if (key !== "inner ysep" && key.startsWith("inner")) s.innerXSep = l;
       if (key !== "inner xsep" && key.startsWith("inner")) s.innerYSep = l;
-      if (key !== "outer ysep" && key.startsWith("outer")) s.outerXSep = l;
-      if (key !== "outer xsep" && key.startsWith("outer")) s.outerYSep = l;
+      // pgf reads an outer sep when it makes the node, so "\pgflinewidth" in it is the node's final line width.
+      const outer = value!.includes("\\pgflinewidth") ? value! : l;
+      if (key !== "outer ysep" && key.startsWith("outer")) s.outerXSep = outer;
+      if (key !== "outer xsep" && key.startsWith("outer")) s.outerYSep = outer;
       return;
     }
     case "minimum width":
@@ -762,8 +790,11 @@ export function applyKey(s: State, kv: KeyValue, ctx: KeyContext, depth = 0): vo
       s.align = "justify";
       return;
     case "anchor":
-      if (value) s.anchor = value;
-      else unknown();
+      if (value) {
+        s.anchor = value;
+        // An anchor, like the placement keys below, turns "auto" off (tikz.code.tex).
+        s.autoLabels = null;
+      } else unknown();
       return;
     case "shape":
       if (value && ctx.shapes.has(value)) s.shape = value;
@@ -931,7 +962,65 @@ export function applyKey(s: State, kv: KeyValue, ctx: KeyContext, depth = 0): vo
     case "out distance":
     case "in distance":
     case "min distance":
+    case "max distance":
+    case "out min distance":
+    case "out max distance":
+    case "in min distance":
+    case "in max distance": {
+      // Bounds on how far a curve's control points lie from its ends (tikzlibrarytopaths).
+      const l = len(value);
+      if (l === null) return unknown();
+      const side = key.startsWith("out") ? "out" : key.startsWith("in") ? "in" : "both";
+      const bound = key.includes("min") ? "min" : key.includes("max") ? "max" : "both";
+      if (side !== "in" && bound !== "max") s.outMin = l;
+      if (side !== "in" && bound !== "min") s.outMax = l;
+      if (side !== "out" && bound !== "max") s.inMin = l;
+      if (side !== "out" && bound !== "min") s.inMax = l;
       return;
+    }
+    case "loop":
+      s.loop = true;
+      return;
+    case "double": {
+      if (value === "none") {
+        delete s.double;
+        return;
+      }
+      const c = value === undefined ? ([1, 1, 1] as RGB) : color(value);
+      if (!c) return unknown();
+      s.double = c;
+      return;
+    }
+    case "double distance": {
+      const l = len(value);
+      if (l === null) return unknown();
+      s.doubleDistance = l;
+      return;
+    }
+    // The automata library: an arrow into the node ("initial") or out of it ("accepting"), with a text.
+    case "initial by arrow":
+    case "accepting by arrow": {
+      const which = key.startsWith("initial") ? "initial" : "accepting";
+      s[which] = { ...automataArrow(s, which), on: true };
+      return;
+    }
+    case "initial text":
+    case "accepting text":
+    case "initial where":
+    case "accepting where":
+    case "initial distance":
+    case "accepting distance": {
+      const [which, what] = key.split(" ") as ["initial" | "accepting", "text" | "where" | "distance"];
+      const a = automataArrow(s, which);
+      if (what === "text") a.text = value ?? "";
+      else if (what === "distance") {
+        if (value === undefined || len(value) === null) return unknown();
+        a.distance = value;
+      } else if (value === "left" || value === "right" || value === "above" || value === "below") a.where = value;
+      else return unknown();
+      s[which] = a;
+      return;
+    }
     case "style":
       if (value === undefined || !applyStyle(s, value, ctx, undefined, depth)) unknown();
       return;
@@ -970,9 +1059,11 @@ export function applyKey(s: State, kv: KeyValue, ctx: KeyContext, depth = 0): vo
 
   if (value === undefined && POSITIONING_DIRS.has(key)) {
     s.placement = { kind: "relative", dir: key };
+    s.autoLabels = null;
     return;
   }
   if (value !== undefined && POSITIONING_DIRS.has(key)) {
+    s.autoLabels = null;
     const of = indexTopLevel(` ${value} `, " of ");
     if (of >= 0) {
       const shift = value.slice(0, of).trim();
@@ -984,6 +1075,7 @@ export function applyKey(s: State, kv: KeyValue, ctx: KeyContext, depth = 0): vo
   }
   const old = /^(above|below|left|right|above left|above right|below left|below right) of$/.exec(key);
   if (old && value) {
+    s.autoLabels = null;
     s.placement = { kind: "old", dir: old[1]!, of: value, onGrid: s.onGrid, distance: { ...s.nodeDistance } };
     return;
   }

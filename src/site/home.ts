@@ -6,7 +6,7 @@ import "./site.css";
 import { bindThemeButton } from "../theme/theme.ts";
 import { peekSession } from "../ui/kv.ts";
 import { registerServiceWorker } from "../ui/offline.ts";
-import { SAMPLE } from "../ui/sample.ts";
+import { isPristine } from "../templates/index.ts";
 
 for (const b of document.querySelectorAll<HTMLElement>("[data-theme-switch]")) bindThemeButton(b);
 registerServiceWorker();
@@ -24,8 +24,8 @@ const ago = (ms: number): string => {
 };
 
 void peekSession().then((s) => {
-  // The sample untouched, or nothing at all, isn't work to continue.
-  if (!s || !s.text.trim() || s.text === SAMPLE) return;
+  // A template untouched (the sample is one), or nothing at all, isn't work to continue.
+  if (!s || !s.text.trim() || isPristine(s.text)) return;
   const cont = document.querySelector<HTMLElement>("[data-continue]");
   const open = document.querySelector<HTMLElement>("[data-open]");
   const resume = document.querySelector<HTMLElement>("[data-resume]");

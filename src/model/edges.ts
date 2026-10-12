@@ -8,9 +8,12 @@ import type { PathItemSyntax, Range } from "./syntax.ts";
 
 /**
  * How an edge runs, from how it is written: `|-`/`-|` is orthogonal; `bend`,
- * `out`/`in` or `.. controls ..` is curved; several `--` pieces are a polyline.
+ * `out`/`in` or `.. controls ..` is curved; a `loop` is a loop; several `--` pieces are a polyline.
  */
-export type EdgeMode = "straight" | "polyline" | "orthogonal" | "curved";
+export type EdgeMode = "straight" | "polyline" | "orthogonal" | "curved" | "loop";
+
+/** Why a loop's shape can't be dragged or changed: TikZ draws it from its "loop" key alone. */
+export const LOOP_REASON = "This edge is a loop: it starts and ends at the same node, and its key (loop above, below, left or right) sets its side and shape. Change the key in the code to move it.";
 
 export interface EdgeLock {
   kind: "broken" | "shapes";
@@ -83,6 +86,7 @@ function isNodeStop(stop: RouteStop, layout: PictureLayout): boolean {
 }
 
 function modeOf(segs: readonly RouteSeg[]): EdgeMode {
+  if (segs.some((s) => s.loop)) return "loop";
   if (segs.some((s) => s.kind === "curve")) return "curved";
   if (segs.some((s) => s.kind === "hv" || s.kind === "vh")) return "orthogonal";
   return segs.length > 1 ? "polyline" : "straight";

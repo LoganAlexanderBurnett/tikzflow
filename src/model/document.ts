@@ -4,7 +4,7 @@ import { IterMode, type Tree } from "@lezer/common";
 import { parser } from "../parser/parser.ts";
 import type { Macro } from "../text/label.ts";
 import { ColorTable } from "../tikz/colors.ts";
-import { builtinStyles } from "../tikz/keys.ts";
+import { addAutomataStyles, builtinStyles } from "../tikz/keys.ts";
 import { type LayoutEnv, layoutPicture, type PictureLayout } from "../tikz/layout.ts";
 import type { KeyValue } from "../tikz/options.ts";
 import { effectivePage, NO_PAGE_SETTINGS, ownPreamble, type PageSettings, pageLengths } from "../tikz/page.ts";
@@ -56,7 +56,11 @@ export function getPageSettings(): PageSettings {
 
 /** Styles, colors, macros and settings defined before `pic`. */
 export function pictureEnv(doc: DocumentModel, pic: PictureSyntax): LayoutEnv {
+  const before = doc.text.slice(0, pic.from);
+  // Only a document with a preamble says which libraries it loads.
+  const libraries = /\\documentclass|\\usetikzlibrary/.test(before) ? librariesBefore(doc, pic) : undefined;
   const styles = builtinStyles();
+  if (!libraries || libraries.includes("automata")) addAutomataStyles(styles);
   const colors = new ColorTable();
   const macros = new Map<string, Macro>();
   const settings: KeyValue[] = [];
@@ -82,10 +86,8 @@ export function pictureEnv(doc: DocumentModel, pic: PictureSyntax): LayoutEnv {
       }
     }
   }
-  const before = doc.text.slice(0, pic.from);
   const env: LayoutEnv = { styles, colors, macros, settings, font: classFont(before) };
-  // Only a document with a preamble says which libraries it loads.
-  if (/\\documentclass|\\usetikzlibrary/.test(before)) env.libraries = librariesBefore(doc, pic);
+  if (libraries) env.libraries = libraries;
   const page = effectivePage(ownPreamble(doc.text, pic.from), pageSettings);
   if (page) env.page = pageLengths(page);
   return env;

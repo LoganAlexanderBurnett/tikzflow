@@ -95,7 +95,7 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; letter-spacing:
 .tcard { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; text-decoration: none; transition: border-color 0.15s, box-shadow 0.15s; }
 .tcard:hover { border-color: var(--line-strong); box-shadow: var(--shadow); }
 .thumb { background: #fff; border-bottom: 1px solid var(--line); padding: 14px 18px 8px; }
-.thumb img { display: block; width: 100%; height: auto; aspect-ratio: 240 / 150; }
+.thumb img { display: block; width: 100%; height: auto; aspect-ratio: 240 / 150; object-fit: contain; }
 .tmeta { padding: 14px 16px 16px; }
 .tmeta h3 { font-size: 19px; }
 .tmeta p { margin: 3px 0 0; color: var(--muted); font-size: 14.5px; }

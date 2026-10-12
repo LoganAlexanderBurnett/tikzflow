@@ -46,7 +46,7 @@ myedge/.style=
 \node[right=of aux] (b) {B};
 \node[right=of b] (d) {D};
 \node[right=of d] (e) {E};
-\node[below left=9mm and 3mm of b] (c) {C};
+\node[below left=9mm and 2mm of b] (c) {C};
 \foreach \pare/\chil in {a/b,a/d,a/e,b/c,d/c} 
   \draw[myedge] (\pare.south) -- (\chil.north);
 \draw[myedge] (a) -- (c);
