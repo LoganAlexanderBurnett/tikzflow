@@ -65,7 +65,7 @@ Open https://m5.tikzflow.pages.dev (or `npm run dev`, then http://localhost:5173
 - **`npm run test:offline`:** 8 of 8 (2 new: the pages offline after one visit to the home page; the 404).
 - **CI on `m5`:** green on the step 2 commit (b0a4883).
 - **`TIKZFLOW_URL=https://m5.tikzflow.pages.dev npm run test:live`: 12 of 12** on the deploy of the step 3 commit (be7b75d; the preview serves `assets/editor-BxyGscSK.js`, the same as the local build). The 11 checks from before now run against `/editor/`. The new one checks the home page, the editor, a real 404 with the site's page, `robots.txt`, `sitemap.xml`, the icons and `boot.js`, and that the home page draws under the policy without asking for the engine. The share-link check also opens the link at `/#…`, as made before the move.
-- **Local timing:** two Vitest runs while the dev server and Edge were busy timed out in corpus-wide tests near their 5 s limit (different tests each time). Run alone they pass, and they pass in CI.
+- **Timeouts:** corpus-wide Vitest tests ran close to the 5 s default and crossed it under load (locally, and once in CI on 856ab16). Vitest's timeout is now 30 s (D93); 1,544 of 1,544 pass.
 - **`typecheck`, `build`, `check:dist`:** pass. `check:dist` now reads the worker's page list and checks `404.html` and `boot.js`.
 
 ### For the owner's review

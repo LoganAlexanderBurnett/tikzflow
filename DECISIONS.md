@@ -1291,5 +1291,6 @@ The owner confirmed that "Report a problem" shows the issue form when signed in 
   - **Guides:** they were pink and are now blue, so they don't read as the selection's vermilion.
 - **The code pane** sets code in Source Code Pro with ligatures off. Its gutter, cursor and selection take the theme's colors instead of CodeMirror's light-only defaults.
 - **Contrast:** the end-to-end audit of the interface's text (D82) passes in both themes with the new colors.
+- **Vitest's timeout is 30 s** (was the 5 s default). The corpus-wide tests run each edit on every edge of every picture, or load the engine's packages, and take 2–5 s. Under load they crossed 5 s: locally while the dev server and Edge were busy, and once in CI (`edge-ends.test.ts` on commit 856ab16). The timeout only catches hangs; speed has its own benchmarks.
 
 **Why:** the owner's choice of direction A (D91) and D89 step 3.

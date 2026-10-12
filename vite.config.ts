@@ -341,5 +341,8 @@ export default defineConfig({
   },
   test: {
     include: ["spike/**/*.test.ts", "src/**/*.test.ts", "test/**/*.test.ts"],
+    // The corpus-wide tests (every edge of every picture, the engine loading packages) take 2–5 s and
+    // grew past the 5 s default on a busy machine and in CI (D93). A timeout is not a speed check.
+    testTimeout: 30_000,
   },
 });
