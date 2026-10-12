@@ -1,0 +1,126 @@
+<!doctype html>
+<!-- Generated from src/help/canvas.md by npm run help:build (D99). Edit the Markdown, not this file. -->
+<html lang="en" data-page="help">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Editing on the canvas · TikZFlow help</title>
+    <meta name="description" content="Selecting, moving, adding, resizing and deleting nodes in TikZFlow, and editing their labels." />
+    <link rel="canonical" href="https://tikzflow.pages.dev/help/canvas/" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <script src="/boot.js"></script>
+    <script type="module" src="../../src/site/help.ts"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="site-head">
+      <a class="brand" href="/" aria-label="TikZFlow home">
+        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="13" height="10" rx="2" fill="var(--logo-ink)" /><path d="M9.5 13V24H12.5" fill="none" stroke="var(--logo-ink)" stroke-width="2.4" /><path d="M11.5 20.3L16.2 24L11.5 27.7Z" fill="var(--logo-ink)" /><rect x="17.2" y="19.2" width="11.6" height="9.6" rx="2" fill="none" stroke="var(--logo-accent)" stroke-width="2.4" /></svg>
+        <span class="wordmark">TikZ<em>Flow</em></span>
+      </a>
+      <nav class="site-nav" aria-label="Site">
+        <a href="/#templates">Templates</a>
+        <a href="/help/">Help</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow" rel="noopener noreferrer">Source code</a>
+      </nav>
+      <div class="head-actions">
+        <button class="icon-btn" type="button" data-theme-switch aria-label="Theme: system">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18v18Z" /><circle cx="12" cy="12" r="9" fill="none" /></svg>
+        </button>
+        <a class="btn primary" href="/editor/">Open the editor</a>
+      </div>
+    </header>
+    <div class="help">
+      <aside class="help-side">
+        <form class="help-search" role="search" data-help-search>
+          <label for="help-q">Search the help</label>
+          <input id="help-q" type="search" name="q" placeholder="Search the help" autocomplete="off" aria-controls="help-results" />
+          <p class="help-count" aria-live="polite" data-help-count></p>
+          <ul id="help-results" class="help-results" data-help-results hidden></ul>
+        </form>
+        <nav class="help-toc" aria-label="Help topics">
+          <ul>
+          <li><a href="/help/">Help</a></li>
+          <li><a href="/help/getting-started/">Getting started</a></li>
+          <li><a href="/help/canvas/" aria-current="page">Editing on the canvas</a></li>
+          <li><a href="/help/edges/">Edges and labels</a></li>
+          <li><a href="/help/styles/">Colors, fonts and styles</a></li>
+          <li><a href="/help/layout/">Layout, groups and swimlanes</a></li>
+          <li><a href="/help/import/">Templates, pasting and importing</a></li>
+          <li><a href="/help/tex-preview/">The TeX preview</a></li>
+          <li><a href="/help/saving/">Saving, tabs and your work</a></li>
+          <li><a href="/help/export/">Exporting and sharing</a></li>
+          <li><a href="/help/shortcuts/">Keyboard shortcuts</a></li>
+          <li><a href="/help/privacy/">Privacy and offline use</a></li>
+          <li><a href="/help/troubleshooting/">When something can't be edited</a></li>
+          </ul>
+        </nav>
+      </aside>
+      <main id="main" class="help-main">
+        <article class="help-article">
+          <h1>Editing on the canvas</h1>
+          <p>Every change you make on the canvas becomes a small change to the code, and only to the lines it is about. Everything else, your comments and spacing included, stays exactly as you wrote it. <kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes it, whether you made it on the canvas or in the code.</p>
+          <h2 id="selecting"><a class="anchor" href="#selecting" aria-hidden="true" tabindex="-1">#</a>Selecting</h2>
+          <ul>
+          <li><strong>Click</strong> a node to select it. Its code is highlighted in the code pane, and the properties panel shows it.</li>
+          <li><strong>Shift-click</strong> adds a node to the selection, or takes it out.</li>
+          <li>Putting the cursor in a node&#39;s code selects that node on the canvas.</li>
+          </ul>
+          <h2 id="moving-nodes"><a class="anchor" href="#moving-nodes" aria-hidden="true" tabindex="-1">#</a>Moving nodes</h2>
+          <p>Drag a node. While you drag, guides show when it lines up with another node, and it snaps to the distances your picture already uses. When you let go, the code says where it is in the way a person would write it, in this order of preference:</p>
+          <ol>
+          <li>a relation to a nearby node: <code>below=of start</code>, <code>right=1cm of check</code>, <code>below right=7mm and 1.8cm of read</code>;</li>
+          <li>a line-up with two nodes: <code>at (a |- b)</code>;</li>
+          <li>plain coordinates, only when nothing else fits.</li>
+          </ol>
+          <p>Hold <kbd>Alt</kbd> while dragging to move freely, without snapping. Nodes placed relative to the one you move go with it, as they do in TeX.</p>
+          <h3 id="moving-several-nodes"><a class="anchor" href="#moving-several-nodes" aria-hidden="true" tabindex="-1">#</a>Moving several nodes</h3>
+          <p>Select several nodes with Shift-click and drag one of them: they move together, and each is written relative to what it was placed against. Dragging a group&#39;s or a lane&#39;s box moves everything in it.</p>
+          <h3 id="chains"><a class="anchor" href="#chains" aria-hidden="true" tabindex="-1">#</a>Chains</h3>
+          <p>Nodes placed with the <code>chains</code> library (<code>on chain</code>) can be dragged too. The first time you drag one, the editor writes the chain out as ordinary positions so the node can move, and says so in the status bar.</p>
+          <h2 id="adding-nodes"><a class="anchor" href="#adding-nodes" aria-hidden="true" tabindex="-1">#</a>Adding nodes</h2>
+          <ul>
+          <li><strong>The palette</strong> along the top of the canvas has Process, Decision, Terminal, I/O, Connector and Document, then your picture&#39;s own node styles under &quot;This figure&quot;. Click one to add it after the selected node, connected to it (or in the middle of the view when nothing is selected), or drag it onto the canvas. A shape&#39;s style is added to your <code>\tikzset</code> the first time you use it.</li>
+          <li><kbd>Tab</kbd> adds a node connected after the selected one. In an empty picture it adds the first node.</li>
+          <li><kbd>Enter</kbd> adds a node beside the selected one.</li>
+          </ul>
+          <p>New nodes get names made from their labels, such as <code>(check)</code>, and never clash with names already in the picture.</p>
+          <h2 id="editing-labels"><a class="anchor" href="#editing-labels" aria-hidden="true" tabindex="-1">#</a>Editing labels</h2>
+          <p>Double-click a node, or select it and press <kbd>F2</kbd>, to edit its label in place. <kbd>Enter</kbd> applies, <kbd>Shift</kbd>+<kbd>Enter</kbd> starts a new line, <kbd>Tab</kbd> applies and adds the next connected node, and <kbd>Esc</kbd> cancels. Labels can hold math (<code>$n \le 1$</code>); the canvas draws it with KaTeX until TeX&#39;s own picture is ready.</p>
+          <h2 id="resizing"><a class="anchor" href="#resizing" aria-hidden="true" tabindex="-1">#</a>Resizing</h2>
+          <p>Select one node and drag a handle on its corners or sides. The edge or corner opposite the handle stays put. Hold <kbd>Ctrl</kbd> to resize from the center, or <kbd>Alt</kbd> to turn off snapping. Sizes snap to whole millimeters and to the sizes of other nodes, and are written as <code>minimum width</code> and <code>minimum height</code> (or <code>text width</code> when the text should wrap).</p>
+          <p>To give several nodes the same size, select them (the first one you click sets the size) and use <strong>Match width</strong> or <strong>Match height</strong> in the properties panel.</p>
+          <h2 id="deleting"><a class="anchor" href="#deleting" aria-hidden="true" tabindex="-1">#</a>Deleting</h2>
+          <p>Press <kbd>Delete</kbd> (or <kbd>Backspace</kbd>), or use <strong>Delete node</strong> in the properties panel. The edges to and from the node go too. Nodes that were placed relative to it are attached to what it was placed against, or kept where they are, so the code never refers to a node that is gone. A node in a group&#39;s box is taken out of the box.</p>
+          <h2 id="panning-and-zooming"><a class="anchor" href="#panning-and-zooming" aria-hidden="true" tabindex="-1">#</a>Panning and zooming</h2>
+          <ul>
+          <li>Scroll to zoom, about the pointer.</li>
+          <li>Drag the background, or drag with the right or middle mouse button, or hold <kbd>Space</kbd> and drag, to pan.</li>
+          <li><strong>Fit</strong> in the toolbar fits the picture to the canvas.</li>
+          </ul>
+          <h2 id="accessibility-views"><a class="anchor" href="#accessibility-views" aria-hidden="true" tabindex="-1">#</a>Accessibility views</h2>
+          <p><strong>View</strong> in the toolbar shows the picture in grayscale, or as someone with red, green or blue color blindness would see it. Only the preview changes: your code and your exports keep their colors. Text that is hard to read against its fill gets a marker, and the summary counts it (&quot;1 low contrast&quot;); select the node and the properties panel offers black or white text that reads well.</p>
+        </article>
+        <nav class="help-pager" aria-label="Next and previous topics">
+          <a class="prev" href="/help/getting-started/"><span>Previous</span>Getting started</a>
+          <a class="next" href="/help/edges/"><span>Next</span>Edges and labels</a>
+        </nav>
+      </main>
+    </div>
+    <footer class="site-foot">
+      <a class="brand small" href="/" aria-label="TikZFlow home">
+        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="13" height="10" rx="2" fill="var(--logo-ink)" /><path d="M9.5 13V24H12.5" fill="none" stroke="var(--logo-ink)" stroke-width="2.4" /><path d="M11.5 20.3L16.2 24L11.5 27.7Z" fill="var(--logo-ink)" /><rect x="17.2" y="19.2" width="11.6" height="9.6" rx="2" fill="none" stroke="var(--logo-accent)" stroke-width="2.4" /></svg>
+        <span class="wordmark">TikZ<em>Flow</em></span>
+      </a>
+      <nav class="foot-links" aria-label="More">
+        <a href="/editor/">Editor</a>
+        <a href="/help/">Help</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow/issues/new?template=problem.yml" rel="noopener noreferrer">Report a problem</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow" rel="noopener noreferrer">Source code</a>
+        <span>GPL-3.0-or-later</span>
+      </nav>
+    </footer>
+  </body>
+</html>

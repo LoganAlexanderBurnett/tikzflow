@@ -1,0 +1,119 @@
+<!doctype html>
+<!-- Generated from src/help/layout.md by npm run help:build (D99). Edit the Markdown, not this file. -->
+<html lang="en" data-page="help">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Layout, groups and swimlanes · TikZFlow help</title>
+    <meta name="description" content="Automatic layout written as relative positions, boxes around groups of nodes, and swimlanes in TikZFlow." />
+    <link rel="canonical" href="https://tikzflow.pages.dev/help/layout/" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <script src="/boot.js"></script>
+    <script type="module" src="../../src/site/help.ts"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="site-head">
+      <a class="brand" href="/" aria-label="TikZFlow home">
+        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="13" height="10" rx="2" fill="var(--logo-ink)" /><path d="M9.5 13V24H12.5" fill="none" stroke="var(--logo-ink)" stroke-width="2.4" /><path d="M11.5 20.3L16.2 24L11.5 27.7Z" fill="var(--logo-ink)" /><rect x="17.2" y="19.2" width="11.6" height="9.6" rx="2" fill="none" stroke="var(--logo-accent)" stroke-width="2.4" /></svg>
+        <span class="wordmark">TikZ<em>Flow</em></span>
+      </a>
+      <nav class="site-nav" aria-label="Site">
+        <a href="/#templates">Templates</a>
+        <a href="/help/">Help</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow" rel="noopener noreferrer">Source code</a>
+      </nav>
+      <div class="head-actions">
+        <button class="icon-btn" type="button" data-theme-switch aria-label="Theme: system">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18v18Z" /><circle cx="12" cy="12" r="9" fill="none" /></svg>
+        </button>
+        <a class="btn primary" href="/editor/">Open the editor</a>
+      </div>
+    </header>
+    <div class="help">
+      <aside class="help-side">
+        <form class="help-search" role="search" data-help-search>
+          <label for="help-q">Search the help</label>
+          <input id="help-q" type="search" name="q" placeholder="Search the help" autocomplete="off" aria-controls="help-results" />
+          <p class="help-count" aria-live="polite" data-help-count></p>
+          <ul id="help-results" class="help-results" data-help-results hidden></ul>
+        </form>
+        <nav class="help-toc" aria-label="Help topics">
+          <ul>
+          <li><a href="/help/">Help</a></li>
+          <li><a href="/help/getting-started/">Getting started</a></li>
+          <li><a href="/help/canvas/">Editing on the canvas</a></li>
+          <li><a href="/help/edges/">Edges and labels</a></li>
+          <li><a href="/help/styles/">Colors, fonts and styles</a></li>
+          <li><a href="/help/layout/" aria-current="page">Layout, groups and swimlanes</a></li>
+          <li><a href="/help/import/">Templates, pasting and importing</a></li>
+          <li><a href="/help/tex-preview/">The TeX preview</a></li>
+          <li><a href="/help/saving/">Saving, tabs and your work</a></li>
+          <li><a href="/help/export/">Exporting and sharing</a></li>
+          <li><a href="/help/shortcuts/">Keyboard shortcuts</a></li>
+          <li><a href="/help/privacy/">Privacy and offline use</a></li>
+          <li><a href="/help/troubleshooting/">When something can't be edited</a></li>
+          </ul>
+        </nav>
+      </aside>
+      <main id="main" class="help-main">
+        <article class="help-article">
+          <h1>Layout, groups and swimlanes</h1>
+          <h2 id="automatic-layout"><a class="anchor" href="#automatic-layout" aria-hidden="true" tabindex="-1">#</a>Automatic layout</h2>
+          <p><strong>Layout</strong> in the toolbar arranges the picture for you, <strong>Top to bottom</strong> or <strong>Left to right</strong>. The current direction is marked &quot;(as now)&quot;.</p>
+          <p><figure><img src="../../src/help/shots/layout.png" alt="The Layout panel" width="460" height="310" loading="lazy" /><figcaption>The Layout panel</figcaption></figure></p>
+          <ul>
+          <li>It lays out the whole picture, or only the selected nodes when you have selected two or more.</li>
+          <li>The result is written the way you would write it: each node relative to one before it (<code>below=of read</code>, <code>right=of check</code>), with distances only where they are needed. A relation that already says what the layout wants is kept as you wrote it.</li>
+          <li>Corners of edges written as fixed coordinates are removed, since the nodes they went around have moved. Edges keep their form otherwise.</li>
+          <li>Locked nodes stay where they are; the panel names them.</li>
+          <li>One <kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes the whole layout.</li>
+          </ul>
+          <p>A large picture can take a moment: a badge over the canvas shows the progress, and <strong>Cancel</strong> stops it. The page stays responsive meanwhile.</p>
+          <h3 id="allow-reordering-statements"><a class="anchor" href="#allow-reordering-statements" aria-hidden="true" tabindex="-1">#</a>Allow reordering statements</h3>
+          <p>TikZ can only place a node relative to a node defined before it. With <strong>Allow reordering statements</strong> ticked, the layout may move a node&#39;s line further down the code when that gives a cleaner relation, and only when moving it is safe. It is off by default, because it changes the order of your code.</p>
+          <h3 id="groups-and-lanes"><a class="anchor" href="#groups-and-lanes" aria-hidden="true" tabindex="-1">#</a>Groups and lanes</h3>
+          <p>Each lane&#39;s nodes stay in their lane. A group&#39;s nodes are kept together when the boxes would otherwise cross, or a box would cover another group&#39;s node.</p>
+          <h2 id="groups"><a class="anchor" href="#groups" aria-hidden="true" tabindex="-1">#</a>Groups</h2>
+          <p>Select some nodes, type a title in <strong>Group and lanes</strong> in the properties panel if you like, and press <strong>Group</strong>. The editor draws a box around them, behind everything else:</p>
+          <pre><code class="language-latex">\node[group, fit=(check) (base), label={[group title]north:Checks}] (checks) {};
+          </code></pre>
+          <p>It uses the <code>fit</code> and <code>backgrounds</code> libraries and adds them for you. The box follows its nodes when they move; dragging the box moves them all. Click an empty part of a box to give it a title or change it.</p>
+          <h2 id="swimlanes"><a class="anchor" href="#swimlanes" aria-hidden="true" tabindex="-1">#</a>Swimlanes</h2>
+          <p>Lanes are boxes that share a top and a bottom (or a left and right side), one per role or phase.</p>
+          <ol>
+          <li>Select the nodes of the first lane, type its title, and press <strong>New lane</strong>.</li>
+          <li>Select the next lane&#39;s nodes and press <strong>New lane</strong> again.</li>
+          </ol>
+          <p>In a picture that runs down, lanes stand side by side; in one that runs across, they lie one above the other, with their titles turned along the side.</p>
+          <ul>
+          <li>Drag a node into another lane to move it there; the lanes stretch to stay even.</li>
+          <li><strong>Move to lane</strong> moves the selected nodes into the lane you pick.</li>
+          <li><strong>Take out of</strong> removes the selected nodes from their groups and lanes.</li>
+          <li>Deleting a node keeps the lanes valid and even.</li>
+          </ul>
+          <p>The Swimlane process and PRISMA 2020 templates show lanes at work.</p>
+        </article>
+        <nav class="help-pager" aria-label="Next and previous topics">
+          <a class="prev" href="/help/styles/"><span>Previous</span>Colors, fonts and styles</a>
+          <a class="next" href="/help/import/"><span>Next</span>Templates, pasting and importing</a>
+        </nav>
+      </main>
+    </div>
+    <footer class="site-foot">
+      <a class="brand small" href="/" aria-label="TikZFlow home">
+        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="13" height="10" rx="2" fill="var(--logo-ink)" /><path d="M9.5 13V24H12.5" fill="none" stroke="var(--logo-ink)" stroke-width="2.4" /><path d="M11.5 20.3L16.2 24L11.5 27.7Z" fill="var(--logo-ink)" /><rect x="17.2" y="19.2" width="11.6" height="9.6" rx="2" fill="none" stroke="var(--logo-accent)" stroke-width="2.4" /></svg>
+        <span class="wordmark">TikZ<em>Flow</em></span>
+      </a>
+      <nav class="foot-links" aria-label="More">
+        <a href="/editor/">Editor</a>
+        <a href="/help/">Help</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow/issues/new?template=problem.yml" rel="noopener noreferrer">Report a problem</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow" rel="noopener noreferrer">Source code</a>
+        <span>GPL-3.0-or-later</span>
+      </nav>
+    </footer>
+  </body>
+</html>

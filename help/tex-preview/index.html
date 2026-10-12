@@ -1,0 +1,115 @@
+<!doctype html>
+<!-- Generated from src/help/tex-preview.md by npm run help:build (D99). Edit the Markdown, not this file. -->
+<html lang="en" data-page="help">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>The TeX preview · TikZFlow help</title>
+    <meta name="description" content="How TikZFlow's TeX preview compiles your picture in the browser, and how to read its errors, notes and markers." />
+    <link rel="canonical" href="https://tikzflow.pages.dev/help/tex-preview/" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <script src="/boot.js"></script>
+    <script type="module" src="../../src/site/help.ts"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="site-head">
+      <a class="brand" href="/" aria-label="TikZFlow home">
+        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="13" height="10" rx="2" fill="var(--logo-ink)" /><path d="M9.5 13V24H12.5" fill="none" stroke="var(--logo-ink)" stroke-width="2.4" /><path d="M11.5 20.3L16.2 24L11.5 27.7Z" fill="var(--logo-ink)" /><rect x="17.2" y="19.2" width="11.6" height="9.6" rx="2" fill="none" stroke="var(--logo-accent)" stroke-width="2.4" /></svg>
+        <span class="wordmark">TikZ<em>Flow</em></span>
+      </a>
+      <nav class="site-nav" aria-label="Site">
+        <a href="/#templates">Templates</a>
+        <a href="/help/">Help</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow" rel="noopener noreferrer">Source code</a>
+      </nav>
+      <div class="head-actions">
+        <button class="icon-btn" type="button" data-theme-switch aria-label="Theme: system">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18v18Z" /><circle cx="12" cy="12" r="9" fill="none" /></svg>
+        </button>
+        <a class="btn primary" href="/editor/">Open the editor</a>
+      </div>
+    </header>
+    <div class="help">
+      <aside class="help-side">
+        <form class="help-search" role="search" data-help-search>
+          <label for="help-q">Search the help</label>
+          <input id="help-q" type="search" name="q" placeholder="Search the help" autocomplete="off" aria-controls="help-results" />
+          <p class="help-count" aria-live="polite" data-help-count></p>
+          <ul id="help-results" class="help-results" data-help-results hidden></ul>
+        </form>
+        <nav class="help-toc" aria-label="Help topics">
+          <ul>
+          <li><a href="/help/">Help</a></li>
+          <li><a href="/help/getting-started/">Getting started</a></li>
+          <li><a href="/help/canvas/">Editing on the canvas</a></li>
+          <li><a href="/help/edges/">Edges and labels</a></li>
+          <li><a href="/help/styles/">Colors, fonts and styles</a></li>
+          <li><a href="/help/layout/">Layout, groups and swimlanes</a></li>
+          <li><a href="/help/import/">Templates, pasting and importing</a></li>
+          <li><a href="/help/tex-preview/" aria-current="page">The TeX preview</a></li>
+          <li><a href="/help/saving/">Saving, tabs and your work</a></li>
+          <li><a href="/help/export/">Exporting and sharing</a></li>
+          <li><a href="/help/shortcuts/">Keyboard shortcuts</a></li>
+          <li><a href="/help/privacy/">Privacy and offline use</a></li>
+          <li><a href="/help/troubleshooting/">When something can't be edited</a></li>
+          </ul>
+        </nav>
+      </aside>
+      <main id="main" class="help-main">
+        <article class="help-article">
+          <h1>The TeX preview</h1>
+          <p>TikZFlow draws your picture twice:</p>
+          <ul>
+          <li><strong>The quick preview</strong> is the editor&#39;s own drawing. It is instant, so it is what you see while you drag.</li>
+          <li><strong>The TeX preview</strong> is the picture as TeX draws it. A real TeX engine (TeX itself, with a current LaTeX, PGF/TikZ 3.1.12 and common packages) runs in your browser and compiles the picture a moment after you stop typing or dragging. Its picture then replaces the quick one.</li>
+          </ul>
+          <p>Between the two, only what changed is drawn by the quick preview; the rest stays as TeX drew it, so the picture doesn&#39;t flicker as you work.</p>
+          <p><strong>TeX preview</strong> in the toolbar switches between them. With it off, you see only the quick preview.</p>
+          <p>The engine is about 11 MB. It downloads on your first visit to the editor and is kept for next time, offline included. It stops while the browser tab is hidden for a while, to free memory, and starts again when you come back.</p>
+          <h2 id="status-and-errors"><a class="anchor" href="#status-and-errors" aria-hidden="true" tabindex="-1">#</a>Status and errors</h2>
+          <p>Next to the summary, the preview says what it is doing: &quot;Loading TeX…&quot;, &quot;Compiling…&quot;, &quot;TeX preview&quot;, &quot;TeX preview: notes&quot;, or &quot;TeX: 1 error&quot;. Click it for the details.</p>
+          <p>When TeX finds errors, a banner over the canvas says so. TeX carries on past errors, so its picture may be badly wrong (an undefined node is put at the origin and lines run to it). <strong>Show the first error</strong> takes you to its line in your code; <strong>Show the quick preview</strong> switches to the editor&#39;s own drawing.</p>
+          <h2 id="notes"><a class="anchor" href="#notes" aria-hidden="true" tabindex="-1">#</a>Notes</h2>
+          <p>Notes are things worth knowing that aren&#39;t errors:</p>
+          <ul>
+          <li>a package the preview doesn&#39;t have, which it compiles without (your code still loads it);</li>
+          <li>font packages: the preview always uses Computer Modern, so text widths may differ from your document;</li>
+          <li>a document class the preview doesn&#39;t have, replaced by article&#39;s page;</li>
+          <li>nodes TeX places elsewhere than the editor (below).</li>
+          </ul>
+          <h2 id="nodes-tex-places-elsewhere"><a class="anchor" href="#nodes-tex-places-elsewhere" aria-hidden="true" tabindex="-1">#</a>Nodes TeX places elsewhere</h2>
+          <p>After each compile, TeX reports where it put every named node, and the editor compares that with its own drawing. A node more than a point away, or a point bigger or smaller, gets a small amber marker; select it to see TeX&#39;s box, dashed. The notes list these nodes.</p>
+          <p>Such a node&#39;s outline on the canvas, and positions written when you drag it or attach other nodes to it, may be off by as much. A point or two usually comes from estimated text widths. If it is more, please <a href="https://github.com/LoganAlexanderBurnett/tikzflow/issues/new?template=problem.yml" rel="noopener noreferrer">report it</a> with the code: it means the editor&#39;s geometry for that shape is wrong.</p>
+          <h2 id="your-paper39s-page"><a class="anchor" href="#your-paper39s-page" aria-hidden="true" tabindex="-1">#</a>Your paper&#39;s page</h2>
+          <p><strong>Page</strong> in the toolbar holds your paper&#39;s preamble and a width guide:</p>
+          <ul>
+          <li>Paste your paper&#39;s preamble (from <code>\documentclass</code> to <code>\begin{document}</code>). Its macros are defined for the TeX preview, and the editor reads the page widths from it: article, report, book, Beamer, elsarticle, IEEEtran, revtex4-2, acmart and llncs, with their options.</li>
+          <li>Or type the widths yourself, and save them as a preset.</li>
+          <li><strong>Show the width guide</strong> draws the column (or text) width on the canvas, so you can see whether the figure fits. <code>\textwidth</code> and <code>\columnwidth</code> in your code take the same values.</li>
+          </ul>
+          <p>The preamble and presets are kept in this browser, and aren&#39;t part of share links.</p>
+        </article>
+        <nav class="help-pager" aria-label="Next and previous topics">
+          <a class="prev" href="/help/import/"><span>Previous</span>Templates, pasting and importing</a>
+          <a class="next" href="/help/saving/"><span>Next</span>Saving, tabs and your work</a>
+        </nav>
+      </main>
+    </div>
+    <footer class="site-foot">
+      <a class="brand small" href="/" aria-label="TikZFlow home">
+        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="13" height="10" rx="2" fill="var(--logo-ink)" /><path d="M9.5 13V24H12.5" fill="none" stroke="var(--logo-ink)" stroke-width="2.4" /><path d="M11.5 20.3L16.2 24L11.5 27.7Z" fill="var(--logo-ink)" /><rect x="17.2" y="19.2" width="11.6" height="9.6" rx="2" fill="none" stroke="var(--logo-accent)" stroke-width="2.4" /></svg>
+        <span class="wordmark">TikZ<em>Flow</em></span>
+      </a>
+      <nav class="foot-links" aria-label="More">
+        <a href="/editor/">Editor</a>
+        <a href="/help/">Help</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow/issues/new?template=problem.yml" rel="noopener noreferrer">Report a problem</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow" rel="noopener noreferrer">Source code</a>
+        <span>GPL-3.0-or-later</span>
+      </nav>
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,99 @@
+<!doctype html>
+<!-- Generated from src/help/privacy.md by npm run help:build (D99). Edit the Markdown, not this file. -->
+<html lang="en" data-page="help">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy and offline use · TikZFlow help</title>
+    <meta name="description" content="What TikZFlow keeps on your computer, what it never sends anywhere, and how it works without a connection." />
+    <link rel="canonical" href="https://tikzflow.pages.dev/help/privacy/" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <script src="/boot.js"></script>
+    <script type="module" src="../../src/site/help.ts"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="site-head">
+      <a class="brand" href="/" aria-label="TikZFlow home">
+        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="13" height="10" rx="2" fill="var(--logo-ink)" /><path d="M9.5 13V24H12.5" fill="none" stroke="var(--logo-ink)" stroke-width="2.4" /><path d="M11.5 20.3L16.2 24L11.5 27.7Z" fill="var(--logo-ink)" /><rect x="17.2" y="19.2" width="11.6" height="9.6" rx="2" fill="none" stroke="var(--logo-accent)" stroke-width="2.4" /></svg>
+        <span class="wordmark">TikZ<em>Flow</em></span>
+      </a>
+      <nav class="site-nav" aria-label="Site">
+        <a href="/#templates">Templates</a>
+        <a href="/help/">Help</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow" rel="noopener noreferrer">Source code</a>
+      </nav>
+      <div class="head-actions">
+        <button class="icon-btn" type="button" data-theme-switch aria-label="Theme: system">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18v18Z" /><circle cx="12" cy="12" r="9" fill="none" /></svg>
+        </button>
+        <a class="btn primary" href="/editor/">Open the editor</a>
+      </div>
+    </header>
+    <div class="help">
+      <aside class="help-side">
+        <form class="help-search" role="search" data-help-search>
+          <label for="help-q">Search the help</label>
+          <input id="help-q" type="search" name="q" placeholder="Search the help" autocomplete="off" aria-controls="help-results" />
+          <p class="help-count" aria-live="polite" data-help-count></p>
+          <ul id="help-results" class="help-results" data-help-results hidden></ul>
+        </form>
+        <nav class="help-toc" aria-label="Help topics">
+          <ul>
+          <li><a href="/help/">Help</a></li>
+          <li><a href="/help/getting-started/">Getting started</a></li>
+          <li><a href="/help/canvas/">Editing on the canvas</a></li>
+          <li><a href="/help/edges/">Edges and labels</a></li>
+          <li><a href="/help/styles/">Colors, fonts and styles</a></li>
+          <li><a href="/help/layout/">Layout, groups and swimlanes</a></li>
+          <li><a href="/help/import/">Templates, pasting and importing</a></li>
+          <li><a href="/help/tex-preview/">The TeX preview</a></li>
+          <li><a href="/help/saving/">Saving, tabs and your work</a></li>
+          <li><a href="/help/export/">Exporting and sharing</a></li>
+          <li><a href="/help/shortcuts/">Keyboard shortcuts</a></li>
+          <li><a href="/help/privacy/" aria-current="page">Privacy and offline use</a></li>
+          <li><a href="/help/troubleshooting/">When something can't be edited</a></li>
+          </ul>
+        </nav>
+      </aside>
+      <main id="main" class="help-main">
+        <article class="help-article">
+          <h1>Privacy and offline use</h1>
+          <h2 id="nothing-leaves-your-computer"><a class="anchor" href="#nothing-leaves-your-computer" aria-hidden="true" tabindex="-1">#</a>Nothing leaves your computer</h2>
+          <ul>
+          <li><strong>No server, no account, no tracking.</strong> TikZFlow is a set of static files. There is no analytics and no advertising, and the site loads nothing from other websites.</li>
+          <li><strong>Your diagrams stay in your browser.</strong> The code is kept in this browser&#39;s storage, and the TeX engine runs on your computer. Import, layout and export all happen in the page.</li>
+          <li><strong>Share links</strong> carry the code after the <code>#</code> in the address, which browsers never send to a server.</li>
+          <li><strong>Report a problem</strong> opens GitHub&#39;s issue form in a new tab. Nothing is sent from TikZFlow itself; you choose what to paste there.</li>
+          </ul>
+          <p>Because nothing is stored on a server, nothing can be recovered from one either: see <a href="/help/saving/#your-work-lives-in-this-browser">Your work lives in this browser</a>.</p>
+          <h2 id="working-offline"><a class="anchor" href="#working-offline" aria-hidden="true" tabindex="-1">#</a>Working offline</h2>
+          <p>After your first visit to the editor, TikZFlow works without a connection: the pages, the editor and the TeX engine are kept by your browser. The app bar says &quot;Works offline&quot; once everything is kept.</p>
+          <p>On a metered connection, or with data saving turned on, the engine&#39;s packages and fonts are kept only as your pictures use them, not all at once; the app bar then says &quot;Offline: kept as used&quot;.</p>
+          <p>When a new version of TikZFlow is published, your browser picks it up on a later visit.</p>
+          <h2 id="bookmarking"><a class="anchor" href="#bookmarking" aria-hidden="true" tabindex="-1">#</a>Bookmarking</h2>
+          <p>Bookmark <a href="/editor/">tikzflow.pages.dev/editor/</a> to go straight to the editor. The home page offers <strong>Continue your diagram</strong> when this browser has work in progress.</p>
+        </article>
+        <nav class="help-pager" aria-label="Next and previous topics">
+          <a class="prev" href="/help/shortcuts/"><span>Previous</span>Keyboard shortcuts</a>
+          <a class="next" href="/help/troubleshooting/"><span>Next</span>When something can't be edited</a>
+        </nav>
+      </main>
+    </div>
+    <footer class="site-foot">
+      <a class="brand small" href="/" aria-label="TikZFlow home">
+        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="13" height="10" rx="2" fill="var(--logo-ink)" /><path d="M9.5 13V24H12.5" fill="none" stroke="var(--logo-ink)" stroke-width="2.4" /><path d="M11.5 20.3L16.2 24L11.5 27.7Z" fill="var(--logo-ink)" /><rect x="17.2" y="19.2" width="11.6" height="9.6" rx="2" fill="none" stroke="var(--logo-accent)" stroke-width="2.4" /></svg>
+        <span class="wordmark">TikZ<em>Flow</em></span>
+      </a>
+      <nav class="foot-links" aria-label="More">
+        <a href="/editor/">Editor</a>
+        <a href="/help/">Help</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow/issues/new?template=problem.yml" rel="noopener noreferrer">Report a problem</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow" rel="noopener noreferrer">Source code</a>
+        <span>GPL-3.0-or-later</span>
+      </nav>
+    </footer>
+  </body>
+</html>

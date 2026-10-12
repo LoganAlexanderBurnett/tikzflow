@@ -329,13 +329,15 @@ export default defineConfig({
     },
   },
   preview: { headers: pageHeaders() },
-  // The site's pages (D89, D92): the home page, the editor and the 404 page.
+  // The site's pages (D89, D92): the home page, the editor, the 404 page, and the help pages generated
+  // from src/help/ (npm run help:build, D99).
   build: {
     rollupOptions: {
       input: {
         home: join(import.meta.dirname, "index.html"),
         editor: join(import.meta.dirname, "editor", "index.html"),
         notfound: join(import.meta.dirname, "404.html"),
+        ...helpPages(),
       },
     },
   },
@@ -346,3 +348,15 @@ export default defineConfig({
     testTimeout: 30_000,
   },
 });
+
+/** The help pages, help/index.html and help/<topic>/index.html, as build inputs (D99). */
+function helpPages(): Record<string, string> {
+  const dir = join(import.meta.dirname, "help");
+  if (!existsSync(dir)) return {};
+  const pages: Record<string, string> = { help: join(dir, "index.html") };
+  for (const topic of readdirSync(dir)) {
+    const page = join(dir, topic, "index.html");
+    if (existsSync(page)) pages[`help-${topic}`] = page;
+  }
+  return pages;
+}

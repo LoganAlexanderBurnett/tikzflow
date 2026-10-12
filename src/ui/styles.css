@@ -2193,3 +2193,7 @@ button.tf-preview-state.busy {
   stroke: #ffffff;
   cursor: help;
 }
+.tf-shortcuts .head a.link {
+  margin-left: auto;
+  margin-right: 16px;
+}

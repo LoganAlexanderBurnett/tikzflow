@@ -1,0 +1,131 @@
+<!doctype html>
+<!-- Generated from src/help/saving.md by npm run help:build (D99). Edit the Markdown, not this file. -->
+<html lang="en" data-page="help">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Saving, tabs and your work · TikZFlow help</title>
+    <meta name="description" content="Where TikZFlow keeps your diagrams, how to save them as files, and how tabs, Recently closed and two windows work." />
+    <link rel="canonical" href="https://tikzflow.pages.dev/help/saving/" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <script src="/boot.js"></script>
+    <script type="module" src="../../src/site/help.ts"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="site-head">
+      <a class="brand" href="/" aria-label="TikZFlow home">
+        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="13" height="10" rx="2" fill="var(--logo-ink)" /><path d="M9.5 13V24H12.5" fill="none" stroke="var(--logo-ink)" stroke-width="2.4" /><path d="M11.5 20.3L16.2 24L11.5 27.7Z" fill="var(--logo-ink)" /><rect x="17.2" y="19.2" width="11.6" height="9.6" rx="2" fill="none" stroke="var(--logo-accent)" stroke-width="2.4" /></svg>
+        <span class="wordmark">TikZ<em>Flow</em></span>
+      </a>
+      <nav class="site-nav" aria-label="Site">
+        <a href="/#templates">Templates</a>
+        <a href="/help/">Help</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow" rel="noopener noreferrer">Source code</a>
+      </nav>
+      <div class="head-actions">
+        <button class="icon-btn" type="button" data-theme-switch aria-label="Theme: system">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18v18Z" /><circle cx="12" cy="12" r="9" fill="none" /></svg>
+        </button>
+        <a class="btn primary" href="/editor/">Open the editor</a>
+      </div>
+    </header>
+    <div class="help">
+      <aside class="help-side">
+        <form class="help-search" role="search" data-help-search>
+          <label for="help-q">Search the help</label>
+          <input id="help-q" type="search" name="q" placeholder="Search the help" autocomplete="off" aria-controls="help-results" />
+          <p class="help-count" aria-live="polite" data-help-count></p>
+          <ul id="help-results" class="help-results" data-help-results hidden></ul>
+        </form>
+        <nav class="help-toc" aria-label="Help topics">
+          <ul>
+          <li><a href="/help/">Help</a></li>
+          <li><a href="/help/getting-started/">Getting started</a></li>
+          <li><a href="/help/canvas/">Editing on the canvas</a></li>
+          <li><a href="/help/edges/">Edges and labels</a></li>
+          <li><a href="/help/styles/">Colors, fonts and styles</a></li>
+          <li><a href="/help/layout/">Layout, groups and swimlanes</a></li>
+          <li><a href="/help/import/">Templates, pasting and importing</a></li>
+          <li><a href="/help/tex-preview/">The TeX preview</a></li>
+          <li><a href="/help/saving/" aria-current="page">Saving, tabs and your work</a></li>
+          <li><a href="/help/export/">Exporting and sharing</a></li>
+          <li><a href="/help/shortcuts/">Keyboard shortcuts</a></li>
+          <li><a href="/help/privacy/">Privacy and offline use</a></li>
+          <li><a href="/help/troubleshooting/">When something can't be edited</a></li>
+          </ul>
+        </nav>
+      </aside>
+      <main id="main" class="help-main">
+        <article class="help-article">
+          <h1>Saving, tabs and your work</h1>
+          <h2 id="your-work-lives-in-this-browser"><a class="anchor" href="#your-work-lives-in-this-browser" aria-hidden="true" tabindex="-1">#</a>Your work lives in this browser</h2>
+          <p>TikZFlow has no server and no accounts. As you type or drag, your diagram is saved <strong>in this browser&#39;s storage on this computer</strong>, and nowhere else. That is what keeps your diagrams private, and it has consequences worth knowing:</p>
+          <ul>
+          <li><strong>Clearing this site&#39;s data</strong> (or all browsing data, cookies and site data) in your browser&#39;s settings <strong>deletes your diagrams</strong>, Recently closed included.</li>
+          <li><strong>Another browser, another computer, or another browser profile</strong> starts empty: it can&#39;t see what you drew here.</li>
+          <li><strong>A private or incognito window</strong> forgets everything when it closes, and some refuse storage altogether; then your work lives only in the open page.</li>
+          <li>Browsers can also clear the storage of sites you haven&#39;t visited in a long time, or when the disk is nearly full.</li>
+          </ul>
+          <blockquote>
+          <p><strong>Save important diagrams as files.</strong> The browser&#39;s copy is a convenience, not a backup. A <code>.tex</code> file on your disk (or in your usual cloud folder) is yours to keep, back up and put under version control.</p>
+          </blockquote>
+          <h2 id="saving-files"><a class="anchor" href="#saving-files" aria-hidden="true" tabindex="-1">#</a>Saving files</h2>
+          <ul>
+          <li><strong>Save</strong> (<kbd>Ctrl</kbd>+<kbd>S</kbd>) writes to the file the tab came from. In Chromium browsers (Chrome, Edge, Opera), a file you opened with <strong>Open…</strong> is saved in place. Elsewhere, and for a diagram that has no file yet, Save downloads a <code>.tex</code> file.</li>
+          <li><strong>Save as…</strong> (Chromium browsers) saves to a new file, which the tab then saves to.</li>
+          <li><strong>Download</strong> always downloads the code as a <code>.tex</code> file.</li>
+          </ul>
+          <p>A <strong>●</strong> after the tab&#39;s name means the code has changed since the file was opened or saved. The browser&#39;s copy is always current either way.</p>
+          <h2 id="tabs"><a class="anchor" href="#tabs" aria-hidden="true" tabindex="-1">#</a>Tabs</h2>
+          <p>Each diagram has its own tab in the bar at the top, with its own code, undo history, file and TeX picture. <kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes only the tab on screen. Your tabs come back when you reload or come back later, on the one you were on.</p>
+          <ul>
+          <li><strong>+</strong> opens a new, empty tab.</li>
+          <li><strong>Open…</strong>, dropping a file, <strong>Import</strong>, <strong>New</strong>, a template from the home page, and a share link each open a new tab, so the diagram on screen is never replaced. When the tab on screen is empty, it is used instead.</li>
+          <li>Click a tab to show it; with a tab focused, <kbd>←</kbd> and <kbd>→</kbd> move between tabs.</li>
+          <li>Close a tab with its <strong>×</strong> or a middle click. There is no question to answer, because nothing is lost: it goes to Recently closed.</li>
+          </ul>
+          <h2 id="recently-closed"><a class="anchor" href="#recently-closed" aria-hidden="true" tabindex="-1">#</a>Recently closed</h2>
+          <p>The clock button after the tabs (it appears once you have closed a tab with work in it) opens <strong>Recently closed</strong>: the tabs you closed, newest first, with when you closed them. Click one to open it again, in a new tab, together with its file if it had one.</p>
+          <p><figure><img src="../../src/help/shots/recently-closed.png" alt="Recently closed, open over the tab bar" width="616" height="170" loading="lazy" /><figcaption>Recently closed, open over the tab bar</figcaption></figure></p>
+          <ul>
+          <li>The last <strong>20</strong> tabs closed with work in them are kept, in this browser like everything else (so clearing site data clears them too).</li>
+          <li>A tab that was empty, or held a template you hadn&#39;t changed, isn&#39;t kept: there was nothing to lose.</li>
+          <li>Undo history isn&#39;t kept; reopened tabs start a fresh history.</li>
+          </ul>
+          <h2 id="two-windows"><a class="anchor" href="#two-windows" aria-hidden="true" tabindex="-1">#</a>Two windows</h2>
+          <p>You can have TikZFlow open in two browser windows or browser tabs. They show the same set of tabs, but <strong>only one window at a time can edit a given diagram</strong>, so the two can never overwrite each other&#39;s work:</p>
+          <ul>
+          <li>A new window starts on a diagram the other window isn&#39;t showing (or an empty tab).</li>
+          <li>When you show a diagram that is being edited in another window, it is <strong>read-only</strong>. A banner says so, and the diagram follows the other window&#39;s changes as they are saved. A small dot on a tab means another window has it open.</li>
+          <li><strong>Edit here</strong> in the banner moves editing to this window; the other window turns read-only. When the editing window closes or switches to another diagram, a read-only window showing it takes over by itself.</li>
+          </ul>
+          <p><figure><img src="../../src/help/shots/read-only.png" alt="A diagram that another window is editing, shown read-only" width="1440" height="460" loading="lazy" /><figcaption>A diagram that another window is editing, shown read-only</figcaption></figure></p>
+          <p>In the unlikely case that two windows did save different versions of a diagram (an old browser without the locking this relies on, say), neither is lost: the second is kept as a new tab called &quot;… (your copy)&quot;.</p>
+          <h2 id="if-the-browser-closes-suddenly"><a class="anchor" href="#if-the-browser-closes-suddenly" aria-hidden="true" tabindex="-1">#</a>If the browser closes suddenly</h2>
+          <p>Your changes are saved half a second after you make them, and again when you switch tabs or close the page. If the page closes before that save finishes, the editor finds what was missing the next time it starts and puts it back; if that diagram was changed in another window meanwhile, the rescued version opens as &quot;… (recovered)&quot; next to it.</p>
+          <p>The one thing that can be lost is the last half second of work before the browser crashes or the computer loses power.</p>
+        </article>
+        <nav class="help-pager" aria-label="Next and previous topics">
+          <a class="prev" href="/help/tex-preview/"><span>Previous</span>The TeX preview</a>
+          <a class="next" href="/help/export/"><span>Next</span>Exporting and sharing</a>
+        </nav>
+      </main>
+    </div>
+    <footer class="site-foot">
+      <a class="brand small" href="/" aria-label="TikZFlow home">
+        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="13" height="10" rx="2" fill="var(--logo-ink)" /><path d="M9.5 13V24H12.5" fill="none" stroke="var(--logo-ink)" stroke-width="2.4" /><path d="M11.5 20.3L16.2 24L11.5 27.7Z" fill="var(--logo-ink)" /><rect x="17.2" y="19.2" width="11.6" height="9.6" rx="2" fill="none" stroke="var(--logo-accent)" stroke-width="2.4" /></svg>
+        <span class="wordmark">TikZ<em>Flow</em></span>
+      </a>
+      <nav class="foot-links" aria-label="More">
+        <a href="/editor/">Editor</a>
+        <a href="/help/">Help</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow/issues/new?template=problem.yml" rel="noopener noreferrer">Report a problem</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow" rel="noopener noreferrer">Source code</a>
+        <span>GPL-3.0-or-later</span>
+      </nav>
+    </footer>
+  </body>
+</html>

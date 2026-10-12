@@ -1,0 +1,105 @@
+<!doctype html>
+<!-- Generated from src/help/export.md by npm run help:build (D99). Edit the Markdown, not this file. -->
+<html lang="en" data-page="help">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Exporting and sharing · TikZFlow help</title>
+    <meta name="description" content="Exporting a TikZFlow diagram as a standalone .tex file, a snippet for your paper, SVG, PDF or PNG, and sharing it as a link." />
+    <link rel="canonical" href="https://tikzflow.pages.dev/help/export/" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <script src="/boot.js"></script>
+    <script type="module" src="../../src/site/help.ts"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="site-head">
+      <a class="brand" href="/" aria-label="TikZFlow home">
+        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="13" height="10" rx="2" fill="var(--logo-ink)" /><path d="M9.5 13V24H12.5" fill="none" stroke="var(--logo-ink)" stroke-width="2.4" /><path d="M11.5 20.3L16.2 24L11.5 27.7Z" fill="var(--logo-ink)" /><rect x="17.2" y="19.2" width="11.6" height="9.6" rx="2" fill="none" stroke="var(--logo-accent)" stroke-width="2.4" /></svg>
+        <span class="wordmark">TikZ<em>Flow</em></span>
+      </a>
+      <nav class="site-nav" aria-label="Site">
+        <a href="/#templates">Templates</a>
+        <a href="/help/">Help</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow" rel="noopener noreferrer">Source code</a>
+      </nav>
+      <div class="head-actions">
+        <button class="icon-btn" type="button" data-theme-switch aria-label="Theme: system">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18v18Z" /><circle cx="12" cy="12" r="9" fill="none" /></svg>
+        </button>
+        <a class="btn primary" href="/editor/">Open the editor</a>
+      </div>
+    </header>
+    <div class="help">
+      <aside class="help-side">
+        <form class="help-search" role="search" data-help-search>
+          <label for="help-q">Search the help</label>
+          <input id="help-q" type="search" name="q" placeholder="Search the help" autocomplete="off" aria-controls="help-results" />
+          <p class="help-count" aria-live="polite" data-help-count></p>
+          <ul id="help-results" class="help-results" data-help-results hidden></ul>
+        </form>
+        <nav class="help-toc" aria-label="Help topics">
+          <ul>
+          <li><a href="/help/">Help</a></li>
+          <li><a href="/help/getting-started/">Getting started</a></li>
+          <li><a href="/help/canvas/">Editing on the canvas</a></li>
+          <li><a href="/help/edges/">Edges and labels</a></li>
+          <li><a href="/help/styles/">Colors, fonts and styles</a></li>
+          <li><a href="/help/layout/">Layout, groups and swimlanes</a></li>
+          <li><a href="/help/import/">Templates, pasting and importing</a></li>
+          <li><a href="/help/tex-preview/">The TeX preview</a></li>
+          <li><a href="/help/saving/">Saving, tabs and your work</a></li>
+          <li><a href="/help/export/" aria-current="page">Exporting and sharing</a></li>
+          <li><a href="/help/shortcuts/">Keyboard shortcuts</a></li>
+          <li><a href="/help/privacy/">Privacy and offline use</a></li>
+          <li><a href="/help/troubleshooting/">When something can't be edited</a></li>
+          </ul>
+        </nav>
+      </aside>
+      <main id="main" class="help-main">
+        <article class="help-article">
+          <h1>Exporting and sharing</h1>
+          <h2 id="export"><a class="anchor" href="#export" aria-hidden="true" tabindex="-1">#</a>Export</h2>
+          <p><strong>Export</strong> in the toolbar saves the picture on screen.</p>
+          <p><figure><img src="../../src/help/shots/export.png" alt="The Export panel" width="400" height="366" loading="lazy" /><figcaption>The Export panel</figcaption></figure></p>
+          <h3 id="latex"><a class="anchor" href="#latex" aria-hidden="true" tabindex="-1">#</a>LaTeX</h3>
+          <ul>
+          <li><strong>Standalone document:</strong> compiles by itself, with the <code>standalone</code> class, your preamble and the picture.</li>
+          <li><strong>Snippet for a paper:</strong> the <code>tikzpicture</code> alone, with the preamble lines it needs (<code>\usetikzlibrary</code>, <code>\tikzset</code>, colors) in a comment above it, ready to paste into your paper.</li>
+          </ul>
+          <p>Each can be downloaded or copied. These are your own code, so they keep your packages and fonts.</p>
+          <h3 id="pictures-as-tex-draws-them"><a class="anchor" href="#pictures-as-tex-draws-them" aria-hidden="true" tabindex="-1">#</a>Pictures, as TeX draws them</h3>
+          <p><strong>SVG</strong>, <strong>PDF</strong> and <strong>PNG</strong> are compiled by the TeX engine from the code as it is now, so they look exactly like the TeX preview. Text is turned into outlines, so the files need no fonts. Set the margin around the picture, and for PNG the resolution (72 to 600 dpi) and whether the background is transparent.</p>
+          <p>If TeX reports errors, the export says so and contains what TeX drew anyway.</p>
+          <p>The <strong>View</strong> setting (grayscale, color blindness) never affects exports: they always have the picture&#39;s own colors.</p>
+          <h2 id="share-links"><a class="anchor" href="#share-links" aria-hidden="true" tabindex="-1">#</a>Share links</h2>
+          <p><strong>Share</strong> makes a link that carries your code itself, compressed, in the part of the address after the <code>#</code>. Browsers never send that part to a server, so nothing is uploaded or stored anywhere. Opening the link opens the diagram in a new tab.</p>
+          <ul>
+          <li>Anyone with the link can read the code.</li>
+          <li>Your pasted preamble and page settings aren&#39;t included.</li>
+          <li>Long diagrams make long links. Above 8,000 characters the panel warns you: some chat and mail programs cut long links, so send the file instead if the picture doesn&#39;t open.</li>
+          </ul>
+        </article>
+        <nav class="help-pager" aria-label="Next and previous topics">
+          <a class="prev" href="/help/saving/"><span>Previous</span>Saving, tabs and your work</a>
+          <a class="next" href="/help/shortcuts/"><span>Next</span>Keyboard shortcuts</a>
+        </nav>
+      </main>
+    </div>
+    <footer class="site-foot">
+      <a class="brand small" href="/" aria-label="TikZFlow home">
+        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="13" height="10" rx="2" fill="var(--logo-ink)" /><path d="M9.5 13V24H12.5" fill="none" stroke="var(--logo-ink)" stroke-width="2.4" /><path d="M11.5 20.3L16.2 24L11.5 27.7Z" fill="var(--logo-ink)" /><rect x="17.2" y="19.2" width="11.6" height="9.6" rx="2" fill="none" stroke="var(--logo-accent)" stroke-width="2.4" /></svg>
+        <span class="wordmark">TikZ<em>Flow</em></span>
+      </a>
+      <nav class="foot-links" aria-label="More">
+        <a href="/editor/">Editor</a>
+        <a href="/help/">Help</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow/issues/new?template=problem.yml" rel="noopener noreferrer">Report a problem</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow" rel="noopener noreferrer">Source code</a>
+        <span>GPL-3.0-or-later</span>
+      </nav>
+    </footer>
+  </body>
+</html>

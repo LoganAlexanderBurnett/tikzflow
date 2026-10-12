@@ -268,7 +268,7 @@ function ThemeSwitch() {
   );
 }
 
-/** The top row (D92): the brand, the tabs (D97), offline state, Report a problem and the theme. */
+/** The top row (D92): the brand, the tabs (D97), offline state, Help (D99), Report a problem and the theme. */
 function AppBar() {
   return (
     <header class="tf-appbar">
@@ -283,6 +283,9 @@ function AppBar() {
       </span>
       <TabBar />
       <OfflineNote />
+      <a class="tf-report" href="/help/" target="_blank" rel="noopener" data-testid="help-link" title="The help pages, in a new tab: editing, the TeX preview, where your work is kept, tabs, export">
+        Help
+      </a>
       <a class="tf-report" href={REPORT_URL} target="_blank" rel="noopener noreferrer" data-testid="report-link" title="Opens a new issue on GitHub (in a new tab) with a form asking for the code, the browser and what happened. Nothing is sent from here.">
         Report a problem
       </a>

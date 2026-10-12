@@ -76,7 +76,10 @@ else {
   const fileOf = (n: string) => (n === "./" ? "index.html" : n.endsWith("/") ? `${n}index.html` : n);
   const gone = listed.filter((n) => !files.some((f) => f.path === fileOf(n)));
   if (gone.length) problems.push(`sw.js lists files that aren't in dist/: ${gone.slice(0, 3).join(", ")}.`);
-  for (const p of ["./", "editor/"]) if (!pages.includes(p)) problems.push(`sw.js doesn't keep the page ${p}: it wouldn't open offline.`);
+  // The help pages too (D99): every help/…/index.html in the build, generated from src/help/.
+  const help = files.filter((f) => /^help\/(.+\/)?index\.html$/.test(f.path)).map((f) => f.path.slice(0, -"index.html".length));
+  if (!help.includes("help/")) problems.push("dist has no help/index.html: run npm run help:build.");
+  for (const p of ["./", "editor/", ...help]) if (!pages.includes(p)) problems.push(`sw.js doesn't keep the page ${p}: it wouldn't open offline.`);
   notes.push(`sw.js keeps ${pages.length} pages (${pages.join(", ")}) and ${listed.length - pages.length} other files`);
 }
 

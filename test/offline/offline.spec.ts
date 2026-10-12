@@ -165,6 +165,31 @@ test("after one visit to the home page, the home page and the editor work offlin
   expect(violations).toEqual([]);
 });
 
+test("after one visit to a help page, every help page and its search work offline, under the policy (D99)", async ({ page, context }) => {
+  const violations: string[] = [];
+  page.on("console", (m) => /content security policy|refused to/i.test(m.text()) && violations.push(m.text()));
+  page.on("pageerror", (e) => violations.push(String(e)));
+  const response = await page.goto("/help/");
+  expect(response!.headers()["content-security-policy"]).toContain("default-src 'self'");
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await expect
+    .poll(() => page.evaluate(async () => {
+      const shell = (await caches.keys()).find((n) => n.startsWith("tikzflow-shell-"));
+      const paths = shell ? (await (await caches.open(shell)).keys()).map((r) => new URL(r.url).pathname) : [];
+      return paths.includes("/help/saving/") && paths.some((p) => /search-index.*\.json$/.test(p));
+    }))
+    .toBe(true);
+  await context.setOffline(true);
+  await page.goto("/help/saving/");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Saving, tabs and your work");
+  await expect(page.locator("figure img").first()).toHaveJSProperty("complete", true);
+  await page.locator("#help-q").fill("swimlanes");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/help\/layout\//);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Layout, groups and swimlanes");
+  expect(violations).toEqual([]);
+});
+
 test("an unknown address is a 404 with the site's page", async ({ page }) => {
   const response = await page.goto("/no-such-page/");
   expect(response!.status()).toBe(404);

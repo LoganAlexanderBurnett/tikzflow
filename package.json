@@ -34,6 +34,8 @@
     "pdfcheck": "node scripts/pdfcheck.ts",
     "check:dist": "node scripts/check-dist.ts",
     "site:assets": "node scripts/site-assets.ts",
+    "help:build": "node scripts/help-build.ts",
+    "help:shots": "node scripts/help-shots.ts",
     "build:pages": "npm run fetch-engines -- engine && npm run build && npm run check:dist"
   },
   "dependencies": {
@@ -51,6 +53,7 @@
     "@preact/signals": "^2.11.3",
     "elkjs": "0.12.0",
     "katex": "^0.19.0",
+    "minisearch": "7.2.0",
     "preact": "^11.0.0"
   },
   "devDependencies": {
@@ -59,6 +62,7 @@
     "@types/katex": "^0.16.8",
     "@types/node": "^26.6.4",
     "fflate": "^0.8.3",
+    "marked": "18.0.14",
     "pdfjs-dist": "^6.4.299",
     "tar": "^7.5.22",
     "typescript": "^7.0.2",

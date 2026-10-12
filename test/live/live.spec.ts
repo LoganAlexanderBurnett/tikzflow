@@ -341,4 +341,36 @@ test.describe("the site", () => {
       .toBe(0);
     expect(problems).toEqual([]);
   });
+  test("the help pages (D99): every topic served, search works under the policy, and the editor links to them", async ({ request, page }) => {
+    for (const path of ["/help/", "/help/saving/", "/help/shortcuts/", "/help/tex-preview/"]) {
+      const r = await request.get(path);
+      expect(r.status(), path).toBe(200);
+      expect(await r.text(), path).toContain('data-page="help"');
+    }
+    expect(await (await request.get("/sitemap.xml")).text()).toContain("/help/saving/");
+    const problems: string[] = [];
+    page.on("console", (m) => /content security policy|refused to/i.test(m.text()) && problems.push(m.text()));
+    page.on("pageerror", (e) => problems.push(String(e)));
+    await page.goto("/help/");
+    await expect(page.locator(".help-toc a")).toHaveCount(13);
+    await page.locator("#help-q").fill("recently closed");
+    await expect(page.locator(".help-results a").first()).toContainText("Saving, tabs and your work");
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/\/help\/saving\/#/);
+    await expect(page.locator("figure img").first()).toHaveJSProperty("complete", true);
+    await page.goto("/editor/");
+    await expect(page.getByTestId("help-link")).toHaveAttribute("href", "/help/");
+    expect(problems).toEqual([]);
+  });
+
+  test("the TeX preview reports where TeX put each node, and a node placed diagonally from the I/O trapezium matches it (D98)", async ({ page }) => {
+    await page.goto(FIRST);
+    await page.waitForSelector(".cm-editor");
+    const code = await page.locator(".cm-content").innerText();
+    await setCode(page, code.replace("\\node[process, right=of small] (base)", "\\node[process, below right=7mm and 1.8cm of read] (base)"));
+    await expect(page.locator(".cm-content")).toContainText("below right=7mm and 1.8cm of read");
+    await expect(page.locator(".tf-compiled-layer:not([data-stale])")).toBeAttached({ timeout: 60_000 });
+    await expect(page.getByTestId("preview-state")).toHaveText("TeX preview", { timeout: 15_000 });
+    await expect(page.getByTestId("misplaced-marker")).toHaveCount(0);
+  });
 });

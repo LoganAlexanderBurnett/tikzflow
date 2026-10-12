@@ -1,0 +1,109 @@
+<!doctype html>
+<!-- Generated from src/help/troubleshooting.md by npm run help:build (D99). Edit the Markdown, not this file. -->
+<html lang="en" data-page="help">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>When something can't be edited · TikZFlow help</title>
+    <meta name="description" content="Why parts of a TikZ picture are kept as-is or locked in TikZFlow, what the summary's warnings mean, and how to report a problem." />
+    <link rel="canonical" href="https://tikzflow.pages.dev/help/troubleshooting/" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <script src="/boot.js"></script>
+    <script type="module" src="../../src/site/help.ts"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="site-head">
+      <a class="brand" href="/" aria-label="TikZFlow home">
+        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="13" height="10" rx="2" fill="var(--logo-ink)" /><path d="M9.5 13V24H12.5" fill="none" stroke="var(--logo-ink)" stroke-width="2.4" /><path d="M11.5 20.3L16.2 24L11.5 27.7Z" fill="var(--logo-ink)" /><rect x="17.2" y="19.2" width="11.6" height="9.6" rx="2" fill="none" stroke="var(--logo-accent)" stroke-width="2.4" /></svg>
+        <span class="wordmark">TikZ<em>Flow</em></span>
+      </a>
+      <nav class="site-nav" aria-label="Site">
+        <a href="/#templates">Templates</a>
+        <a href="/help/">Help</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow" rel="noopener noreferrer">Source code</a>
+      </nav>
+      <div class="head-actions">
+        <button class="icon-btn" type="button" data-theme-switch aria-label="Theme: system">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18v18Z" /><circle cx="12" cy="12" r="9" fill="none" /></svg>
+        </button>
+        <a class="btn primary" href="/editor/">Open the editor</a>
+      </div>
+    </header>
+    <div class="help">
+      <aside class="help-side">
+        <form class="help-search" role="search" data-help-search>
+          <label for="help-q">Search the help</label>
+          <input id="help-q" type="search" name="q" placeholder="Search the help" autocomplete="off" aria-controls="help-results" />
+          <p class="help-count" aria-live="polite" data-help-count></p>
+          <ul id="help-results" class="help-results" data-help-results hidden></ul>
+        </form>
+        <nav class="help-toc" aria-label="Help topics">
+          <ul>
+          <li><a href="/help/">Help</a></li>
+          <li><a href="/help/getting-started/">Getting started</a></li>
+          <li><a href="/help/canvas/">Editing on the canvas</a></li>
+          <li><a href="/help/edges/">Edges and labels</a></li>
+          <li><a href="/help/styles/">Colors, fonts and styles</a></li>
+          <li><a href="/help/layout/">Layout, groups and swimlanes</a></li>
+          <li><a href="/help/import/">Templates, pasting and importing</a></li>
+          <li><a href="/help/tex-preview/">The TeX preview</a></li>
+          <li><a href="/help/saving/">Saving, tabs and your work</a></li>
+          <li><a href="/help/export/">Exporting and sharing</a></li>
+          <li><a href="/help/shortcuts/">Keyboard shortcuts</a></li>
+          <li><a href="/help/privacy/">Privacy and offline use</a></li>
+          <li><a href="/help/troubleshooting/" aria-current="page">When something can't be edited</a></li>
+          </ul>
+        </nav>
+      </aside>
+      <main id="main" class="help-main">
+        <article class="help-article">
+          <h1>When something can&#39;t be edited</h1>
+          <p>TikZFlow never changes code it doesn&#39;t understand. Whatever it can&#39;t model is kept exactly as you wrote it, and TeX still draws it.</p>
+          <h2 id="the-summary"><a class="anchor" href="#the-summary" aria-hidden="true" tabindex="-1">#</a>The summary</h2>
+          <p>Under the canvas, the summary says what the editor understood, for example &quot;12 nodes, 2 groups and 14 edges editable; 1 block kept as-is&quot;. <strong>Details</strong> lists each item below, and clicking one shows its code.</p>
+          <h2 id="blocks-kept-as-is"><a class="anchor" href="#blocks-kept-as-is" aria-hidden="true" tabindex="-1">#</a>Blocks kept as-is</h2>
+          <p><code>\foreach</code> loops, <code>\matrix</code>, <code>pic</code>s and macros the editor doesn&#39;t know become blocks kept as-is. The quick preview doesn&#39;t draw them; the TeX preview does, and clicking one there selects its code. Edit them in the code pane.</p>
+          <h2 id="locked-nodes"><a class="anchor" href="#locked-nodes" aria-hidden="true" tabindex="-1">#</a>Locked nodes</h2>
+          <p>A node that can&#39;t be dragged says why when you select it. The most common reasons:</p>
+          <ul>
+          <li><strong>It refers to a name that doesn&#39;t exist</strong> (a typo, or a node defined later). LaTeX would fail on it too. The panel suggests the name you probably meant, and offers <strong>Pin at current position</strong> (plain coordinates where it is drawn now) or <strong>Attach to</strong> another node.</li>
+          <li><strong>It refers to a node inside a block kept as-is.</strong> The editor can&#39;t know where that node is.</li>
+          <li><strong>It is a group&#39;s box</strong> (<code>fit</code>): it follows its nodes. Dragging it moves them.</li>
+          </ul>
+          <h2 id="other-warnings"><a class="anchor" href="#other-warnings" aria-hidden="true" tabindex="-1">#</a>Other warnings</h2>
+          <ul>
+          <li><strong>Syntax errors:</strong> click the count to jump to each one.</li>
+          <li><strong>Undefined names:</strong> nodes or coordinates used but never defined, including inside <code>\draw</code>.</li>
+          <li><strong>Options the preview ignores</strong>, and the small amber dot on a node: options or shapes the quick preview can&#39;t draw. They stay in the code, and the TeX preview draws them.</li>
+          <li><strong>Low contrast:</strong> text that is hard to read against its fill. Select the node for a one-click fix.</li>
+          <li><strong>Style … is a TikZ key:</strong> a style named like one of TikZ&#39;s own keys, which makes TeX fail.</li>
+          <li><strong>An amber marker with &quot;TeX puts … from where the editor&#39;s own drawing does&quot;</strong> in the TeX preview&#39;s notes: see <a href="/help/tex-preview/#nodes-tex-places-elsewhere">Nodes TeX places elsewhere</a>.</li>
+          </ul>
+          <h2 id="reporting-a-problem"><a class="anchor" href="#reporting-a-problem" aria-hidden="true" tabindex="-1">#</a>Reporting a problem</h2>
+          <p><strong>Report a problem</strong> in the app bar opens a form on GitHub (you need a GitHub account). It asks for the code, your browser and what happened. Nothing is sent from TikZFlow: you choose what to paste. The smallest piece of code that shows the problem helps most.</p>
+          <p>TikZFlow is open source: the code is at <a href="https://github.com/LoganAlexanderBurnett/tikzflow" rel="noopener noreferrer">github.com/LoganAlexanderBurnett/tikzflow</a>.</p>
+        </article>
+        <nav class="help-pager" aria-label="Next and previous topics">
+          <a class="prev" href="/help/privacy/"><span>Previous</span>Privacy and offline use</a>
+          <span></span>
+        </nav>
+      </main>
+    </div>
+    <footer class="site-foot">
+      <a class="brand small" href="/" aria-label="TikZFlow home">
+        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="13" height="10" rx="2" fill="var(--logo-ink)" /><path d="M9.5 13V24H12.5" fill="none" stroke="var(--logo-ink)" stroke-width="2.4" /><path d="M11.5 20.3L16.2 24L11.5 27.7Z" fill="var(--logo-ink)" /><rect x="17.2" y="19.2" width="11.6" height="9.6" rx="2" fill="none" stroke="var(--logo-accent)" stroke-width="2.4" /></svg>
+        <span class="wordmark">TikZ<em>Flow</em></span>
+      </a>
+      <nav class="foot-links" aria-label="More">
+        <a href="/editor/">Editor</a>
+        <a href="/help/">Help</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow/issues/new?template=problem.yml" rel="noopener noreferrer">Report a problem</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow" rel="noopener noreferrer">Source code</a>
+        <span>GPL-3.0-or-later</span>
+      </nav>
+    </footer>
+  </body>
+</html>

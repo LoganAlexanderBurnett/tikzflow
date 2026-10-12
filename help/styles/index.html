@@ -1,0 +1,111 @@
+<!doctype html>
+<!-- Generated from src/help/styles.md by npm run help:build (D99). Edit the Markdown, not this file. -->
+<html lang="en" data-page="help">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Colors, fonts and styles · TikZFlow help</title>
+    <meta name="description" content="The TikZFlow properties panel, named colors, and changing one node or every node of a style." />
+    <link rel="canonical" href="https://tikzflow.pages.dev/help/styles/" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <script src="/boot.js"></script>
+    <script type="module" src="../../src/site/help.ts"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="site-head">
+      <a class="brand" href="/" aria-label="TikZFlow home">
+        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="13" height="10" rx="2" fill="var(--logo-ink)" /><path d="M9.5 13V24H12.5" fill="none" stroke="var(--logo-ink)" stroke-width="2.4" /><path d="M11.5 20.3L16.2 24L11.5 27.7Z" fill="var(--logo-ink)" /><rect x="17.2" y="19.2" width="11.6" height="9.6" rx="2" fill="none" stroke="var(--logo-accent)" stroke-width="2.4" /></svg>
+        <span class="wordmark">TikZ<em>Flow</em></span>
+      </a>
+      <nav class="site-nav" aria-label="Site">
+        <a href="/#templates">Templates</a>
+        <a href="/help/">Help</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow" rel="noopener noreferrer">Source code</a>
+      </nav>
+      <div class="head-actions">
+        <button class="icon-btn" type="button" data-theme-switch aria-label="Theme: system">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18v18Z" /><circle cx="12" cy="12" r="9" fill="none" /></svg>
+        </button>
+        <a class="btn primary" href="/editor/">Open the editor</a>
+      </div>
+    </header>
+    <div class="help">
+      <aside class="help-side">
+        <form class="help-search" role="search" data-help-search>
+          <label for="help-q">Search the help</label>
+          <input id="help-q" type="search" name="q" placeholder="Search the help" autocomplete="off" aria-controls="help-results" />
+          <p class="help-count" aria-live="polite" data-help-count></p>
+          <ul id="help-results" class="help-results" data-help-results hidden></ul>
+        </form>
+        <nav class="help-toc" aria-label="Help topics">
+          <ul>
+          <li><a href="/help/">Help</a></li>
+          <li><a href="/help/getting-started/">Getting started</a></li>
+          <li><a href="/help/canvas/">Editing on the canvas</a></li>
+          <li><a href="/help/edges/">Edges and labels</a></li>
+          <li><a href="/help/styles/" aria-current="page">Colors, fonts and styles</a></li>
+          <li><a href="/help/layout/">Layout, groups and swimlanes</a></li>
+          <li><a href="/help/import/">Templates, pasting and importing</a></li>
+          <li><a href="/help/tex-preview/">The TeX preview</a></li>
+          <li><a href="/help/saving/">Saving, tabs and your work</a></li>
+          <li><a href="/help/export/">Exporting and sharing</a></li>
+          <li><a href="/help/shortcuts/">Keyboard shortcuts</a></li>
+          <li><a href="/help/privacy/">Privacy and offline use</a></li>
+          <li><a href="/help/troubleshooting/">When something can't be edited</a></li>
+          </ul>
+        </nav>
+      </aside>
+      <main id="main" class="help-main">
+        <article class="help-article">
+          <h1>Colors, fonts and styles</h1>
+          <h2 id="the-properties-panel"><a class="anchor" href="#the-properties-panel" aria-hidden="true" tabindex="-1">#</a>The properties panel</h2>
+          <p>Select a node and the panel on the right edits it:</p>
+          <p><figure><img src="../../src/help/shots/properties.png" alt="The properties panel for a selected node" width="280" height="621" loading="lazy" /><figcaption>The properties panel for a selected node</figcaption></figure></p>
+          <ul>
+          <li><strong>Fill</strong>, <strong>Outline</strong> and <strong>Text</strong> colors.</li>
+          <li><strong>Font:</strong> size (Tiny to Huge), <strong>B</strong>old, <em>I</em>talic, and the family: serif (<code>\rmfamily</code>), sans (<code>\sffamily</code>) or mono (<code>\ttfamily</code>).</li>
+          <li><strong>Align:</strong> Left, Center, Right or Justify. Justify needs a text width, so the editor sets one from the text&#39;s current width.</li>
+          <li><strong>Delete node</strong>.</li>
+          </ul>
+          <p>The « and » button hides and shows the panel; the editor remembers your choice. Select several nodes with Shift-click to change them all at once.</p>
+          <h2 id="this-node-or-all-nodes-of-its-style"><a class="anchor" href="#this-node-or-all-nodes-of-its-style" aria-hidden="true" tabindex="-1">#</a>This node, or all nodes of its style</h2>
+          <p>Most nodes get their look from a named style, such as <code>process</code> in <code>\tikzset</code>. The panel asks where a change goes:</p>
+          <ul>
+          <li><strong>This node</strong> writes the option on the node itself.</li>
+          <li><strong>All process nodes</strong> edits the style, so every node that uses it changes, and the code stays tidy.</li>
+          </ul>
+          <p>When a style isn&#39;t written in a form the editor can change safely, the second choice is grayed out and says why.</p>
+          <h2 id="colors"><a class="anchor" href="#colors" aria-hidden="true" tabindex="-1">#</a>Colors</h2>
+          <p>The color picker offers, in order: the colors your document already defines (<code>\definecolor</code>), common xcolor mixes such as <code>blue!20</code>, the basic colors, and a custom color. Give a custom color a name and <strong>Add named color</strong> adds a <code>\definecolor</code> and uses it; <strong>Use without a name</strong> writes its RGB values instead.</p>
+          <h2 id="the-styles-list"><a class="anchor" href="#the-styles-list" aria-hidden="true" tabindex="-1">#</a>The Styles list</h2>
+          <p>Under the panel, <strong>Styles</strong> lists your picture&#39;s styles and how many nodes use each. <strong>Edit</strong> changes a style&#39;s options for every node using it, and <strong>Select</strong> selects those nodes.</p>
+          <p>When several nodes spell out the same options, the list shows them under <strong>Repeated options</strong>, and <strong>Factor out</strong> turns them into a named style that those nodes then use.</p>
+          <h2 id="libraries"><a class="anchor" href="#libraries" aria-hidden="true" tabindex="-1">#</a>Libraries</h2>
+          <p>You don&#39;t need to manage <code>\usetikzlibrary</code> yourself: when an edit needs a library (<code>positioning</code>, <code>shapes.geometric</code>, <code>fit</code>, <code>arrows.meta</code>…), it is added, and one nothing uses any more is removed.</p>
+          <h2 id="names-that-clash-with-tikz"><a class="anchor" href="#names-that-clash-with-tikz" aria-hidden="true" tabindex="-1">#</a>Names that clash with TikZ</h2>
+          <p>A style named like a TikZ key, such as <code>step</code>, makes TeX fail on every node that uses it. The summary warns about it (&quot;Style step is a TikZ key&quot;), and Details shows the definition.</p>
+        </article>
+        <nav class="help-pager" aria-label="Next and previous topics">
+          <a class="prev" href="/help/edges/"><span>Previous</span>Edges and labels</a>
+          <a class="next" href="/help/layout/"><span>Next</span>Layout, groups and swimlanes</a>
+        </nav>
+      </main>
+    </div>
+    <footer class="site-foot">
+      <a class="brand small" href="/" aria-label="TikZFlow home">
+        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="13" height="10" rx="2" fill="var(--logo-ink)" /><path d="M9.5 13V24H12.5" fill="none" stroke="var(--logo-ink)" stroke-width="2.4" /><path d="M11.5 20.3L16.2 24L11.5 27.7Z" fill="var(--logo-ink)" /><rect x="17.2" y="19.2" width="11.6" height="9.6" rx="2" fill="none" stroke="var(--logo-accent)" stroke-width="2.4" /></svg>
+        <span class="wordmark">TikZ<em>Flow</em></span>
+      </a>
+      <nav class="foot-links" aria-label="More">
+        <a href="/editor/">Editor</a>
+        <a href="/help/">Help</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow/issues/new?template=problem.yml" rel="noopener noreferrer">Report a problem</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow" rel="noopener noreferrer">Source code</a>
+        <span>GPL-3.0-or-later</span>
+      </nav>
+    </footer>
+  </body>
+</html>

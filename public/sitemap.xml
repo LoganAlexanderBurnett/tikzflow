@@ -2,4 +2,17 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://tikzflow.pages.dev/</loc></url>
   <url><loc>https://tikzflow.pages.dev/editor/</loc></url>
+  <url><loc>https://tikzflow.pages.dev/help/</loc></url>
+  <url><loc>https://tikzflow.pages.dev/help/getting-started/</loc></url>
+  <url><loc>https://tikzflow.pages.dev/help/canvas/</loc></url>
+  <url><loc>https://tikzflow.pages.dev/help/edges/</loc></url>
+  <url><loc>https://tikzflow.pages.dev/help/styles/</loc></url>
+  <url><loc>https://tikzflow.pages.dev/help/layout/</loc></url>
+  <url><loc>https://tikzflow.pages.dev/help/import/</loc></url>
+  <url><loc>https://tikzflow.pages.dev/help/tex-preview/</loc></url>
+  <url><loc>https://tikzflow.pages.dev/help/saving/</loc></url>
+  <url><loc>https://tikzflow.pages.dev/help/export/</loc></url>
+  <url><loc>https://tikzflow.pages.dev/help/shortcuts/</loc></url>
+  <url><loc>https://tikzflow.pages.dev/help/privacy/</loc></url>
+  <url><loc>https://tikzflow.pages.dev/help/troubleshooting/</loc></url>
 </urlset>

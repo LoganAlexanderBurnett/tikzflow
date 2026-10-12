@@ -34,12 +34,37 @@ Also read "Notes for later milestones" below.
 | 4 | Nine templates (D89 item 4), with no locked blocks, compiled in CI by pdfLaTeX and our engine; gallery on the home page and in the editor's New menu; the state machine's `loop`/`initial`/`accepting` if moderate | Done (D95); reviewed and approved by the owner (D96) |
 | 5 | First run (Paste TikZ, Start blank, Start from a template; the sample becomes Basic process), the `?` shortcut overlay, the edit flicker (D69 item 4); the summary counts groups (D96 item 3) | Done (D96); reviewed and approved by the owner (D97) |
 | 6 | Multiple tabs (D86 item 5): own code, undo, file, autosave and TeX picture per tab; open, import, share links and templates open a tab; engine stopped while the browser tab is hidden (D69 item 4) | Done (D97); approved (D98). The bug found in review (a node placed diagonally from a trapezium) is fixed, with TeX now reporting where it puts each node (D98; see "Fix after the step 6 review" below) |
-| 7 | Help: static pages from Markdown, client-side search (MiniSearch), screenshots made by a script | Not started |
+| 7 | Help: static pages from Markdown, client-side search (MiniSearch), screenshots made by a script; what the owner asked for on saving, Recently closed and two windows (D98 item 3) | Done (D99); see "M5 step 7" below |
 | 8 | Goldens, end-to-end, offline and live checks on the `m5` preview; docs; if time allows, two or three neural-network templates the editor handles fully, with which Milestone 7 features they show are needed most (D96 item 4); **Milestone 5 report** | Not started |
 
 Milestone 6 (after M5's review): smooth dragging with 200 nodes; license audit and `THIRD_PARTY_LICENSES.md` (the items under "Milestone 5: license audit items" below move there); README with features, screenshots, local setup and deployment; a friendly note on phone-sized screens instead of a cramped editor (D97).
 
 Milestone 7 (after M6, to be planned later; D96 item 4): neural network diagrams. See "Notes for later milestones".
+
+## M5 step 7: help (2026-10-12)
+Done without a pause, as asked (D99).
+
+### How to try it
+Open https://m5.tikzflow.pages.dev/help/ (or `npm run dev`, then http://localhost:5173/help/). **Help** is in the home page's navigation and footer, the 404 page, the editor's app bar (opens a new tab) and the `?` list ("In the help").
+- **Search:** type in the box on the left, or press `/`; ↓ moves into the results, Enter opens the first. Try "recently closed", "read-only", "export pdf", "swimlane".
+- **What you asked for (D98 item 3):** "Saving, tabs and your work": work lives only in this browser (clearing site data, another browser, computer or profile, private windows, browsers clearing storage), save important diagrams as files, Save / Save as / Download, tabs, Recently closed (the last 20, newest first, with their files; empty tabs and untouched templates not kept), two windows (read-only with a banner, Edit here, the automatic takeover, "(your copy)"), and an interrupted close. The help's front page repeats the first point.
+
+### What works
+- **13 topics** written in Markdown (`src/help/*.md`), generated to static HTML by `npm run help:build` and committed (as the pictures are, D94), built by Vite as pages of the site. Labels quoted are the interface's own. The shortcut page is generated from the editor's own list (now `src/ui/shortcutlist.ts`).
+- **Search** with MiniSearch (MIT), over each page's sections, loaded on first focus from this site.
+- **Eight screenshots** made by `npm run help:shots` (Edge, light theme, 2×).
+- **Offline:** every help page and the search work offline after one visit; `check:dist` requires each page to be kept by the service worker.
+- Light and dark, phone width without sideways scroll, WCAG AA text contrast in both themes.
+
+### Tests
+- **Vitest:** `test/help.test.ts`, 21: every generated file current, every page in the sitemap, every internal link and anchor resolves, every screenshot exists and is used, American spelling, searches land on the right page, the saving page says what you asked.
+- **Playwright:** `help.spec.ts`, 6: topics, a page, the pager, links back; search with `/` and Enter; links from the home page, editor and shortcut list; phone width; contrast in both themes. The contrast audit is now shared (`test/e2e/lowcontrast.ts`).
+- **Offline:** one more test (help pages and search offline under the policy): 9 of 9.
+- **Live:** a new check of the help pages and search on the deploy.
+
+### Known limits
+- **Screenshots have no staleness test** (pictures of the interface aren't byte-stable across machines); rerun `npm run help:shots` after changing what one shows.
+- **The editor's toolbar is cut off in a 1,180 px wide window** (Export and Share go out of view; found while taking the screenshots; at 1,440 px it fits). For Milestone 6's narrow-screen work.
 
 ## Fix after the step 6 review: corner anchors, and TeX reporting placements (2026-10-12)
 The owner approved step 6 and its defaults (D98) and found a bug: after dragging "Answer 1" in the Basic process template, the code said `below right=7mm and 1.8cm of read` and the selection outline sat right of TeX's box.
@@ -1500,6 +1525,7 @@ After Milestone 6. The scope is to be planned later; nothing of it is built befo
 ### Milestone 5: license audit items
 - **web2js's license files disagree** (found 2026-10-08, M3 step 1). `drgrice1/web2js` (commit `0114ef5`, used to build `tex.wasm` in CI) declares `"license": "GPL-3.0"` in `package.json`. Its `LICENSE.md` names "Math-expression", apparently pasted from another project, and offers GPL-3.0 or Apache-2.0. GitHub reports the license as NOASSERTION. web2js itself is only a build tool. But its `library.js` runtime and the TikZJax worker code adapted from it in step 7 ship in the app, so the audit must settle their license, upstream (kisonecat/web2js) included.
 
+- **Added in M5 step 7 (D99):** MiniSearch 7.2.0 (MIT, pinned), bundled in the help pages' script; marked 18.0.14 (MIT, pinned), a dev dependency used only by `scripts/lib/help.ts` at generation time, not shipped.
 - **Added in M4 step 3 (D80):** elk.js 0.12.0 (`node_modules/elkjs`, bundled as its own chunk) is `EPL-2.0 OR GPL-3.0-or-later`: its `LICENSE.md` is the EPL-2.0 with Exhibit A naming GPL-3.0-or-later as a secondary licence, and the source headers say the same. Releases before 0.12.0 are EPL-2.0 only, so the pin must not go below 0.12.
 - **Added in M3 steps 6–8:** `src/engine/texlib.ts` is our port of web2js's `library.js` (GPL-3.0 as declared; see the item above). `engine/build/texinputs/pgfsys-tikzflow.def` is derived from pgf's `pgfsys-dvisvgm.def` (LPPL and/or GPL; ours takes GPL-3.0-or-later). The preview's glyphs come from the AMS Type 1 Computer Modern fonts (OFL-1.1). The engine release bundles 44 TeX Live packages (`engine/build/packages.txt`), each to be listed with its licence. dvi2html and the BaKoMa fonts are no longer used.
 

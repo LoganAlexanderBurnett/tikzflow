@@ -1,0 +1,106 @@
+<!doctype html>
+<!-- Generated from src/help/import.md by npm run help:build (D99). Edit the Markdown, not this file. -->
+<html lang="en" data-page="help">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Templates, pasting and importing · TikZFlow help</title>
+    <meta name="description" content="Starting a TikZFlow diagram from a template, from existing TikZ code, or from a Mermaid or Graphviz DOT diagram." />
+    <link rel="canonical" href="https://tikzflow.pages.dev/help/import/" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <script src="/boot.js"></script>
+    <script type="module" src="../../src/site/help.ts"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="site-head">
+      <a class="brand" href="/" aria-label="TikZFlow home">
+        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="13" height="10" rx="2" fill="var(--logo-ink)" /><path d="M9.5 13V24H12.5" fill="none" stroke="var(--logo-ink)" stroke-width="2.4" /><path d="M11.5 20.3L16.2 24L11.5 27.7Z" fill="var(--logo-ink)" /><rect x="17.2" y="19.2" width="11.6" height="9.6" rx="2" fill="none" stroke="var(--logo-accent)" stroke-width="2.4" /></svg>
+        <span class="wordmark">TikZ<em>Flow</em></span>
+      </a>
+      <nav class="site-nav" aria-label="Site">
+        <a href="/#templates">Templates</a>
+        <a href="/help/">Help</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow" rel="noopener noreferrer">Source code</a>
+      </nav>
+      <div class="head-actions">
+        <button class="icon-btn" type="button" data-theme-switch aria-label="Theme: system">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18v18Z" /><circle cx="12" cy="12" r="9" fill="none" /></svg>
+        </button>
+        <a class="btn primary" href="/editor/">Open the editor</a>
+      </div>
+    </header>
+    <div class="help">
+      <aside class="help-side">
+        <form class="help-search" role="search" data-help-search>
+          <label for="help-q">Search the help</label>
+          <input id="help-q" type="search" name="q" placeholder="Search the help" autocomplete="off" aria-controls="help-results" />
+          <p class="help-count" aria-live="polite" data-help-count></p>
+          <ul id="help-results" class="help-results" data-help-results hidden></ul>
+        </form>
+        <nav class="help-toc" aria-label="Help topics">
+          <ul>
+          <li><a href="/help/">Help</a></li>
+          <li><a href="/help/getting-started/">Getting started</a></li>
+          <li><a href="/help/canvas/">Editing on the canvas</a></li>
+          <li><a href="/help/edges/">Edges and labels</a></li>
+          <li><a href="/help/styles/">Colors, fonts and styles</a></li>
+          <li><a href="/help/layout/">Layout, groups and swimlanes</a></li>
+          <li><a href="/help/import/" aria-current="page">Templates, pasting and importing</a></li>
+          <li><a href="/help/tex-preview/">The TeX preview</a></li>
+          <li><a href="/help/saving/">Saving, tabs and your work</a></li>
+          <li><a href="/help/export/">Exporting and sharing</a></li>
+          <li><a href="/help/shortcuts/">Keyboard shortcuts</a></li>
+          <li><a href="/help/privacy/">Privacy and offline use</a></li>
+          <li><a href="/help/troubleshooting/">When something can't be edited</a></li>
+          </ul>
+        </nav>
+      </aside>
+      <main id="main" class="help-main">
+        <article class="help-article">
+          <h1>Templates, pasting and importing</h1>
+          <p>Everything below opens in a new tab, so the diagram you were working on stays in its own. The one exception: when the tab on screen is empty, it is used.</p>
+          <h2 id="templates"><a class="anchor" href="#templates" aria-hidden="true" tabindex="-1">#</a>Templates</h2>
+          <p><strong>New</strong> in the toolbar offers a blank diagram and twelve templates: Basic process, Decision flowchart, Algorithm with a loop, Swimlane process, Left-to-right pipeline, Feedback block diagram, PRISMA 2020, State machine, Hierarchy, and three neural networks (a fully connected network, an LSTM cell and an encoder–decoder). The home page shows the same gallery.</p>
+          <p>Each template is plain, hand-written TikZ: named styles in <code>\tikzset</code>, positions written as relations, and nothing the editor can&#39;t edit. It compiles with pdfLaTeX as it is.</p>
+          <h2 id="your-own-tikz"><a class="anchor" href="#your-own-tikz" aria-hidden="true" tabindex="-1">#</a>Your own TikZ</h2>
+          <p>Paste or open code in any of these forms:</p>
+          <ul>
+          <li>a bare <code>tikzpicture</code>;</li>
+          <li>a whole <code>.tex</code> file. The editor works on its <code>tikzpicture</code> and keeps everything else as it is. With several pictures, <strong>Picture</strong> in the toolbar picks the one to edit;</li>
+          <li><code>\tikzset</code> styles, <code>\usetikzlibrary</code> lines and simple <code>\newcommand</code> macros are read from the file&#39;s preamble.</li>
+          </ul>
+          <p><strong>Open…</strong> reads a file (<code>.tex</code>, <code>.tikz</code>, <code>.pgf</code>, <code>.txt</code>); you can also drop a file anywhere on the page. On the start screen, <strong>Paste TikZ</strong> reads the clipboard.</p>
+          <p>After it is read, the summary says what the editor understood, for example &quot;12 nodes and 14 edges editable; 1 block kept as-is&quot;. Anything it doesn&#39;t understand is kept exactly as written and drawn by TeX; see <a href="/help/troubleshooting/">When something can&#39;t be edited</a>.</p>
+          <h2 id="mermaid-and-graphviz-dot"><a class="anchor" href="#mermaid-and-graphviz-dot" aria-hidden="true" tabindex="-1">#</a>Mermaid and Graphviz DOT</h2>
+          <p><strong>Import</strong> turns a Mermaid flowchart or a Graphviz DOT graph into TikZ, in this browser. Paste the diagram or choose a file (<code>.mmd</code>, <code>.mermaid</code>, <code>.dot</code>, <code>.gv</code>); the format is recognized from its first line.</p>
+          <ul>
+          <li>Shapes, labels, edge kinds, arrow tips, subgraphs and clusters, styles, classes and colors are carried over. Subgraphs become boxes drawn with <code>fit</code>.</li>
+          <li>The result is laid out top to bottom or left to right (choose with <strong>Direction</strong>), written as <code>below=of</code> and <code>right=of</code>, and every node can be dragged.</li>
+          <li>Anything that couldn&#39;t be carried over is listed under &quot;Left out or approximated&quot;, never dropped silently.</li>
+          </ul>
+          <p>Opening or dropping a Mermaid or DOT file imports it the same way, and so does pasting one on the start screen.</p>
+        </article>
+        <nav class="help-pager" aria-label="Next and previous topics">
+          <a class="prev" href="/help/layout/"><span>Previous</span>Layout, groups and swimlanes</a>
+          <a class="next" href="/help/tex-preview/"><span>Next</span>The TeX preview</a>
+        </nav>
+      </main>
+    </div>
+    <footer class="site-foot">
+      <a class="brand small" href="/" aria-label="TikZFlow home">
+        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="13" height="10" rx="2" fill="var(--logo-ink)" /><path d="M9.5 13V24H12.5" fill="none" stroke="var(--logo-ink)" stroke-width="2.4" /><path d="M11.5 20.3L16.2 24L11.5 27.7Z" fill="var(--logo-ink)" /><rect x="17.2" y="19.2" width="11.6" height="9.6" rx="2" fill="none" stroke="var(--logo-accent)" stroke-width="2.4" /></svg>
+        <span class="wordmark">TikZ<em>Flow</em></span>
+      </a>
+      <nav class="foot-links" aria-label="More">
+        <a href="/editor/">Editor</a>
+        <a href="/help/">Help</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow/issues/new?template=problem.yml" rel="noopener noreferrer">Report a problem</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow" rel="noopener noreferrer">Source code</a>
+        <span>GPL-3.0-or-later</span>
+      </nav>
+    </footer>
+  </body>
+</html>
