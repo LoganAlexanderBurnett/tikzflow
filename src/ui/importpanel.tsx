@@ -3,6 +3,7 @@
 // replaces the work on screen, which is put aside like Open does (D77 item 5).
 
 import { useSignal } from "@preact/signals";
+import { Icon } from "./icons.tsx";
 import { useRef } from "preact/hooks";
 import type { LayoutDirection } from "../edit/autolayout.ts";
 import { detectFormat, IMPORT_EXTENSIONS, type ImportResult } from "../import/index.ts";
@@ -57,7 +58,7 @@ export function ImportButton() {
         data-testid="import-button"
         title="Import a Mermaid flowchart or a Graphviz DOT graph as TikZ"
       >
-        Import
+        <Icon name="import" />Import
       </button>
       {open.value && (
         <div class="tf-page-panel tf-import-panel" data-testid="import-panel" style={{ top: `${at.value.top}px`, left: `${at.value.left}px` }} onKeyDown={(e) => e.key === "Escape" && (open.value = false)}>

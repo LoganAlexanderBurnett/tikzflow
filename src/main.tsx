@@ -1,4 +1,5 @@
 import "katex/dist/katex.min.css";
+import "./theme/theme.css";
 import "./ui/styles.css";
 import { render } from "preact";
 import { App } from "./ui/app.tsx";

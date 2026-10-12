@@ -70,6 +70,22 @@ test("the theme switch cycles system, light and dark, and the choice holds on ev
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 });
 
+test("the editor has the same theme switch, and its logo leads home", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.goto("/editor/");
+  await expect(page.locator(".cm-editor")).toBeVisible();
+  const sw = page.getByTestId("theme-switch");
+  await sw.click(); // light
+  await sw.click(); // dark
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  // The canvas stays white: the picture as it prints.
+  expect(await page.locator("svg.tf-canvas").evaluate((e) => getComputedStyle(e).backgroundColor)).toBe("rgb(255, 255, 255)");
+  await sw.click(); // back to the system's
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await page.getByTitle("TikZFlow home page").click();
+  await expect(page).toHaveURL(/\/$/);
+});
+
 test("at phone width the home page has no sideways scroll", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/");

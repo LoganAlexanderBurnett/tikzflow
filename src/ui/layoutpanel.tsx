@@ -3,6 +3,7 @@
 // more are selected; locked nodes stay where they are.
 
 import { useSignal } from "@preact/signals";
+import { Icon } from "./icons.tsx";
 import { useRef } from "preact/hooks";
 import { guessDirection, type LayoutDirection, layoutBlocker, layoutScope } from "../edit/autolayout.ts";
 import { autoLayout, baseLayout, layoutBusy, layoutReorder, selectedIds } from "./store.ts";
@@ -34,7 +35,7 @@ export function LayoutButton() {
         data-testid="layout-button"
         title="Lay out the picture (or the selected nodes) automatically, written as relative positions"
       >
-        Layout
+        <Icon name="layout" />Layout
       </button>
       {open.value && (
         <div class="tf-page-panel tf-layout-panel" data-testid="layout-panel" style={{ top: `${at.value.top}px`, left: `${at.value.left}px` }} onKeyDown={(e) => e.key === "Escape" && (open.value = false)}>

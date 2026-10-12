@@ -1277,3 +1277,19 @@ The owner confirmed that "Report a problem" shows the issue form when signed in 
   - **`check:dist`:** it reads the worker's lists, requires `./` and `editor/`, `404.html` and `boot.js`, and checks that every page loads `boot.js`.
 
 **Why:** the owner's scope for M5 (D89 items 3 and 5) and their answer on the root (D91 item 2: `/` always shows the home page).
+
+## D93: Direction A applied to the editor (M5 step 3, 2026-10-11)
+**Decision:**
+- **One look.** The editor imports `src/theme/theme.css`, as the site does: the same fonts and tokens. `src/ui/styles.css` keeps only the editor's own tokens (code highlighting, warnings, lock, guide, selection), with their dark values under `:root[data-theme="dark"]`. **Dark mode follows the theme switch, not only the system** (the old `@media (prefers-color-scheme)` blocks are gone; `boot.js` sets the attribute from the system when nothing is chosen).
+- **Two rows on top**, as in the mockup.
+  - **The app bar:** the logo and wordmark (a link to the home page), Beta, the file name, the offline state, Report a problem, and the theme switch. Step 6's tabs go here.
+  - **The toolbar:** flat buttons with icons, in groups: Open, Save, Save as, Download, Sample, Import | Undo, Redo (icons only, labeled) | Layout, Page | Restore previous work (when there is some) … TeX preview, View, Fit | Export, Share (the accent button).
+  - **Unchanged:** every button's text and test id, so tests and habits still hold.
+- **Icons** (`src/ui/icons.tsx`) are drawn for TikZFlow on a 24-unit grid and stroked with the text color. No icon library: nothing to license, nothing to load.
+- **The canvas stays white in both themes**: the picture as it prints, as since D68.
+  - **Marks keep their light-theme colors:** what is drawn on the canvas uses fixed canvas colors whatever the theme. Selection and handles are vermilion (`--canvas-accent`), alignment guides blue (`--canvas-guide`), locked nodes amber (`--canvas-lock`). Without this, the dark theme's light accents would be faint on white.
+  - **Guides:** they were pink and are now blue, so they don't read as the selection's vermilion.
+- **The code pane** sets code in Source Code Pro with ligatures off. Its gutter, cursor and selection take the theme's colors instead of CodeMirror's light-only defaults.
+- **Contrast:** the end-to-end audit of the interface's text (D82) passes in both themes with the new colors.
+
+**Why:** the owner's choice of direction A (D91) and D89 step 3.

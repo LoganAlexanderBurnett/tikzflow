@@ -1,65 +1,58 @@
+/* The editor's tokens. The palette, fonts and the light/dark switch come from ../theme/theme.css
+   (D91, D92): --bg, --surface, --fg, --muted, --line, --accent and the rest. These are the editor's own,
+   for light, with their dark values under :root[data-theme="dark"]. */
 :root {
-  --bg: #f7f7f8;
-  --panel: #ffffff;
-  --fg: #1d1d1f;
-  --muted: #6b6b70;
-  --line: #dcdce0;
-  --accent: #2563eb;
-  --accent-soft: rgba(37, 99, 235, 0.14);
-  --lock: #b45309;
+  --panel: var(--surface);
+  --on-accent: var(--accent-fg);
+  --lock: #a35208;
   --canvas-bg: #ffffff;
-  --guide: #e11d74;
-  --opaque: rgba(217, 119, 6, 0.13);
-  --hl-keyword: #6d28d9;
-  --hl-definition: #b91c1c;
-  --hl-module: #0f766e;
-  --hl-macro: #1d4ed8;
-  --hl-comment: #6b7280;
-  --hl-key: #0e6578;
-  --hl-value: #9a3412;
-  --hl-name: #166534;
-  --hl-coord: #854d0e;
-  --hl-operator: #be185d;
+  --guide: #2563eb;
+  --opaque: rgba(176, 120, 0, 0.13);
+  /* Code highlighting, all WCAG AA on the code pane (D82). */
+  --hl-keyword: #24345a;
+  --hl-definition: #a63a1a;
+  --hl-module: #276565;
+  --hl-macro: #3d5a8a;
+  --hl-comment: #776f62;
+  --hl-key: #6a4a8c;
+  --hl-value: #8f3a12;
+  --hl-name: #2f6b3a;
+  --hl-coord: #765400;
+  --hl-operator: #a3245e;
   /* Text that reports a problem or a warning, readable on the panels (WCAG AA, D82). */
-  --danger: #b91c1c;
-  --warn-text: #92400e;
+  --danger: #a1281c;
+  --warn-text: #8a4b00;
   /* The code of the object selected on the canvas. */
-  --code-selected: rgba(37, 99, 235, 0.1);
-  /* Text on an accent fill. */
-  --on-accent: #ffffff;
+  --code-selected: rgba(179, 64, 30, 0.1);
   /* The code pane's current line (CodeMirror's own tint is meant for light pages). */
-  --active-line: rgba(204, 238, 255, 0.27);
-  color-scheme: light;
+  --active-line: rgba(60, 40, 10, 0.045);
+  --code-selection: rgba(36, 52, 90, 0.16);
+  /* The canvas is white in both themes (the picture as it prints), so the marks drawn on it keep their
+     light-theme colors: selection in vermilion, guides in blue, locked nodes in amber. */
+  --canvas-accent: #b3401e;
+  --canvas-accent-soft: rgba(179, 64, 30, 0.16);
+  --canvas-guide: #2563eb;
+  --canvas-lock: #a35208;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #18181b;
-    --panel: #1f1f23;
-    --fg: #ececf0;
-    --muted: #a0a0a8;
-    --line: #34343a;
-    --accent: #60a5fa;
-    --accent-soft: rgba(96, 165, 250, 0.2);
-    --lock: #f59e0b;
-    --opaque: rgba(245, 158, 11, 0.14);
-    --hl-keyword: #c4b5fd;
-    --hl-definition: #fca5a5;
-    --hl-module: #5eead4;
-    --hl-macro: #93c5fd;
-    --hl-comment: #9ca3af;
-    --hl-key: #67e8f9;
-    --hl-value: #fdba74;
-    --hl-name: #86efac;
-    --hl-coord: #fde68a;
-    --hl-operator: #f9a8d4;
-    --danger: #fca5a5;
-    --warn-text: #fcd34d;
-    --code-selected: rgba(96, 165, 250, 0.16);
-    --on-accent: #0b1220;
-    --active-line: rgba(255, 255, 255, 0.04);
-    color-scheme: dark;
-  }
+:root[data-theme="dark"] {
+  --lock: #f0b45a;
+  --opaque: rgba(245, 158, 11, 0.14);
+  --hl-keyword: #a9bde6;
+  --hl-definition: #f19a8f;
+  --hl-module: #7fd3cf;
+  --hl-macro: #8fb0e8;
+  --hl-comment: #8f897f;
+  --hl-key: #cdb3ec;
+  --hl-value: #f4a07f;
+  --hl-name: #9fd3a6;
+  --hl-coord: #e9cf7a;
+  --hl-operator: #f0a3c6;
+  --danger: #f19a8f;
+  --warn-text: #f0c46b;
+  --code-selected: rgba(240, 138, 99, 0.16);
+  --active-line: rgba(255, 255, 255, 0.04);
+  --code-selection: rgba(169, 189, 230, 0.24);
 }
 
 * {
@@ -76,67 +69,184 @@ body,
 body {
   background: var(--bg);
   color: var(--fg);
-  font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 13.5px/1.4 var(--font-ui);
+  -webkit-font-smoothing: antialiased;
 }
 
 .tf-app {
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto 1fr;
   height: 100%;
 }
 
-.tf-toolbar {
+/* The top row (D92): brand, file, offline state, Report a problem, theme. */
+.tf-appbar {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
+  gap: 12px;
+  height: 42px;
+  padding: 0 10px 0 14px;
+  background: var(--surface-2);
   border-bottom: 1px solid var(--line);
-  background: var(--panel);
   min-width: 0;
-  overflow-x: auto;
 }
 
-.tf-toolbar .brand {
-  font-weight: 700;
-  margin-right: 8px;
+.tf-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--fg);
+  text-decoration: none;
 }
 
-.tf-toolbar .tf-beta {
-  margin-left: -2px;
+.tf-brand .wordmark {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+}
+
+.tf-brand .wordmark em {
+  font-style: italic;
+  color: var(--accent-text);
+}
+
+.tf-appbar .tf-beta {
   padding: 0 6px;
-  border: 1px solid var(--accent);
+  border: 1px solid currentColor;
   border-radius: 999px;
-  color: var(--accent);
-  font-size: 11px;
+  color: var(--accent-text);
+  font-size: 10.5px;
   font-weight: 600;
   line-height: 16px;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: default;
 }
 
-.tf-toolbar .tf-report {
+.tf-appbar .file {
   color: var(--muted);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  padding-left: 12px;
+  border-left: 1px solid var(--line);
+}
+
+.tf-appbar .file:empty {
+  display: none;
+}
+
+.tf-appbar .grow,
+.tf-toolbar .grow {
+  flex: 1;
+}
+
+.tf-appbar .tf-report {
+  color: var(--muted);
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.tf-appbar .tf-report:hover,
+.tf-appbar .tf-report:focus-visible {
+  color: var(--fg);
   text-decoration: underline;
 }
 
-.tf-toolbar .tf-report:hover,
-.tf-toolbar .tf-report:focus-visible {
-  color: var(--accent);
+.tf-icon {
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tf-logo {
+  flex: none;
+  display: block;
+}
+
+.tf-icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-color: transparent;
+  background: none;
+  color: var(--muted);
+}
+
+.tf-icon-button:hover:not(:disabled) {
+  color: var(--fg);
+  border-color: var(--line);
+}
+
+/* The tools (D92): flat buttons in groups, the picture's view on the right, Share last. */
+.tf-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.tf-toolbar button,
+.tf-toolbar select,
+.tf-toolbar .picker,
+.tf-toolbar .tf-preview-toggle {
+  white-space: nowrap;
+}
+
+.tf-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 9px;
+  border-color: transparent;
+  background: none;
+}
+
+.tf-toolbar button:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  background: var(--surface);
+}
+
+.tf-toolbar button[aria-expanded="true"] {
+  border-color: var(--line-strong);
+  background: var(--surface);
+}
+
+.tf-toolbar button.icon-only {
+  padding: 0 7px;
+}
+
+.tf-toolbar [data-testid="share-button"] {
+  margin-left: 4px;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 600;
+}
+
+.tf-toolbar [data-testid="share-button"]:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  filter: brightness(1.08);
 }
 
 .tf-toolbar .sep {
   width: 1px;
   align-self: stretch;
   background: var(--line);
-  margin: 0 4px;
-}
-
-.tf-toolbar .file {
-  margin-left: auto;
-  color: var(--muted);
-  white-space: nowrap;
+  margin: 2px 6px;
 }
 
 button,
@@ -145,7 +255,7 @@ select {
   color: inherit;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 3px 9px;
   cursor: pointer;
 }
@@ -154,10 +264,17 @@ button:hover:not(:disabled) {
   border-color: var(--accent);
 }
 
+button:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 button.link {
   border: none;
   padding: 0;
-  color: var(--accent);
+  color: var(--accent-text);
   text-decoration: underline;
 }
 
@@ -179,7 +296,22 @@ button.link {
 }
 
 .tf-code .cm-scroller {
-  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-family: var(--font-code);
+}
+
+/* CodeMirror's own theme is for light pages: the gutter, cursor and selection follow ours (D92). */
+.tf-code .cm-editor .cm-gutters {
+  background: var(--surface-2);
+  color: var(--muted);
+  border-right-color: var(--line);
+}
+
+.tf-code .cm-editor .cm-cursor {
+  border-left-color: var(--fg);
+}
+
+.tf-code .cm-editor .cm-selectionLayer .cm-selectionBackground {
+  background: var(--code-selection);
 }
 
 .tf-code .cm-editor .cm-activeLine,
@@ -224,11 +356,13 @@ button.link {
   user-select: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  /* The preview shows the diagram as it prints: on white. */
-  .tf-canvas {
-    --canvas-bg: #ffffff;
-  }
+/* The preview shows the diagram as it prints, on white, in both themes: what is drawn on it keeps the
+   colors made for white (D92). */
+.tf-canvas {
+  --accent: var(--canvas-accent);
+  --accent-soft: var(--canvas-accent-soft);
+  --guide: var(--canvas-guide);
+  --lock: var(--canvas-lock);
 }
 
 .tf-summary {
@@ -273,7 +407,7 @@ button.link {
 }
 
 .tf-summary .keys {
-  font-family: ui-monospace, Consolas, monospace;
+  font-family: var(--font-code);
 }
 
 .tf-status {
@@ -533,7 +667,7 @@ button.link {
   fill: #374151;
   stroke: #ffffff;
   paint-order: stroke;
-  font-family: ui-monospace, Consolas, monospace;
+  font-family: var(--font-code);
   pointer-events: none;
 }
 
@@ -659,7 +793,7 @@ button.link {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: ui-monospace, Consolas, monospace;
+  font-family: var(--font-code);
   font-size: 12px;
 }
 
@@ -710,7 +844,7 @@ button.link {
   background: none;
   padding: 2px 4px;
   text-align: left;
-  font-family: ui-monospace, Consolas, monospace;
+  font-family: var(--font-code);
   font-size: 12px;
 }
 
@@ -845,7 +979,7 @@ button:disabled {
   display: block;
   width: 100%;
   box-sizing: border-box;
-  font: 13px/1.4 var(--mono, ui-monospace, Consolas, monospace);
+  font: 13px/1.4 var(--font-code);
   border: 0;
   outline: 0;
   resize: none;
@@ -994,7 +1128,7 @@ button:disabled {
 .tf-style-edit textarea {
   width: 100%;
   margin-top: 5px;
-  font: 12px/1.4 ui-monospace, "Cascadia Code", Consolas, monospace;
+  font: 12px/1.4 var(--font-code);
   background: var(--panel);
   color: var(--fg);
   border: 1px solid var(--line);
@@ -1013,7 +1147,7 @@ button:disabled {
 }
 
 .tf-repeat code {
-  font: 12px ui-monospace, "Cascadia Code", Consolas, monospace;
+  font: 12px var(--font-code);
   overflow-wrap: anywhere;
 }
 
@@ -1392,8 +1526,21 @@ button.tf-preview-state.busy {
 .tf-preview-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 13px;
+  gap: 5px;
+  margin: 0 10px 0 4px;
+  accent-color: var(--accent);
+}
+
+.tf-toolbar .picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 4px;
+  color: var(--muted);
+}
+
+.tf-toolbar .picker select {
+  color: var(--fg);
 }
 
 /* A label its own line runs through (D65). */
@@ -1454,7 +1601,7 @@ button.tf-preview-state.busy {
 .tf-page-panel textarea {
   width: 100%;
   box-sizing: border-box;
-  font-family: ui-monospace, Consolas, monospace;
+  font-family: var(--font-code);
   font-size: 12px;
 }
 .tf-page-panel ul {

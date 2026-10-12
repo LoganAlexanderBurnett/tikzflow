@@ -2,6 +2,7 @@
 // fragment. Nothing is uploaded and nothing is stored: the link is the picture.
 
 import { useSignal } from "@preact/signals";
+import { Icon } from "./icons.tsx";
 import { useRef } from "preact/hooks";
 import { canShare, shareLink } from "./share.ts";
 import { currentPicture, text } from "./store.ts";
@@ -45,7 +46,7 @@ export function ShareButton() {
         data-testid="share-button"
         title="A link that carries your code in the address itself, with no upload"
       >
-        Share
+        <Icon name="share" />Share
       </button>
       {open.value && (
         <div class="tf-page-panel tf-share-panel" data-testid="share-panel" style={{ top: `${at.value.top}px`, left: `${at.value.left}px` }} onKeyDown={(e) => e.key === "Escape" && (open.value = false)}>

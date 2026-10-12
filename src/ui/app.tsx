@@ -21,6 +21,8 @@ import { contrastMessage, selectContrastIssue } from "./contrastmarks.tsx";
 import { VisionBadge, VisionSelect } from "./visionui.tsx";
 import { LayoutProgressBadge } from "./progress.tsx";
 import { keyNamedMessage } from "../edit/stylekeys.ts";
+import { nextTheme, setThemeChoice, type ThemeChoice, themeChoice, themeIcon, themeLabel } from "../theme/theme.ts";
+import { Icon, Logo } from "./icons.tsx";
 import {
   attachEditor,
   contrast,
@@ -246,19 +248,64 @@ function OfflineNote() {
   );
 }
 
+/** System, light or dark (D92), the same switch as on the site's pages. */
+function ThemeSwitch() {
+  const choice = useSignal<ThemeChoice>(themeChoice());
+  useEffect(() => {
+    const sync = () => (choice.value = themeChoice());
+    window.addEventListener("storage", sync);
+    return () => window.removeEventListener("storage", sync);
+  }, []);
+  const label = themeLabel(choice.value);
+  return (
+    <button
+      class="tf-icon-button"
+      data-testid="theme-switch"
+      aria-label={label}
+      title={label}
+      onClick={() => {
+        const next = nextTheme(choice.value);
+        setThemeChoice(next);
+        choice.value = next;
+      }}
+    >
+      <svg class="tf-icon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" dangerouslySetInnerHTML={{ __html: themeIcon(choice.value) }} />
+    </button>
+  );
+}
+
+/** The top row (D92): the brand, the file, offline state, Report a problem and the theme. Tabs come here in step 6. */
+function AppBar() {
+  return (
+    <header class="tf-appbar">
+      <a class="tf-brand" href="/" title="TikZFlow home page">
+        <Logo />
+        <span class="wordmark">
+          TikZ<em>Flow</em>
+        </span>
+      </a>
+      <span class="tf-beta" data-testid="beta-label" title="TikZFlow is in beta: it works, but expect rough edges. Your work is kept in this browser; save a copy of anything important.">
+        Beta
+      </span>
+      <span class="file" data-testid="file-name" title={fileName.value ? (text.value === savedText.value ? "Saved" : "Changed since it was opened or saved. Your work is also kept in this browser.") : "Kept in this browser as you type; Save writes a file"}>
+        {fileName.value ?? ""}
+        {text.value !== savedText.value && fileName.value ? " ●" : ""}
+      </span>
+      <span class="grow" />
+      <OfflineNote />
+      <a class="tf-report" href={REPORT_URL} target="_blank" rel="noopener noreferrer" data-testid="report-link" title="Opens a new issue on GitHub (in a new tab) with a form asking for the code, the browser and what happened. Nothing is sent from here.">
+        Report a problem
+      </a>
+      <ThemeSwitch />
+    </header>
+  );
+}
+
 function Toolbar() {
   const input = useRef<HTMLInputElement>(null);
   const count = pictureCount.value;
   return (
-    <header class="tf-toolbar">
-      <span class="brand">TikZFlow</span>
-      <span class="tf-beta" data-testid="beta-label" title="TikZFlow is in beta: it works, but expect rough edges. Your work is kept in this browser; save a copy of anything important.">
-        Beta
-      </span>
-      <a class="tf-report" href={REPORT_URL} target="_blank" rel="noopener noreferrer" data-testid="report-link" title="Opens a new issue on GitHub (in a new tab) with a form asking for the code, the browser and what happened. Nothing is sent from here.">
-        Report a problem
-      </a>
-      <span class="sep" />
+    <div class="tf-toolbar" role="toolbar" aria-label="Editor">
       <button
         onClick={() => {
           // Where the browser can, the file stays linked so Save writes back to it; elsewhere a file chooser.
@@ -269,7 +316,7 @@ function Toolbar() {
         title="Open a .tex file (or a Mermaid or DOT file, which is imported)"
         data-testid="open-button"
       >
-        Open…
+        <Icon name="open" />Open…
       </button>
       <input
         ref={input}
@@ -283,7 +330,7 @@ function Toolbar() {
         }}
       />
       <button onClick={() => void saveFile()} title={canSaveInPlace() ? "Save to the file (Ctrl+S)" : "Download the code as a .tex file (Ctrl+S)"} data-testid="save-button">
-        Save
+        <Icon name="save" />Save
       </button>
       {canSaveInPlace() && (
         <button onClick={() => void saveFileAs()} title="Save to a new file" data-testid="save-as-button">
@@ -291,20 +338,22 @@ function Toolbar() {
         </button>
       )}
       <button onClick={download} title="Download the code as a .tex file" data-testid="download-button">
-        Download
+        <Icon name="download" />Download
       </button>
       <button onClick={() => replaceDocument(SAMPLE, null, "utf-8")} title="Replace the code with the sample flowchart">
-        Sample
+        <Icon name="file" />Sample
       </button>
       <ImportButton />
       <span class="sep" />
-      <button onClick={undoEdit} title="Undo (Ctrl+Z)" aria-label="Undo">
-        ↶ Undo
+      <button class="icon-only" onClick={undoEdit} title="Undo (Ctrl+Z)" aria-label="Undo">
+        <Icon name="undo" />
       </button>
-      <button onClick={redoEdit} title="Redo (Ctrl+Y)" aria-label="Redo">
-        ↷ Redo
+      <button class="icon-only" onClick={redoEdit} title="Redo (Ctrl+Y)" aria-label="Redo">
+        <Icon name="redo" />
       </button>
       <span class="sep" />
+      <LayoutButton />
+      <PageButton />
       {count > 1 && (
         <label class="picker">
           Picture{" "}
@@ -323,26 +372,21 @@ function Toolbar() {
           </select>
         </label>
       )}
-      <PreviewToggle />
-      <VisionSelect />
-      <LayoutButton />
-      <PageButton />
-      <ExportButton />
-      <ShareButton />
-      <button onClick={() => fitRequests.value++} title="Fit the picture to the canvas">
-        Fit
-      </button>
-      <OfflineNote />
       {previousWork.value && (
         <button onClick={() => void restorePrevious()} title="Bring back the work that was on screen before the last file or link was opened" data-testid="restore-previous">
-          Restore previous work
+          <Icon name="restore" />Restore previous work
         </button>
       )}
-      <span class="file" data-testid="file-name" title={fileName.value ? (text.value === savedText.value ? "Saved" : "Changed since it was opened or saved. Your work is also kept in this browser.") : "Kept in this browser as you type; Save writes a file"}>
-        {fileName.value ?? ""}
-        {text.value !== savedText.value && fileName.value ? " ●" : ""}
-      </span>
-    </header>
+      <span class="grow" />
+      <PreviewToggle />
+      <VisionSelect />
+      <button onClick={() => fitRequests.value++} title="Fit the picture to the canvas">
+        <Icon name="fit" />Fit
+      </button>
+      <span class="sep" />
+      <ExportButton />
+      <ShareButton />
+    </div>
   );
 }
 
@@ -403,6 +447,7 @@ export function App() {
       }}
       onPointerUp={() => (dragging.current = false)}
     >
+      <AppBar />
       <Toolbar />
       <main class="tf-main" style={{ gridTemplateColumns: `${split.value}% 6px 1fr` }}>
         <CodePane />

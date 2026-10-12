@@ -4,6 +4,7 @@
 // compile on the canvas) and say when TeX reported errors.
 
 import { signal, useSignal } from "@preact/signals";
+import { Icon } from "./icons.tsx";
 import { useRef } from "preact/hooks";
 import { tidySvg, svgToPng } from "../export/svg.ts";
 import { svgToPdf } from "../export/svg2pdf.ts";
@@ -109,7 +110,7 @@ export function ExportButton() {
           open.value = !open.value;
         }}
       >
-        Export
+        <Icon name="export" />Export
       </button>
       {open.value && <ExportPanel onClose={() => (open.value = false)} at={at.value} />}
     </span>

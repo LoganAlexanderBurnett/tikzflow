@@ -4,6 +4,7 @@
 // one column apart, centered on the figure, red when the figure is wider.
 
 import { useSignal } from "@preact/signals";
+import { Icon } from "./icons.tsx";
 import { useRef } from "preact/hooks";
 import { describeWidth, type PageGeometry } from "../tikz/page.ts";
 import { evalLength, PT_PER_UNIT } from "../tikz/units.ts";
@@ -53,7 +54,7 @@ export function PageButton() {
           open.value = !open.value;
         }}
         data-testid="page-button" aria-expanded={open.value} title="The page your figure goes on: your paper's preamble and a column-width guide">
-        Page{g ? `: ${describeWidth(g.width).split(" (")[0]}` : ""}
+        <Icon name="page" />Page{g ? `: ${describeWidth(g.width).split(" (")[0]}` : ""}
       </button>
       {open.value && <PagePanel onClose={() => (open.value = false)} info={info} at={at.value} />}
     </span>
