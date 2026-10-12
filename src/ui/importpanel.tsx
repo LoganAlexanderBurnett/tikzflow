@@ -84,7 +84,7 @@ export function ImportButton() {
                   </ul>
                 </>
               )}
-              <p class="note">The work that was on screen is kept: Restore previous work in the toolbar brings it back. Ctrl+Z undoes the import too.</p>
+              <p class="note">It opened in its own tab; your other diagrams are in theirs.</p>
               <div class="row">
                 <button onClick={() => (open.value = false)} data-testid="import-close">
                   Done
@@ -160,7 +160,7 @@ export function ImportButton() {
                   }}
                 />
               </div>
-              <p class="note">The work on screen is put aside, as Open does: Restore previous work brings it back, and Ctrl+Z undoes the import.</p>
+              <p class="note">The diagram opens in a new tab, as Open does (or in this one, if it is empty).</p>
             </>
           )}
         </div>

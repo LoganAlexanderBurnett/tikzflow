@@ -161,6 +161,7 @@ Features:
 - Smooth dragging with 200 nodes.
 - The license audit of every bundled component, summarized in `THIRD_PARTY_LICENSES.md`.
 - README with features, screenshots, local development setup, and deployment steps.
+- On phone-sized screens, the editor shows a friendly note ("TikZFlow works best on a larger screen") with viewing and sharing still available, instead of a cramped editor.
 
 ### Milestone 7: Neural network diagrams
 (Added after the Milestone 5 step 4 review; scope to be planned later. Reasons in DECISIONS.md D96.)
@@ -251,3 +252,5 @@ Start with Milestone 0. Before writing code, give me a brief plan for the spike 
   - The summary counts group and lane boxes as groups ("7 nodes, 3 groups and 7 edges editable"); "not editable" is kept for locked nodes and blocks kept as-is.
   - Milestone 6 is written out as its own section (its content is D89's).
   - Added Milestone 7: neural network diagrams (dense networks edited as layer components written as `\foreach` code the editor understands; CNN feature-map blocks and LSTM/GRU cell parts), after Milestone 6 and depending on its performance work. In M5 step 8, if time allows, two or three neural-network templates the current editor handles fully, with a report of which Milestone 7 features they show are needed most.
+- **2026-10-12, the owner's review of Milestone 5 step 5** (decided by the project owner; reasons in DECISIONS.md D97):
+  - Added to Milestone 6: on phone-sized screens, a friendly note in the editor ("TikZFlow works best on a larger screen") with viewing and sharing still available, instead of a cramped editor.

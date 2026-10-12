@@ -143,6 +143,129 @@ body {
   flex: 1;
 }
 
+/* The tabs (D97): one per open diagram, in the top row. They scroll sideways when there are many. */
+.tf-tabs {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  align-self: stretch;
+  gap: 2px;
+  min-width: 0;
+  padding-left: 10px;
+  border-left: 1px solid var(--line);
+}
+.tf-tabs .list {
+  display: flex;
+  align-items: flex-end;
+  align-self: stretch;
+  gap: 2px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.tf-tab {
+  display: flex;
+  align-items: center;
+  flex: none;
+  max-width: 220px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  color: var(--muted);
+}
+.tf-tab:hover {
+  color: var(--fg);
+  background: var(--accent-soft);
+}
+.tf-tab.active {
+  background: var(--bg);
+  border-color: var(--line);
+  color: var(--fg);
+  margin-bottom: -1px;
+  height: 33px;
+}
+.tf-tab .name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 0 4px 0 10px;
+  height: 100%;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.tf-tab.active .name {
+  font-weight: 600;
+}
+.tf-tab .away-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--navy);
+  box-shadow: 0 0 0 1px var(--bg);
+}
+:root[data-theme="dark"] .tf-tab .away-dot {
+  background: var(--accent-text);
+}
+.tf-tab .close {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-right: 5px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.tf-tab .close:hover,
+.tf-tab .close:focus-visible {
+  background: var(--line);
+  color: var(--fg);
+}
+.tf-tabs .tf-tab-new {
+  flex: none;
+  align-self: center;
+  font-size: 18px;
+  line-height: 1;
+}
+.tf-tabs .tf-closed-button {
+  flex: none;
+  align-self: center;
+}
+.tf-closed-panel {
+  width: min(330px, 92vw);
+}
+.tf-closed-panel ul {
+  margin: 6px 0;
+  padding-left: 18px;
+}
+.tf-closed-panel li {
+  margin: 4px 0;
+}
+.tf-closed-panel .when {
+  color: var(--muted);
+  font-size: 12px;
+}
+/* While another window edits the diagram (D97). */
+.tf-code.readonly {
+  opacity: 0.75;
+}
+.tf-lock-banner {
+  max-width: calc(100% - 40px);
+}
+
 .tf-appbar .tf-report {
   color: var(--muted);
   white-space: nowrap;

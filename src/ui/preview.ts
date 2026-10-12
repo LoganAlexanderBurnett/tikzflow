@@ -68,6 +68,25 @@ export const showingCompiled = computed(() => !!freshCompiled.value?.outcome.svg
 /** The latest picture TeX drew, with the layout of the code it was compiled from (D96). Set by `startPreview`. */
 const lastPicture = signal<{ compiled: Compiled; layout: PictureLayout } | null>(null);
 
+/** A tab's TeX pictures, kept while another tab is shown (D97), so switching back shows them at once. */
+export interface PictureStash {
+  compiled: Compiled | null;
+  last: { compiled: Compiled; layout: PictureLayout } | null;
+}
+/** Takes the pictures on the canvas, for the tab being left. */
+export function stashPictures(): PictureStash {
+  return { compiled: compiled.peek(), last: lastPicture.peek() };
+}
+/** Which tab's pictures are on the canvas: a compile started for one tab is dropped when it ends in another. */
+let pictureOwner = 0;
+/** Puts a tab's pictures back (none for a tab TeX hasn't drawn yet). Call it in the batch that switches the text. */
+export function restorePictures(p: PictureStash | null): void {
+  pictureOwner++;
+  compiled.value = p?.compiled ?? null;
+  lastPicture.value = p?.last ?? null;
+  selectedBlock.value = null;
+}
+
 /** The masks that cut the stale picture and show the patch (D96). */
 export const STALE_HIDE = "tf-stale-hide";
 export const STALE_SHOW = "tf-stale-show";
@@ -233,26 +252,62 @@ export async function compileForExport(): Promise<Compiled | { error: string }> 
 }
 const DEBOUNCE_MS = 250;
 
+/**
+ * How long the browser tab must stay hidden before the engine worker is stopped (D69 item 4, D97): it holds
+ * about 330 MB. A quick look at another tab keeps it; it starts again when the tab is shown. Tests shorten it.
+ */
+export const engineIdle = { hiddenMs: 15_000 };
+/** The engine worker is running (stopped while the tab is hidden). */
+export const engineRunning = signal(false);
+
 /** Starts the engine and compiles the code whenever it settles. Returns a function that stops it. */
 export function startPreview(base = engineBase(new URLSearchParams(location.search).get("engine"))): () => void {
-  client = new EngineClient(base);
-  client.onState = (s) => (engineState.value = s);
-  engineState.value = client.state;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let available: Set<string> | null = null;
-  void client.ready().then(
-    (index) => {
-      available = new Set(index.texFiles);
-      schedule();
-      void prefetchEngine(base, index);
-    },
-    () => {},
-  );
+  let hiddenTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const startEngine = () => {
+    if (client) return;
+    const c = new EngineClient(base);
+    client = c;
+    engineRunning.value = true;
+    c.onState = (s) => {
+      if (client === c) engineState.value = s;
+    };
+    engineState.value = c.state;
+    available = null;
+    void c.ready().then(
+      (index) => {
+        if (client !== c) return;
+        available = new Set(index.texFiles);
+        schedule();
+        void prefetchEngine(base, index);
+      },
+      () => {},
+    );
+  };
+  const stopEngine = () => {
+    const c = client;
+    if (!c) return;
+    client = null;
+    available = null;
+    engineRunning.value = false;
+    c.dispose();
+  };
+  const onVisibility = () => {
+    if (hiddenTimer) clearTimeout(hiddenTimer);
+    hiddenTimer = null;
+    if (document.visibilityState === "hidden") hiddenTimer = setTimeout(stopEngine, engineIdle.hiddenMs);
+    else startEngine();
+  };
+  startEngine();
+  document.addEventListener("visibilitychange", onVisibility);
 
   const run = async () => {
     timer = null;
     const c = client;
     if (!c || !available || previewMode.peek() !== "accurate") return;
+    const tab = pictureOwner;
     const t = text.peek();
     const picture = currentPicture.peek();
     const input = buildCompileInput(doc.peek(), picture, (f) => available!.has(f), pageSettings.peek());
@@ -277,6 +332,8 @@ export function startPreview(base = engineBase(new URLSearchParams(location.sear
     try {
       const outcome = await c.compile(input.tex);
       if (!outcome) return; // replaced by a newer compile
+      // Another tab was shown meanwhile: this picture is of the tab that was left (D97).
+      if (tab !== pictureOwner) return;
       compiled.value = { text: t, picture, input, outcome };
       keep(compiled.value);
     } catch (e) {
@@ -302,7 +359,8 @@ export function startPreview(base = engineBase(new URLSearchParams(location.sear
   return () => {
     stop();
     if (timer) clearTimeout(timer);
-    client?.dispose();
-    client = null;
+    if (hiddenTimer) clearTimeout(hiddenTimer);
+    document.removeEventListener("visibilitychange", onVisibility);
+    stopEngine();
   };
 }

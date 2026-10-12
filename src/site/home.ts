@@ -23,9 +23,12 @@ const ago = (ms: number): string => {
   return "";
 };
 
-void peekSession().then((s) => {
-  // A template untouched (the sample is one), or nothing at all, isn't work to continue.
-  if (!s || !s.text.trim() || isPristine(s.text)) return;
+// A template untouched (the sample is one), or nothing at all, isn't work to continue.
+const keep = (t: string) => !!t.trim() && !isPristine(t);
+
+void peekSession(keep).then((found) => {
+  if (!found) return;
+  const s = found.latest;
   const cont = document.querySelector<HTMLElement>("[data-continue]");
   const open = document.querySelector<HTMLElement>("[data-open]");
   const resume = document.querySelector<HTMLElement>("[data-resume]");
@@ -33,7 +36,9 @@ void peekSession().then((s) => {
   cont.hidden = false;
   open.hidden = true;
   const name = document.createElement("strong");
-  name.textContent = s.fileName ?? "Untitled diagram";
-  resume.replaceChildren(name, document.createTextNode(Number.isFinite(s.savedAt) ? `, edited ${ago(s.savedAt)}` : ""));
+  name.textContent = s.fileName ?? ("title" in s && s.title !== "Untitled" ? s.title : "Untitled diagram");
+  const others = found.count - 1;
+  const more = others > 0 ? ` (and ${others} more ${others === 1 ? "diagram" : "diagrams"} in tabs)` : "";
+  resume.replaceChildren(name, document.createTextNode(`${Number.isFinite(s.savedAt) ? `, edited ${ago(s.savedAt)}` : ""}${more}`));
   resume.hidden = false;
 });

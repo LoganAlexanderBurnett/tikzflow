@@ -1,13 +1,13 @@
 // The application shell: toolbar, code pane, canvas, and summary.
-import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { useSignal } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
 import { Canvas } from "./canvas.tsx";
 import { Inspector } from "./inspector.tsx";
 import { Palette } from "./palette.tsx";
-import { editorExtensions } from "./editor.ts";
-import { initialText, openFile, openWithPicker, previousWork, restorePrevious, saveFile, saveFileAs, savedText, canSaveInPlace, download } from "./files.ts";
+import { openFile, openWithPicker, saveFile, saveFileAs, canSaveInPlace, download } from "./files.ts";
+import { currentState } from "./tabs.ts";
+import { LockBanner, TabBar } from "./tabbar.tsx";
 import { NewButton } from "./newpanel.tsx";
 import { offlineState } from "./offline.ts";
 import { ExportButton } from "./exportpanel.tsx";
@@ -30,11 +30,8 @@ import {
   contrast,
   currentPicture,
   doc,
-  fileName,
   fitRequests,
   keyStyles,
-  onEditorChange,
-  onEditorCursor,
   pictureCount,
   pictureIndex,
   redoEdit,
@@ -42,6 +39,7 @@ import {
   showError,
   showReference,
   describeError,
+  editLock,
   lineOf,
   status,
   summary,
@@ -55,18 +53,13 @@ const REPORT_URL = "https://github.com/LoganAlexanderBurnett/tikzflow/issues/new
 function CodePane() {
   const host = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const view = new EditorView({
-      parent: host.current!,
-      state: EditorState.create({
-        doc: initialText(),
-        extensions: editorExtensions({ onChange: onEditorChange, onCursor: onEditorCursor }),
-      }),
-    });
+    // The tab on screen's editor state (D97); switching tabs swaps it.
+    const view = new EditorView({ parent: host.current!, state: currentState() });
     attachEditor(view);
     fitRequests.value++;
     return () => view.destroy();
   }, []);
-  return <div class="tf-code" ref={host} data-testid="code" />;
+  return <div class={`tf-code${editLock.value ? " readonly" : ""}`} ref={host} data-testid="code" />;
 }
 
 function Summary() {
@@ -275,7 +268,7 @@ function ThemeSwitch() {
   );
 }
 
-/** The top row (D92): the brand, the file, offline state, Report a problem and the theme. Tabs come here in step 6. */
+/** The top row (D92): the brand, the tabs (D97), offline state, Report a problem and the theme. */
 function AppBar() {
   return (
     <header class="tf-appbar">
@@ -288,11 +281,7 @@ function AppBar() {
       <span class="tf-beta" data-testid="beta-label" title="TikZFlow is in beta: it works, but expect rough edges. Your work is kept in this browser; save a copy of anything important.">
         Beta
       </span>
-      <span class="file" data-testid="file-name" title={fileName.value ? (text.value === savedText.value ? "Saved" : "Changed since it was opened or saved. Your work is also kept in this browser.") : "Kept in this browser as you type; Save writes a file"}>
-        {fileName.value ?? ""}
-        {text.value !== savedText.value && fileName.value ? " ●" : ""}
-      </span>
-      <span class="grow" />
+      <TabBar />
       <OfflineNote />
       <a class="tf-report" href={REPORT_URL} target="_blank" rel="noopener noreferrer" data-testid="report-link" title="Opens a new issue on GitHub (in a new tab) with a form asking for the code, the browser and what happened. Nothing is sent from here.">
         Report a problem
@@ -373,11 +362,6 @@ function Toolbar() {
             ))}
           </select>
         </label>
-      )}
-      {previousWork.value && (
-        <button onClick={() => void restorePrevious()} title="Bring back the work that was on screen before the last file or link was opened" data-testid="restore-previous">
-          <Icon name="restore" />Restore previous work
-        </button>
       )}
       <span class="grow" />
       <PreviewToggle />
@@ -475,6 +459,7 @@ export function App() {
           <Palette />
           <div class="tf-stage">
             <EmptyState />
+            <LockBanner />
             <TexBanner />
             <VisionBadge />
             <LayoutProgressBadge />

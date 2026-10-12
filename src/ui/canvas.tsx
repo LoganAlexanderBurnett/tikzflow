@@ -54,6 +54,7 @@ import {
   moveEnd,
   previewEnd,
   dropFromPalette,
+  editLock,
   labelEdit,
   labelEditProblem,
   setLabelDraft,
@@ -979,6 +980,13 @@ export function Canvas() {
       panned.current = false;
       pendingMenu.current = null;
       drag.current = { kind: "pan", client: { x: e.clientX, y: e.clientY }, view: view.value, moved: false, button: e.button === 0 ? -1 : e.button };
+      svg.setPointerCapture(e.pointerId);
+      return;
+    }
+    // Another window is editing this diagram (D97): a click selects a node, a drag pans, nothing moves.
+    if (editLock.peek()) {
+      if (nodeEl) selectFromCanvas({ kind: "node", id: nodeEl.getAttribute("data-node")! });
+      drag.current = { kind: "pan", client: { x: e.clientX, y: e.clientY }, view: view.value, moved: false, button: -1 };
       svg.setPointerCapture(e.pointerId);
       return;
     }

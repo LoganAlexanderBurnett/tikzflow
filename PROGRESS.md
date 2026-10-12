@@ -20,7 +20,7 @@ Milestone 0 is done and was approved on 2026-10-07:
 
 **Milestone 4 (layout and import): done, reviewed by the owner, merged into `trunk` and live at https://tikzflow.pages.dev (2026-10-11, D88).** The owner approved the two decisions of the report (groups kept together only when they would otherwise cross, and always for import; `$` drawn from Computer Modern with a quiet note for other TS1 symbols). `m4` was merged by fast-forward (`trunk` e76cde4), the production deploy serves the same build as the `m4` preview, and `npm run test:live` against it passes (11 of 11). See "Milestone 4: merged and live" below. The owner has since confirmed that "Report a problem" shows the issue form when signed in.
 
-**Milestone 5 (user experience and website): in progress on `m5` (D89).** SPEC Milestone 5 is split: M5 is the user-facing work, M6 the performance target and the release paperwork (license audit, README). Steps 0–5 are done; step 5 waits for the owner's review. See "M5 plan and status" below. **Milestone 7 (neural network diagrams)** was added after M6 by the owner (D96), to be planned later.
+**Milestone 5 (user experience and website): in progress on `m5` (D89).** SPEC Milestone 5 is split: M5 is the user-facing work, M6 the performance target and the release paperwork (license audit, README). Steps 0–6 are done; step 6 waits for the owner's review. See "M5 plan and status" below. **Milestone 7 (neural network diagrams)** was added after M6 by the owner (D96), to be planned later.
 
 Also read "Notes for later milestones" below.
 
@@ -32,14 +32,53 @@ Also read "Notes for later milestones" below.
 | 2 | Site structure: home page at `/` (with "Continue your diagram" when there is saved work), editor at `/editor/`, help at `/help/`; share links to `/#…` forwarded to the editor; service worker, offline and `404.html` per page; sitemap | Done (D92); help pages come in step 7 |
 | 3 | The chosen design applied to the home page, help and the editor's chrome; light/dark/system switch; self-hosted fonts; contrast rechecked | Done (D93); reviewed and approved by the owner (D94) |
 | 4 | Nine templates (D89 item 4), with no locked blocks, compiled in CI by pdfLaTeX and our engine; gallery on the home page and in the editor's New menu; the state machine's `loop`/`initial`/`accepting` if moderate | Done (D95); reviewed and approved by the owner (D96) |
-| 5 | First run (Paste TikZ, Start blank, Start from a template; the sample becomes Basic process), the `?` shortcut overlay, the edit flicker (D69 item 4); the summary counts groups (D96 item 3) | Done (D96); **waiting for the owner's review** (see "M5 step 5" below) |
-| 6 | Multiple tabs (D86 item 5): own code, undo, file, autosave and TeX picture per tab; open, import, share links and templates open a tab; engine stopped while the browser tab is hidden (D69 item 4) | Not started |
+| 5 | First run (Paste TikZ, Start blank, Start from a template; the sample becomes Basic process), the `?` shortcut overlay, the edit flicker (D69 item 4); the summary counts groups (D96 item 3) | Done (D96); reviewed and approved by the owner (D97) |
+| 6 | Multiple tabs (D86 item 5): own code, undo, file, autosave and TeX picture per tab; open, import, share links and templates open a tab; engine stopped while the browser tab is hidden (D69 item 4) | Done (D97); **waiting for the owner's review** (see "M5 step 6" below) |
 | 7 | Help: static pages from Markdown, client-side search (MiniSearch), screenshots made by a script | Not started |
 | 8 | Goldens, end-to-end, offline and live checks on the `m5` preview; docs; if time allows, two or three neural-network templates the editor handles fully, with which Milestone 7 features they show are needed most (D96 item 4); **Milestone 5 report** | Not started |
 
-Milestone 6 (after M5's review): smooth dragging with 200 nodes; license audit and `THIRD_PARTY_LICENSES.md` (the items under "Milestone 5: license audit items" below move there); README with features, screenshots, local setup and deployment.
+Milestone 6 (after M5's review): smooth dragging with 200 nodes; license audit and `THIRD_PARTY_LICENSES.md` (the items under "Milestone 5: license audit items" below move there); README with features, screenshots, local setup and deployment; a friendly note on phone-sized screens instead of a cramped editor (D97).
 
 Milestone 7 (after M6, to be planned later; D96 item 4): neural network diagrams. See "Notes for later milestones".
+
+## M5 step 6: multiple tabs (2026-10-12)
+The owner approved step 5 (D97): the start screen, the shortcut list and the flicker fix. A phone-width note in the editor is added to Milestone 6. Then step 6 (D97). **Stopped here for the owner's review.**
+
+### How to try it
+Open https://m5.tikzflow.pages.dev/editor/ (or `npm run dev`, then http://localhost:5173/editor/).
+- **Tabs:** open a template from New, open a file, import, or paste a share link into the address bar: each opens a tab. Edit two tabs and press Ctrl+Z in each: each undoes only its own edits. Reload: every tab is back, on the one you were on.
+- **Closing:** × on a tab (or a middle click). Its work goes to **Recently closed**, the clock button after the tabs; click an entry to reopen it.
+- **Two windows:** open `/editor/` in a second browser tab. It starts on a diagram the first isn't showing. Click the tab the first window is on: it is read-only, with a banner, and follows what you type in the first window. **Edit here** moves editing to it; the first window turns read-only.
+- **An interrupted close:** type something and close the browser tab at once; open `/editor/` again: it is there.
+
+### How work is kept safe
+- **Two windows.** Each diagram has one writer at a time: a window edits a tab only while it holds that tab's lock (the browser's Web Locks), and it holds only the tab on screen. The same tab in another window is read-only and follows the saves; Edit here asks the editing window to save and let go first. Behind that, every save says which version it replaces, and IndexedDB refuses it if another window saved since; the refused version is then kept as a new tab "… (your copy)" rather than written over the other or dropped. Before tabs, two windows silently overwrote each other's work; that race is gone.
+- **An interrupted close.** The tab on screen is saved half a second after each change, on every switch, and when the page is hidden or closed. Because IndexedDB may not finish a write that starts as the page goes, the same changes are also written synchronously to localStorage at that moment (the journal). On the next start the journal is checked first: what IndexedDB lacks is stored, and if another window changed the same diagram meanwhile, the journal's version is kept as "… (recovered)".
+- **What can still be lost:** the last half second of edits if the browser crashes or the computer loses power (no event fires then); and, as before, everything when the browser refuses storage (some private windows), where the work lives only in the page.
+
+### What works
+- **Each tab has its own** code, undo history, file (Save writes to the tab's own file), ● marker, picture choice and TeX picture (switching back shows TeX's picture at once).
+- **Opening opens a tab:** Open, drop, Import, Paste TikZ, share links, home-page template links and New. An empty tab (the start screen) is filled instead of opening another. "Restore previous work" is gone.
+- **Recently closed:** the last 20 tabs closed with work, with their files.
+- **Moving in:** the single session kept by earlier versions becomes a tab; the work it had put aside goes to Recently closed as "Previous work".
+- **The home page** names the most recently edited tab and how many others hold work.
+- **The engine stops** after the browser tab has been hidden for 15 s (it holds about 330 MB) and starts again when the tab is shown (D69 item 4).
+- **The shortcut list** has the tab keys (←/→ on a focused tab, middle-click to close).
+
+### Tests
+- **Vitest:** 1,609 (12 new in `test/docs.test.ts`: what a journal comes to, which tab a window starts on, tab names, what is worth keeping).
+- **Playwright:** 182 end-to-end tests, all passing.
+  - `tabs.spec.ts` is new, 7 tests: per-tab code, undo and file across a reload; closing, Recently closed and the last tab; two windows (the second starts elsewhere, is read-only with the banner, follows saves, refuses typing, Delete and closing; Edit here hands over; the first takes it back when the second closes); a page closed right after an edit; a journal stored on the next start, and one kept as "(recovered)"; the old single session moved into tabs; the engine stopped while hidden.
+  - Updated for tabs: `files.spec.ts` (Open and a share link open a tab), `import.spec.ts`, `templates.spec.ts`.
+- **`npm run test:offline`:** 8 of 8.
+- **`typecheck`, `build`, `check:dist`:** pass.
+- **CI and `test:live`:** LIVE_RESULT
+
+### Known limits
+- **Undo history isn't kept across a reload** (as before), nor when another window edited the tab meanwhile.
+- **Typing during a switch** (the few milliseconds while the tab being left is saved) lands in the tab being left.
+- **Tabs can't be reordered**; they keep the order they were opened in.
+- **Without Web Locks** (browsers from before 2022) two windows can both edit a tab; the version check then keeps both versions as tabs rather than losing one.
 
 ## M5 step 5: first run, shortcuts, the edit flicker (2026-10-12)
 The owner reviewed step 4 (D96): the templates are approved; the blank diagram stays in New; the summary now counts group and lane boxes as groups; a new Milestone 7 (neural network diagrams) is recorded in SPEC.md and below. Then step 5 (D96). **Stopped here for the owner's review.**
@@ -1434,7 +1473,7 @@ These come from the M0 review. The full reasoning is in DECISIONS.md D15 and D16
 8. *Done (step 11, D72).* **PDF export:** `.tex` export is the primary output. For quick PDF exports, prefer converting the preview SVG to PDF in the browser. Don't ship busytex for this. Decide the details in Milestone 3.
 
 ### Milestone 5: owner requirements on top of SPEC.md (2026-10-09, D69)
-- **Stop the engine worker while the tab is hidden** (it holds about 330 MB) and start it again when the tab is shown. *(Step 6.)*
+- *Done (step 6, D97).* **Stop the engine worker while the tab is hidden** (it holds about 330 MB) and start it again when the tab is shown.
 - *Done (step 5, D96).* **Keep the previous TeX picture visible until the new compile is ready,** instead of showing the native drawing for 0.1–0.3 s on every edit.
 
 ### Milestone 5 step 8: neural-network templates (2026-10-12, D96 item 4)
@@ -1446,8 +1485,11 @@ After Milestone 6. The scope is to be planned later; nothing of it is built befo
 - **Architecture shapes:** 3D feature-map blocks for CNNs (kernels, pooling, upsampling, downsampling), and LSTM/GRU cell parts (gates, σ/tanh, pointwise operations). Look at PlotNeuralNet (MIT) for prior art.
 - **Depends on Milestone 6's performance work.**
 
+### Milestone 6: phone-sized screens (2026-10-12, D97 item 4)
+- On phone-sized screens, show a friendly note in the editor ("TikZFlow works best on a larger screen") with viewing and sharing still available, instead of a cramped editor.
+
 ### Milestone 5: multiple tabs (2026-10-11, D86 item 5)
-- **Multiple tabs**, so a user can work on more than one flowchart at once. Each tab keeps its own code, undo history, autosave and preview. Opening a file, an import or a share link opens in a new tab instead of putting the current work aside (today's "Restore previous work", D74, D77 item 5).
+- *Done (step 6, D97).* **Multiple tabs**, so a user can work on more than one flowchart at once. Each tab keeps its own code, undo history, autosave and preview. Opening a file, an import or a share link opens in a new tab instead of putting the current work aside (today's "Restore previous work", D74, D77 item 5).
 
 ### Milestone 5: license audit items
 - **web2js's license files disagree** (found 2026-10-08, M3 step 1). `drgrice1/web2js` (commit `0114ef5`, used to build `tex.wasm` in CI) declares `"license": "GPL-3.0"` in `package.json`. Its `LICENSE.md` names "Math-expression", apparently pasted from another project, and offers GPL-3.0 or Apache-2.0. GitHub reports the license as NOASSERTION. web2js itself is only a build tool. But its `library.js` runtime and the TikZJax worker code adapted from it in step 7 ship in the app, so the audit must settle their license, upstream (kisonecat/web2js) included.

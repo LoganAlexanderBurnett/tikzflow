@@ -3,7 +3,7 @@
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { bracketMatching, HighlightStyle, LRLanguage, LanguageSupport, syntaxHighlighting } from "@codemirror/language";
 import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
-import { EditorState, type Extension, StateEffect, StateField } from "@codemirror/state";
+import { Compartment, EditorState, type Extension, StateEffect, StateField } from "@codemirror/state";
 import {
   Decoration,
   type DecorationSet,
@@ -107,8 +107,13 @@ export interface EditorHooks {
 /** Marks transactions the canvas makes, so the cursor sync ignores them. */
 export const fromCanvas = StateEffect.define<null>();
 
+/** Holds `EditorState.readOnly` while another window is editing the tab's diagram (D97). */
+export const readOnlyCompartment = new Compartment();
+export const readOnlyWhile = (on: boolean): Extension => (on ? EditorState.readOnly.of(true) : []);
+
 export function editorExtensions(hooks: EditorHooks): Extension[] {
   return [
+    readOnlyCompartment.of([]),
     lineNumbers(),
     highlightActiveLineGutter(),
     highlightSpecialChars(),

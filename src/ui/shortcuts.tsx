@@ -51,7 +51,13 @@ const SECTIONS: Array<{ title: string; note?: string; rows: Row[] }> = [
       [[["Wheel"]], "Zoom, about the pointer"],
       [[["Right-click"]], "An edge's menu"],
       [[["Double-click"]], "Edit a label; on an edge's corner, remove it"],
+      [[["Middle-click"]], "On a tab, close it"],
     ],
+  },
+  {
+    title: "Tabs",
+    note: "With a tab focused.",
+    rows: [[[["←"], ["→"]], "Show the tab before or after"]],
   },
   {
     title: "Editing a label",

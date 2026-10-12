@@ -83,7 +83,7 @@ export function NewButton() {
               Close
             </button>
           </div>
-          <p class="note">It replaces the code on screen, which is kept: Restore previous work in the toolbar brings it back. Ctrl+Z works too.</p>
+          <p class="note">It opens in a new tab (or in this one, if it is empty).</p>
           <TemplateGrid onPick={pick} prefix="new" />
         </div>
       )}

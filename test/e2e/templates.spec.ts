@@ -23,7 +23,7 @@ async function setCode(page: Page, text: string) {
 
 const MINE = "\\begin{tikzpicture}\n\\node[draw] (mine) at (0,0) {Mine};\n\\end{tikzpicture}\n";
 
-test("the New menu opens a template in place of the work, which is kept", async ({ page }) => {
+test("the New menu opens a template in a new tab; the work stays in its own (D97)", async ({ page }) => {
   await page.goto("/");
   await setCode(page, MINE);
   await page.getByTestId("new-button").click();
@@ -36,13 +36,13 @@ test("the New menu opens a template in place of the work, which is kept", async 
   await expect(panel).toBeHidden();
   await expect.poll(() => code(page)).toBe(template("hierarchy"));
   await expect(page.getByTestId("summary-headline")).toHaveText("6 nodes and 5 edges editable");
-  await expect(page.getByTestId("status")).toHaveText("Opened the Hierarchy template. Your previous work is kept: Restore previous work brings it back.");
-  // Another template over an untouched one keeps nothing new; the earlier work is still the one put aside.
+  await expect(page.getByTestId("status")).toHaveText("Opened the Hierarchy template in a new tab.");
   await page.getByTestId("new-button").click();
   await page.getByTestId("new-blank").click();
   await expect.poll(() => code(page)).toBe(template("blank"));
-  await expect(page.getByTestId("status")).toHaveText("Opened a blank diagram.");
-  await page.getByTestId("restore-previous").click();
+  await expect(page.getByTestId("status")).toHaveText("Opened a blank diagram in a new tab.");
+  await expect(page.getByTestId("tab").locator(".name")).toHaveText(["Basic process", "Hierarchy", "Untitled"]);
+  await page.getByTestId("tab").first().locator(".name").click();
   await expect.poll(() => code(page)).toBe(MINE);
 });
 
@@ -79,8 +79,8 @@ plain("a template link from the home page opens it in the editor, and the addres
   await page.waitForSelector(".cm-editor");
   await expect(page).toHaveURL(/\/editor\/$/);
   await expect.poll(() => code(page)).toBe(template("state-machine"));
-  await expect(page.getByTestId("status")).toContainText("Opened the State machine template. Your previous work is kept");
-  await page.getByTestId("restore-previous").click();
+  await expect(page.getByTestId("status")).toHaveText("Opened the State machine template in a new tab.");
+  await page.getByTestId("tab").first().locator(".name").click();
   await expect.poll(() => code(page)).toBe(MINE);
 });
 

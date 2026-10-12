@@ -26,7 +26,7 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator('[data-node="mine"]').first()).toBeVisible();
 });
 
-test("imports pasted Mermaid: TikZ with relations, drawn, the work put aside, one undo", async ({ page }) => {
+test("imports pasted Mermaid: TikZ with relations, drawn, in a new tab", async ({ page }) => {
   await page.getByTestId("import-button").click();
   await expect(page.getByTestId("import-format")).toContainText("format is found");
   await page.getByTestId("import-source").fill(MERMAID);
@@ -41,10 +41,11 @@ test("imports pasted Mermaid: TikZ with relations, drawn, the work put aside, on
   expect(t).not.toMatch(/\) at \(/);
   // Drawn on the canvas, and every node can be dragged.
   await expect(page.locator('[data-node="ship"]').first()).toBeVisible();
-  await expect(page.getByTestId("status")).toContainText("Imported a Mermaid flowchart: 4 nodes, 4 edges");
-  await expect(page.getByTestId("restore-previous")).toBeVisible();
-  // The work put aside comes back with a click.
-  await page.getByTestId("restore-previous").click();
+  await expect(page.getByTestId("status")).toContainText("Imported a Mermaid flowchart in a new tab: 4 nodes, 4 edges");
+  // It opened in a new tab (D97); the work that was on screen is in its own.
+  await expect(page.getByTestId("tab")).toHaveCount(2);
+  await expect(page.getByTestId("file-name")).toHaveText("Mermaid import");
+  await page.getByTestId("tab").first().locator(".name").click();
   await expect.poll(() => code(page)).toBe(MINE);
 });
 
@@ -87,6 +88,6 @@ test("a dropped .dot file is imported like an opened one", async ({ page }) => {
     dt.items.add(new File([dot], "build.dot", { type: "text/plain" }));
     window.dispatchEvent(new DragEvent("drop", { dataTransfer: dt, bubbles: true, cancelable: true }));
   }, DOT);
-  await expect(page.getByTestId("status")).toContainText("Imported a Graphviz graph: 3 nodes, 2 edges, 1 group");
+  await expect(page.getByTestId("status")).toContainText("Imported a Graphviz graph in a new tab: 3 nodes, 2 edges, 1 group");
   expect(await code(page)).toContain("\\node[group, fit=(build) (test)");
 });

@@ -1,7 +1,7 @@
 // Application state. The CodeMirror document is the source of truth; every
 // visual edit is a CodeMirror transaction, so one history covers both panes.
 import { isolateHistory, redo, undo } from "@codemirror/commands";
-import { EditorSelection } from "@codemirror/state";
+import { EditorSelection, type EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { batch, computed, effect, signal } from "@preact/signals";
 import { autoLayoutMessage, type LayoutDirection, type LayoutProgress } from "../edit/autolayout.ts";
@@ -126,6 +126,44 @@ export function attachEditor(v: EditorView): void {
   view = v;
   text.value = v.state.doc.toString();
   syncOpaque();
+}
+
+/**
+ * Why the diagram on screen can't be edited here, or null when it can: another window is editing it (D97).
+ * Every visual edit checks it; the code pane is read-only meanwhile.
+ */
+export const editLock = signal<string | null>(null);
+
+/** Whether an edit may go ahead; says why not in the status bar. */
+export function canEdit(): boolean {
+  const why = editLock.peek();
+  if (why) {
+    status.value = why;
+    // The caller may go on to say what it did; the reason it did nothing is what stays.
+    queueMicrotask(() => (status.value = why));
+  }
+  return !why;
+}
+
+/**
+ * Shows another tab's editor state (D97): its code, undo history and cursor. What belonged to the tab that
+ * was shown (the selection, a drag, a label being typed) is dropped. Before the code pane exists, only the
+ * text is taken; the pane starts with the state.
+ */
+export function swapEditorState(state: EditorState): void {
+  batch(() => {
+    selection.value = null;
+    overrides.value = new Map();
+    previewLayout.value = null;
+    guides.value = { lines: [], gaps: [] };
+    labelEdit.value = null;
+    pickedLabel.value = null;
+    text.value = state.doc.toString();
+  });
+  if (!view) return;
+  view.setState(state);
+  syncOpaque();
+  queueMicrotask(() => fitRequests.value++);
 }
 
 export function editorView(): EditorView | null {
@@ -318,7 +356,7 @@ export function mapPathId(id: string, changes: readonly Change[]): string {
  * (D81), in the same step.
  */
 export function applyEdit(edit: Change[], label: string): void {
-  if (!view || !edit.length) return;
+  if (!view || !edit.length || !canEdit()) return;
   const { changes } = withLaneUpkeep(text.value, currentPicture.value, edit);
   const sel = selection.peek();
   if (sel?.kind === "edge" || sel?.kind === "path") selection.value = { kind: sel.kind, id: mapPathId(sel.id, changes) };
@@ -333,7 +371,7 @@ export function applyEdit(edit: Change[], label: string): void {
 
 /** Replaces the whole document (open, paste), undoably. */
 export function replaceDocument(t: string, name: string | null, enc: Encoding): void {
-  if (!view) return;
+  if (!view || !canEdit()) return;
   batch(() => {
     fileName.value = name;
     encoding.value = enc;
@@ -488,6 +526,7 @@ export async function autoLayout(direction: LayoutDirection): Promise<boolean> {
   const before = text.value;
   const pic = currentPicture.value;
   const ids = selectedIds.value.length >= 2 ? [...selectedIds.value] : undefined;
+  if (!canEdit()) return false;
   layoutBusy.value = true;
   status.value = "Laying out…";
   try {
@@ -607,6 +646,7 @@ export const labelEditProblem = computed(() => {
 
 /** Starts editing the label of node `id`, or of a label on an edge. Says why in the status bar if it can't. */
 export function startLabelEdit(id: string): boolean {
+  if (!canEdit()) return false;
   const l = baseLayout.value;
   const n = labelledNode(l, id);
   const why = labelBlocker(text.value, currentPicture.value, id);
@@ -657,7 +697,8 @@ export function commitLabelEdit(): boolean {
 
 /** "Add label here": a label on the edge at `at`, shown with its text ready to type over. Escape leaves the code as it was. */
 export function startAddLabel(edgeId: string, at: Point): boolean {
-  const r = planAddLabel(text.value, currentPicture.value, edgeId, at, ADD_LABEL_PLACEHOLDER);
+  if (!canEdit()) return false;
+  const r =planAddLabel(text.value, currentPicture.value, edgeId, at, ADD_LABEL_PLACEHOLDER);
   if (!r.ok) {
     status.value = r.reason;
     return false;
@@ -773,7 +814,8 @@ export const viewCentre: { get: () => Point } = { get: () => ({ x: 0, y: 0 }) };
  * Escape leaves the code as it was.
  */
 export function startCreate(entry: PaletteEntry, placement: Placement): boolean {
-  const r = planCreate(text.value, currentPicture.value, { entry, label: entry.placeholder, placement });
+  if (!canEdit()) return false;
+  const r =planCreate(text.value, currentPicture.value, { entry, label: entry.placeholder, placement });
   if (!r.ok) {
     status.value = r.reason;
     return false;

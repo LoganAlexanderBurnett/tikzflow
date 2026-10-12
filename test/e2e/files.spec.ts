@@ -91,18 +91,20 @@ test("without the pickers Open is a file chooser and Save is a download", async 
   await expect(page.getByTestId("status")).toContainText("Downloaded up.tex");
 });
 
-test("opening a file puts the work that was on screen aside, and it can be brought back", async ({ page }) => {
+test("opening a file opens a new tab; the work that was on screen stays in its own (D97)", async ({ page }) => {
   await fakePickers(page, { name: "paper.tex", text: OTHER });
   await page.goto("/");
   await setCode(page, FIGURE, "mine.tex");
   await page.getByTestId("open-button").click();
   await expect.poll(() => store(page)).toBe(OTHER);
-  await page.getByTestId("restore-previous").click();
+  await expect(page.getByTestId("status")).toHaveText("Opened paper.tex in a new tab; Save writes to it.");
+  await expect(page.getByTestId("tab").locator(".name")).toHaveText(["mine.tex ●", "paper.tex"]);
+  await page.getByTestId("tab").first().locator(".name").click();
   await expect.poll(() => store(page)).toBe(FIGURE);
   await expect(page.getByTestId("file-name")).toContainText("mine.tex");
 });
 
-test("a share link carries the code: it opens in another page, and the work that was there is kept", async ({ page, context }) => {
+test("a share link carries the code: it opens in another page, and in a new tab beside the work", async ({ page, context }) => {
   await page.goto("/");
   await setCode(page, FIGURE);
   await page.getByTestId("share-button").click();
@@ -121,12 +123,14 @@ test("a share link carries the code: it opens in another page, and the work that
   await expect(visitor.getByTestId("status")).toContainText("Opened from a link");
   await other.close();
 
-  // On the same page, with other work on screen: a link replaces it, and Restore previous work gets it back.
+  // On the same page, with other work on screen: the link opens in a new tab beside it (D97).
   await setCode(page, OTHER);
   await page.waitForTimeout(700);
   await page.evaluate((u) => (location.href = u), url);
   await expect.poll(() => store(page)).toBe(FIGURE);
-  await page.getByTestId("restore-previous").click();
+  await expect(page.getByTestId("status")).toHaveText("Opened from a link in a new tab.");
+  await expect(page.getByTestId("tab")).toHaveCount(2);
+  await page.getByTestId("tab").first().locator(".name").click();
   await expect.poll(() => store(page)).toBe(OTHER);
 });
 
