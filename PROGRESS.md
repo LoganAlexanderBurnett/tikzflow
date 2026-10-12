@@ -20,7 +20,7 @@ Milestone 0 is done and was approved on 2026-10-07:
 
 **Milestone 4 (layout and import): done, reviewed by the owner, merged into `trunk` and live at https://tikzflow.pages.dev (2026-10-11, D88).** The owner approved the two decisions of the report (groups kept together only when they would otherwise cross, and always for import; `$` drawn from Computer Modern with a quiet note for other TS1 symbols). `m4` was merged by fast-forward (`trunk` e76cde4), the production deploy serves the same build as the `m4` preview, and `npm run test:live` against it passes (11 of 11). See "Milestone 4: merged and live" below. The owner has since confirmed that "Report a problem" shows the issue form when signed in.
 
-**Milestone 5 (user experience and website): in progress on `m5` (D89).** SPEC Milestone 5 is split: M5 is the user-facing work, M6 the performance target and the release paperwork (license audit, README). Steps 0–6 are done and reviewed (D98); the bug found in the step 6 review is fixed (D98); steps 7 and 8 follow without a pause. See "M5 plan and status" below. **Milestone 7 (neural network diagrams)** was added after M6 by the owner (D96), to be planned later.
+**Milestone 5 (user experience and website): done on `m5`, waiting for the owner's review (D89).** SPEC Milestone 5 is split: M5 is the user-facing work, M6 the performance target and the release paperwork (license audit, README). Steps 0–8 are done; the bug found in the step 6 review is fixed (D98); help (D99) and the neural-network templates (D100) followed. **Nothing is merged into `trunk`.** See "Milestone 5 report" below. See "M5 plan and status" below. **Milestone 7 (neural network diagrams)** was added after M6 by the owner (D96), to be planned later.
 
 Also read "Notes for later milestones" below.
 
@@ -35,11 +35,53 @@ Also read "Notes for later milestones" below.
 | 5 | First run (Paste TikZ, Start blank, Start from a template; the sample becomes Basic process), the `?` shortcut overlay, the edit flicker (D69 item 4); the summary counts groups (D96 item 3) | Done (D96); reviewed and approved by the owner (D97) |
 | 6 | Multiple tabs (D86 item 5): own code, undo, file, autosave and TeX picture per tab; open, import, share links and templates open a tab; engine stopped while the browser tab is hidden (D69 item 4) | Done (D97); approved (D98). The bug found in review (a node placed diagonally from a trapezium) is fixed, with TeX now reporting where it puts each node (D98; see "Fix after the step 6 review" below) |
 | 7 | Help: static pages from Markdown, client-side search (MiniSearch), screenshots made by a script; what the owner asked for on saving, Recently closed and two windows (D98 item 3) | Done (D99); see "M5 step 7" below |
-| 8 | Goldens, end-to-end, offline and live checks on the `m5` preview; docs; if time allows, two or three neural-network templates the editor handles fully, with which Milestone 7 features they show are needed most (D96 item 4); **Milestone 5 report** | Not started |
+| 8 | Goldens, end-to-end, offline and live checks on the `m5` preview; docs; if time allows, two or three neural-network templates the editor handles fully, with which Milestone 7 features they show are needed most (D96 item 4); **Milestone 5 report** | Done (D100); **Milestone 5 report** below, waiting for the owner's review |
 
 Milestone 6 (after M5's review): smooth dragging with 200 nodes; license audit and `THIRD_PARTY_LICENSES.md` (the items under "Milestone 5: license audit items" below move there); README with features, screenshots, local setup and deployment; a friendly note on phone-sized screens instead of a cramped editor (D97).
 
 Milestone 7 (after M6, to be planned later; D96 item 4): neural network diagrams. See "Notes for later milestones".
+
+## Milestone 5 report: user experience and website (2026-10-12)
+All of Milestone 5 is on `m5`, committed and pushed; **nothing is merged into `trunk`** (D77 item 7). Steps 0–6 were reviewed one by one (D91, D94, D96, D97, D98); this report covers the fix after the step 6 review and steps 7 and 8, then the milestone as a whole.
+
+### How to try it
+https://m5.tikzflow.pages.dev (or `npm install && npm run dev`, then http://localhost:5173/).
+- **The fix (D98):** open the Basic process template with TeX preview on, drag "Answer 1" below and right of "Read n" so the code says `below right=… of read`, and select it: the dashed outline sits on TeX's box. A node TeX places elsewhere than the editor would get a small amber marker and a note in the TeX preview's notes (none in any template).
+- **Help (D99):** /help/, or Help in the editor's app bar; search with `/`. "Saving, tabs and your work" holds what you asked for.
+- **Neural-network templates (D100):** New → Neural network, LSTM cell, Encoder–decoder (also on the home page and the start screen).
+
+### What Milestone 5 delivered
+- **Step 0:** tests on every push (typecheck, Vitest with the engine, build, `check:dist`, Playwright in Edge on Linux); it found the press-time right-click bug (D90).
+- **Steps 1–3:** direction A, Manuscript (D91); the site: home page at `/`, editor at `/editor/`, 404 page, offline per page, old share links forwarded (D92); the look applied to the editor, light/dark/system (D93).
+- **Step 4:** nine templates compiled in CI by pdfLaTeX and our engine, with TeX's own thumbnails; the `automata` library and loops (D95).
+- **Step 5:** the start screen, the `?` shortcut list, no flicker during edits and drags (TeX's picture stays, what changed is patched natively); groups counted in the summary (D96).
+- **Step 6:** tabs, each with its own code, undo, file, autosave and TeX picture; Recently closed; one writer per diagram across windows; the journal for an interrupted close; the engine stopped while hidden (D97).
+- **Fix after the review:** corner anchors as pgf has them for the trapezium, ellipse, rounded rectangle and cylinder, checked by a new pdfTeX probe; TeX reports where it put each node and the editor flags disagreement (D98).
+- **Step 7:** 13 help pages, searchable, offline, generated from Markdown (D99).
+- **Step 8:** three neural-network templates; sub- and superscripts in labels measured at their size again (a KaTeX 0.19 rename had broken it) (D100).
+
+### Neural-network templates and Milestone 7 (D100)
+The three templates are in `src/templates/neural-network.tex`, `lstm-cell.tex` and `encoder-decoder.tex`; their code is in the report to the owner. Each opens fully editable (12 nodes and 20 edges; 15 nodes, 1 group and 17 edges; 9 nodes and 11 edges) and lays out within 1pt of pdfTeX. What they show Milestone 7 needs most: (1) dense layers as one object written as `oreach` (the 3–4–2 network is already 20 edge statements; 4–8–8–3 would be 120); (2) 3D feature-map blocks for CNNs (only flat boxes today; skip connections nested by hand); (3) palette entries for LSTM/GRU gates and pointwise operations (the cell works today; this is convenience).
+
+### Tests (final state, 6ab8f13)
+- **Vitest:** 1,714 passed, 9 skipped (the probe's known shapes) in 58 files. New since step 6: `anchors.test.ts` (66 cases), `placement-engine.test.ts` (13), `help.test.ts` (21), the script-size test in `label.test.ts`, three more templates in `templates.test.ts` and its TikZ-key check. No golden file changed in this round.
+- **Playwright:** 190 of 190 (`placement.spec.ts` and `help.spec.ts` new; template counts updated).
+- **`npm run test:offline`:** 9 of 9.
+- **Fidelity:** 563 of 650 nodes within 1pt of pdfTeX, now counting corner anchors too; the twelve templates 103 of 103.
+- **`typecheck`, `build`, `check:dist`:** pass (15 pages kept offline).
+- **CI and `test:live`:** **CI on `m5` (6ab8f13): green**, all three jobs (the pdfLaTeX job compiled all thirteen template files with no errors or warnings); CI on the fix commit (ea081a4) was green too. **`TIKZFLOW_URL=https://m5.tikzflow.pages.dev npm run test:live`: 16 of 16** on the deploy of 6ab8f13 (the preview serves `assets/editor-CuByHRu5.js`, the same as the local build), with two new checks: the help pages and search under the policy, and TeX's placement report on the owner's case.
+
+### Decisions for you
+1. **The placement flag's bar (D98).** You asked for 1pt. Templates: nothing flagged. Hand-written corpus pictures: 50 nodes in 9 of 28 pictures, mostly 1–3pt from estimated text widths, up to 16pt with matrices, `esizebox` or chains. The marker is small and the note quiet; keep 1pt, or flag only beyond 2–3pt?
+2. **Neural-network templates in the one gallery (D100).** They follow the nine in the gallery and New menu (twelve cards). Keep them there, or give them their own heading?
+3. **Help screenshots (D99)** are regenerated by a script but not checked for staleness (interface pictures aren't byte-stable across machines). OK?
+4. **Merge:** with your approval of this report, `m5` is merged into `trunk` (the public beta), after a final `test:live` against the preview.
+
+### Known limits (new in this round)
+- **Shapes still off TeX:** tape 1.0pt (its wave); circle split and rectangle split 2–5pt (marked "not drawn" already). Snapping's guides for a cylinder now use its real anchors.
+- **The placement check** doesn't cover nodes the preview already marks as approximate, nodes in blocks kept as-is, or names with characters other than letters, digits, `-`, `_` and single spaces.
+- **The editor's toolbar is cut off in a 1,180 px window** (Export and Share out of view); for Milestone 6's narrow-screen work.
+- The limits listed under steps 4–6 still hold.
 
 ## M5 step 7: help (2026-10-12)
 Done without a pause, as asked (D99).
