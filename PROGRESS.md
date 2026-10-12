@@ -72,7 +72,7 @@ Open https://m5.tikzflow.pages.dev/editor/ (or `npm run dev`, then http://localh
   - Updated for tabs: `files.spec.ts` (Open and a share link open a tab), `import.spec.ts`, `templates.spec.ts`.
 - **`npm run test:offline`:** 8 of 8.
 - **`typecheck`, `build`, `check:dist`:** pass.
-- **CI and `test:live`:** LIVE_RESULT
+- **CI and `test:live`:** **CI on `m5` (f2a510d): green**, all three jobs. The first push (fc41799) failed one new test on Linux: after the second window closed, the first got its focus event before the browser had freed the closed window's lock, and nothing tried again. Now a read-only window also looks every 10 s and takes a tab that has become free; the tests retry the focus. **`TIKZFLOW_URL=https://m5.tikzflow.pages.dev npm run test:live`: 14 of 14** on the deploy of f2a510d (the preview serves `assets/editor-574K_wKX.js`, the same as the local build), with a new check: tabs kept across a reload, and a second window read-only until Edit here, under the production policy.
 
 ### Known limits
 - **Undo history isn't kept across a reload** (as before), nor when another window edited the tab meanwhile.
