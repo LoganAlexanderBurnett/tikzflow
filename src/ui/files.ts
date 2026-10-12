@@ -9,12 +9,11 @@ import { detectFormat, IMPORT_EXTENSIONS, type ImportOptions, type ImportResult 
 import { decode, encode, type Encoding, UnencodableError } from "../source/encoding.ts";
 import { del, get, put, type Session } from "./kv.ts";
 import { isPristine, templateInfo, templateText } from "../templates/index.ts";
-import { SAMPLE } from "./sample.ts";
 import { decodeShare, isShareHash } from "./share.ts";
 import { encoding, fileName, pictureIndex, replaceDocument, status, text, withProgress } from "./store.ts";
 
-/** The text the editor starts with: the work kept from the last visit, else the sample. Set by `restoreOnStart`. */
-let startText = SAMPLE;
+/** The text the editor starts with: the work kept from the last visit, else nothing, which shows the empty state (D96). Set by `restoreOnStart`. */
+let startText = "";
 export const initialText = (): string => startText;
 export function setInitialText(t: string): void {
   startText = t;
@@ -49,7 +48,7 @@ export const canSaveInPlace = (): boolean => typeof picker().showSaveFilePicker 
 // ---- State -----------------------------------------------------------------------------------
 
 /** The text as last opened or saved. */
-export const savedText = signal(SAMPLE);
+export const savedText = signal("");
 /** The file being edited, when the browser let us keep a handle to it. */
 export const fileHandle = signal<FsHandle | null>(null);
 /** Work that was put aside when something else was opened (a file, a link), to be got back. */
@@ -185,6 +184,24 @@ export async function importSource(src: string, name: string | null, options: Om
   savedText.value = "";
   status.value = importMessage(r, previousWork.value !== null);
   return r;
+}
+
+/**
+ * Puts pasted text on screen, from the empty state's Paste TikZ (D96): TikZ or a whole .tex file as it
+ * is, a Mermaid or DOT diagram imported. What was there is put aside first, as Open does.
+ */
+export async function openPasted(t: string): Promise<void> {
+  if (detectFormat(t)) {
+    await importSource(t, null);
+    return;
+  }
+  await putAside();
+  fileHandle.value = null;
+  void del("handle");
+  replaceDocument(t, null, "utf-8");
+  savedText.value = "";
+  const lines = t.split("\n").length;
+  status.value = `Pasted ${lines} ${lines === 1 ? "line" : "lines"}.`;
 }
 
 /** Puts a file's text on the canvas. `handle` lets Save write back to it. */
@@ -327,7 +344,7 @@ export async function openTemplate(id: string): Promise<void> {
 
 /**
  * Chooses what the editor starts with: a shared link if the address has one (the work kept from the last
- * visit is put aside, not lost), else the work kept from the last visit, else the sample.
+ * visit is put aside, not lost), else the work kept from the last visit, else nothing (the empty state, D96).
  */
 export async function restoreOnStart(): Promise<void> {
   const session = await loadSession().catch(() => null);

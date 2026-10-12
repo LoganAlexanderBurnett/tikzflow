@@ -8,7 +8,10 @@ import type { Scope } from "../src/edit/properties.ts";
 import { analyzeDocument, layoutDocumentPicture } from "../src/model/document.ts";
 import type { LaidOutNode, PictureLayout } from "../src/tikz/layout.ts";
 import { PT_PER_UNIT } from "../src/tikz/units.ts";
-import { SAMPLE } from "../src/ui/sample.ts";
+import { templateText } from "../src/templates/index.ts";
+
+/** The Basic process template, which the editor used to start with. */
+const SAMPLE = templateText("basic-process")!;
 import { loadCorpusFile } from "./corpus.ts";
 
 const MM = PT_PER_UNIT.mm!;

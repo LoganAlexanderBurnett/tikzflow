@@ -131,7 +131,7 @@ test("opens a Latin-1 file and downloads it byte for byte", async ({ page }) => 
 
 test("dragging a fit node moves what it fits (D78)", async ({ page }) => {
   await page.locator('input[type="file"]').setInputFiles(corpus("self-document.tex"));
-  await expect(page.getByTestId("summary-headline")).toHaveText("6 nodes of 7 and 6 edges editable");
+  await expect(page.getByTestId("summary-headline")).toHaveText("6 nodes, 1 group and 6 edges editable");
   const before = await code(page);
   const box = await nodeBox(page, "box");
   await drag(page, { x: box.x + 4, y: box.y + box.height / 2 }, { x: box.x + 60, y: box.y + box.height / 2 + 40 });

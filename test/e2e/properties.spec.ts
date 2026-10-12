@@ -106,6 +106,8 @@ test("the properties panel collapses, and stays collapsed after a reload", async
   await page.getByTestId("inspector-toggle").click();
   await expect(page.getByTestId("inspector")).toHaveCSS("width", "30px");
   await expect(page.getByTestId("properties")).toHaveCount(0);
+  // The picture is the work kept in the browser (the editor starts empty, D96): autosave waits half a second.
+  await page.waitForTimeout(900);
   await page.reload();
   await expect(page.getByTestId("summary-headline")).toHaveText("6 nodes and 6 edges editable");
   await expect(page.getByTestId("inspector")).toHaveCSS("width", "30px");

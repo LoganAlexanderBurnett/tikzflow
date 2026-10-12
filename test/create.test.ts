@@ -6,7 +6,10 @@ import { applyChanges, diffRange } from "../src/edit/changes.ts";
 import { type CreateOutcome, defaultEntry, paletteEntries, type PaletteEntry, planCreate, STANDARD_ENTRIES, type Placement } from "../src/edit/create.ts";
 import { analyzeDocument, layoutDocumentPicture } from "../src/model/document.ts";
 import type { LaidOutNode, PictureLayout } from "../src/tikz/layout.ts";
-import { SAMPLE } from "../src/ui/sample.ts";
+import { templateText } from "../src/templates/index.ts";
+
+/** The Basic process template, which the editor used to start with. */
+const SAMPLE = templateText("basic-process")!;
 import { corpusNames, loadCorpusFile } from "./corpus.ts";
 
 const layoutOf = (text: string, pic = 0): PictureLayout => layoutDocumentPicture(analyzeDocument(text), pic)!;

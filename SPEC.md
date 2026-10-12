@@ -156,6 +156,18 @@ Features:
 - A GitHub Actions workflow that runs the tests on every push.
 - Multiple tabs, so a user can work on more than one flowchart at once. Each tab keeps its own code, undo history, autosave and preview. Opening a file, an import or a share link opens in a new tab instead of putting the current work aside.
 
+### Milestone 6: Performance and release paperwork
+(Defined by D89; see "Spec revisions".)
+- Smooth dragging with 200 nodes.
+- The license audit of every bundled component, summarized in `THIRD_PARTY_LICENSES.md`.
+- README with features, screenshots, local development setup, and deployment steps.
+
+### Milestone 7: Neural network diagrams
+(Added after the Milestone 5 step 4 review; scope to be planned later. Reasons in DECISIONS.md D96.)
+- **Dense networks** (tens to hundreds of nodes, all-to-all connections) edited as layer components. The editor recognizes a layer as one object with properties (neurons, labels, spacing, connections) and writes compact `\foreach`-based code it fully understands, rather than hundreds of separate statements.
+- **Architecture shapes:** 3D feature-map blocks for CNNs (kernels, pooling, upsampling, downsampling), and LSTM/GRU cell parts (gates, σ/tanh, pointwise operations). Look at PlotNeuralNet (MIT) for prior art.
+- Depends on Milestone 6's performance work.
+
 ### Later (do not build unless I ask)
 Beamer overlay timeline, visual diff between versions, and natural-language edits via an API.
 
@@ -235,3 +247,7 @@ Start with Milestone 0. Before writing code, give me a brief plan for the spike 
   - Milestone 5 is split. M5 (user experience and website) keeps onboarding, themes, the shortcut reference and multiple tabs, and adds a home page at `/` (the editor moves to `/editor/`; share links to `/#…` still open in it), nine templates compiled in CI, a searchable static help site, and a visual design picked from two or three directions. The GitHub Actions test workflow moves into M5.
   - A new Milestone 6 (performance and release paperwork) takes the 200-node drag target, the license audit and `THIRD_PARTY_LICENSES.md`, and the README.
   - The empty state offers Paste TikZ, Start blank and Start from a template; the templates gallery replaces the "3–5 example diagrams".
+- **2026-10-12, the owner's review of Milestone 5 step 4** (decided by the project owner; reasons in DECISIONS.md D96):
+  - The summary counts group and lane boxes as groups ("7 nodes, 3 groups and 7 edges editable"); "not editable" is kept for locked nodes and blocks kept as-is.
+  - Milestone 6 is written out as its own section (its content is D89's).
+  - Added Milestone 7: neural network diagrams (dense networks edited as layer components written as `\foreach` code the editor understands; CNN feature-map blocks and LSTM/GRU cell parts), after Milestone 6 and depending on its performance work. In M5 step 8, if time allows, two or three neural-network templates the current editor handles fully, with a report of which Milestone 7 features they show are needed most.

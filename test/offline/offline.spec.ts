@@ -8,6 +8,8 @@ import { expect, test } from "@playwright/test";
 const root = join(import.meta.dirname, "..", "..");
 const tag = (JSON.parse(readFileSync(join(root, "engine", "release.json"), "utf8")) as { tag: string }).tag;
 const haveEngine = existsSync(join(root, "vendor", "engine", tag, "index.json"));
+// A first visit starts empty (D96); these tests start from the Basic process template, as the editor used to.
+const FIRST = "/editor/#template=basic-process";
 
 test.describe("after the first visit", () => {
   test.skip(!haveEngine, `the engine ${tag} isn't in vendor/engine (npm run fetch-engines -- engine)`);
@@ -18,7 +20,7 @@ test.describe("after the first visit", () => {
     page.on("console", (m) => m.type() === "error" && problems.push(m.text()));
     page.on("requestfailed", (r) => problems.push(`${r.url()} ${r.failure()?.errorText}`));
     page.on("request", (r) => hosts.add(new URL(r.url()).host));
-    await page.goto("/editor/");
+    await page.goto(FIRST);
     // The first picture, then the rest of the engine in the background.
     await expect(page.getByTestId("compiled-picture")).toBeAttached({ timeout: 30_000 });
     await expect(page.getByTestId("offline-state")).toHaveText("Works offline", { timeout: 80_000 });
@@ -33,7 +35,7 @@ test.describe("after the first visit", () => {
   });
 
   test("a package the first visit never used is there offline too", async ({ page, context }) => {
-    await page.goto("/editor/");
+    await page.goto(FIRST);
     await expect(page.getByTestId("offline-state")).toHaveText("Works offline", { timeout: 90_000 });
     await context.setOffline(true);
     await page.reload();
@@ -56,7 +58,7 @@ test.describe("under the production Content-Security-Policy", () => {
     const violations: string[] = [];
     page.on("console", (m) => /content security policy|refused to/i.test(m.text()) && violations.push(m.text()));
     page.on("pageerror", (e) => violations.push(String(e)));
-    const response = await page.goto("/editor/");
+    const response = await page.goto(FIRST);
     expect(response!.headers()["content-security-policy"]).toContain("default-src 'self'");
     await expect(page.getByTestId("compiled-picture")).toBeAttached({ timeout: 30_000 });
     await page.getByTestId("export-button").click();
@@ -82,7 +84,7 @@ test("auto-layout works offline, under the production Content-Security-Policy", 
   const violations: string[] = [];
   page.on("console", (m) => /content security policy|refused to/i.test(m.text()) && violations.push(m.text()));
   page.on("pageerror", (e) => violations.push(String(e)));
-  await page.goto("/editor/");
+  await page.goto(FIRST);
   await page.evaluate(() => navigator.serviceWorker.ready);
   await expect
     .poll(() => page.evaluate(async () => {
@@ -90,6 +92,7 @@ test("auto-layout works offline, under the production Content-Security-Policy", 
       return !!shell && (await (await caches.open(shell)).keys()).some((r) => /elk\.bundled-[^/]*\.js$/.test(r.url));
     }))
     .toBe(true);
+  await page.waitForTimeout(900); // autosave: the reload offline opens the work kept in the browser
   await context.setOffline(true);
   await page.reload();
   await expect(page.getByTestId("summary-headline")).toBeVisible();
@@ -105,7 +108,7 @@ test("import and the color views work offline, under the production Content-Secu
   const violations: string[] = [];
   page.on("console", (m) => /content security policy|refused to/i.test(m.text()) && violations.push(m.text()));
   page.on("pageerror", (e) => violations.push(String(e)));
-  await page.goto("/editor/");
+  await page.goto(FIRST);
   await page.evaluate(() => navigator.serviceWorker.ready);
   await expect
     .poll(() => page.evaluate(async () => {
@@ -113,6 +116,7 @@ test("import and the color views work offline, under the production Content-Secu
       return !!shell && (await (await caches.open(shell)).keys()).some((r) => /elk\.bundled-[^/]*\.js$/.test(r.url));
     }))
     .toBe(true);
+  await page.waitForTimeout(900); // autosave: the reload offline opens the work kept in the browser
   await context.setOffline(true);
   await page.reload();
   await expect(page.getByTestId("summary-headline")).toBeVisible();
@@ -151,7 +155,11 @@ test("after one visit to the home page, the home page and the editor work offlin
   await page.reload();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/Draw flowcharts/);
   await page.goto("/editor/");
-  await expect(page.getByTestId("summary-headline")).toBeVisible();
+  // Nothing was kept: the start screen, with the templates' pictures (D96).
+  await expect(page.getByTestId("empty-state")).toBeVisible();
+  await page.getByTestId("start-template").click();
+  await expect(page.locator('[data-testid="start-hierarchy"] img')).toHaveJSProperty("complete", true);
+  expect(await page.locator('[data-testid="start-hierarchy"] img').evaluate((i) => (i as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   await page.goto("/no-such-page/");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/Draw flowcharts/);
   expect(violations).toEqual([]);
@@ -164,7 +172,7 @@ test("an unknown address is a 404 with the site's page", async ({ page }) => {
 });
 
 test("one cache holds the app and one the engine", async ({ page }) => {
-  await page.goto("/editor/");
+  await page.goto(FIRST);
   await page.evaluate(() => navigator.serviceWorker.ready);
   const names = await page.evaluate(async () => (await caches.keys()).sort());
   expect(names.filter((n) => n.startsWith("tikzflow-shell-"))).toHaveLength(1);

@@ -35,7 +35,7 @@ import { WidthGuide } from "./pagepanel.tsx";
 import { ContrastMarks, selectContrastIssue } from "./contrastmarks.tsx";
 import { labelFix, LabelFixMenu, LabelWarnings } from "./labelwarning.tsx";
 import { VisionFilter, visionFilterAttr } from "./visionui.tsx";
-import { pickBlock, selectedBlock, showingCompiled } from "./preview.ts";
+import { pickBlock, selectedBlock, showingTex, STALE_HIDE, STALE_SHOW, stalePicture } from "./preview.ts";
 import {
   activeScope,
   applyEdgeEdit,
@@ -433,9 +433,10 @@ const gradId = (id: string) => `sh-${id.replace(/[^A-Za-z0-9_-]/g, "_")}`;
 const nodeSig = (n: LaidOutNode) =>
   [n.id, n.shape.kind, n.shape.center.x, n.shape.center.y, n.shape.hw, n.shape.hh, n.shape.rotate, n.shape.roundedCorners, n.stroke, n.fill, n.lineWidth, n.dash, n.opacity, n.fillOpacity, n.shadow, n.locked, n.shading && JSON.stringify(n.shading), n.double && JSON.stringify(n.double)].join("|");
 
-const NodeShape = memo(NodeShapeView, (a, b) => a.scale === b.scale && a.selected === b.selected && nodeSig(a.n) === nodeSig(b.n));
+const NodeShape = memo(NodeShapeView, (a, b) => a.scale === b.scale && a.selected === b.selected && a.inert === b.inert && nodeSig(a.n) === nodeSig(b.n));
 
-function NodeShapeView({ n, scale, selected }: { n: LaidOutNode; scale: number; selected: boolean }) {
+/** `inert`: a copy that only shows (the patch over a stale TeX picture, D96), without the ids the pointer and tests look for. */
+function NodeShapeView({ n, scale, selected, inert }: { n: LaidOutNode; scale: number; selected: boolean; inert?: boolean }) {
   // Coordinates are drawn as markers on top (CoordinateMark).
   if (n.kind === "coordinate") return null;
   const d = outline(n.shape);
@@ -445,7 +446,7 @@ function NodeShapeView({ n, scale, selected }: { n: LaidOutNode; scale: number; 
   // Outlines are drawn y up (the text y down), so the turn is counterclockwise there.
   const turn = n.shape.rotate ? `rotate(${n.shape.rotate} ${f(n.shape.center.x)} ${f(n.shape.center.y)})` : undefined;
   return (
-    <g data-node={n.id} class={`tf-node${n.locked ? " locked" : ""}${selected ? " selected" : ""}`} transform={turn}>
+    <g data-node={inert ? undefined : n.id} class={`tf-node${n.locked ? " locked" : ""}${selected ? " selected" : ""}`} transform={turn}>
       {n.shadow && d && <path d={d} transform="translate(2.5 -2.5)" fill="#000" opacity={0.35} />}
       {d && (
         <path
@@ -469,6 +470,7 @@ const NodeLabel = memo(
   NodeLabelView,
   (a, b) =>
     a.macros === b.macros &&
+    a.inert === b.inert &&
     a.n.text === b.n.text &&
     a.n.textOrigin.x === b.n.textOrigin.x &&
     a.n.textOrigin.y === b.n.textOrigin.y &&
@@ -477,7 +479,7 @@ const NodeLabel = memo(
     String(a.n.textColor) === String(b.n.textColor),
 );
 
-function NodeLabelView({ n, macros }: { n: LaidOutNode; macros: Record<string, string> }) {
+function NodeLabelView({ n, macros, inert }: { n: LaidOutNode; macros: Record<string, string>; inert?: boolean }) {
   const t = n.text;
   const html = useMemo(() => (t ? labelHtml(t, macros) : ""), [t, macros]);
   if (!t || !html) return null;
@@ -487,7 +489,7 @@ function NodeLabelView({ n, macros }: { n: LaidOutNode; macros: Record<string, s
   const y = -n.textOrigin.y;
   const rot = n.rotate ? `rotate(${-n.rotate} ${f(n.shape.center.x)} ${f(-n.shape.center.y)})` : undefined;
   return (
-    <foreignObject x={f(x)} y={f(y)} width={f(w + 2)} height={f(h + 2)} transform={rot} class="tf-label-box" data-node={n.kind === "path" ? undefined : n.id}>
+    <foreignObject x={f(x)} y={f(y)} width={f(w + 2)} height={f(h + 2)} transform={rot} class="tf-label-box" data-node={n.kind === "path" || inert ? undefined : n.id}>
       <div class="tf-label" style={{ color: cssColor(n.textColor), opacity: n.opacity }} dangerouslySetInnerHTML={{ __html: html }} />
     </foreignObject>
   );
@@ -504,18 +506,18 @@ interface EdgeHit {
 
 const PathShape = memo(
   PathShapeView,
-  (a, b) => a.scale === b.scale && a.selected === b.selected && pathSig(a.p) === pathSig(b.p) && a.hits.map((h) => h.id + h.d).join("|") === b.hits.map((h) => h.id + h.d).join("|"),
+  (a, b) => a.scale === b.scale && a.selected === b.selected && a.inert === b.inert && pathSig(a.p) === pathSig(b.p) && a.hits.map((h) => h.id + h.d).join("|") === b.hits.map((h) => h.id + h.d).join("|"),
 );
 
-function PathShapeView({ p, scale, selected, hits }: { p: LaidOutPath; scale: number; selected: boolean; hits: readonly EdgeHit[] }) {
+function PathShapeView({ p, scale, selected, hits, inert }: { p: LaidOutPath; scale: number; selected: boolean; hits: readonly EdgeHit[]; inert?: boolean }) {
   if (!p.d && !p.tips.length) return null;
   const minStroke = 0.6 / scale;
   const fill = p.shading ? `url(#${gradId(p.id)})` : rgba(p.fill);
   return (
-    <g data-path={p.id} class={`tf-path${selected ? " selected" : ""}`}>
+    <g data-path={inert ? undefined : p.id} class={`tf-path${selected ? " selected" : ""}`}>
       {selected && <path d={p.d} class="tf-path-halo" stroke-width={p.lineWidth + 4 / scale} />}
       {/* A path with edges is clicked edge by edge; other paths as a whole. */}
-      {hits.length ? null : <path d={p.d} class="tf-path-hit" stroke-width={10 / scale} />}
+      {hits.length || inert ? null : <path d={p.d} class="tf-path-hit" stroke-width={10 / scale} />}
       <path
         d={p.d}
         fill={fill}
@@ -556,6 +558,76 @@ function drawOrder(l: PictureLayout): Item[] {
     ...l.paths.map((p) => ({ kind: "path" as const, p, at: p.syntax.from + (p.id.includes("/edge") ? 0.5 : 0), layer: p.layer })),
   ];
   return items.sort((a, b) => a.layer - b.layer || a.at - b.at);
+}
+
+/** Where TeX's stale picture is cut out (`hide`) and the native patch shows (`show`), as SVG masks (D96). */
+function StaleMasks() {
+  const marks = stalePicture.value?.patch.marks;
+  if (!marks?.length) return null;
+  const shapes = (color: string) => (
+    <g transform="scale(1 -1)">
+      {marks.map((m) =>
+        m.kind === "box" ? (
+          <rect x={f(m.box.x0)} y={f(m.box.y0)} width={f(m.box.x1 - m.box.x0)} height={f(m.box.y1 - m.box.y0)} fill={color} />
+        ) : (
+          <path d={m.d} fill={m.fill ? color : "none"} stroke={color} stroke-width={f(m.width)} stroke-linecap="round" stroke-linejoin="round" />
+        ),
+      )}
+    </g>
+  );
+  const box = { maskUnits: "userSpaceOnUse", x: -1e5, y: -1e5, width: 2e5, height: 2e5 };
+  return (
+    <>
+      <mask id={STALE_HIDE} {...box}>
+        <rect x={-1e5} y={-1e5} width={2e5} height={2e5} fill="white" />
+        {shapes("black")}
+      </mask>
+      <mask id={STALE_SHOW} {...box}>
+        {shapes("white")}
+      </mask>
+    </>
+  );
+}
+
+/** The native drawing of what changed since TeX's last picture, shown only where that picture is cut out (D96). Not clickable: the native drawing underneath answers the pointer. */
+function StalePatchLayer({ l, scale, macros }: { l: PictureLayout | null; scale: number; macros: Record<string, string> }) {
+  const s = stalePicture.value;
+  if (!s || !l || !s.patch.marks.length) return null;
+  const { draw } = s.patch;
+  const items = drawOrder(l).filter((it) => (it.kind === "node" ? draw.has(it.n.id) || it.n.extras.some((x) => draw.has(x.id)) : draw.has(it.p.id)));
+  return (
+    <g class="tf-stale-patch" mask={`url(#${STALE_SHOW})`} data-testid="stale-patch" aria-hidden="true">
+      {items.map((it) =>
+        it.kind === "node" ? (
+          <g key={it.n.id}>
+            <g transform="scale(1 -1)">
+              <NodeShape n={it.n} scale={scale} selected={false} inert />
+            </g>
+            <NodeLabel n={it.n} macros={macros} inert />
+            {it.n.extras.map((x) => (
+              <NodeLabel key={x.id} n={x} macros={macros} inert />
+            ))}
+          </g>
+        ) : (
+          <g key={it.p.id} transform="scale(1 -1)">
+            <PathShape p={it.p} scale={scale} selected={false} hits={NO_HITS} inert />
+          </g>
+        ),
+      )}
+      {l.pathNodes
+        .filter((n) => draw.has(n.id))
+        .map((n) => (
+          <g key={n.id}>
+            {(n.stroke || n.fill) && (
+              <g transform="scale(1 -1)">
+                <NodeShape n={n} scale={scale} selected={false} inert />
+              </g>
+            )}
+            <NodeLabel n={n} macros={macros} inert />
+          </g>
+        ))}
+    </g>
+  );
 }
 
 /**
@@ -1781,13 +1853,15 @@ export function Canvas() {
       <defs>
         {gradients}
         <VisionFilter />
+        <StaleMasks />
       </defs>
       {l && <WidthGuide cx={(l.bounds.minX + l.bounds.maxX) / 2} y0={-v.cy - h / 2 / v.scale} y1={-v.cy + h / 2 / v.scale} scale={v.scale} />}
       {/* The grayscale and colorblind views (D85) filter the drawing, not the handles and guides. */}
       <g filter={visionFilterAttr()} data-testid="drawing">
       <CompiledPicture scale={v.scale} />
-      {/* With TeX's picture shown, the native drawing stays only to answer the pointer (D68). */}
-      <g class={`tf-native${showingCompiled.value ? " ghost" : ""}`} data-testid="native-drawing">
+      <StalePatchLayer l={l} scale={v.scale} macros={macros.value} />
+      {/* With TeX's picture shown (or its last one, patched: D96), the native drawing stays only to answer the pointer (D68). */}
+      <g class={`tf-native${showingTex.value ? " ghost" : ""}`} data-testid="native-drawing">
       {items.map((it) =>
         it.kind === "node" ? (
           <g key={it.n.id}>

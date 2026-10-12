@@ -20,7 +20,7 @@ Milestone 0 is done and was approved on 2026-10-07:
 
 **Milestone 4 (layout and import): done, reviewed by the owner, merged into `trunk` and live at https://tikzflow.pages.dev (2026-10-11, D88).** The owner approved the two decisions of the report (groups kept together only when they would otherwise cross, and always for import; `$` drawn from Computer Modern with a quiet note for other TS1 symbols). `m4` was merged by fast-forward (`trunk` e76cde4), the production deploy serves the same build as the `m4` preview, and `npm run test:live` against it passes (11 of 11). See "Milestone 4: merged and live" below. The owner has since confirmed that "Report a problem" shows the issue form when signed in.
 
-**Milestone 5 (user experience and website): in progress on `m5` (D89).** SPEC Milestone 5 is split: M5 is the user-facing work, M6 the performance target and the release paperwork (license audit, README). See "M5 plan and status" below.
+**Milestone 5 (user experience and website): in progress on `m5` (D89).** SPEC Milestone 5 is split: M5 is the user-facing work, M6 the performance target and the release paperwork (license audit, README). Steps 0–5 are done; step 5 waits for the owner's review. See "M5 plan and status" below. **Milestone 7 (neural network diagrams)** was added after M6 by the owner (D96), to be planned later.
 
 Also read "Notes for later milestones" below.
 
@@ -31,13 +31,48 @@ Also read "Notes for later milestones" below.
 | 1 | Two or three visual directions (palette, type, logo and favicon, home page and editor in one look) as screenshots; **checkpoint: the owner picks one** | Done: direction A, Manuscript (D91); the edge-menu fix went to `trunk` and is live (D91) |
 | 2 | Site structure: home page at `/` (with "Continue your diagram" when there is saved work), editor at `/editor/`, help at `/help/`; share links to `/#…` forwarded to the editor; service worker, offline and `404.html` per page; sitemap | Done (D92); help pages come in step 7 |
 | 3 | The chosen design applied to the home page, help and the editor's chrome; light/dark/system switch; self-hosted fonts; contrast rechecked | Done (D93); reviewed and approved by the owner (D94) |
-| 4 | Nine templates (D89 item 4), with no locked blocks, compiled in CI by pdfLaTeX and our engine; gallery on the home page and in the editor's New menu; the state machine's `loop`/`initial`/`accepting` if moderate | Done (D95); **waiting for the owner's review of the templates** (see "M5 step 4" below) |
-| 5 | First run (Paste TikZ, Start blank, Start from a template; the sample becomes Basic process), the `?` shortcut overlay, the edit flicker (D69 item 4) | Not started |
+| 4 | Nine templates (D89 item 4), with no locked blocks, compiled in CI by pdfLaTeX and our engine; gallery on the home page and in the editor's New menu; the state machine's `loop`/`initial`/`accepting` if moderate | Done (D95); reviewed and approved by the owner (D96) |
+| 5 | First run (Paste TikZ, Start blank, Start from a template; the sample becomes Basic process), the `?` shortcut overlay, the edit flicker (D69 item 4); the summary counts groups (D96 item 3) | Done (D96); **waiting for the owner's review** (see "M5 step 5" below) |
 | 6 | Multiple tabs (D86 item 5): own code, undo, file, autosave and TeX picture per tab; open, import, share links and templates open a tab; engine stopped while the browser tab is hidden (D69 item 4) | Not started |
 | 7 | Help: static pages from Markdown, client-side search (MiniSearch), screenshots made by a script | Not started |
-| 8 | Goldens, end-to-end, offline and live checks on the `m5` preview; docs; **Milestone 5 report** | Not started |
+| 8 | Goldens, end-to-end, offline and live checks on the `m5` preview; docs; if time allows, two or three neural-network templates the editor handles fully, with which Milestone 7 features they show are needed most (D96 item 4); **Milestone 5 report** | Not started |
 
 Milestone 6 (after M5's review): smooth dragging with 200 nodes; license audit and `THIRD_PARTY_LICENSES.md` (the items under "Milestone 5: license audit items" below move there); README with features, screenshots, local setup and deployment.
+
+Milestone 7 (after M6, to be planned later; D96 item 4): neural network diagrams. See "Notes for later milestones".
+
+## M5 step 5: first run, shortcuts, the edit flicker (2026-10-12)
+The owner reviewed step 4 (D96): the templates are approved; the blank diagram stays in New; the summary now counts group and lane boxes as groups; a new Milestone 7 (neural network diagrams) is recorded in SPEC.md and below. Then step 5 (D96). **Stopped here for the owner's review.**
+
+### How to try it
+Open https://m5.tikzflow.pages.dev/editor/ in a private window (or `npm run dev`, then http://localhost:5173/editor/ with no saved work).
+- **The start screen:** a first visit shows **Paste TikZ**, **Start blank** and **Start from a template** over the canvas. Paste TikZ reads the clipboard (the browser asks once); without that, it readies the code pane for Ctrl+V. Pasting anywhere on the start screen works too, and a Mermaid or DOT diagram is imported. Delete all the code and it comes back; Ctrl+Z brings the code back.
+- **The shortcut list:** press `?` (outside the code pane) or the keyboard button in the top right.
+- **The flicker:** with TeX preview on, drag a node or change a label. TeX's picture stays; only what changed is drawn by the quick preview until TeX's new picture is ready. Before, the whole canvas switched to the quick preview on every edit.
+- **The summary:** open the Swimlane process template: "7 nodes, 3 groups and 7 edges editable".
+
+### What works
+- **First run (D89 item 5):** the editor starts empty instead of with the sample; the sample is now only the Basic process template (`src/ui/sample.ts` is gone).
+- **The shortcut list:** every key and mouse action, in six groups; Cmd and Option on a Mac.
+- **The edit flicker (D69 item 4), by masking, not the crossfade fallback:** what changed is cut out of TeX's last picture along its outline and drawn natively; everything else stays TeX's. Labels are never split between TeX's and KaTeX's glyphs. When nearly everything changed (another document), the quick preview shows as before.
+- **Found on the way:** with no picture the canvas was squashed into half its pane (the footer took the stretching grid row). Fixed.
+
+### Tests
+- **Vitest:** 1,597 (9 new in `test/stalepatch.test.ts`: the headline's groups, and the patch: nothing changed, a recolored node, a dragged node matched by drawing not id, the sliver at an edge's end, another document, path boxes; one fewer in `templates.test.ts`, whose check of the sample is gone, and its template check now requires no locked nodes and no "of").
+- **Playwright:** 175 end-to-end tests, all passing.
+  - `firstrun.spec.ts` is new, 8 tests: the start screen; Start blank; Start from a template; Paste TikZ with and without the clipboard; a paste on the start screen importing Mermaid; deleting everything and Undo; `?`, Escape, the focus, `?` typed in the code, the button and a click outside; Cmd on a Mac.
+  - `preview.spec.ts`: the old "native drawing until TeX catches up" test now checks the opposite (TeX's last picture stays, masked, with an inert patch showing the new label), and a new test checks the same during a drag. The line-up test waits for TeX's fresh picture.
+  - `test/e2e/base.ts`: a page's first `goto("/")` opens the Basic process template (D96). `properties.spec.ts` waits for autosave before its reload, since a reload now opens the kept work rather than the sample. Headlines with groups updated (`core-loop`, `templates`).
+  - The specs step 5 touched (`firstrun`, `preview`, `properties`) passed 3 times in a row (69 of 69).
+- **`npm run test:offline`:** 8 of 8. The tests open the Basic process template first; the home-page test now checks that the editor offline shows the start screen with the templates' pictures.
+- **`test:live`:** the checks that need a picture open the Basic process template first; the templates check also opens a fresh `/editor/` and checks the start screen and its pictures under the policy.
+- **`typecheck`, `build`, `check:dist`:** pass.
+
+### Known limits
+- **During the moment before TeX catches up**, blocks kept as-is (`\foreach`, `\matrix`) that depend on a moved node, and keys the quick preview doesn't draw, show as they were. Their click targets are hidden meanwhile.
+- **Seams:** where a cut meets TeX's drawing, a sub-point step can show in a border at high zoom while the patch is up.
+- **Paste TikZ in Firefox and Safari** shows the browser's own Paste prompt; elsewhere without clipboard access it falls back to Ctrl+V. Only Edge is tested.
+- **The editor at phone width** is still cramped (the code pane takes half); the start screen fits, but the editor isn't designed for phones.
 
 ## M5 step 4: templates (2026-10-12)
 The owner approved steps 2 and 3 (D94): the look, the canvas colors, and committed pictures with a staleness test, which the thumbnails now use too. Then step 4 (D95). **Stopped here for the owner's review of the templates.**
@@ -1398,8 +1433,17 @@ These come from the M0 review. The full reasoning is in DECISIONS.md D15 and D16
 8. *Done (step 11, D72).* **PDF export:** `.tex` export is the primary output. For quick PDF exports, prefer converting the preview SVG to PDF in the browser. Don't ship busytex for this. Decide the details in Milestone 3.
 
 ### Milestone 5: owner requirements on top of SPEC.md (2026-10-09, D69)
-- **Stop the engine worker while the tab is hidden** (it holds about 330 MB) and start it again when the tab is shown.
-- **Keep the previous TeX picture visible until the new compile is ready,** instead of showing the native drawing for 0.1–0.3 s on every edit.
+- **Stop the engine worker while the tab is hidden** (it holds about 330 MB) and start it again when the tab is shown. *(Step 6.)*
+- *Done (step 5, D96).* **Keep the previous TeX picture visible until the new compile is ready,** instead of showing the native drawing for 0.1–0.3 s on every edit.
+
+### Milestone 5 step 8: neural-network templates (2026-10-12, D96 item 4)
+- If time allows, add two or three neural-network templates that the current editor already handles fully editable: an LSTM cell, a small explicit MLP, and a 2D encoder–decoder. Report which Milestone 7 features they show are needed most.
+
+### Milestone 7: neural network diagrams (2026-10-12, D96 item 4; in SPEC.md)
+After Milestone 6. The scope is to be planned later; nothing of it is built before then.
+- **Dense networks** (tens to hundreds of nodes, all-to-all connections) edited as layer components: the editor recognizes a layer as one object with properties (neurons, labels, spacing, connections) and writes compact `\foreach`-based code it fully understands, rather than hundreds of separate statements.
+- **Architecture shapes:** 3D feature-map blocks for CNNs (kernels, pooling, upsampling, downsampling), and LSTM/GRU cell parts (gates, σ/tanh, pointwise operations). Look at PlotNeuralNet (MIT) for prior art.
+- **Depends on Milestone 6's performance work.**
 
 ### Milestone 5: multiple tabs (2026-10-11, D86 item 5)
 - **Multiple tabs**, so a user can work on more than one flowchart at once. Each tab keeps its own code, undo history, autosave and preview. Opening a file, an import or a share link opens in a new tab instead of putting the current work aside (today's "Restore previous work", D74, D77 item 5).

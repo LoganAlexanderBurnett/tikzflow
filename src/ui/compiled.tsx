@@ -5,7 +5,7 @@
 // outline that can be clicked to show their code.
 
 import { useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
-import { freshCompiled, pickBlock, selectedBlock } from "./preview.ts";
+import { freshCompiled, pickBlock, selectedBlock, STALE_HIDE, stalePicture } from "./preview.ts";
 
 const f = (v: number) => Math.round(v * 1000) / 1000;
 
@@ -77,9 +77,11 @@ function blockBoxes(root: SVGGElement): BlockBox[] {
   return [...boxes].map(([id, b]) => ({ id, x: b.x0, y: b.y0, width: b.x1 - b.x0, height: b.y1 - b.y0 }));
 }
 
-/** TeX's picture, placed on the canvas. Renders nothing until a compile of the current code is ready. */
+/** TeX's picture, placed on the canvas: of the current code, or its last one with what changed cut out (D96). Renders nothing until a compile is ready. */
 export function CompiledPicture({ scale }: { scale: number }) {
-  const c = freshCompiled.value;
+  const fresh = freshCompiled.value;
+  const stale = fresh ? null : stalePicture.value;
+  const c = fresh ?? stale?.compiled ?? null;
   const svg = c?.outcome.svg ?? null;
   const p = c?.outcome.picture ?? null;
   const inner = useMemo(() => (svg ? compiledInner(svg) : ""), [svg]);
@@ -95,7 +97,7 @@ export function CompiledPicture({ scale }: { scale: number }) {
   const picked = selectedBlock.value?.id;
   const pad = 2 / scale;
   return (
-    <g class="tf-compiled-layer">
+    <g class="tf-compiled-layer" mask={stale?.patch.marks.length ? `url(#${STALE_HIDE})` : undefined} data-stale={stale ? "" : undefined}>
       <g
         ref={ref}
         class="tf-compiled"
@@ -104,7 +106,8 @@ export function CompiledPicture({ scale }: { scale: number }) {
         style={{ "--tf-min-stroke": `${f(0.75 / scale)}px` }}
         dangerouslySetInnerHTML={{ __html: inner }}
       />
-      {blocks.map((b) => (
+      {!stale &&
+        blocks.map((b) => (
         <rect
           key={b.id}
           data-block={b.id}

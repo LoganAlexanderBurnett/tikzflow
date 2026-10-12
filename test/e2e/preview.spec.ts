@@ -56,8 +56,11 @@ test.describe("with the TeX engine", () => {
     expect(await compiled.locator("use").count()).toBe(2);
     // Without the loop (which only TeX draws), TeX's picture and the native nodes cover the same box on screen.
     await setCode(page, PICTURE.replace(/\\foreach.*\n/, ""));
-    await expect(compiled.locator("use")).toHaveCount(2, { timeout: 15_000 });
-    await expect(page.getByTestId("native-drawing")).toHaveClass(/ghost/, { timeout: 15_000 });
+    // TeX's picture of this code, not the last one patched (D96).
+    await expect(page.locator(".tf-compiled-layer:not([data-stale])")).toBeAttached({ timeout: 15_000 });
+    await expect(page.getByTestId("locked-block")).toHaveCount(0);
+    await expect(compiled.locator("use")).toHaveCount(2);
+    await expect(page.getByTestId("native-drawing")).toHaveClass(/ghost/);
     // Measured as the native side is: Playwright's boundingBox() of an SVG group includes what its strokes cover.
     const tex = await compiled.evaluate((g) => {
       const r = g.getBoundingClientRect();
@@ -76,15 +79,52 @@ test.describe("with the TeX engine", () => {
     await expect(page.getByTestId("status")).not.toContainText("Kept as written");
   });
 
-  test("an edit shows the native drawing until TeX has caught up", async ({ page }) => {
+  test("after an edit TeX's last picture stays, with what changed drawn natively over it, until TeX has caught up (D96)", async ({ page }) => {
     await page.goto("/");
     await setCode(page, PICTURE);
     await expect(page.getByTestId("compiled-picture")).toBeAttached({ timeout: 15_000 });
-    await setCode(page, PICTURE.replace("{B}", "{Bee}"));
-    // Straight after the edit the compiled picture is of the old code.
-    await expect(page.getByTestId("native-drawing")).not.toHaveClass(/ghost/);
-    await expect(page.getByTestId("native-drawing")).toHaveClass(/ghost/, { timeout: 15_000 });
+    await expect(page.locator(".tf-compiled-layer[data-stale]")).toHaveCount(0, { timeout: 15_000 });
+    // Straight after the edit (TeX waits a quarter of a second before it starts), in the same task.
+    const during = await page.evaluate(async (t) => {
+      const w = window as unknown as { tikzflow: { store: { replaceDocument: (t: string, n: null, e: string) => void } } };
+      w.tikzflow.store.replaceDocument(t, null, "utf-8");
+      await new Promise((r) => setTimeout(r, 40));
+      const layer = document.querySelector(".tf-compiled-layer");
+      const patch = document.querySelector('[data-testid="stale-patch"]');
+      return {
+        stale: layer?.hasAttribute("data-stale"),
+        mask: layer?.getAttribute("mask"),
+        glyphs: layer?.querySelectorAll("use").length,
+        // The patch draws node b (its new label) and the edge into it, without ids the pointer would find
+        // (and node a, which shows only in the sliver the edge's end cuts out of it).
+        patched: patch ? [...patch.querySelectorAll(".tf-label")].map((l) => l.textContent) : null,
+        ids: patch?.querySelectorAll("[data-node], [data-path], [data-edge]").length,
+        ghost: document.querySelector('[data-testid="native-drawing"]')?.getAttribute("class"),
+      };
+    }, PICTURE.replace("{B}", "{Bee}"));
+    expect(during).toEqual({ stale: true, mask: "url(#tf-stale-hide)", glyphs: 2, patched: expect.arrayContaining(["Bee"]), ids: 0, ghost: "tf-native ghost" });
+    // Then TeX's own picture of the new code.
+    await expect(page.locator(".tf-compiled-layer[data-stale]")).toHaveCount(0, { timeout: 15_000 });
+    await expect(page.getByTestId("stale-patch")).toHaveCount(0);
     expect(await page.getByTestId("compiled-picture").locator("use").count()).toBe(4);
+    await expect(page.getByTestId("native-drawing")).toHaveClass(/ghost/);
+  });
+
+  test("while a node is dragged TeX's picture stays, and the node and its edge are drawn natively where they go (D96)", async ({ page }) => {
+    await page.goto("/");
+    await setCode(page, PICTURE);
+    await expect(page.locator(".tf-compiled-layer:not([data-stale])")).toBeAttached({ timeout: 15_000 });
+    const b = (await page.locator('.tf-native [data-node="b"] path').first().boundingBox())!;
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(b.x + b.width / 2 + 30, b.y + b.height / 2 + 50, { steps: 5 });
+    await expect(page.locator(".tf-compiled-layer[data-stale]")).toBeAttached();
+    await expect(page.getByTestId("stale-patch")).toBeAttached();
+    await expect(page.getByTestId("native-drawing")).toHaveClass(/ghost/);
+    await page.mouse.up();
+    await expect(page.getByTestId("status")).toContainText("Wrote");
+    await expect(page.locator(".tf-compiled-layer:not([data-stale])")).toBeAttached({ timeout: 15_000 });
+    await expect(page.getByTestId("stale-patch")).toHaveCount(0);
   });
 
   test("a locked block TeX drew can be clicked to show its code", async ({ page }) => {

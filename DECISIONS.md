@@ -1331,7 +1331,7 @@ The owner reviewed the home page, both themes, phone width, Continue your diagra
     - no unresolved references and no layout issues;
     - every edge is editable;
     - every node except group and lane boxes can be dragged, and the code stays fully understood after the drag.
-  - **Group and lane boxes:** they follow the nodes they fit, so the headline counts them as not editable ("7 nodes of 10"), as it does for the corpus. Dragging one moves its group (D78).
+  - **Group and lane boxes:** they follow the nodes they fit, so the headline counts them as not editable ("7 nodes of 10"), as it does for the corpus. Dragging one moves its group (D78). *(Changed by D96 item 3: they are counted as groups.)*
 - **Opening a template.**
   - **New** replaces Sample in the toolbar. It opens a panel with a blank diagram and the nine templates, each with its thumbnail.
   - **The home page's cards** link to `/editor/#template=<id>`. Like a share link, the fragment is read on load (or on `hashchange`) and removed from the address.
@@ -1368,3 +1368,31 @@ The owner reviewed the home page, both themes, phone width, Continue your diagra
 - **Golden files:** six change, each by one rounding step from the more accurate geometry: two auto-layout distances (`8.2cm`→`8.1cm`, `10.7cm`→`10.8cm`, the latter also in reorder), a nudge (`3mm`→`2mm`), an orthogonal corner (`-7mm`→`-8mm`), and a label side (`auto, swap`→`auto` on a vertical line).
 
 **Why:** D89 item 4 and the owner's approval of the M5 plan; D94 item 3 for the thumbnails.
+
+## D96: The owner's review of step 4, and M5 step 5: first run, the shortcut list, the edit flicker (2026-10-12)
+**The owner's review of step 4:**
+1. **The templates (D95): approved.**
+2. **The blank diagram stays in the New menu.** Step 5's Start blank reuses it (`BLANK_ID`).
+3. **The summary counts group and lane boxes separately.** "7 nodes, 3 groups and 7 edges editable" instead of "7 nodes of 10". "Not editable" is kept for what really isn't: locked nodes and blocks kept as-is.
+4. **A new Milestone 7, neural network diagrams**, after Milestone 6, to be planned later (SPEC.md, PROGRESS.md "Notes for later milestones"). It depends on Milestone 6's performance work. Nothing of it is built now. In step 8, if time allows, two or three neural-network templates that the editor already handles fully, with a note on which Milestone 7 features they show are needed most.
+
+**Decision (step 5):**
+- **The summary (item 3).** `summarize` counts a `fit` node whose only lock is "fit" as a group (`Summary.groups`), not as a node, and leaves it out of the locked list. A box that fits a block kept as-is is still a locked node. Wording: "N nodes[ of M], G groups and E edges editable", with the group count only when there are groups.
+- **First run (D89 item 5).** The editor no longer starts with the sample: with nothing kept in this browser it starts empty, and an empty code pane shows the start screen over the canvas (`src/ui/firstrun.tsx`). It shows whenever the code is empty, so deleting everything brings it back and Undo takes it away.
+  - **Paste TikZ** reads the clipboard where the browser allows it (Chromium asks once). TikZ or a whole `.tex` file is put on screen as it is; a Mermaid or DOT diagram is imported (`openPasted` in `files.ts`). When the clipboard can't be read or holds no text, the code pane takes the focus and the status says to press Ctrl+V. While the start screen shows, a paste anywhere outside a text field does the same.
+  - **Start blank** opens `blank.tex`, as New does.
+  - **Start from a template** shows the nine templates' cards in place (the New menu's grid, now `TemplateGrid` in `newpanel.tsx`).
+  - **The sample is now only the Basic process template.** `src/ui/sample.ts` is gone; the unit tests read the template with `templateText("basic-process")`. Old sessions holding the sample still open it.
+  - **The end-to-end tests:** a page's first `goto("/")` opens `/editor/#template=basic-process`, the editor's old start, so the existing tests keep their picture. Later `goto("/")` calls open the editor with the kept work, as before. The start screen is tested with `goto("/editor/")`.
+  - **Found on the way:** with no picture the palette isn't drawn, and the canvas pane's grid then gave the footer the stretching row, so the canvas was squashed into half the pane. The stage and footer now have fixed rows.
+- **The shortcut list** (`src/ui/shortcuts.tsx`). `?` outside a text field, or the keyboard button in the app bar, opens a dialog listing every key and mouse action: anywhere, canvas, mouse, editing a label, the edge menu, the code pane. Ctrl reads ⌘ on a Mac (and Alt reads Option). Escape, `?`, Close or a click outside closes it, and the focus goes back where it was. The status bar's hint mentions `?`.
+- **The edit flicker (D69 item 4): masking parts of TeX's picture, not a crossfade.**
+  - **The problem:** after every edit, and during every drag, TeX's picture was of older code, so the canvas showed the native drawing until the next compile (0.1–0.3 s, longer on big pictures). Fonts and line weights jumped back and forth.
+  - **Now:** the last picture TeX drew stays on the canvas (`stalePicture` in `preview.ts`), with the layout of the code it was drawn from. `stalePatch` (`src/ui/stalepatch.ts`) compares what each node and path of that layout draws with the current one, by what they draw (outline, colors, text, line), not by id: a path's id is its offset in the code, which most edits move. Where something changed, its old and new places are cut out of TeX's picture with an SVG mask and drawn natively there (an inert copy, without the ids the pointer and tests use). Nodes and paths are cut along their outline and line (the line widened by 2pt, the arrow tip by its own triangle), not by a box around them. An unchanged node is cut out whole only when a cut reaches its text, so no label is drawn half in TeX's glyphs and half in KaTeX's; otherwise only the sliver a changed edge's end cuts is native. The native drawing underneath still answers the pointer, as with TeX's own picture.
+  - **When it doesn't patch:** when more than 90% of what is drawn changed (another document, a style used by everything) the native drawing shows as before. In practice an edit that moves most of a picture placed by relations (a longer label pushes every later node) still keeps every untouched node in TeX's glyphs.
+  - **What stays stale for that moment:** blocks kept as-is (`\foreach`, `\matrix`) that depend on what moved, and keys the quick preview doesn't draw. Both are TeX's own drawings and are right again when the compile lands. Their click targets are hidden while the picture is stale.
+  - **The seams:** where a cut meets TeX's drawing the two renderers differ by well under a point (the templates are within 1pt, D95). At 4× zoom a sub-point step shows in a border where an arrow's tip was cut; at normal zoom it doesn't.
+  - **Cost:** each layout's signatures are worked out once (a `WeakMap`), so a drag compares only the current layout's on each frame. Milestone 6 measures it on the 200-node picture.
+  - **Why not the crossfade fallback:** masking worked, and it leaves everything that didn't change exactly as TeX drew it; a crossfade would still blend the whole picture into the native drawing on every edit.
+
+**Why:** the owner's review of step 4 (2026-10-12) and the approved M5 plan (D89 step 5, D69 item 4).

@@ -23,6 +23,8 @@ import { LayoutProgressBadge } from "./progress.tsx";
 import { keyNamedMessage } from "../edit/stylekeys.ts";
 import { nextTheme, setThemeChoice, type ThemeChoice, themeChoice, themeIcon, themeLabel } from "../theme/theme.ts";
 import { Icon, Logo } from "./icons.tsx";
+import { EmptyState } from "./firstrun.tsx";
+import { isShortcutsKey, ShortcutsDialog, shortcutsOpen } from "./shortcuts.tsx";
 import {
   attachEditor,
   contrast,
@@ -73,7 +75,7 @@ function Summary() {
   if (!s) {
     return (
       <div class="tf-summary" data-testid="summary">
-        <span class="headline">No tikzpicture found. Paste TikZ code or open a .tex file.</span>
+        <span class="headline">{text.value.trim() ? "No tikzpicture found. Paste TikZ code or open a .tex file." : "Nothing here yet: paste TikZ, start blank or pick a template."}</span>
       </div>
     );
   }
@@ -295,6 +297,9 @@ function AppBar() {
       <a class="tf-report" href={REPORT_URL} target="_blank" rel="noopener noreferrer" data-testid="report-link" title="Opens a new issue on GitHub (in a new tab) with a form asking for the code, the browser and what happened. Nothing is sent from here.">
         Report a problem
       </a>
+      <button class="tf-icon-button" data-testid="shortcuts-button" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)" onClick={() => (shortcutsOpen.value = !shortcutsOpen.value)}>
+        <Icon name="keyboard" size={18} />
+      </button>
       <ThemeSwitch />
     </header>
   );
@@ -391,13 +396,19 @@ export function App() {
   const split = useSignal(42);
   const dragging = useRef(false);
 
-  // Undo and redo work when the canvas has focus too.
+  // Undo and redo work when the canvas has focus too; Save and the shortcut list everywhere.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // Save works everywhere, the code pane included.
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "s") {
         e.preventDefault();
         void saveFile();
+        return;
+      }
+      // ? shows the shortcut list, except where it is typed as text (D96).
+      if (isShortcutsKey(e)) {
+        e.preventDefault();
+        shortcutsOpen.value = !shortcutsOpen.value;
         return;
       }
       const inEditor = (e.target as Element | null)?.closest?.(".cm-editor, textarea, input, select");
@@ -463,6 +474,7 @@ export function App() {
           <Summary />
           <Palette />
           <div class="tf-stage">
+            <EmptyState />
             <TexBanner />
             <VisionBadge />
             <LayoutProgressBadge />
@@ -470,10 +482,11 @@ export function App() {
             <Inspector />
           </div>
           <footer class="tf-status" data-testid="status">
-            {status.value ?? "Drag nodes to move them. Hold Alt to drag without snapping. Tab adds a connected node. Scroll to zoom, drag the background to pan."}
+            {status.value ?? "Drag nodes to move them. Hold Alt to drag without snapping. Tab adds a connected node. Scroll to zoom, drag the background to pan. Press ? for all the shortcuts."}
           </footer>
         </section>
       </main>
+      <ShortcutsDialog />
     </div>
   );
 }

@@ -12,7 +12,6 @@ import { summarize } from "../src/model/summary.ts";
 import { BLANK_ID, TEMPLATES } from "../src/templates/catalog.ts";
 import { isPristine, templateText } from "../src/templates/index.ts";
 import { PT_PER_UNIT } from "../src/tikz/units.ts";
-import { SAMPLE } from "../src/ui/sample.ts";
 
 const root = join(import.meta.dirname, "..");
 const MM = PT_PER_UNIT.mm!;
@@ -32,10 +31,6 @@ describe("the catalog", () => {
     expect(templateText(BLANK_ID)).toBe(read(BLANK_ID));
     expect(templateText("no-such-template")).toBeUndefined();
     expect(templateText("../catalog")).toBeUndefined();
-  });
-
-  it("the editor's sample is the Basic process template", () => {
-    expect(SAMPLE).toBe(read("basic-process"));
   });
 
   it("knows an untouched template from work", () => {
@@ -68,8 +63,13 @@ describe.each(TEMPLATES)("$title", ({ id }) => {
     expect(s.notes).toEqual([]);
     expect(s.unresolved).toEqual([]);
     expect(layout.issues).toEqual([]);
-    // Only groups and lanes are locked: their boxes follow the nodes they fit.
+    // Only groups and lanes are locked: their boxes follow the nodes they fit. The summary counts them
+    // as groups, so every node is editable (D96).
     for (const n of layout.nodes) if (n.lock) expect(n.lock.kind, n.id).toBe("fit");
+    expect(s.locked).toEqual([]);
+    expect(s.editableNodes).toBe(s.nodes);
+    expect(s.groups).toBe(layout.nodes.filter((n) => n.lock?.kind === "fit").length);
+    expect(s.main).not.toContain(" of ");
     for (const n of [...layout.nodes, ...layout.pathNodes]) expect(n.unrendered, n.id).toEqual([]);
     for (const p of layout.paths) {
       expect(p.unrendered, p.id).toEqual([]);

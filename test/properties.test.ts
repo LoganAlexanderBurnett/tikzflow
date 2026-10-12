@@ -21,7 +21,10 @@ import { styleSites } from "../src/edit/styles.ts";
 import { analyzeDocument, layoutDocumentPicture } from "../src/model/document.ts";
 import { ColorTable } from "../src/tikz/colors.ts";
 import type { LaidOutNode, PictureLayout } from "../src/tikz/layout.ts";
-import { SAMPLE } from "../src/ui/sample.ts";
+import { templateText } from "../src/templates/index.ts";
+
+/** The Basic process template, which the editor used to start with. */
+const SAMPLE = templateText("basic-process")!;
 import { loadCorpusFile } from "./corpus.ts";
 
 const hybrid = loadCorpusFile("self-hybrid-surrogate.tex").text;

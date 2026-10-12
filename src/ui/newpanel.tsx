@@ -1,5 +1,6 @@
 // The toolbar's New menu (D95): a blank diagram or one of the templates, with the thumbnails the
-// home page shows. What was on screen is put aside, as Open does (a new tab in step 6).
+// home page shows. What was on screen is put aside, as Open does (a new tab in step 6). The same
+// cards are on the empty state's "Start from a template" (D96).
 
 import { useSignal } from "@preact/signals";
 import { useRef } from "preact/hooks";
@@ -15,6 +16,32 @@ function Blurb({ text }: { text: string }) {
     <>
       {text.split(/(`[^`]*`)/).map((part) => (part.startsWith("`") && part.endsWith("`") && part.length > 1 ? <code>{part.slice(1, -1)}</code> : part))}
     </>
+  );
+}
+
+/** The templates as cards, each with its thumbnail; the blank diagram first unless `blank` is false. Test ids are `<prefix>-<id>`. */
+export function TemplateGrid({ onPick, prefix, blank = true }: { onPick: (id: string) => void; prefix: string; blank?: boolean }) {
+  return (
+    <div class="tf-new-grid">
+      {blank && (
+        <button class="tf-new-card" onClick={() => onPick(BLANK_ID)} data-testid={`${prefix}-blank`}>
+          <span class="thumb blank" aria-hidden="true" />
+          <span class="name">Blank diagram</span>
+          <span class="blurb">An empty picture, ready for the palette.</span>
+        </button>
+      )}
+      {TEMPLATES.map((t) => (
+        <button class="tf-new-card" onClick={() => onPick(t.id)} data-testid={`${prefix}-${t.id}`}>
+          <span class="thumb">
+            <img src={THUMBS[`../site/thumbs/${t.id}.svg`]} alt="" loading="lazy" />
+          </span>
+          <span class="name">{t.title}</span>
+          <span class="blurb">
+            <Blurb text={t.blurb} />
+          </span>
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -57,24 +84,7 @@ export function NewButton() {
             </button>
           </div>
           <p class="note">It replaces the code on screen, which is kept: Restore previous work in the toolbar brings it back. Ctrl+Z works too.</p>
-          <div class="tf-new-grid">
-            <button class="tf-new-card" onClick={() => pick(BLANK_ID)} data-testid="new-blank">
-              <span class="thumb blank" aria-hidden="true" />
-              <span class="name">Blank diagram</span>
-              <span class="blurb">An empty picture, ready for the palette.</span>
-            </button>
-            {TEMPLATES.map((t) => (
-              <button class="tf-new-card" onClick={() => pick(t.id)} data-testid={`new-${t.id}`}>
-                <span class="thumb">
-                  <img src={THUMBS[`../site/thumbs/${t.id}.svg`]} alt="" loading="lazy" />
-                </span>
-                <span class="name">{t.title}</span>
-                <span class="blurb">
-                  <Blurb text={t.blurb} />
-                </span>
-              </button>
-            ))}
-          </div>
+          <TemplateGrid onPick={pick} prefix="new" />
         </div>
       )}
     </span>

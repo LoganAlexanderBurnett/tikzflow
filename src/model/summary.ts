@@ -1,15 +1,18 @@
 // The "what I understood" summary shown after parsing.
-import type { PictureLayout } from "../tikz/layout.ts";
+import { mayBeOpaqueName, type PictureLayout } from "../tikz/layout.ts";
 import type { DocumentModel } from "./document.ts";
 import { type UnresolvedRef, unresolvedReferences } from "./references.ts";
 
 export interface Summary {
-  /** One-line headline, e.g. "12 nodes and 14 edges editable; 1 block kept as-is". */
+  /** One-line headline, e.g. "12 nodes, 2 groups and 14 edges editable; 1 block kept as-is". */
   headline: string;
   /** The headline without the syntax-error count, which the app shows as a button. */
   main: string;
+  /** Nodes other than group and lane boxes. */
   nodes: number;
   editableNodes: number;
+  /** Group and lane boxes: `fit` nodes that follow what they fit and are edited through it (D78, D81). */
+  groups: number;
   edges: number;
   /** Blocks kept verbatim and not shown natively, by kind. */
   kept: Record<string, number>;
@@ -36,7 +39,12 @@ function plural(n: number, word: string, words = `${word}s`) {
 }
 
 export function summarize(doc: DocumentModel, layout: PictureLayout, picIndex = 0): Summary {
-  const real = layout.nodes.filter((n) => n.kind !== "coordinate");
+  const all = layout.nodes.filter((n) => n.kind !== "coordinate");
+  // A group or lane box follows the nodes it fits and drags them along (D78), so it is counted
+  // on its own rather than as a node that isn't editable (D96). Not when it fits a block kept as-is.
+  const isGroup = (n: (typeof all)[number]) => n.position.kind === "fit" && n.lock?.kind === "fit" && !n.position.refs.some((r) => mayBeOpaqueName(layout, r));
+  const groups = all.filter(isGroup);
+  const real = all.filter((n) => !isGroup(n));
   // A node its chain places can be dragged: the chain is written out first (D77 item 4).
   const movable = (n: (typeof real)[number]) => !n.locked || n.lock?.kind === "chain";
   const editable = real.filter(movable);
@@ -67,7 +75,10 @@ export function summarize(doc: DocumentModel, layout: PictureLayout, picIndex = 
   for (const i of layout.issues) notes.add(i.message);
 
   const keptTotal = Object.values(kept).reduce((a, b) => a + b, 0);
-  const parts = [`${plural(editable.length, "node")}${editable.length < real.length ? ` of ${real.length}` : ""} and ${plural(edges, "edge")} editable`];
+  const counts = [`${plural(editable.length, "node")}${editable.length < real.length ? ` of ${real.length}` : ""}`];
+  if (groups.length) counts.push(plural(groups.length, "group"));
+  counts.push(plural(edges, "edge"));
+  const parts = [`${counts.slice(0, -1).join(", ")} and ${counts.at(-1)} editable`];
   if (keptTotal) parts.push(`${plural(keptTotal, "block")} kept as-is`);
   const main = parts.join("; ");
   if (doc.errorCount) parts.push(plural(doc.errorCount, "syntax error"));
@@ -78,6 +89,7 @@ export function summarize(doc: DocumentModel, layout: PictureLayout, picIndex = 
     main,
     nodes: real.length,
     editableNodes: editable.length,
+    groups: groups.length,
     edges,
     kept,
     locked: real.filter((n) => !movable(n)).map((n) => ({ id: n.id, reason: n.locked! })),

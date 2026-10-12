@@ -4,7 +4,10 @@ import { describe, expect, it } from "vitest";
 import { diffRange } from "../src/edit/changes.ts";
 import { draftOf, labelBlocker, labelProblem, planLabelEdit } from "../src/edit/label.ts";
 import { analyzeDocument, layoutDocumentPicture } from "../src/model/document.ts";
-import { SAMPLE } from "../src/ui/sample.ts";
+import { templateText } from "../src/templates/index.ts";
+
+/** The Basic process template, which the editor used to start with. */
+const SAMPLE = templateText("basic-process")!;
 import { loadCorpus } from "./corpus.ts";
 
 const pic = (body: string) => `\\begin{tikzpicture}\n${body}\n\\end{tikzpicture}\n`;

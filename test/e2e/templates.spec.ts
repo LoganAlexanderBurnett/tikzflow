@@ -46,16 +46,16 @@ test("the New menu opens a template in place of the work, which is kept", async 
   await expect.poll(() => code(page)).toBe(MINE);
 });
 
-test("every template opens with all of it editable", async ({ page }) => {
+test("every template opens with all of it editable; group and lane boxes count as groups (D96)", async ({ page }) => {
   await page.goto("/");
   const expected: Record<string, string> = {
     "basic-process": "6 nodes and 6 edges editable",
     "decision-flowchart": "8 nodes and 8 edges editable",
     "algorithm-with-a-loop": "6 nodes and 6 edges editable",
-    "swimlane-process": "7 nodes of 10 and 7 edges editable",
-    "left-to-right-pipeline": "7 nodes of 8 and 6 edges editable",
+    "swimlane-process": "7 nodes, 3 groups and 7 edges editable",
+    "left-to-right-pipeline": "7 nodes, 1 group and 6 edges editable",
     "feedback-block-diagram": "7 nodes and 7 edges editable",
-    "prisma-2020": "9 nodes of 12 and 8 edges editable",
+    "prisma-2020": "9 nodes, 3 groups and 8 edges editable",
     "state-machine": "3 nodes and 6 edges editable",
     hierarchy: "6 nodes and 5 edges editable",
   };

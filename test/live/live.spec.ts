@@ -9,6 +9,8 @@ import { expect, test, type Page } from "@playwright/test";
 const root = join(import.meta.dirname, "..", "..");
 const tag = (JSON.parse(readFileSync(join(root, "engine", "release.json"), "utf8")) as { tag: string }).tag;
 const engine = `/engine/${tag}`;
+// A first visit starts empty (D96): the checks that need a picture open the Basic process template, as the editor used to.
+const FIRST = "/editor/#template=basic-process";
 
 /** The policy that public/_headers promises for every page. */
 const headers = readFileSync(join(root, "public", "_headers"), "utf8");
@@ -74,7 +76,7 @@ test.describe("the app", () => {
       if (r.url().includes(`${engine}/core.dump.gz`) && !r.fromServiceWorker()) engineBytes.gz++;
       if (r.url().includes(engine) && !r.fromServiceWorker()) engineBytes.requests++;
     });
-    await page.goto("/editor/");
+    await page.goto(FIRST);
     await expect(page.getByTestId("compiled-picture")).toBeAttached({ timeout: 45_000 });
     await expect(page.getByTestId("preview-state")).toHaveText("TeX preview");
     await expect(page.getByTestId("offline-state")).toHaveText("Works offline", { timeout: 100_000 });
@@ -87,7 +89,7 @@ test.describe("the app", () => {
   });
 
   test("a second visit reads the engine from the service worker's cache, not the network", async ({ page }) => {
-    await page.goto("/editor/");
+    await page.goto(FIRST);
     await expect(page.getByTestId("offline-state")).toHaveText("Works offline", { timeout: 100_000 });
     let network = 0;
     let cached = 0;
@@ -103,7 +105,7 @@ test.describe("the app", () => {
   });
 
   test("offline after one visit: the app, TeX's picture and the exports work with the network off", async ({ page, context }) => {
-    await page.goto("/editor/");
+    await page.goto(FIRST);
     await expect(page.getByTestId("offline-state")).toHaveText("Works offline", { timeout: 100_000 });
     await context.setOffline(true);
     await page.reload();
@@ -133,7 +135,7 @@ test.describe("the app", () => {
       await expect(page.getByTestId("status")).toContainText("Laid out 2 nodes top to bottom", { timeout: 30_000 });
       await expect(page.locator(".cm-content")).toContainText("below=of a");
     };
-    await page.goto("/editor/");
+    await page.goto(FIRST);
     await page.evaluate(() => navigator.serviceWorker.ready);
     await layOut();
     // elk.js is a chunk of its own, cached with the app.
@@ -165,7 +167,7 @@ test.describe("the app", () => {
       await page.getByTestId("import-close").click();
       await expect(page.locator(".cm-content")).toContainText("right=of a");
     };
-    await page.goto("/editor/");
+    await page.goto(FIRST);
     await page.evaluate(() => navigator.serviceWorker.ready);
     await importBoth();
     await page.getByTestId("vision-select").selectOption("deuteranopia");
@@ -184,7 +186,7 @@ test.describe("the app", () => {
   });
 
   test("exports are real files: .tex, snippet, SVG, PDF, PNG", async ({ page }) => {
-    await page.goto("/editor/");
+    await page.goto(FIRST);
     await expect(page.getByTestId("compiled-picture")).toBeAttached({ timeout: 45_000 });
     await setCode(page, FIGURE);
     await expect(page.getByTestId("compiled-picture")).toBeAttached();
@@ -210,7 +212,7 @@ test.describe("the app", () => {
   });
 
   test("a share link opens the same code for a new visitor, and the link holds no server address of ours to call", async ({ page, context }) => {
-    await page.goto("/editor/");
+    await page.goto(FIRST);
     await expect(page.getByTestId("compiled-picture")).toBeAttached({ timeout: 45_000 });
     await setCode(page, FIGURE);
     await page.getByTestId("share-button").click();
@@ -262,7 +264,7 @@ test.describe("the site", () => {
     expect(engineAsked).toEqual([]);
   });
 
-  test("the templates (D95): the gallery's pictures load, a card opens its template in the editor, and New lists them all", async ({ page }) => {
+  test("the templates (D95): the gallery's pictures load, a card opens its template in the editor, New lists them all, and a first visit shows the start screen (D96)", async ({ page }) => {
     const problems: string[] = [];
     page.on("console", (m) => /content security policy|refused to/i.test(m.text()) && problems.push(m.text()));
     page.on("pageerror", (e) => problems.push(String(e)));
@@ -281,7 +283,18 @@ test.describe("the site", () => {
     await page.getByTestId("new-button").click();
     await expect(page.getByTestId("new-panel").locator(".tf-new-card")).toHaveCount(10);
     await page.getByTestId("new-prisma-2020").click();
-    await expect(page.getByTestId("summary-headline")).toHaveText("9 nodes of 12 and 8 edges editable");
+    await expect(page.getByTestId("summary-headline")).toHaveText("9 nodes, 3 groups and 8 edges editable");
+    // A first visit to the editor shows the start screen (D96), its gallery's pictures under the policy.
+    const fresh = await (await page.context().browser()!.newContext({ viewport: { width: 1400, height: 900 } })).newPage();
+    fresh.on("console", (m) => /content security policy|refused to/i.test(m.text()) && problems.push(m.text()));
+    await fresh.goto("/editor/");
+    await expect(fresh.getByTestId("empty-state")).toBeVisible({ timeout: 15_000 });
+    await fresh.getByTestId("start-template").click();
+    const card = fresh.locator('[data-testid="start-prisma-2020"] img');
+    await expect.poll(() => card.evaluate((i) => (i as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+    await fresh.getByTestId("start-prisma-2020").click();
+    await expect(fresh.getByTestId("summary-headline")).toHaveText("9 nodes, 3 groups and 8 edges editable");
+    await fresh.context().close();
     expect(problems).toEqual([]);
   });
 });

@@ -15,6 +15,9 @@ const PATHS = {
   share: "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1",
   fit: "M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5",
   restore: "M4 12a8 8 0 1 0 2.4-5.7M4 4v4.5h4.5",
+  paste: "M9 3.5h6v3H9zM9 5H6.5a1 1 0 0 0-1 1v13.5a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1H15M8.5 11h7M8.5 14.5h7M8.5 18h4",
+  template: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
+  keyboard: "M3.5 6.5h17a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-17a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1ZM6.5 10h1M10 10h1M13.5 10h1M17 10h1M8 14h8",
 } as const;
 
 export type IconName = keyof typeof PATHS;

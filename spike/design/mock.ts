@@ -2,7 +2,7 @@
 // the editor. `?d=a|b|c&view=home|editor|board&theme=light|dark`.
 import "katex/dist/katex.min.css";
 import "./base.css";
-import { SAMPLE } from "../../src/ui/sample.ts";
+import SAMPLE from "../../src/templates/basic-process.tex?raw";
 
 type Dir = "a" | "b" | "c";
 type View = "home" | "editor" | "board";

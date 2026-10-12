@@ -8,7 +8,10 @@ import { planSplit, splitBlocker } from "../src/edit/split.ts";
 import { analyzeDocument, layoutDocumentPicture } from "../src/model/document.ts";
 import { type Edge, pictureEdges } from "../src/model/edges.ts";
 import type { PictureLayout } from "../src/tikz/layout.ts";
-import { SAMPLE } from "../src/ui/sample.ts";
+import { templateText } from "../src/templates/index.ts";
+
+/** The Basic process template, which the editor used to start with. */
+const SAMPLE = templateText("basic-process")!;
 import { corpusNames, loadCorpusFile } from "./corpus.ts";
 
 const NODES = "\\node (a) at (0,0) {A};\n\\node (b) at (4,-2) {B};\n\\node (c) at (1,-4) {C};";

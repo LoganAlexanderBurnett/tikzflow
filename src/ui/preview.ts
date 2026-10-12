@@ -1,7 +1,8 @@
 // The accurate preview in the app (M3 step 8, D68): the picture compiled by
 // TeX in the engine worker, shown over the native drawing once it matches
 // the code. Compiles start a moment after the code stops changing; while the
-// code and the compiled picture differ, the native drawing shows.
+// code and the compiled picture differ, the last picture stays, with what
+// changed drawn natively over it (D96).
 
 import { computed, effect, signal } from "@preact/signals";
 import { EngineClient, type EngineState } from "../engine/client.ts";
@@ -12,7 +13,9 @@ import { engineBase } from "../engine/release.ts";
 import type { Range } from "../model/syntax.ts";
 import { prefetchEngine } from "./offline.ts";
 import { pageSettings } from "./pagesettings.ts";
-import { currentPicture, doc, overrides, previewLayout, revealInCode, text } from "./store.ts";
+import type { PictureLayout } from "../tikz/layout.ts";
+import { baseLayout, currentPicture, doc, layout, overrides, previewLayout, revealInCode, text } from "./store.ts";
+import { type Patch, stalePatch } from "./stalepatch.ts";
 
 /** "accurate": TeX's picture when it is ready; "quick": the native drawing only. Kept per viewer. */
 export type PreviewMode = "accurate" | "quick";
@@ -61,6 +64,32 @@ export const freshCompiled = computed<Compiled | null>(() => {
 
 /** The compiled picture is shown (and the native drawing only answers the pointer). */
 export const showingCompiled = computed(() => !!freshCompiled.value?.outcome.svg && !!freshCompiled.value.outcome.picture);
+
+/** The latest picture TeX drew, with the layout of the code it was compiled from (D96). Set by `startPreview`. */
+const lastPicture = signal<{ compiled: Compiled; layout: PictureLayout } | null>(null);
+
+/** The masks that cut the stale picture and show the patch (D96). */
+export const STALE_HIDE = "tf-stale-hide";
+export const STALE_SHOW = "tf-stale-show";
+
+/**
+ * TeX's last picture, kept on the canvas while TeX compiles the code as it is now or while something is being
+ * dragged, with the patch that draws what changed since natively (D69 item 4, D96). Null when TeX's picture of
+ * the code is ready, when there is none to keep, or when too much changed to patch (the native drawing shows).
+ */
+export const stalePicture = computed<{ compiled: Compiled; patch: Patch } | null>(() => {
+  if (previewMode.value !== "accurate" || freshCompiled.value) return null;
+  const last = lastPicture.value;
+  if (!last || last.compiled.picture !== currentPicture.value) return null;
+  const dragging = !!previewLayout.value || overrides.value.size > 0;
+  if (!dragging && !compiling.value) return null;
+  const now = layout.value;
+  const patch = now && stalePatch(last.layout, now);
+  return patch ? { compiled: last.compiled, patch } : null;
+});
+
+/** TeX's picture is on the canvas, up to date or patched: the native drawing then only answers the pointer. */
+export const showingTex = computed(() => showingCompiled.value || !!stalePicture.value);
 
 /** A TeX error with the line of the user's code it happened on, if it was in the user's code. */
 export interface PreviewError extends TexError {
@@ -231,10 +260,16 @@ export function startPreview(base = engineBase(new URLSearchParams(location.sear
       compiling.value = false;
       return;
     }
+    // The layout of the code being compiled, kept with TeX's picture of it for patching later (D96).
+    const drawn = baseLayout.peek();
+    const keep = (c: Compiled) => {
+      if (drawn && c.outcome.svg && c.outcome.picture) lastPicture.value = { compiled: c, layout: drawn };
+    };
     const prev = compiled.peek();
     if (prev && prev.input.tex === input.tex) {
       // Nothing TeX sees changed (an edit outside the picture): the output still holds.
       compiled.value = { ...prev, text: t, picture, input };
+      keep(compiled.value);
       compiling.value = false;
       return;
     }
@@ -243,6 +278,7 @@ export function startPreview(base = engineBase(new URLSearchParams(location.sear
       const outcome = await c.compile(input.tex);
       if (!outcome) return; // replaced by a newer compile
       compiled.value = { text: t, picture, input, outcome };
+      keep(compiled.value);
     } catch (e) {
       engineState.value = { kind: "unavailable", reason: e instanceof Error ? e.message : String(e) };
     } finally {
