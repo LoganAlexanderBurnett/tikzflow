@@ -1,12 +1,144 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-page="home">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>TikZFlow</title>
+    <title>TikZFlow: a visual editor for TikZ flowcharts</title>
+    <meta name="description" content="Draw TikZ flowcharts visually and keep clean, hand-written TikZ code. Free, open source, and fully in your browser: your diagrams never leave your computer." />
+    <link rel="canonical" href="https://tikzflow.pages.dev/" />
+    <meta property="og:title" content="TikZFlow: a visual editor for TikZ flowcharts" />
+    <meta property="og:description" content="Draw flowcharts. Keep your TikZ. Free, open source, and fully in your browser." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://tikzflow.pages.dev/" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <script src="/boot.js"></script>
+    <script type="module" src="/src/site/home.ts"></script>
   </head>
   <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="site-head">
+      <a class="brand" href="/" aria-label="TikZFlow home">
+        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="13" height="10" rx="2" fill="var(--logo-ink)" /><path d="M9.5 13V24H12.5" fill="none" stroke="var(--logo-ink)" stroke-width="2.4" /><path d="M11.5 20.3L16.2 24L11.5 27.7Z" fill="var(--logo-ink)" /><rect x="17.2" y="19.2" width="11.6" height="9.6" rx="2" fill="none" stroke="var(--logo-accent)" stroke-width="2.4" /></svg>
+        <span class="wordmark">TikZ<em>Flow</em></span>
+        <span class="pill" title="Expect rough edges. Your work is kept in this browser.">Beta</span>
+      </a>
+      <nav class="site-nav" aria-label="Site">
+        <a href="#templates">Templates</a>
+        <a href="#getting-started">Getting started</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow" rel="noopener noreferrer">Source code</a>
+      </nav>
+      <div class="head-actions">
+        <button class="icon-btn" type="button" data-theme-switch aria-label="Theme: system">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18v18Z" /><circle cx="12" cy="12" r="9" fill="none" /></svg>
+        </button>
+        <a class="btn primary" href="/editor/">Open the editor</a>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero">
+        <div class="hero-text">
+          <p class="eyebrow">Free and open source · runs in your browser</p>
+          <h1>Draw flowcharts.<br />Keep your TikZ.</h1>
+          <p class="lede">
+            A visual editor for TikZ flowcharts where the code and the canvas stay in sync. Dragging a node writes
+            <code>right=of small</code>, not coordinates, and everything you didn't touch, comments and macros included,
+            stays exactly as you wrote it.
+          </p>
+          <div class="cta">
+            <a class="btn primary lg" href="/editor/" data-continue hidden>Continue your diagram</a>
+            <a class="btn primary lg" href="/editor/" data-open>Open the editor</a>
+            <a class="btn lg" href="#templates">Browse templates</a>
+          </div>
+          <p class="resume" data-resume hidden></p>
+        </div>
+        <div class="hero-visual" aria-hidden="true">
+          <div class="hv-code">
+            <div class="snip-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span>factorial.tex</span></div>
+            <div class="cl"><span class="ln">20</span><span class="lc">  <span class="t-kw">\node</span><span class="t-p">[</span>io, <span class="t-key">below</span>=of start<span class="t-p">]</span>      <span class="t-name">(read)</span>  <span class="t-p">{</span>Read <span class="t-val">$n$</span><span class="t-p">}</span>;</span></div>
+            <div class="cl"><span class="ln">21</span><span class="lc">  <span class="t-kw">\node</span><span class="t-p">[</span>decision, <span class="t-key">below</span>=of read<span class="t-p">]</span> <span class="t-name">(small)</span> <span class="t-p">{</span><span class="t-val">$n \le 1$</span>?<span class="t-p">}</span>;</span></div>
+            <div class="cl sel"><span class="ln">22</span><span class="lc">  <span class="t-kw">\node</span><span class="t-p">[</span>process, <span class="t-key">right</span>=of small<span class="t-p">]</span> <span class="t-name">(base)</span>  <span class="t-p">{</span>Answer <span class="t-val">$1$</span><span class="t-p">}</span>;</span></div>
+            <div class="cl"><span class="ln">23</span><span class="lc">  <span class="t-kw">\node</span><span class="t-p">[</span>process, <span class="t-key">below</span>=of small<span class="t-p">]</span> <span class="t-name">(rec)</span>   <span class="t-p">{</span>Return<span class="t-mac">\\</span> <span class="t-val">$n \cdot f(n-1)$</span><span class="t-p">}</span>;</span></div>
+          </div>
+          <div class="hv-canvas"><img src="./src/site/assets/sample.svg" alt="" width="292" height="310" /></div>
+          <div class="hv-badge"><svg class="ic sm" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg> Drag a node: one line changes</div>
+        </div>
+      </section>
+
+      <section class="band features" aria-label="What it does">
+        <div class="feature">
+          <span class="f-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 7 3.5 12l5 5M15.5 7l5 5-5 5" /></svg></span>
+          <h2>Lossless round trips</h2>
+          <p>Visual edits become small text patches. Anything the editor doesn't understand is kept verbatim and drawn by TeX.</p>
+        </div>
+        <div class="feature">
+          <span class="f-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20 14 10M14 4v3M18.5 5.5l-2 2M20 10h-3M12.5 6.5l5 5" /></svg></span>
+          <h2>Code that reads hand-written</h2>
+          <p>Relative positioning, named styles in <code>\tikzset</code>, meaningful node names and managed libraries.</p>
+        </div>
+        <div class="feature">
+          <span class="f-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h8l4 4V20a.5.5 0 0 1-.5.5h-11A.5.5 0 0 1 6 20V3.5ZM14 3.5V8h4M9 12h6M9 15.5h6" /></svg></span>
+          <h2>A real TeX preview</h2>
+          <p>An instant drawing while you drag, then a real compile by a TeX engine in your browser, with errors mapped to lines.</p>
+        </div>
+      </section>
+
+      <section class="templates" id="templates">
+        <div class="sec-head">
+          <h2>Start from a template</h2>
+          <p>Each one is plain, idiomatic TikZ you can edit on the canvas or as code.</p>
+        </div>
+        <div class="tgrid">
+          <a class="tcard" href="/editor/"><div class="thumb"><img src="./src/site/thumbs/basic-process.svg" alt="" width="240" height="150" loading="lazy" /></div><div class="tmeta"><h3>Basic process</h3><p>Start, input, steps and a stop, with one decision.</p></div></a>
+          <a class="tcard" href="/editor/"><div class="thumb"><img src="./src/site/thumbs/decision-flowchart.svg" alt="" width="240" height="150" loading="lazy" /></div><div class="tmeta"><h3>Decision flowchart</h3><p>Yes and No branches that meet again.</p></div></a>
+          <a class="tcard" href="/editor/"><div class="thumb"><img src="./src/site/thumbs/algorithm-with-a-loop.svg" alt="" width="240" height="150" loading="lazy" /></div><div class="tmeta"><h3>Algorithm with a loop</h3><p>A while loop, with its way back drawn as <code>|-</code>.</p></div></a>
+          <a class="tcard" href="/editor/"><div class="thumb"><img src="./src/site/thumbs/swimlane-process.svg" alt="" width="240" height="150" loading="lazy" /></div><div class="tmeta"><h3>Swimlane process</h3><p>Three lanes that share a top and bottom.</p></div></a>
+          <a class="tcard" href="/editor/"><div class="thumb"><img src="./src/site/thumbs/left-to-right-pipeline.svg" alt="" width="240" height="150" loading="lazy" /></div><div class="tmeta"><h3>Left-to-right pipeline</h3><p>Stages grouped with <code>fit</code>, like a model architecture.</p></div></a>
+          <a class="tcard" href="/editor/"><div class="thumb"><img src="./src/site/thumbs/feedback-block-diagram.svg" alt="" width="240" height="150" loading="lazy" /></div><div class="tmeta"><h3>Feedback block diagram</h3><p>Sum junction, controller, plant and sensor.</p></div></a>
+          <a class="tcard" href="/editor/"><div class="thumb"><img src="./src/site/thumbs/prisma-2020.svg" alt="" width="240" height="150" loading="lazy" /></div><div class="tmeta"><h3>PRISMA 2020</h3><p>Records identified, screened, excluded and included.</p></div></a>
+          <a class="tcard" href="/editor/"><div class="thumb"><img src="./src/site/thumbs/state-machine.svg" alt="" width="240" height="150" loading="lazy" /></div><div class="tmeta"><h3>State machine</h3><p>States, an initial arrow, loops and accepting states.</p></div></a>
+          <a class="tcard" href="/editor/"><div class="thumb"><img src="./src/site/thumbs/hierarchy.svg" alt="" width="240" height="150" loading="lazy" /></div><div class="tmeta"><h3>Hierarchy</h3><p>A tree placed with positioning and <code>-|</code> edges.</p></div></a>
+        </div>
+      </section>
+
+      <div class="privacy-wrap">
+      <section class="privacy" aria-labelledby="privacy-title">
+        <div class="p-ic" aria-hidden="true"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3 5 6v5.5c0 4.4 3 8 7 9.5 4-1.5 7-5.1 7-9.5V6l-7-3Z M9 12l2.2 2.2L15.5 10" /></svg></div>
+        <div>
+          <h2 id="privacy-title">Your diagrams never leave your browser</h2>
+          <p>
+            No account, no server, no tracking. Your work is saved in this browser, the TeX engine runs on your computer,
+            and share links carry the code in the part of the address that is never sent anywhere. After your first visit
+            to the editor, it works offline.
+          </p>
+        </div>
+      </section>
+      </div>
+
+      <section class="start" id="getting-started">
+        <div class="sec-head"><h2>Getting started</h2></div>
+        <ol class="steps">
+          <li><span class="num">1</span><div><h3>Paste or open TikZ</h3><p>A bare <code>tikzpicture</code> or a whole <code>.tex</code> file, or a Mermaid or Graphviz diagram to import. Or start from a template.</p></div></li>
+          <li><span class="num">2</span><div><h3>Edit on the canvas or in the code</h3><p>Drag nodes, draw edges from their anchors, press Tab to add a connected step. Both sides follow each other.</p></div></li>
+          <li><span class="num">3</span><div><h3>Take it to your paper</h3><p>Export a standalone <code>.tex</code> file, a snippet, PDF, SVG or PNG, or share a link.</p></div></li>
+        </ol>
+        <p class="tip">Tip: bookmark <a href="/editor/"><code>tikzflow.pages.dev/editor/</code></a> to go straight to the editor.</p>
+      </section>
+    </main>
+
+    <footer class="site-foot">
+      <a class="brand small" href="/" aria-label="TikZFlow home">
+        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="13" height="10" rx="2" fill="var(--logo-ink)" /><path d="M9.5 13V24H12.5" fill="none" stroke="var(--logo-ink)" stroke-width="2.4" /><path d="M11.5 20.3L16.2 24L11.5 27.7Z" fill="var(--logo-ink)" /><rect x="17.2" y="19.2" width="11.6" height="9.6" rx="2" fill="none" stroke="var(--logo-accent)" stroke-width="2.4" /></svg>
+        <span class="wordmark">TikZ<em>Flow</em></span>
+      </a>
+      <nav class="foot-links" aria-label="More">
+        <a href="/editor/">Editor</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow/issues/new?template=problem.yml" rel="noopener noreferrer">Report a problem</a>
+        <a href="https://github.com/LoganAlexanderBurnett/tikzflow" rel="noopener noreferrer">Source code</a>
+        <span>GPL-3.0-or-later</span>
+      </nav>
+    </footer>
   </body>
 </html>

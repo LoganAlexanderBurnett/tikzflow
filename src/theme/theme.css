@@ -1,0 +1,81 @@
+/* The site's look (D91: direction A, "Manuscript"): fonts and color tokens shared by the home page,
+   help and the editor. Light is the default; `public/boot.js` sets data-theme="dark" before the first
+   paint when the visitor chose dark, or chose nothing and the system is dark. */
+
+/* Self-hosted, OFL-1.1 (Fontsource). Latin and Latin Extended only: other scripts fall back to the
+   system's fonts through each face's unicode-range. */
+@import "@fontsource/source-serif-4/latin-600.css";
+@import "@fontsource/source-serif-4/latin-ext-600.css";
+@import "@fontsource/source-serif-4/latin-600-italic.css";
+@import "@fontsource/source-serif-4/latin-ext-600-italic.css";
+@import "@fontsource/source-sans-3/latin-400.css";
+@import "@fontsource/source-sans-3/latin-ext-400.css";
+@import "@fontsource/source-sans-3/latin-400-italic.css";
+@import "@fontsource/source-sans-3/latin-ext-400-italic.css";
+@import "@fontsource/source-sans-3/latin-600.css";
+@import "@fontsource/source-sans-3/latin-ext-600.css";
+@import "@fontsource/source-sans-3/latin-700.css";
+@import "@fontsource/source-sans-3/latin-ext-700.css";
+@import "@fontsource/source-code-pro/latin-400.css";
+@import "@fontsource/source-code-pro/latin-ext-400.css";
+@import "@fontsource/source-code-pro/latin-500.css";
+@import "@fontsource/source-code-pro/latin-ext-500.css";
+
+:root {
+  --font-display: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-ui: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-code: "Source Code Pro", ui-monospace, Consolas, monospace;
+  --radius: 4px;
+  --radius-lg: 6px;
+
+  /* Paper, ink and vermilion. Text colors meet WCAG AA on --bg, --surface and --surface-2. */
+  --bg: #f7f3ec;
+  --surface: #fffdf9;
+  --surface-2: #f0eadf;
+  --fg: #1e2533;
+  --muted: #5c6270;
+  --line: #e3d9c9;
+  --line-strong: #cfc3b0;
+  --accent: #b3401e;
+  --accent-fg: #ffffff;
+  --accent-text: #a63a1a;
+  --accent-soft: rgba(179, 64, 30, 0.1);
+  --navy: #24345a;
+  --navy-fg: #f7f3ec;
+  --code-bg: #efe8dc;
+  --shadow: 0 1px 2px rgba(60, 40, 10, 0.08), 0 12px 32px rgba(60, 40, 10, 0.1);
+  --ok: #2f6b3a;
+  --ok-soft: rgba(47, 107, 58, 0.1);
+  --logo-ink: #1e2533;
+  --logo-accent: #b3401e;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #17181c;
+  --surface: #1e2026;
+  --surface-2: #24262d;
+  --fg: #ece6dc;
+  --muted: #a59f94;
+  --line: #33353d;
+  --line-strong: #474a54;
+  --accent: #f08a63;
+  --accent-fg: #1a0d07;
+  --accent-text: #f4a07f;
+  --accent-soft: rgba(240, 138, 99, 0.14);
+  --navy: #24262d;
+  --navy-fg: #ece6dc;
+  --code-bg: #2a2c33;
+  --shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 12px 32px rgba(0, 0, 0, 0.45);
+  --ok: #8fd19a;
+  --ok-soft: rgba(143, 209, 154, 0.12);
+  --logo-ink: #ece6dc;
+  --logo-accent: #f08a63;
+  color-scheme: dark;
+}
+
+/* TikZ code shows what was typed: no ligatures. */
+code, kbd, pre, .cm-content {
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0;
+}

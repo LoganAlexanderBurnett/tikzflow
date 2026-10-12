@@ -1238,3 +1238,42 @@ The owner confirmed that "Report a problem" shows the issue form when signed in 
    - **`m5`:** `trunk` was merged into `m5` afterwards, so the two branches share the commit.
 
 **Why:** the owner's answers at the step 1 checkpoint (2026-10-11).
+
+## D92: The site: a home page at /, the editor at /editor/, a 404 page, offline per page (M5 step 2, 2026-10-11)
+**Decision:**
+- **Pages.** Vite builds three HTML entries (`appType: "mpa"`):
+  - **`index.html`:** the home page. It is static HTML, so search engines read it as is: the pitch, the templates gallery, getting started, the privacy promise, and the tip to bookmark `/editor/`.
+  - **`editor/index.html`:** the editor, moved from the root.
+  - **`404.html`:** Cloudflare Pages serves it with status 404 for an unknown address. Before, it answered with the app and status 200 (D76 item 4). `vite preview` does the same through a small plugin (`notFoundPage`).
+  - **Other files:** `robots.txt` and `sitemap.xml` are in `public/`.
+- **`public/boot.js`, a classic script in every page's head.** The CSP allows no inline script, so it is its own file. It does two things:
+  - **The theme:** it sets `data-theme` before the first paint, from the visitor's choice in localStorage, else the system's (followed live).
+  - **Old share links:** on the home page it sends a fragment carrying `tf1=` on to `/editor/` with `location.replace`. The fragment never reaches a server, so the forward can't happen anywhere else.
+  - **Format:** plain JavaScript in `public/`, outside the TypeScript build. It is small enough that a separate pipeline wouldn't pay.
+- **New share links** are made on `/editor/`, so they point there (`shareLink` uses the page's own address).
+- **Continue your diagram.**
+  - **What it shows:** the home page reads the kept session (`peekSession` in the new `src/ui/kv.ts`, the IndexedDB helpers moved out of `files.ts`). When there is work, it shows **Continue your diagram** with the file's name and when it was last edited. The sample untouched, or empty text, doesn't count.
+  - **No trace for new visitors:** `peekSession` checks `indexedDB.databases()` first, so a first visit to the home page doesn't create the database.
+  - `Referrer-Policy: no-referrer` stays (D91 item 2).
+- **The service worker keeps every page by its address.**
+  - **The list:** `__PAGES__` holds `./` and `editor/`, from the built `index.html` files.
+  - **Offline:** a page that can't be fetched gets its own kept copy (`pageFor`, `src/sw/pages.ts`); an unknown address gets the home page.
+  - **Why `pages.ts` is separate:** it is pure, so it can be tested. The plugin puts it in front of `sw.ts`, because the worker is a classic script.
+  - **Not kept:** the 404 page, because a cache refuses a 404 answer.
+  - **Registration:** the home page registers the worker too, so the site works offline after one visit. Only the editor starts the engine download (checked by the offline and live tests).
+- **The theme switch** (`src/theme/theme.ts`) cycles same-as-system, light and dark. The choice is kept in localStorage per viewer and holds on every page.
+- **The look of the home page** is direction A (D91):
+  - **Tokens and fonts:** `src/theme/theme.css` holds them, shared with the editor in step 3. Fonts are Latin and Latin Extended subsets only; other scripts fall back to system fonts.
+  - **Layout:** `src/site/site.css`. It works down to phone width with no sideways scroll (tested at 375 px).
+- **The site's pictures are generated and committed, not made at build time** (a change from the plan in D89).
+  - **The script:** `npm run site:assets` compiles the sample with the engine in Node (`scripts/lib/compile.ts`, the pipeline of `test/engine-run.test.ts`) into `src/site/assets/sample.svg`, the home page's picture. It also draws `public/favicon-32.png` and `public/apple-touch-icon.png` from `public/favicon.svg`.
+  - **Kept current:** `test/site.test.ts` fails when the committed SVG differs from what the engine draws now.
+  - **Why:** a build without the engine (a fresh clone, `npm run dev`) still has the pictures, and their changes show up in review. Step 4's template thumbnails will follow the same pattern. Until then the gallery shows the mockup's hand-drawn placeholders (`src/site/thumbs/`), and its cards open the editor.
+- **Tests.**
+  - **End-to-end:** `test/e2e/base.ts` maps `goto("/")` to `/editor/`. `/#tf1=…` still goes through the home page, so the existing damaged-link test now covers the forward. `test/e2e/site.spec.ts` covers the home page, an old link forwarded, Continue, the theme switch on every page, and no sideways scroll at phone width.
+  - **Offline:** one visit to the home page keeps both pages without asking for the engine; offline, each page answers and an unknown one gets the home page; an unknown address online is a 404 with the site's page.
+  - **Unit:** `test/site.test.ts` checks `pageFor` and the committed SVG.
+  - **Live:** `test:live` adds the pages, the 404, the forward and the home page under the policy.
+  - **`check:dist`:** it reads the worker's lists, requires `./` and `editor/`, `404.html` and `boot.js`, and checks that every page loads `boot.js`.
+
+**Why:** the owner's scope for M5 (D89 items 3 and 5) and their answer on the root (D91 item 2: `/` always shows the home page).

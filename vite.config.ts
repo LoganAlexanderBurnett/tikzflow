@@ -173,16 +173,24 @@ function serviceWorker(): Plugin {
     },
     async closeBundle() {
       if (!building) return;
-      const shell = files(outDir)
-        // KaTeX ships each font as woff2, woff and ttf; every browser that runs the engine takes the woff2.
+      const all = files(outDir)
+        // KaTeX and the site's fonts ship as woff2 and woff (KaTeX also ttf); every browser that runs the engine takes the woff2.
         .filter((f) => !f.startsWith("engine/") && !f.startsWith("_") && f !== "sw.js" && !f.startsWith(".vite/") && !/\.(woff|ttf)$/.test(f))
         .sort();
+      // The pages, by the address they are served at (D92): `x/index.html` is `x/`. The 404 page isn't
+      // kept: Cloudflare Pages serves it with status 404, which a cache refuses.
+      const pages = all.filter((f) => f === "index.html" || f.endsWith("/index.html")).map((f) => (f === "index.html" ? "./" : f.slice(0, -"index.html".length)));
+      const shell = all.filter((f) => !f.endsWith(".html"));
       const hash = createHash("sha256");
-      for (const f of shell) hash.update(f).update(readFileSync(join(outDir, f)));
+      for (const f of all) hash.update(f).update(readFileSync(join(outDir, f)));
       const release = JSON.parse(readFileSync(join(import.meta.dirname, "engine", "release.json"), "utf8")) as { tag: string };
-      const source = readFileSync(join(import.meta.dirname, "src", "sw", "sw.ts"), "utf8");
-      const { code } = await transformWithOxc(source, "sw.ts", { target: "es2022" });
-      const header = `const __SHELL__ = ${JSON.stringify(["./", ...shell])};\nconst __VERSION__ = ${JSON.stringify(hash.digest("hex").slice(0, 16))};\nconst __ENGINE_TAG__ = ${JSON.stringify(release.tag)};\n`;
+      // A classic script, so no modules: pages.ts goes in front of sw.ts, without its `export` and sw.ts's `import`.
+      const compile = async (name: string) =>
+        (await transformWithOxc(readFileSync(join(import.meta.dirname, "src", "sw", name), "utf8"), name, { target: "es2022" })).code
+          .replace(/^import .*$/gm, "")
+          .replace(/^export (function|const) /gm, "$1 ");
+      const code = (await compile("pages.ts")) + (await compile("sw.ts"));
+      const header = `const __PAGES__ = ${JSON.stringify(pages)};\nconst __SHELL__ = ${JSON.stringify([...pages, ...shell])};\nconst __VERSION__ = ${JSON.stringify(hash.digest("hex").slice(0, 16))};\nconst __ENGINE_TAG__ = ${JSON.stringify(release.tag)};\n`;
       // A classic script: the empty `export {}` that keeps the source a module goes.
       writeFileSync(join(outDir, "sw.js"), header + code.replace(/^export \{\};?\s*$/m, ""));
     },
@@ -266,6 +274,29 @@ function swiftlatexTexlive(): Plugin {
   };
 }
 
+/** `vite preview` answers an unknown address as Cloudflare Pages does (D92): dist/404.html, status 404. */
+function notFoundPage(): Plugin {
+  return {
+    name: "tikzflow-404",
+    configurePreviewServer(server) {
+      // Returned: runs after the preview's own static files, for what they didn't answer.
+      return () => {
+        server.middlewares.use((req, res, next) => {
+          const out = join(server.config.root, server.config.build.outDir);
+          const page = join(out, "404.html");
+          const path = decodeURIComponent((req.url ?? "/").split(/[?#]/)[0]!);
+          const file = normalize(join(out, path));
+          const served = file.startsWith(out) && (existsSync(join(file, "index.html")) || existsSync(`${file}.html`) || (existsSync(file) && statSync(file).isFile()));
+          if (req.method !== "GET" || served || !existsSync(page)) return next();
+          res.statusCode = 404;
+          res.setHeader("Content-Type", "text/html; charset=utf-8");
+          res.end(readFileSync(page));
+        });
+      };
+    },
+  };
+}
+
 /** The headers of the `/*` block of public/_headers (D75), so `vite preview` serves what Cloudflare Pages will. */
 function pageHeaders(): Record<string, string> {
   const out: Record<string, string> = {};
@@ -282,7 +313,10 @@ function pageHeaders(): Record<string, string> {
 }
 
 export default defineConfig({
-  plugins: [rawVendor(), engineFiles(), serviceWorker(), swiftlatexTexlive()],
+  plugins: [rawVendor(), engineFiles(), serviceWorker(), swiftlatexTexlive(), notFoundPage()],
+  // Several pages, no single-page fallback (D92): an unknown address is a 404, as on Cloudflare Pages,
+  // and `vite preview` answers it with dist/404.html.
+  appType: "mpa",
   oxc: { jsx: { runtime: "automatic", importSource: "preact" } },
   // Module workers, so the layout worker (D87) can load elk.js as a chunk of its own, as the page does.
   worker: { format: "es" },
@@ -295,6 +329,16 @@ export default defineConfig({
     },
   },
   preview: { headers: pageHeaders() },
+  // The site's pages (D89, D92): the home page, the editor and the 404 page.
+  build: {
+    rollupOptions: {
+      input: {
+        home: join(import.meta.dirname, "index.html"),
+        editor: join(import.meta.dirname, "editor", "index.html"),
+        notfound: join(import.meta.dirname, "404.html"),
+      },
+    },
+  },
   test: {
     include: ["spike/**/*.test.ts", "src/**/*.test.ts", "test/**/*.test.ts"],
   },

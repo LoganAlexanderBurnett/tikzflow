@@ -18,7 +18,7 @@ test.describe("after the first visit", () => {
     page.on("console", (m) => m.type() === "error" && problems.push(m.text()));
     page.on("requestfailed", (r) => problems.push(`${r.url()} ${r.failure()?.errorText}`));
     page.on("request", (r) => hosts.add(new URL(r.url()).host));
-    await page.goto("/");
+    await page.goto("/editor/");
     // The first picture, then the rest of the engine in the background.
     await expect(page.getByTestId("compiled-picture")).toBeAttached({ timeout: 30_000 });
     await expect(page.getByTestId("offline-state")).toHaveText("Works offline", { timeout: 80_000 });
@@ -33,7 +33,7 @@ test.describe("after the first visit", () => {
   });
 
   test("a package the first visit never used is there offline too", async ({ page, context }) => {
-    await page.goto("/");
+    await page.goto("/editor/");
     await expect(page.getByTestId("offline-state")).toHaveText("Works offline", { timeout: 90_000 });
     await context.setOffline(true);
     await page.reload();
@@ -56,7 +56,7 @@ test.describe("under the production Content-Security-Policy", () => {
     const violations: string[] = [];
     page.on("console", (m) => /content security policy|refused to/i.test(m.text()) && violations.push(m.text()));
     page.on("pageerror", (e) => violations.push(String(e)));
-    const response = await page.goto("/");
+    const response = await page.goto("/editor/");
     expect(response!.headers()["content-security-policy"]).toContain("default-src 'self'");
     await expect(page.getByTestId("compiled-picture")).toBeAttached({ timeout: 30_000 });
     await page.getByTestId("export-button").click();
@@ -82,7 +82,7 @@ test("auto-layout works offline, under the production Content-Security-Policy", 
   const violations: string[] = [];
   page.on("console", (m) => /content security policy|refused to/i.test(m.text()) && violations.push(m.text()));
   page.on("pageerror", (e) => violations.push(String(e)));
-  await page.goto("/");
+  await page.goto("/editor/");
   await page.evaluate(() => navigator.serviceWorker.ready);
   await expect
     .poll(() => page.evaluate(async () => {
@@ -105,7 +105,7 @@ test("import and the color views work offline, under the production Content-Secu
   const violations: string[] = [];
   page.on("console", (m) => /content security policy|refused to/i.test(m.text()) && violations.push(m.text()));
   page.on("pageerror", (e) => violations.push(String(e)));
-  await page.goto("/");
+  await page.goto("/editor/");
   await page.evaluate(() => navigator.serviceWorker.ready);
   await expect
     .poll(() => page.evaluate(async () => {
@@ -127,8 +127,44 @@ test("import and the color views work offline, under the production Content-Secu
   expect(violations).toEqual([]);
 });
 
+// The site's pages (D92): one visit to the home page keeps every page, without fetching the engine;
+// offline, each address gets its own page, and an unknown one the home page. Online, an unknown
+// address is a real 404 with the site's 404 page.
+test("after one visit to the home page, the home page and the editor work offline, under the policy", async ({ page, context }) => {
+  const violations: string[] = [];
+  page.on("console", (m) => /content security policy|refused to/i.test(m.text()) && violations.push(m.text()));
+  page.on("pageerror", (e) => violations.push(String(e)));
+  const engineAsked: string[] = [];
+  page.on("request", (r) => r.url().includes("/engine/") && engineAsked.push(r.url()));
+  const response = await page.goto("/");
+  expect(response!.headers()["content-security-policy"]).toContain("default-src 'self'");
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await expect
+    .poll(() => page.evaluate(async () => {
+      const shell = (await caches.keys()).find((n) => n.startsWith("tikzflow-shell-"));
+      const paths = shell ? (await (await caches.open(shell)).keys()).map((r) => new URL(r.url).pathname) : [];
+      return paths.includes("/") && paths.includes("/editor/");
+    }))
+    .toBe(true);
+  expect(engineAsked, "the home page doesn't fetch the engine").toEqual([]);
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/Draw flowcharts/);
+  await page.goto("/editor/");
+  await expect(page.getByTestId("summary-headline")).toBeVisible();
+  await page.goto("/no-such-page/");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/Draw flowcharts/);
+  expect(violations).toEqual([]);
+});
+
+test("an unknown address is a 404 with the site's page", async ({ page }) => {
+  const response = await page.goto("/no-such-page/");
+  expect(response!.status()).toBe(404);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("This page isn't here");
+});
+
 test("one cache holds the app and one the engine", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/editor/");
   await page.evaluate(() => navigator.serviceWorker.ready);
   const names = await page.evaluate(async () => (await caches.keys()).sort());
   expect(names.filter((n) => n.startsWith("tikzflow-shell-"))).toHaveLength(1);

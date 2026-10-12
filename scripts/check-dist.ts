@@ -69,10 +69,23 @@ const swPath = join(dist, "sw.js");
 if (!existsSync(swPath)) problems.push("dist/sw.js is missing: the app wouldn't work offline.");
 else {
   const sw = readFileSync(swPath, "utf8");
-  const listed = [...sw.matchAll(/"((?:assets\/|index\.html|katex)[^"]*)"/g)].map((m) => m[1]!);
-  const gone = listed.filter((n) => !files.some((f) => f.path === n.replace(/^\//, "")));
+  const list = (name: string): string[] => JSON.parse(new RegExp(`^const ${name} = (\\[.*\\]);$`, "m").exec(sw)?.[1] ?? "[]") as string[];
+  const pages = list("__PAGES__");
+  const listed = list("__SHELL__");
+  // A page is kept by its address (D92): `./` is index.html, `editor/` is editor/index.html.
+  const fileOf = (n: string) => (n === "./" ? "index.html" : n.endsWith("/") ? `${n}index.html` : n);
+  const gone = listed.filter((n) => !files.some((f) => f.path === fileOf(n)));
   if (gone.length) problems.push(`sw.js lists files that aren't in dist/: ${gone.slice(0, 3).join(", ")}.`);
-  notes.push(`sw.js lists ${listed.length} app files`);
+  for (const p of ["./", "editor/"]) if (!pages.includes(p)) problems.push(`sw.js doesn't keep the page ${p}: it wouldn't open offline.`);
+  notes.push(`sw.js keeps ${pages.length} pages (${pages.join(", ")}) and ${listed.length - pages.length} other files`);
+}
+
+// The site's pages (D92): the 404 page Cloudflare Pages serves for unknown addresses, and on every
+// page boot.js, which sets the theme before the first paint and forwards old share links.
+if (!existsSync(join(dist, "404.html"))) problems.push("dist/404.html is missing: unknown addresses would get the home page with status 200.");
+if (!existsSync(join(dist, "boot.js"))) problems.push("dist/boot.js is missing.");
+for (const f of files.filter((f) => f.path.endsWith(".html"))) {
+  if (!readFileSync(join(dist, f.path), "utf8").includes('<script src="/boot.js"></script>')) problems.push(`${f.path} doesn't load /boot.js.`);
 }
 
 // Client-side only: the shipped code and page must not name a third-party host to fetch from.

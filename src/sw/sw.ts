@@ -17,9 +17,13 @@
 
 /// <reference lib="webworker" />
 
+import { pageFor } from "./pages.ts";
+
 declare const self: ServiceWorkerGlobalScope;
 /** Files of the build to keep (paths relative to the worker's folder), set by vite.config.ts. */
 declare const __SHELL__: string[];
+/** The site's pages, by address relative to the worker's folder (`./`, `editor/`), set by vite.config.ts. */
+declare const __PAGES__: string[];
 declare const __VERSION__: string;
 declare const __ENGINE_TAG__: string;
 
@@ -87,13 +91,14 @@ async function shellFile(request: Request): Promise<Response> {
   return hit ?? fetch(request);
 }
 
-/** A page: the network, unless it fails or takes too long, then the cached copy of the app. */
+/** A page: the network, unless it fails or takes too long, then the kept copy of that page. */
 async function page(request: Request): Promise<Response> {
   const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), NAVIGATION_TIMEOUT_MS));
   try {
     return await Promise.race([fetch(request), timeout]);
   } catch {
-    const cached = await caches.match(base.pathname, { cacheName: SHELL, ignoreSearch: true, ignoreVary: true });
+    const kept = new URL(pageFor(new URL(request.url).pathname, base.pathname, __PAGES__), base);
+    const cached = await caches.match(kept.href, { cacheName: SHELL, ignoreSearch: true, ignoreVary: true });
     return cached ?? Response.error();
   }
 }

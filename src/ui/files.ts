@@ -7,6 +7,7 @@ import { effect, signal } from "@preact/signals";
 import { LayoutCancelled, runImport } from "../edit/layoutjobs.ts";
 import { detectFormat, IMPORT_EXTENSIONS, type ImportOptions, type ImportResult } from "../import/index.ts";
 import { decode, encode, type Encoding, UnencodableError } from "../source/encoding.ts";
+import { del, get, put, type Session } from "./kv.ts";
 import { SAMPLE } from "./sample.ts";
 import { decodeShare, isShareHash } from "./share.ts";
 import { encoding, fileName, pictureIndex, replaceDocument, status, text, withProgress } from "./store.ts";
@@ -18,16 +19,7 @@ export function setInitialText(t: string): void {
   startText = t;
 }
 
-/** What is kept between visits. */
-export interface Session {
-  text: string;
-  /** The text as last opened or saved: the work is unsaved while `text` differs. */
-  savedText: string;
-  fileName: string | null;
-  encoding: Encoding;
-  pictureIndex: number;
-  savedAt: number;
-}
+export type { Session };
 
 // ---- File System Access API (not in TypeScript's DOM types) ----------------------------------
 
@@ -52,43 +44,6 @@ const TEX_TYPES = [{ description: "TeX, Mermaid and DOT files", accept: { "text/
 
 /** The browser can open and save files in place. */
 export const canSaveInPlace = (): boolean => typeof picker().showSaveFilePicker === "function" && typeof picker().showOpenFilePicker === "function";
-
-// ---- IndexedDB, a small key-value store ------------------------------------------------------
-
-const DB_NAME = "tikzflow";
-const STORE = "kv";
-
-function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onupgradeneeded = () => req.result.createObjectStore(STORE);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function idb<T>(mode: IDBTransactionMode, run: (s: IDBObjectStore) => IDBRequest<T>): Promise<T | undefined> {
-  try {
-    const db = await openDb();
-    try {
-      return await new Promise<T>((resolve, reject) => {
-        const tx = db.transaction(STORE, mode);
-        const req = run(tx.objectStore(STORE));
-        tx.oncomplete = () => resolve(req.result);
-        tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(tx.error);
-      });
-    } finally {
-      db.close();
-    }
-  } catch {
-    // Private windows, blocked storage: the app works, it just doesn't remember.
-    return undefined;
-  }
-}
-const get = <T>(key: string) => idb<T>("readonly", (s) => s.get(key));
-const put = (key: string, value: unknown) => idb("readwrite", (s) => s.put(value, key));
-const del = (key: string) => idb("readwrite", (s) => s.delete(key));
 
 // ---- State -----------------------------------------------------------------------------------
 

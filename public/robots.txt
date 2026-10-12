@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /engine/
+
+Sitemap: https://tikzflow.pages.dev/sitemap.xml

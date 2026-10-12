@@ -28,8 +28,8 @@ Also read "Notes for later milestones" below.
 | Step | Content | Status |
 |---|---|---|
 | 0 | `m5` branch; GitHub Actions test workflow (typecheck, Vitest, build, `check:dist`, Playwright in Edge) on every push | Done (D90) |
-| 1 | Two or three visual directions (palette, type, logo and favicon, home page and editor in one look) as screenshots; **checkpoint: the owner picks one** | Shown; **waiting for the owner's pick** (see "M5 steps 0 and 1" below) |
-| 2 | Site structure: home page at `/` (with "Continue your diagram" when there is saved work), editor at `/editor/`, help at `/help/`; share links to `/#…` forwarded to the editor; service worker, offline and `404.html` per page; sitemap | Not started |
+| 1 | Two or three visual directions (palette, type, logo and favicon, home page and editor in one look) as screenshots; **checkpoint: the owner picks one** | Done: direction A, Manuscript (D91); the edge-menu fix went to `trunk` and is live (D91) |
+| 2 | Site structure: home page at `/` (with "Continue your diagram" when there is saved work), editor at `/editor/`, help at `/help/`; share links to `/#…` forwarded to the editor; service worker, offline and `404.html` per page; sitemap | Done (D92); help pages come in step 7 |
 | 3 | The chosen design applied to the home page, help and the editor's chrome; light/dark/system switch; self-hosted fonts; contrast rechecked | Not started |
 | 4 | Nine templates (D89 item 4), with no locked blocks, compiled in CI by pdfLaTeX and our engine; gallery on the home page and in the editor's New menu; the state machine's `loop`/`initial`/`accepting` if moderate | Not started |
 | 5 | First run (Paste TikZ, Start blank, Start from a template; the sample becomes Basic process), the `?` shortcut overlay, the edit flicker (D69 item 4) | Not started |

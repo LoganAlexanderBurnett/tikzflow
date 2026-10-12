@@ -25,7 +25,7 @@ const FIGURE = ["\\begin{tikzpicture}", "\\node[draw] (a) at (0,0) {LiveCheck};"
 
 test.describe("headers", () => {
   test("every page carries the Content-Security-Policy of public/_headers, and the other two headers", async ({ request }) => {
-    for (const path of ["/", "/sw.js", `${engine}/index.json`]) {
+    for (const path of ["/", "/editor/", "/sw.js", `${engine}/index.json`]) {
       const h = (await request.get(path)).headers();
       expect(h["content-security-policy"], path).toBe(csp);
       expect(h["x-content-type-options"], path).toBe("nosniff");
@@ -52,7 +52,7 @@ test.describe("headers", () => {
     }
   });
 
-  test("the engine's index is JSON for the pinned tag (an unknown path would answer with the page, not a 404)", async ({ request }) => {
+  test("the engine's index is JSON for the pinned tag", async ({ request }) => {
     const res = await request.get(`${engine}/index.json`);
     expect(res.headers()["content-type"]).toContain("json");
     const index = (await res.json()) as { texFiles: string[]; fonts: string[] };
@@ -74,7 +74,7 @@ test.describe("the app", () => {
       if (r.url().includes(`${engine}/core.dump.gz`) && !r.fromServiceWorker()) engineBytes.gz++;
       if (r.url().includes(engine) && !r.fromServiceWorker()) engineBytes.requests++;
     });
-    await page.goto("/");
+    await page.goto("/editor/");
     await expect(page.getByTestId("compiled-picture")).toBeAttached({ timeout: 45_000 });
     await expect(page.getByTestId("preview-state")).toHaveText("TeX preview");
     await expect(page.getByTestId("offline-state")).toHaveText("Works offline", { timeout: 100_000 });
@@ -87,7 +87,7 @@ test.describe("the app", () => {
   });
 
   test("a second visit reads the engine from the service worker's cache, not the network", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/editor/");
     await expect(page.getByTestId("offline-state")).toHaveText("Works offline", { timeout: 100_000 });
     let network = 0;
     let cached = 0;
@@ -103,7 +103,7 @@ test.describe("the app", () => {
   });
 
   test("offline after one visit: the app, TeX's picture and the exports work with the network off", async ({ page, context }) => {
-    await page.goto("/");
+    await page.goto("/editor/");
     await expect(page.getByTestId("offline-state")).toHaveText("Works offline", { timeout: 100_000 });
     await context.setOffline(true);
     await page.reload();
@@ -133,7 +133,7 @@ test.describe("the app", () => {
       await expect(page.getByTestId("status")).toContainText("Laid out 2 nodes top to bottom", { timeout: 30_000 });
       await expect(page.locator(".cm-content")).toContainText("below=of a");
     };
-    await page.goto("/");
+    await page.goto("/editor/");
     await page.evaluate(() => navigator.serviceWorker.ready);
     await layOut();
     // elk.js is a chunk of its own, cached with the app.
@@ -165,7 +165,7 @@ test.describe("the app", () => {
       await page.getByTestId("import-close").click();
       await expect(page.locator(".cm-content")).toContainText("right=of a");
     };
-    await page.goto("/");
+    await page.goto("/editor/");
     await page.evaluate(() => navigator.serviceWorker.ready);
     await importBoth();
     await page.getByTestId("vision-select").selectOption("deuteranopia");
@@ -184,7 +184,7 @@ test.describe("the app", () => {
   });
 
   test("exports are real files: .tex, snippet, SVG, PDF, PNG", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/editor/");
     await expect(page.getByTestId("compiled-picture")).toBeAttached({ timeout: 45_000 });
     await setCode(page, FIGURE);
     await expect(page.getByTestId("compiled-picture")).toBeAttached();
@@ -210,7 +210,7 @@ test.describe("the app", () => {
   });
 
   test("a share link opens the same code for a new visitor, and the link holds no server address of ours to call", async ({ page, context }) => {
-    await page.goto("/");
+    await page.goto("/editor/");
     await expect(page.getByTestId("compiled-picture")).toBeAttached({ timeout: 45_000 });
     await setCode(page, FIGURE);
     await page.getByTestId("share-button").click();
@@ -225,6 +225,40 @@ test.describe("the app", () => {
     await expect(visitor.locator(".cm-content")).toContainText("LiveCheck", { timeout: 15_000 });
     await expect(visitor.getByTestId("compiled-picture")).toBeAttached({ timeout: 45_000 });
     await expect(visitor.getByText("LiveCheck").first()).toBeVisible();
+    // The same link as made before the editor moved (D92): at the home page's address, forwarded.
+    const old = await (await context.browser()!.newContext({ viewport: { width: 1400, height: 900 } })).newPage();
+    await old.goto(url.replace("/editor/#", "/#"));
+    await expect(old).toHaveURL(/\/editor\/#|\/editor\/$/);
+    await expect(old.locator(".cm-content")).toContainText("LiveCheck", { timeout: 15_000 });
+    await old.context().close();
     await visitor.context().close();
+  });
+});
+
+// The site around the editor (D89, D92): what Cloudflare Pages does with several pages.
+test.describe("the site", () => {
+  test("the home page, the editor and the 404 page are served as Cloudflare Pages should", async ({ request, page }) => {
+    const home = await request.get("/");
+    expect(home.status()).toBe(200);
+    expect(await home.text()).toContain('data-page="home"');
+    const editor = await request.get("/editor/");
+    expect(editor.status()).toBe(200);
+    expect(await editor.text()).toContain('data-page="editor"');
+    // An unknown address is a real 404 now, with the site's page (was: the app, status 200).
+    const missing = await request.get("/no-such-page/");
+    expect(missing.status()).toBe(404);
+    expect(await missing.text()).toContain("This page isn't here");
+    for (const f of ["/robots.txt", "/sitemap.xml", "/favicon.svg", "/boot.js"]) expect((await request.get(f)).status(), f).toBe(200);
+    // The home page draws, under the policy, and asks nothing of the engine.
+    const problems: string[] = [];
+    page.on("console", (m) => /content security policy|refused to/i.test(m.text()) && problems.push(m.text()));
+    page.on("pageerror", (e) => problems.push(String(e)));
+    const engineAsked: string[] = [];
+    page.on("request", (r) => r.url().includes("/engine/") && engineAsked.push(r.url()));
+    await page.goto("/");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(/Draw flowcharts/);
+    await page.waitForLoadState("networkidle");
+    expect(problems).toEqual([]);
+    expect(engineAsked).toEqual([]);
   });
 });

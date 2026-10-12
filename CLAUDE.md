@@ -37,7 +37,8 @@ A free, static, fully client-side web app for creating and editing TikZ flowchar
 ## Repo
 - Remote: `origin` → https://github.com/LoganAlexanderBurnett/tikzflow (default branch `trunk`).
 - Commands:
-  - `npm run dev`: starts the Vite dev server with the app at http://localhost:5173. The grammar playground is at `/src/debug/grammar.html`.
+  - `npm run dev`: starts the Vite dev server: the home page at http://localhost:5173/, the editor at http://localhost:5173/editor/ (D92). The grammar playground is at `/src/debug/grammar.html`.
+  - `npm run site:assets`: regenerates the site's committed pictures (the home page's sample, rendered by the engine, and the PNG icons). Needs the engine and Edge; `test/site.test.ts` fails when they are stale (D92).
   - `npm test`: runs Vitest. This includes the corpus round-trip tests, the interpreter and move tests, and the golden minimal-diff tests.
   - `npm run test:e2e`: runs the Playwright end-to-end tests in Edge. It starts its own dev server on port 5174.
   - `npm run typecheck`: runs strict `tsc`. `npm run build` type-checks and builds to `dist/`.
@@ -93,3 +94,5 @@ A free, static, fully client-side web app for creating and editing TikZ flowchar
   - `spike/`: Milestone 0 engine code, plus the fidelity harness and probes (`npm run fidelity`) and the engine comparison pages (`compare.html`, `dvicheck.html`, `ours.html`).
   - `spike/swimlanes/`: the three swimlane code forms shown to the owner for M4 step 4 (D77 item 3).
 - Shell quoting: backslashes in `node -e` and heredocs get mangled in this environment. Write files containing TeX or regexes with the editor tools, not shell one-liners.
+- Encodings: Windows PowerShell 5.1's `Get-Content` reads a UTF-8 file without a BOM as ANSI, so a read-modify-write through it garbles every non-ASCII character (it turned `·` into `Ã‚Â·` in index.html once). Edit files with the editor tools, or with `sed`/`perl` in the Bash tool.
+- Site layout (D92): `index.html` (home), `editor/index.html` (the app), `404.html`; `public/boot.js` (theme before first paint, old share links forwarded); `src/site/` (the site's script, CSS and committed pictures); `src/theme/` (tokens, fonts and the theme switch shared by the site and the editor, D91); `src/sw/pages.ts` (which kept page answers an address offline); `scripts/lib/compile.ts` (the engine in Node).
