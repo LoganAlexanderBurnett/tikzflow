@@ -27,7 +27,8 @@ export interface Compiled {
 }
 
 export interface Compiler {
-  compile(text: string, picture?: number, margin?: number): Promise<Compiled>;
+  /** `report` names nodes whose placement TeX writes to the log (D98). */
+  compile(text: string, picture?: number, margin?: number, report?: readonly string[]): Promise<Compiled>;
 }
 
 /** Loads the engine once; each `compile` starts from the dumped format, as the worker does. */
@@ -40,8 +41,8 @@ export async function engine(): Promise<Compiler> {
   const dump = read("core.dump.gz");
   const memory = new WebAssembly.Memory({ initial: PAGES, maximum: PAGES });
   return {
-    async compile(text, picture = 0, margin = 2) {
-      const input = buildCompileInput(analyzeDocument(text), picture, (f) => files.has(f));
+    async compile(text, picture = 0, margin = 2, report = []) {
+      const input = buildCompileInput(analyzeDocument(text), picture, (f) => files.has(f), undefined, report);
       if (!input) throw new Error("No picture to compile.");
       new Uint8Array(memory.buffer).set(dump);
       const run = await runTex(module, memory, {

@@ -85,3 +85,27 @@ export function parseTexLog(log: string): TexError[] {
 export function texAborted(log: string): boolean {
   return /\*\*\* \(job aborted|Emergency stop|TeX capacity exceeded/.test(log);
 }
+
+/** Where TeX put a node: its north, south, east and west anchors, in pt (D98). */
+export interface TexPlacement {
+  north: { x: number; y: number };
+  south: { x: number; y: number };
+  east: { x: number; y: number };
+  west: { x: number; y: number };
+}
+
+/**
+ * The placements the compile input asked TeX to report (`placementReport` in input.ts), by node name. TeX
+ * breaks long log lines, so the log is read with its line breaks taken out.
+ */
+export function parsePlacements(log: string): Map<string, TexPlacement> {
+  const flat = log.replace(/\r?\n/g, "");
+  const out = new Map<string, TexPlacement>();
+  const num = String.raw`\{(-?[\d.]+)pt\}`;
+  const point = num + num;
+  for (const m of flat.matchAll(new RegExp(String.raw`TFPLACE\{([^{}]*)\}` + point.repeat(4), "g"))) {
+    const v = m.slice(2, 10).map(Number);
+    out.set(m[1]!, { north: { x: v[0]!, y: v[1]! }, south: { x: v[2]!, y: v[3]! }, east: { x: v[4]!, y: v[5]! }, west: { x: v[6]!, y: v[7]! } });
+  }
+  return out;
+}

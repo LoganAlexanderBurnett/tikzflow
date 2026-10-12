@@ -25,14 +25,26 @@ export interface ShapeParams {
   /** "trapezium stretches": a minimum size stretches it instead of enlarging it with its angles kept. */
   trapeziumStretches?: boolean;
   shapeBorderRotate: number;
+  /** The node's line width: a cylinder's length depends on it (half of it is added, as pgf does). */
+  lineWidth?: number;
 }
 
 export interface NodeShape {
   kind: string;
+  /** The text's center: the `center` anchor. */
   center: Point;
-  /** Half width and half height of the drawn border, without outer sep. */
+  /** Half width and half height of the drawn border, without outer sep, about `center` plus `shift`. */
   hw: number;
   hh: number;
+  /**
+   * Where the drawn shape's own middle is, relative to `center`, when it isn't there: a cylinder's
+   * ends are not alike, so pgf puts its text off its middle (D98). Unturned frame, like the rest.
+   */
+  shift?: Point;
+  /** A cylinder's axis: the way its top points, 0 (east), 90, 180 or 270 degrees. */
+  axis?: number;
+  /** A trapezium's border with outer sep, as pgf works it out (each corner moved out along its miter), relative to the center: top left, top right, bottom right, bottom left. */
+  border?: Point[];
   outerX: number;
   outerY: number;
   roundedCorners: number;
@@ -118,7 +130,7 @@ export function makeShape(p: ShapeParams, center: Point): NodeShape {
     case "trapezium": {
       // As pgflibraryshapes.geometric does it: the slanted sides add 2y·cot(angle) each. A minimum
       // height or width enlarges the whole trapezium, angles kept, unless "trapezium stretches".
-      const turn = ((Math.round(p.shapeBorderRotate / 90) * 90) % 360 + 360) % 360;
+      const turn = borderTurn(p.shapeBorderRotate);
       let [x, y] = turn === 90 || turn === 270 ? [iy, ix] : [ix, iy];
       const cot = (a: number) => {
         const m = ((a % 360) + 360) % 360;
@@ -148,28 +160,65 @@ export function makeShape(p: ShapeParams, center: Point): NodeShape {
       const tl = { x: -x + Math.min(0, xa), y };
       const br = { x: x + Math.max(0, xb), y: -y };
       const tr = { x: x - Math.min(0, xb), y };
-      const poly = rotatePolygon([tl, tr, br, bl], p.shapeBorderRotate);
+      // The border pgf finds anchors on: each corner moved out by the outer sep along its miter,
+      // (∓o·cot(θ/2), ±o) for the interior angle θ there (the larger of the two outer seps).
+      const o = Math.max(p.outerXSep, p.outerYSep);
+      const corners = [tl, tr, br, bl];
+      const border = corners.map((q, i) => {
+        const prev = corners[(i + 3) % 4]!;
+        const next = corners[(i + 1) % 4]!;
+        const a1 = Math.atan2(prev.y - q.y, prev.x - q.x);
+        const a2 = Math.atan2(next.y - q.y, next.x - q.x);
+        let theta = Math.abs(a1 - a2);
+        if (theta > Math.PI) theta = 2 * Math.PI - theta;
+        const run = o / Math.tan(theta / 2);
+        const left = i === 0 || i === 3;
+        return { x: q.x + (left ? -run : run), y: q.y + (i < 2 ? o : -o) };
+      });
+      const poly = rotatePolygon(corners, turn);
       const hw = Math.max(...poly.map((q) => Math.abs(q.x)));
       const hh = Math.max(...poly.map((q) => Math.abs(q.y)));
-      return { ...base, hw, hh, polygon: poly };
+      return { ...base, hw, hh, polygon: poly, border: rotatePolygon(border, turn) };
     }
     case "rounded rectangle": {
-      const hh = Math.max(iy, p.minHeight / 2);
-      const hw = Math.max(ix + hh * 0.5, p.minWidth / 2);
-      return { ...base, hw, hh, roundedCorners: hh };
+      // As pgflibraryshapes.misc does it, with the default arcs (convex, 180°): the arcs' radius is
+      // half the height, and the text reaches into them by the chord its half height cuts. A minimum
+      // width sets the whole width less twice the inner xsep (pgf's own reckoning, checked: p12).
+      const htw = tw / 2;
+      const htt = th / 2;
+      const r = Math.max(htt + p.innerYSep, p.minHeight / 2);
+      const chord = r - Math.sqrt(Math.max(0, r * r - htt * htt));
+      let xoffset = p.innerXSep;
+      const across = 2 * (htw + p.innerXSep) + 2 * chord;
+      if (across < p.minWidth) xoffset = (p.minWidth - across) / 2;
+      // Wider when the two arcs would overlap.
+      if (r - chord > htw + xoffset) xoffset = r - chord - htw;
+      return { ...base, hw: htw + xoffset + chord, hh: r, roundedCorners: r };
     }
     case "cylinder": {
-      const vertical = Math.round(((p.shapeBorderRotate % 180) + 180) % 180) === 90;
-      if (vertical) {
-        const hw = Math.max(ix, p.minWidth / 2);
-        const ry = hw * 0.25 * p.aspect;
-        const hh = Math.max(iy + ry, p.minHeight / 2);
-        return { ...base, hw, hh, detail: ry, vertical: true };
-      }
-      const hh = Math.max(iy, p.minHeight / 2);
-      const rx = hh * 0.25 * p.aspect;
-      const hw = Math.max(ix + 2 * rx, p.minWidth / 2);
-      return { ...base, hw, hh, detail: rx, vertical: false };
+      // As pgflibraryshapes.geometric does it. In the cylinder's own frame its axis runs along x,
+      // with the top (the end whose ellipse shows) at +x; shape border rotate turns it by a multiple
+      // of 90°. The ends' x radius is aspect × the y radius. The text reaches into the bottom's
+      // ellipse but not the top's, so the shape's middle is off the text's center. A minimum height
+      // is along the axis, a minimum width across it.
+      const axis = borderTurn(p.shapeBorderRotate) % 360;
+      const across = axis === 90 || axis === 270;
+      let xa = across ? iy : ix;
+      let ya = across ? ix : iy;
+      const yc = across ? p.innerXSep : p.innerYSep;
+      const rx = p.aspect * ya;
+      let ry = ya;
+      if (ry < p.minWidth / 2) ry = ya = p.minWidth / 2;
+      const xb = Math.cos(Math.asin(Math.max(-1, Math.min(1, (ry - yc) / ry)))) * rx;
+      const lw = p.lineWidth ?? 0.4;
+      const length = 0.5 * lw + 2 * xa + 3 * rx - xb;
+      if (length < p.minHeight) xa += (p.minHeight - length) / 2;
+      const top = xa + rx + 0.5 * lw;
+      const bottom = -xa + xb;
+      const mid = (top + bottom) / 2;
+      const half = (top - bottom) / 2 + rx;
+      const u = AXIS[axis / 90]!;
+      return { ...base, hw: across ? ry : half, hh: across ? half : ry, detail: rx, axis, vertical: across, shift: { x: u.x * mid, y: u.y * mid } };
     }
     case "tape":
     case "document": {
@@ -183,6 +232,78 @@ export function makeShape(p: ShapeParams, center: Point): NodeShape {
       return { ...base, kind: kind === "rectangle split" ? "rectangle" : kind, hw, hh };
     }
   }
+}
+
+/** shape border rotate as pgf's trapezium and cylinder round it: to a multiple of 90°, from 0 to 360. */
+function borderTurn(deg: number): number {
+  const m = Math.trunc(deg % 360);
+  const c = Math.trunc((m + 45) / 90) * 90;
+  return c < 0 ? c + 360 : c;
+}
+
+/** Unit vectors along a cylinder's axis, by axis / 90. */
+const AXIS: Point[] = [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 0, y: -1 }];
+
+/** A point in a cylinder's own frame (axis along x, about its middle) in the shape's frame (about the text's center). */
+function fromAxis(sh: NodeShape, p: Point): Point {
+  const u = AXIS[(sh.axis ?? 0) / 90]!;
+  const s = sh.shift ?? { x: 0, y: 0 };
+  return { x: s.x + p.x * u.x - p.y * u.y, y: s.y + p.x * u.y + p.y * u.x };
+}
+
+/** The cylinder's ends: the distance from its middle to each end's ellipse center, and the ellipse's radii (drawn, without outer sep). */
+function cylinderParts(sh: NodeShape): { lc: number; rx: number; ry: number } {
+  const across = sh.axis === 90 || sh.axis === 270;
+  const rx = sh.detail ?? 0;
+  return { lc: (across ? sh.hh : sh.hw) - rx, rx, ry: across ? sh.hw : sh.hh };
+}
+
+/**
+ * Where a ray from `o` (relative to the text's center, in the shape's frame) in direction (ux, uy)
+ * leaves a cylinder's outer border: the two straight sides and the two ends' half ellipses, with the
+ * outer sep added to every radius as pgf does.
+ */
+function rayCylinder(sh: NodeShape, o: Point, ux: number, uy: number): Point | null {
+  const { lc, rx, ry } = cylinderParts(sh);
+  const sep = Math.max(sh.outerX, sh.outerY);
+  const a = rx + sep;
+  const b = ry + sep;
+  const u = AXIS[(sh.axis ?? 0) / 90]!;
+  const s = sh.shift ?? { x: 0, y: 0 };
+  // Into the cylinder's frame: subtract its middle, turn back by the axis.
+  const back = (p: Point) => ({ x: p.x * u.x + p.y * u.y, y: -p.x * u.y + p.y * u.x });
+  const O = back({ x: o.x - s.x, y: o.y - s.y });
+  const d = back({ x: ux, y: uy });
+  let best = -Infinity;
+  for (const side of [b, -b]) {
+    if (Math.abs(d.y) < 1e-12) continue;
+    const t = (side - O.y) / d.y;
+    const x = O.x + t * d.x;
+    if (t > 0 && x >= -lc - 1e-9 && x <= lc + 1e-9) best = Math.max(best, t);
+  }
+  for (const end of [lc, -lc]) {
+    const px = (O.x - end) / a;
+    const py = O.y / b;
+    const qx = d.x / a;
+    const qy = d.y / b;
+    const A = qx * qx + qy * qy;
+    const B = 2 * (px * qx + py * qy);
+    const C = px * px + py * py - 1;
+    const disc = B * B - 4 * A * C;
+    if (A < 1e-18 || disc < 0) continue;
+    for (const t of [(-B + Math.sqrt(disc)) / (2 * A), (-B - Math.sqrt(disc)) / (2 * A)]) {
+      const x = O.x + t * d.x;
+      if (t > 0 && (end > 0 ? x >= lc - 1e-9 : x <= -lc + 1e-9)) best = Math.max(best, t);
+    }
+  }
+  if (!Number.isFinite(best)) return null;
+  return { x: o.x + ux * best, y: o.y + uy * best };
+}
+
+/** Where a ray from `o` (relative to the center) leaves a convex polygon given relative to the center. */
+function rayPolygonFrom(poly: Point[], o: Point, ux: number, uy: number): Point | null {
+  const t = rayPolygon(poly.map((q) => ({ x: q.x - o.x, y: q.y - o.y })), ux, uy);
+  return t === null ? null : { x: o.x + ux * t, y: o.y + uy * t };
 }
 
 function rotatePolygon(poly: Point[], deg: number): Point[] {
@@ -228,8 +349,16 @@ export function borderInDirection(sh: NodeShape, dx: number, dy: number): Point 
     case "diamond":
       t = 1 / (Math.abs(ux) / a + Math.abs(uy) / b);
       break;
+    case "cylinder": {
+      const p = rayCylinder(sh, { x: 0, y: 0 }, ux, uy);
+      if (p) return { x: c.x + p.x, y: c.y + p.y };
+      t = Math.min(a / Math.abs(ux || 1e-12), b / Math.abs(uy || 1e-12));
+      break;
+    }
     default:
-      if (sh.polygon) {
+      if (sh.border) {
+        t = rayPolygon(sh.border, ux, uy) ?? Math.min(a / Math.abs(ux || 1e-12), b / Math.abs(uy || 1e-12));
+      } else if (sh.polygon) {
         t = rayPolygon(outerPolygon(sh), ux, uy) ?? Math.min(a / Math.abs(ux || 1e-12), b / Math.abs(uy || 1e-12));
       } else if (sh.kind === "rounded rectangle") {
         t = rayRoundedRect(a, b, ux, uy);
@@ -306,6 +435,10 @@ export function anchorPoint(sh: NodeShape, name: string): Point | null {
   if (n === "base west" || n === "base east" || n === "mid west" || n === "mid east") {
     const y = n.startsWith("base") ? base : base + sh.midOffset;
     const dir = n.endsWith("west") ? -1 : 1;
+    // pgf's trapezium and cylinder cast the ray from the base or mid point itself (D98).
+    const from = { x: 0, y: y - c.y };
+    const hit = sh.border ? rayPolygonFrom(sh.border, from, dir, 0) : sh.kind === "cylinder" ? rayCylinder(sh, from, dir, 0) : null;
+    if (hit) return { x: c.x + hit.x, y };
     const edge = borderInDirection(sh, dir, 0);
     return { x: edge.x, y };
   }
@@ -313,41 +446,42 @@ export function anchorPoint(sh: NodeShape, name: string): Point | null {
   const comp = COMPASS[n];
   if (!comp) {
     // Shape-specific anchors.
-    if (sh.polygon && sh.kind === "trapezium") {
-      const poly = outerPolygon(sh);
+    if (sh.border) {
+      const k = sh.border;
+      const at = (p: Point, q: Point = p) => ({ x: c.x + (p.x + q.x) / 2, y: c.y + (p.y + q.y) / 2 });
       const pick: Record<string, number> = { "top left corner": 0, "top right corner": 1, "bottom right corner": 2, "bottom left corner": 3 };
       const i = pick[n];
-      if (i !== undefined) return { x: c.x + poly[i]!.x, y: c.y + poly[i]!.y };
-      if (n === "top side") return { x: c.x, y: c.y + b };
-      if (n === "bottom side") return { x: c.x, y: c.y - b };
+      if (i !== undefined) return at(k[i]!);
+      if (n === "top side") return at(k[0]!, k[1]!);
+      if (n === "right side") return at(k[1]!, k[2]!);
+      if (n === "bottom side") return at(k[2]!, k[3]!);
+      if (n === "left side") return at(k[3]!, k[0]!);
+    }
+    if (sh.kind === "cylinder") {
+      const { lc, rx } = cylinderParts(sh);
+      const reach = lc + rx + Math.max(sh.outerX, sh.outerY);
+      const p = n === "shape center" ? fromAxis(sh, { x: 0, y: 0 }) : n === "top" ? fromAxis(sh, { x: reach, y: 0 }) : n === "bottom" ? fromAxis(sh, { x: -reach, y: 0 }) : null;
+      if (p) return { x: c.x + p.x, y: c.y + p.y };
     }
     return null;
   }
   const [ux, uy] = comp;
-  if (ux === 0 || uy === 0) {
-    if (sh.kind === "trapezium" && sh.polygon && uy === 0) {
-      // Midpoints of the slanted sides.
-      const poly = outerPolygon(sh);
-      const [p, q] = ux > 0 ? [poly[1]!, poly[2]!] : [poly[0]!, poly[3]!];
-      return { x: c.x + (p.x + q.x) / 2, y: c.y + (p.y + q.y) / 2 };
-    }
-    return borderInDirection(sh, ux, uy);
-  }
+  if (ux === 0 || uy === 0) return borderInDirection(sh, ux, uy);
   switch (sh.kind) {
     case "rectangle":
     case "tape":
     case "document":
-    case "cylinder":
-    case "rounded rectangle":
       return { x: c.x + ux * a, y: c.y + uy * b };
+    case "rounded rectangle":
+      // Where the arcs meet the straight sides (pgf's convex ends).
+      return { x: c.x + ux * Math.max(0, sh.hw - sh.hh), y: c.y + uy * b };
+    case "ellipse":
+      // The point at 45° of the ellipse's parameter, not on the 45° ray.
+      return { x: c.x + ux * a * Math.SQRT1_2, y: c.y + uy * b * Math.SQRT1_2 };
     case "diamond":
       return { x: c.x + (ux * a) / 2, y: c.y + (uy * b) / 2 };
-    case "trapezium": {
-      const poly = outerPolygon(sh);
-      const i = uy > 0 ? (ux < 0 ? 0 : 1) : ux > 0 ? 2 : 3;
-      return { x: c.x + poly[i]!.x, y: c.y + poly[i]!.y };
-    }
     default:
+      // The trapezium and the cylinder: where the 45° ray from the center leaves the border.
       return borderInDirection(sh, ux, uy);
   }
 }
@@ -372,17 +506,17 @@ export function outline(sh: NodeShape): string {
       return `M ${pt(-hw + r, hh)} L ${pt(hw - r, hh)} A ${f(r)} ${f(r)} 0 0 0 ${pt(hw - r, -hh)} L ${pt(-hw + r, -hh)} A ${f(r)} ${f(r)} 0 0 0 ${pt(-hw + r, hh)} Z`;
     }
     case "cylinder": {
-      const d = sh.detail ?? 3;
-      if (sh.vertical) {
-        // Body plus the visible top ellipse.
-        return (
-          `M ${pt(-hw, hh - d)} A ${f(hw)} ${f(d)} 0 0 1 ${pt(hw, hh - d)} L ${pt(hw, -hh + d)} ` +
-          `A ${f(hw)} ${f(d)} 0 0 1 ${pt(-hw, -hh + d)} Z M ${pt(-hw, hh - d)} A ${f(hw)} ${f(d)} 0 0 0 ${pt(hw, hh - d)}`
-        );
-      }
+      // In the cylinder's own frame (axis along x, top at +x), then turned onto its axis: the body,
+      // then the visible half of the top's ellipse.
+      const { lc, rx, ry } = cylinderParts(sh);
+      const q = (x: number, y: number) => {
+        const p = fromAxis(sh, { x, y });
+        return pt(p.x, p.y);
+      };
+      const r = sh.vertical ? `${f(ry)} ${f(rx)}` : `${f(rx)} ${f(ry)}`;
       return (
-        `M ${pt(-hw + d, hh)} L ${pt(hw - d, hh)} A ${f(d)} ${f(hh)} 0 0 1 ${pt(hw - d, -hh)} L ${pt(-hw + d, -hh)} ` +
-        `A ${f(d)} ${f(hh)} 0 0 1 ${pt(-hw + d, hh)} Z M ${pt(hw - d, hh)} A ${f(d)} ${f(hh)} 0 0 0 ${pt(hw - d, -hh)}`
+        `M ${q(-lc, ry)} L ${q(lc, ry)} A ${r} 0 0 1 ${q(lc, -ry)} L ${q(-lc, -ry)} ` +
+        `A ${r} 0 0 1 ${q(-lc, ry)} Z M ${q(lc, ry)} A ${r} 0 0 0 ${q(lc, -ry)}`
       );
     }
     case "tape":
@@ -434,20 +568,27 @@ export function roundedPolygon(pts: Point[], r: number, f: (v: number) => number
 
 /** The axis-aligned bounding box including outer sep. */
 export function shapeBounds(sh: NodeShape): { minX: number; minY: number; maxX: number; maxY: number } {
+  const s = sh.shift ?? { x: 0, y: 0 };
   if (sh.rotate) {
     const a = sh.hw + sh.outerX;
     const b = sh.hh + sh.outerY;
     // A circle looks the same turned; anything else: the box round its turned corners.
     if (sh.kind === "circle") return { minX: sh.center.x - a, maxX: sh.center.x + a, minY: sh.center.y - a, maxY: sh.center.y + a };
-    const pts = [{ x: a, y: b }, { x: -a, y: b }, { x: a, y: -b }, { x: -a, y: -b }].map((p) => placed(sh, p));
+    const pts = [{ x: a, y: b }, { x: -a, y: b }, { x: a, y: -b }, { x: -a, y: -b }].map((p) => placed(sh, { x: p.x + s.x, y: p.y + s.y }));
     return { minX: Math.min(...pts.map((p) => p.x)), maxX: Math.max(...pts.map((p) => p.x)), minY: Math.min(...pts.map((p) => p.y)), maxY: Math.max(...pts.map((p) => p.y)) };
   }
   return {
-    minX: sh.center.x - sh.hw - sh.outerX,
-    maxX: sh.center.x + sh.hw + sh.outerX,
-    minY: sh.center.y - sh.hh - sh.outerY,
-    maxY: sh.center.y + sh.hh + sh.outerY,
+    minX: sh.center.x + s.x - sh.hw - sh.outerX,
+    maxX: sh.center.x + s.x + sh.hw + sh.outerX,
+    minY: sh.center.y + s.y - sh.hh - sh.outerY,
+    maxY: sh.center.y + s.y + sh.hh + sh.outerY,
   };
+}
+
+/** The middle of the drawn shape: its center, unless it is drawn off its text (a cylinder). */
+export function shapeMiddle(sh: NodeShape): Point {
+  if (!sh.shift) return sh.center;
+  return sh.rotate ? placed(sh, sh.shift) : { x: sh.center.x + sh.shift.x, y: sh.center.y + sh.shift.y };
 }
 
 /** For anchoring: the offset from the center to anchor `name` of a shape placed at the origin. */

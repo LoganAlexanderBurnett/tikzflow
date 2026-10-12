@@ -7,7 +7,8 @@
 import { computed, effect, signal } from "@preact/signals";
 import { EngineClient, type EngineState } from "../engine/client.ts";
 import { buildCompileInput, type CompileInput, locate } from "../engine/input.ts";
-import type { TexError } from "../engine/log.ts";
+import { parsePlacements, type TexError, type TexPlacement } from "../engine/log.ts";
+import { type Misplaced, misplaced, reportNames } from "../engine/placement.ts";
 import type { CompileOutcome } from "../engine/protocol.ts";
 import { engineBase } from "../engine/release.ts";
 import type { Range } from "../model/syntax.ts";
@@ -48,6 +49,8 @@ export interface Compiled {
   picture: number;
   input: CompileInput;
   outcome: CompileOutcome;
+  /** Where TeX put the picture's named nodes (D98), when the input asked. */
+  placements?: ReadonlyMap<string, TexPlacement>;
 }
 export const compiled = signal<Compiled | null>(null);
 /** A compile is waiting or running for the current text. */
@@ -159,6 +162,27 @@ export const previewErrors = computed<PreviewError[]>(() => {
  */
 export const shownErrors = computed<PreviewError[]>(() => (showingCompiled.value ? previewErrors.value : []));
 
+/**
+ * Nodes TeX puts more than a point away from where the quick preview does, or draws a point bigger or
+ * smaller (D98): the editor's geometry is wrong for them, so their outlines and the positions a drag writes
+ * would be off. Only for TeX's picture of the code as it is now.
+ */
+export const misplacedNodes = computed<Misplaced[]>(() => {
+  const c = freshCompiled.value;
+  const l = layout.value;
+  if (!c?.placements || !c.outcome.svg || !l) return [];
+  return misplaced(l, c.placements);
+});
+
+/** The note for misplaced nodes, naming the first few. */
+export function misplacedNote(list: readonly Misplaced[]): string {
+  const names = list.slice(0, 4).map((m) => m.name).join(", ") + (list.length > 4 ? ", …" : "");
+  const worst = Math.round(list[0]!.off * 10) / 10;
+  const one = list.length === 1;
+  const what = one ? `${names} ${worst} pt from where the editor's own drawing does` : `${list.length} nodes (${names}) up to ${worst} pt from where the editor's own drawing does`;
+  return `TeX puts ${what} (marked on the canvas; select one to see TeX's box). ${one ? "Its outline" : "Their outlines"} here, and positions written when you drag ${one ? "it" : "them"} or place nodes next to ${one ? "it" : "them"}, may be off by as much. A point or two comes from estimated text widths; if it is more, please tell us with Report a problem.`;
+}
+
 /** Things the user should know about the latest compile: left-out packages, fonts, missing files. */
 export const previewNotices = computed<string[]>(() => {
   const c = compiled.value;
@@ -193,6 +217,8 @@ export const previewNotices = computed<string[]>(() => {
   if (ts1Errors.value.length) out.push("The preview has no fonts for text symbols such as \\textdegree or \\texteuro (LaTeX's TS1 encoding), so they are left out of the picture here. LaTeX draws them in your document.");
   if (c.outcome.missingFonts.length) out.push(`Text in ${list(c.outcome.missingFonts)} isn't drawn: the preview has only Computer Modern and the AMS fonts.`);
   if (c.outcome.aborted) out.push("TeX gave up before the end of the picture, so the accurate preview is missing.");
+  const off = misplacedNodes.value;
+  if (off.length) out.push(misplacedNote(off));
   return out;
 });
 
@@ -310,13 +336,14 @@ export function startPreview(base = engineBase(new URLSearchParams(location.sear
     const tab = pictureOwner;
     const t = text.peek();
     const picture = currentPicture.peek();
-    const input = buildCompileInput(doc.peek(), picture, (f) => available!.has(f), pageSettings.peek());
+    // The layout of the code being compiled, kept with TeX's picture of it for patching later (D96); TeX is
+    // asked where it puts each of its named nodes, to check the layout against (D98).
+    const drawn = baseLayout.peek();
+    const input = buildCompileInput(doc.peek(), picture, (f) => available!.has(f), pageSettings.peek(), drawn ? reportNames(drawn) : []);
     if (!input) {
       compiling.value = false;
       return;
     }
-    // The layout of the code being compiled, kept with TeX's picture of it for patching later (D96).
-    const drawn = baseLayout.peek();
     const keep = (c: Compiled) => {
       if (drawn && c.outcome.svg && c.outcome.picture) lastPicture.value = { compiled: c, layout: drawn };
     };
@@ -334,7 +361,7 @@ export function startPreview(base = engineBase(new URLSearchParams(location.sear
       if (!outcome) return; // replaced by a newer compile
       // Another tab was shown meanwhile: this picture is of the tab that was left (D97).
       if (tab !== pictureOwner) return;
-      compiled.value = { text: t, picture, input, outcome };
+      compiled.value = { text: t, picture, input, outcome, placements: parsePlacements(outcome.log) };
       keep(compiled.value);
     } catch (e) {
       engineState.value = { kind: "unavailable", reason: e instanceof Error ? e.message : String(e) };

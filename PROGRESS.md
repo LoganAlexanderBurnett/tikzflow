@@ -20,7 +20,7 @@ Milestone 0 is done and was approved on 2026-10-07:
 
 **Milestone 4 (layout and import): done, reviewed by the owner, merged into `trunk` and live at https://tikzflow.pages.dev (2026-10-11, D88).** The owner approved the two decisions of the report (groups kept together only when they would otherwise cross, and always for import; `$` drawn from Computer Modern with a quiet note for other TS1 symbols). `m4` was merged by fast-forward (`trunk` e76cde4), the production deploy serves the same build as the `m4` preview, and `npm run test:live` against it passes (11 of 11). See "Milestone 4: merged and live" below. The owner has since confirmed that "Report a problem" shows the issue form when signed in.
 
-**Milestone 5 (user experience and website): in progress on `m5` (D89).** SPEC Milestone 5 is split: M5 is the user-facing work, M6 the performance target and the release paperwork (license audit, README). Steps 0–6 are done; step 6 waits for the owner's review. See "M5 plan and status" below. **Milestone 7 (neural network diagrams)** was added after M6 by the owner (D96), to be planned later.
+**Milestone 5 (user experience and website): in progress on `m5` (D89).** SPEC Milestone 5 is split: M5 is the user-facing work, M6 the performance target and the release paperwork (license audit, README). Steps 0–6 are done and reviewed (D98); the bug found in the step 6 review is fixed (D98); steps 7 and 8 follow without a pause. See "M5 plan and status" below. **Milestone 7 (neural network diagrams)** was added after M6 by the owner (D96), to be planned later.
 
 Also read "Notes for later milestones" below.
 
@@ -33,13 +33,19 @@ Also read "Notes for later milestones" below.
 | 3 | The chosen design applied to the home page, help and the editor's chrome; light/dark/system switch; self-hosted fonts; contrast rechecked | Done (D93); reviewed and approved by the owner (D94) |
 | 4 | Nine templates (D89 item 4), with no locked blocks, compiled in CI by pdfLaTeX and our engine; gallery on the home page and in the editor's New menu; the state machine's `loop`/`initial`/`accepting` if moderate | Done (D95); reviewed and approved by the owner (D96) |
 | 5 | First run (Paste TikZ, Start blank, Start from a template; the sample becomes Basic process), the `?` shortcut overlay, the edit flicker (D69 item 4); the summary counts groups (D96 item 3) | Done (D96); reviewed and approved by the owner (D97) |
-| 6 | Multiple tabs (D86 item 5): own code, undo, file, autosave and TeX picture per tab; open, import, share links and templates open a tab; engine stopped while the browser tab is hidden (D69 item 4) | Done (D97); **waiting for the owner's review** (see "M5 step 6" below) |
+| 6 | Multiple tabs (D86 item 5): own code, undo, file, autosave and TeX picture per tab; open, import, share links and templates open a tab; engine stopped while the browser tab is hidden (D69 item 4) | Done (D97); approved (D98). The bug found in review (a node placed diagonally from a trapezium) is fixed, with TeX now reporting where it puts each node (D98; see "Fix after the step 6 review" below) |
 | 7 | Help: static pages from Markdown, client-side search (MiniSearch), screenshots made by a script | Not started |
 | 8 | Goldens, end-to-end, offline and live checks on the `m5` preview; docs; if time allows, two or three neural-network templates the editor handles fully, with which Milestone 7 features they show are needed most (D96 item 4); **Milestone 5 report** | Not started |
 
 Milestone 6 (after M5's review): smooth dragging with 200 nodes; license audit and `THIRD_PARTY_LICENSES.md` (the items under "Milestone 5: license audit items" below move there); README with features, screenshots, local setup and deployment; a friendly note on phone-sized screens instead of a cramped editor (D97).
 
 Milestone 7 (after M6, to be planned later; D96 item 4): neural network diagrams. See "Notes for later milestones".
+
+## Fix after the step 6 review: corner anchors, and TeX reporting placements (2026-10-12)
+The owner approved step 6 and its defaults (D98) and found a bug: after dragging "Answer 1" in the Basic process template, the code said `below right=7mm and 1.8cm of read` and the selection outline sat right of TeX's box.
+- **Cause (pdfTeX probe `p12-diagonal-anchors.tex`):** pgf's trapezium `south east` is where the 45° ray meets the border, not the corner; the preview used the corner, 23.2pt off. The probe checks every shape's corner anchors: the ellipse (29pt), rounded rectangle (11pt, and 5pt too wide) and cylinder (12pt, drawn off its text in pgf) were wrong too. All fixed; the probe is 57 of 66 within 1pt (left: tape 1.0pt, and the split shapes, already marked "not drawn"). Corpus and templates: nothing worse; `npm run fidelity` now also compares corner anchors.
+- **Safeguard (D98):** TeX writes where it put each named node to its log; a node more than 1pt off the quick preview gets a marker, TeX's dashed box when selected, and a note in the TeX preview's notes. It flags rather than corrects (D98 says why). Today it flags nothing in the templates and 50 nodes in 9 of 28 corpus pictures (1–16pt, mostly text-width estimates): **a decision for the owner**, 1pt or a wider bar.
+- **Tests:** `test/anchors.test.ts` (every probe node's eight compass anchors against TeX's numbers, and the owner's case), `test/placement-engine.test.ts` (with the engine: the report parses, draws nothing, flags nothing in the templates, would flag the old error), `test/e2e/placement.spec.ts` (the outline on TeX's box; the marker, box and note). Vitest 1,680; Playwright 184.
 
 ## M5 step 6: multiple tabs (2026-10-12)
 The owner approved step 5 (D97): the start screen, the shortcut list and the flicker fix. A phone-width note in the editor is added to Milestone 6. Then step 6 (D97). **Stopped here for the owner's review.**

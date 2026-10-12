@@ -26,7 +26,7 @@ import { undrawable } from "../model/explain.ts";
 import { type RGB, cssColor } from "../tikz/colors.ts";
 import { defaultTipLength, defaultTipWidth } from "../tikz/keys.ts";
 import type { LaidOutNode, LaidOutPath, PictureLayout, Tip } from "../tikz/layout.ts";
-import { anchorPoint, outline, type Point } from "../tikz/shapes.ts";
+import { anchorPoint, outline, type Point, shapeMiddle } from "../tikz/shapes.ts";
 import { PT_PER_UNIT } from "../tikz/units.ts";
 import type { Shading } from "../tikz/state.ts";
 import { katexMacros, labelHtml } from "./labelHtml.ts";
@@ -35,7 +35,7 @@ import { WidthGuide } from "./pagepanel.tsx";
 import { ContrastMarks, selectContrastIssue } from "./contrastmarks.tsx";
 import { labelFix, LabelFixMenu, LabelWarnings } from "./labelwarning.tsx";
 import { VisionFilter, visionFilterAttr } from "./visionui.tsx";
-import { pickBlock, selectedBlock, showingTex, STALE_HIDE, STALE_SHOW, stalePicture } from "./preview.ts";
+import { misplacedNodes, pickBlock, selectedBlock, showingTex, STALE_HIDE, STALE_SHOW, stalePicture } from "./preview.ts";
 import {
   activeScope,
   applyEdgeEdit,
@@ -104,12 +104,40 @@ function CoordinateMark({ n, scale, selected, unused }: { n: LaidOutNode; scale:
   );
 }
 
+/**
+ * Nodes TeX put elsewhere than the editor (D98): TeX's box, dashed, where TeX's picture shows the node, and a
+ * marker on the editor's own box, whose outline the selection follows.
+ */
+function MisplacedMarks({ layout, scale, selected }: { layout: PictureLayout | null; scale: number; selected: readonly string[] }) {
+  const list = misplacedNodes.value;
+  if (!list.length || !layout) return null;
+  return (
+    <g class="tf-misplaced" data-testid="misplaced-marks">
+      {list.map((m) => {
+        const n = layout.nodes.find((x) => x.id === m.id);
+        if (!n) return null;
+        const mid = shapeMiddle(n.shape);
+        const note = `TeX puts ${m.name} ${Math.round(m.off * 10) / 10} pt from where the editor's own drawing does, so its outline here and positions written next to it may be off. Select it to see TeX's box.`;
+        return (
+          <g key={m.id} data-node={n.id} data-testid="misplaced-marker">
+            <title>{note}</title>
+            {selected.includes(n.id) && (
+              <rect data-testid="misplaced-tex-box" x={f(m.tex.x - m.tex.w / 2)} y={f(-(m.tex.y + m.tex.h / 2))} width={f(m.tex.w)} height={f(m.tex.h)} stroke-width={f(1.2 / scale)} stroke-dasharray={`${3 / scale} ${2 / scale}`} />
+            )}
+            <circle cx={f(mid.x - n.shape.hw)} cy={f(-(mid.y + n.shape.hh))} r={f(4 / scale)} stroke-width={f(1.2 / scale)} />
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
 /** A small marker on a node with options the preview can't draw. */
 function UndrawnMark({ n, scale }: { n: LaidOutNode; scale: number }) {
   const what = undrawable(n);
   if (!what.length) return null;
-  const x = f(n.shape.center.x + n.shape.hw);
-  const y = f(-(n.shape.center.y + n.shape.hh));
+  const x = f(shapeMiddle(n.shape).x + n.shape.hw);
+  const y = f(-(shapeMiddle(n.shape).y + n.shape.hh));
   return (
     <g data-node={n.id} class="tf-undrawn" data-testid="undrawn-marker">
       <title>{`The preview doesn't draw: ${what.join(", ")}. They're kept in the code and will show in the accurate preview.`}</title>
@@ -322,8 +350,8 @@ function EdgeDragOverlay({ view, layout, scale }: { view: EdgeDragView; layout: 
     <g class={`tf-edge-drag${view.ok ? "" : " refused"}`} data-testid="edge-drag">
       {n && (
         <rect
-          x={f(n.shape.center.x - n.shape.hw - 3 / scale)}
-          y={f(n.shape.center.y - n.shape.hh - 3 / scale)}
+          x={f(shapeMiddle(n.shape).x - n.shape.hw - 3 / scale)}
+          y={f(shapeMiddle(n.shape).y - n.shape.hh - 3 / scale)}
           width={f(2 * n.shape.hw + 6 / scale)}
           height={f(2 * n.shape.hh + 6 / scale)}
           class="tf-drop-target"
@@ -1919,6 +1947,7 @@ export function Canvas() {
           <UndrawnMark key={`mark-${n.id}`} n={n} scale={v.scale} />
         ) : null,
       )}
+      <MisplacedMarks layout={l} scale={v.scale} selected={selIds} />
       <g transform="scale(1 -1)" class="tf-overlay">
         {selEdge && <EdgeSelection edge={selEdge} scale={v.scale} />}
         {selEdge && !selEdge.lock && selEdge.mode !== "loop" && !edgeDrag.value && <VertexHandles edge={selEdge} scale={v.scale} />}
@@ -1931,8 +1960,8 @@ export function Canvas() {
         <ContrastMarks scale={v.scale} hidden={!!overrides.value.size || !!previewLayout.value || !!edgeDrag.value || !!labelEdit.value} />
         {selected.map((n) => (
           <rect
-            x={f(n.shape.center.x - n.shape.hw - 3 / v.scale)}
-            y={f(n.shape.center.y - n.shape.hh - 3 / v.scale)}
+            x={f(shapeMiddle(n.shape).x - n.shape.hw - 3 / v.scale)}
+            y={f(shapeMiddle(n.shape).y - n.shape.hh - 3 / v.scale)}
             width={f(2 * n.shape.hw + 6 / v.scale)}
             height={f(2 * n.shape.hh + 6 / v.scale)}
             class={`tf-selection${n.locked ? " locked" : ""}`}
@@ -1948,8 +1977,8 @@ export function Canvas() {
                 key={h.id}
                 data-handle={h.id}
                 data-testid="resize-handle"
-                x={f(handleNode.shape.center.x + h.fx * (handleNode.shape.hw + 3 / v.scale) - r)}
-                y={f(handleNode.shape.center.y + h.fy * (handleNode.shape.hh + 3 / v.scale) - r)}
+                x={f(shapeMiddle(handleNode.shape).x + h.fx * (handleNode.shape.hw + 3 / v.scale) - r)}
+                y={f(shapeMiddle(handleNode.shape).y + h.fy * (handleNode.shape.hh + 3 / v.scale) - r)}
                 width={f(2 * r)}
                 height={f(2 * r)}
                 class="tf-handle"

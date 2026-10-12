@@ -20,6 +20,11 @@ export interface NodeDiff {
   center: number;
   /** Width (west to east) and height (south to north) differences, in pt. */
   size: [number, number];
+  /** The largest distance between TeX's and the native north east, north west, south east and south west (D98), in pt. */
+  corners: number;
+  /** TeX's and the native north east, north west, south east and south west, as [x, y] each. */
+  texCorners?: Anchors | undefined;
+  nativeCorners?: Anchors;
   tex: Anchors;
   native: Anchors;
 }
@@ -49,6 +54,7 @@ const sources = {
 const only = new URLSearchParams(location.search).get("only");
 const SIMPLE = /^[A-Za-z0-9_\-:.]+$/;
 const COMPASS = ["north", "south", "east", "west"] as const;
+const CORNERS = ["north east", "north west", "south east", "south west"] as const;
 
 /** Libraries assumed for pictures pasted without their preamble. */
 const BARE_LIBRARIES = ["positioning", "shapes.geometric", "shapes.misc", "arrows.meta", "calc", "fit", "backgrounds", "matrix", "chains"];
@@ -68,7 +74,9 @@ function jobFor(text: string, picIndex: number): { job: Job; names: string[] } {
     .map(
       (n) =>
         COMPASS.map((a, i) => `\\path (${n}.${a});\\pgfgetlastxy{\\tfx${"abcd"[i]}}{\\tfy${"abcd"[i]}}`).join("") +
-        `\\typeout{TFNODE{${n}}{\\tfxa}{\\tfya}{\\tfxb}{\\tfyb}{\\tfxc}{\\tfyc}{\\tfxd}{\\tfyd}}`,
+        `\\typeout{TFNODE{${n}}{\\tfxa}{\\tfya}{\\tfxb}{\\tfyb}{\\tfxc}{\\tfyc}{\\tfxd}{\\tfyd}}` +
+        CORNERS.map((a, i) => `\\path (${n}.${a});\\pgfgetlastxy{\\tfx${"abcd"[i]}}{\\tfy${"abcd"[i]}}`).join("") +
+        `\\typeout{TFCORNER{${n}}{\\tfxa}{\\tfya}{\\tfxb}{\\tfyb}{\\tfxc}{\\tfyc}{\\tfxd}{\\tfyd}}`,
     )
     .join("\n");
   const picText = text.slice(pic.from, pic.end.from) + probes + "\n" + text.slice(pic.end.from, pic.to);
@@ -95,11 +103,11 @@ function jobFor(text: string, picIndex: number): { job: Job; names: string[] } {
   };
 }
 
-function parseLog(log: string): Map<string, Anchors> {
+function parseLog(log: string, tag = "TFNODE"): Map<string, Anchors> {
   const flat = log.replace(/\r?\n/g, "");
   const out = new Map<string, Anchors>();
   const num = String.raw`\{(-?[\d.]+)pt\}`;
-  for (const m of flat.matchAll(new RegExp(String.raw`TFNODE\{([^}]*)\}` + num.repeat(8), "g"))) {
+  for (const m of flat.matchAll(new RegExp(tag + String.raw`\{([^}]*)\}` + num.repeat(8), "g"))) {
     out.set(m[1]!, m.slice(2, 10).map(Number) as Anchors);
   }
   return out;
@@ -120,6 +128,7 @@ async function run() {
       const built = jobFor(text, i);
       const res = await engine.compile(built.job);
       const tex = parseLog(res.log);
+      const texCorners = parseLog(res.log, "TFCORNER");
       const layout = layoutDocumentPicture(doc, i)!;
       const nodes: NodeDiff[] = [];
       const missing: string[] = [];
@@ -134,12 +143,21 @@ async function run() {
           const p = anchorPoint(n.shape, a) ?? n.shape.center;
           return [p.x, p.y];
         }) as Anchors;
+        const tk = texCorners.get(name);
+        const nk = CORNERS.flatMap((a) => {
+          const p = anchorPoint(n.shape, a) ?? n.shape.center;
+          return [p.x, p.y];
+        });
+        const corners = tk ? Math.max(...[0, 1, 2, 3].map((i) => Math.hypot(tk[2 * i]! - nk[2 * i]!, tk[2 * i + 1]! - nk[2 * i + 1]!))) : 0;
         const tc = mid(t);
         const nc = mid(native);
         nodes.push({
           name,
           center: Math.hypot(tc[0]! - nc[0]!, tc[1]! - nc[1]!),
           size: [native[4] - native[6] - (t[4] - t[6]), native[1] - native[3] - (t[1] - t[3])],
+          corners,
+          texCorners: tk,
+          nativeCorners: nk as Anchors,
           tex: t,
           native,
         });

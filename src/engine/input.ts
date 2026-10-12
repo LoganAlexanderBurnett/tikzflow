@@ -71,6 +71,17 @@ const SKIPPED = new Set(["hyperref", "geometry", "fullpage", "showframe", "previ
  */
 const OT1_DOLLAR = String.raw`\makeatletter\ProvideTextCommand{\textdollar}{OT1}{\hmode@bgroup\ifdim\fontdimen\@ne\font>\z@\slshape\else\upshape\fi\char36\egroup}\makeatother`;
 
+/**
+ * `\tikzflowplace{name}` writes to the log where TeX put a node: its north, south, east and west anchors in
+ * the picture's own coordinates (the transformation reset, as the quick preview's layout has them), for
+ * comparing with the quick preview (D98). pgf calls only: it draws nothing and leaves the picture's size alone.
+ * A name TeX doesn't know is skipped. On the first line, so no line numbers move.
+ */
+const PLACE_MACRO = String.raw`\makeatletter\def\tikzflow@at#1#2{\pgfpointanchor{#1}{#2}\edef\tikzflow@pt{{\the\pgf@x}{\the\pgf@y}}}\def\tikzflowplace#1{\pgfutil@ifundefined{pgf@sh@ns@#1}{}{{\pgftransformreset\tikzflow@at{#1}{north}\let\tikzflow@n\tikzflow@pt\tikzflow@at{#1}{south}\let\tikzflow@s\tikzflow@pt\tikzflow@at{#1}{east}\let\tikzflow@e\tikzflow@pt\tikzflow@at{#1}{west}\immediate\write-1{TFPLACE{#1}\tikzflow@n\tikzflow@s\tikzflow@e\tikzflow@pt}}}}\makeatother`;
+
+/** Node names the placement report can ask TeX about: plain words, single spaces between them. */
+export const REPORTABLE_NAME = /^[A-Za-z0-9_-]+( [A-Za-z0-9_-]+)*$/;
+
 /** Font size commands for the class options 11pt and 12pt (size11.clo, size12.clo): the format is 10pt. */
 /** Classes the preview typesets with as they are: the format's own (standalone, on article's base) and the ones of the same page. Any other class is replaced (D73). */
 const ENGINE_CLASSES = new Set(["article", "report", "book", "standalone", "beamer"]);
@@ -103,9 +114,10 @@ const USEPACKAGE = /\\(?:usepackage|RequirePackage)\s*(\[[^\]]*\])?\s*\{([^}]*)\
  * Builds input.tex for picture `index` of `doc`. `available(name)` says
  * whether the engine has a file (`foo.sty`). `page` holds the preamble of the
  * paper the figure goes in (D71), used when the code has no preamble of its
- * own, and the widths the user typed (D73).
+ * own, and the widths the user typed (D73). `report` names nodes whose placement TeX writes to the log
+ * (`parsePlacements` in log.ts, D98).
  */
-export function buildCompileInput(doc: DocumentModel, index: number, available: (file: string) => boolean, page: PageSettings = NO_PAGE_SETTINGS): CompileInput | null {
+export function buildCompileInput(doc: DocumentModel, index: number, available: (file: string) => boolean, page: PageSettings = NO_PAGE_SETTINGS, report: readonly string[] = []): CompileInput | null {
   const imported = page.imported;
   const pic = doc.syntax.pictures[index];
   if (!pic) return null;
@@ -130,7 +142,7 @@ export function buildCompileInput(doc: DocumentModel, index: number, available: 
   };
 
   // Errors don't stop TeX: it carries on and the log says what went wrong (D15 item 5).
-  emit(`\\scrollmode\\errorcontextlines=5\\relax${OT1_DOLLAR}`);
+  emit(`\\scrollmode\\errorcontextlines=5\\relax${OT1_DOLLAR}${PLACE_MACRO}`);
 
   /**
    * A preamble: the class's font sizes, then the text before \begin{document} (from the line after
@@ -206,7 +218,15 @@ export function buildCompileInput(doc: DocumentModel, index: number, available: 
   const lengths = pageLengths(effectivePage(ownPreamble(text, pic.from), page));
   emit(`\\setlength{\\textwidth}{${pt(lengths.textWidth)}}`);
   emit(`\\setlength{\\columnwidth}{${pt(lengths.columnWidth)}}\\setlength{\\linewidth}{${pt(lengths.columnWidth)}}`);
-  const { body, blocks } = markBlocks(text, pic);
+  const marked = markBlocks(text, pic);
+  const blocks = marked.blocks;
+  let body = marked.body;
+  // The placement report, just before \end{tikzpicture} and on its line (D98).
+  const names = report.filter((n) => REPORTABLE_NAME.test(n));
+  if (names.length && /^\\end\s*\{tikzpicture\}/.test(text.slice(pic.end.from, pic.end.to))) {
+    const at = body.length - (pic.to - pic.end.from);
+    body = body.slice(0, at) + names.map((n) => `\\tikzflowplace{${n}}`).join("") + body.slice(at);
+  }
   copy(text, pic.from, pic.to, body);
   emit("\\end{document}\n");
   return { tex: parts.join(""), segments, unavailable, fontPackages, blocks, beamer, substitutedClass };

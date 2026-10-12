@@ -674,6 +674,7 @@ function layoutNode(
     trapeziumRightAngle: st.trapeziumRightAngle,
     trapeziumStretches: st.trapeziumStretches,
     shapeBorderRotate: st.shapeBorderRotate,
+    lineWidth: st.lineWidth,
   };
   const shape0 = makeShape(shapeParams, { x: 0, y: 0 });
   // A node is turned by the rotation its own options add, or with transform shape by the whole

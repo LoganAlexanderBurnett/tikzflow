@@ -2182,3 +2182,14 @@ button.tf-preview-state.busy {
     padding: 16px;
   }
 }
+
+/* Nodes TeX puts elsewhere than the editor (D98): TeX's box dashed, a marker on the editor's. */
+.tf-misplaced rect {
+  fill: none;
+  stroke: var(--canvas-lock);
+}
+.tf-misplaced circle {
+  fill: var(--canvas-lock);
+  stroke: #ffffff;
+  cursor: help;
+}

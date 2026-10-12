@@ -1,7 +1,7 @@
 // Snapping while dragging: line centers up with other nodes and snap gaps to
 // the node distance, so drops land where a relational form describes them.
 import type { LaidOutNode, PictureLayout } from "../tikz/layout.ts";
-import type { Point } from "../tikz/shapes.ts";
+import { anchorOffset, type Point } from "../tikz/shapes.ts";
 import { dependents } from "./move.ts";
 
 export interface Guide {
@@ -29,12 +29,21 @@ interface Box {
   node: LaidOutNode;
   cx: number;
   cy: number;
-  hw: number;
-  hh: number;
+  /** How far the north, south, east and west anchors are from the center: equal pairs except for shapes drawn off their text (a cylinder, D98). */
+  n: number;
+  s: number;
+  e: number;
+  w: number;
 }
 
 function box(n: LaidOutNode, c: Point = n.shape.center): Box {
-  return { node: n, cx: c.x, cy: c.y, hw: n.shape.hw + n.shape.outerX, hh: n.shape.hh + n.shape.outerY };
+  const off = (a: string, axis: "x" | "y", sign: number, fallback: number) => {
+    const p = anchorOffset(n.shape, a);
+    return p ? sign * p[axis] : fallback;
+  };
+  const hw = n.shape.hw + n.shape.outerX;
+  const hh = n.shape.hh + n.shape.outerY;
+  return { node: n, cx: c.x, cy: c.y, n: off("north", "y", 1, hh), s: off("south", "y", -1, hh), e: off("east", "x", 1, hw), w: off("west", "x", -1, hw) };
 }
 
 /**
@@ -81,8 +90,8 @@ export function snapNode(layout: PictureLayout, node: LaidOutNode, raw: Point, t
     let mark: GapMark | null = null;
     for (const t of column) {
       // Below t, then above t.
-      const belowY = grid ? t.cy - nd.v : t.cy - t.hh - nd.v - me.hh;
-      const aboveY = grid ? t.cy + nd.v : t.cy + t.hh + nd.v + me.hh;
+      const belowY = grid ? t.cy - nd.v : t.cy - t.s - nd.v - me.n;
+      const aboveY = grid ? t.cy + nd.v : t.cy + t.n + nd.v + me.s;
       for (const [cand, isBelow] of [
         [belowY, true],
         [aboveY, false],
@@ -91,8 +100,8 @@ export function snapNode(layout: PictureLayout, node: LaidOutNode, raw: Point, t
         if (d < best) {
           best = d;
           snapY = cand;
-          const edgeT = isBelow ? t.cy - t.hh : t.cy + t.hh;
-          const edgeMe = isBelow ? cand + me.hh : cand - me.hh;
+          const edgeT = isBelow ? t.cy - t.s : t.cy + t.n;
+          const edgeMe = isBelow ? cand + me.n : cand - me.s;
           mark = { from: { x, y: edgeT }, to: { x, y: edgeMe } };
         }
       }
@@ -109,8 +118,8 @@ export function snapNode(layout: PictureLayout, node: LaidOutNode, raw: Point, t
     let snapX: number | null = null;
     let mark: GapMark | null = null;
     for (const t of row) {
-      const rightX = grid ? t.cx + nd.h : t.cx + t.hw + nd.h + me.hw;
-      const leftX = grid ? t.cx - nd.h : t.cx - t.hw - nd.h - me.hw;
+      const rightX = grid ? t.cx + nd.h : t.cx + t.e + nd.h + me.w;
+      const leftX = grid ? t.cx - nd.h : t.cx - t.w - nd.h - me.e;
       for (const [cand, isRight] of [
         [rightX, true],
         [leftX, false],
@@ -119,8 +128,8 @@ export function snapNode(layout: PictureLayout, node: LaidOutNode, raw: Point, t
         if (d < best) {
           best = d;
           snapX = cand;
-          const edgeT = isRight ? t.cx + t.hw : t.cx - t.hw;
-          const edgeMe = isRight ? cand - me.hw : cand + me.hw;
+          const edgeT = isRight ? t.cx + t.e : t.cx - t.w;
+          const edgeMe = isRight ? cand - me.w : cand + me.e;
           mark = { from: { x: edgeT, y }, to: { x: edgeMe, y } };
         }
       }

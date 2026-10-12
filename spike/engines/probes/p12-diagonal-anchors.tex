@@ -1,0 +1,89 @@
+\documentclass[tikz]{standalone}
+% Diagonal positioning against every drawn shape's corner anchors (M5, D98).
+% `below right=of x` puts the new node's north west at x's south east, so a
+% shape whose north east, north west, south east or south west the quick
+% preview works out differently from pgf places its neighbors wrongly. The
+% owner found it with the Basic process template's I/O trapezium. Each shape
+% is drawn thick (outer sep 0.4pt, which pgf adds as a miter on polygons) and,
+% for the polygons, thin; each has a small box on each of its four corners.
+\usetikzlibrary{positioning, shapes.geometric, shapes.misc, shapes.symbols, shapes.multipart}
+\begin{tikzpicture}[node distance=5mm and 7mm,
+  box/.style={draw, minimum size=4mm, inner sep=0pt}]
+  % The template's I/O node, as written there.
+  \node[draw, thick, minimum width=28mm, minimum height=9mm, align=center, trapezium,
+    trapezium left angle=70, trapezium right angle=110] (io) at (0,0) {Read $n$};
+  \node[box, below right=of io] (ioSE) {};
+  \node[box, above right=of io] (ioNE) {};
+  \node[box, below left=of io] (ioSW) {};
+  \node[box, above left=of io] (ioNW) {};
+  % The template's own drag result.
+  \node[draw, thick, minimum width=28mm, minimum height=9mm, below right=7mm and 1.8cm of io] (ans) {Answer $1$};
+  % A plain trapezium, thin, and one turned by shape border rotate.
+  \node[draw, trapezium] (tz) at (7,0) {Trapezium};
+  \node[box, below right=of tz] (tzSE) {};
+  \node[box, above right=of tz] (tzNE) {};
+  \node[box, below left=of tz] (tzSW) {};
+  \node[box, above left=of tz] (tzNW) {};
+  \node[draw, trapezium, trapezium left angle=60, trapezium right angle=120, shape border rotate=90] (tr) at (12,0) {Turned};
+  \node[box, below right=of tr] (trSE) {};
+  \node[box, above left=of tr] (trNW) {};
+  % Rectangle, rounded corners, ellipse, circle.
+  \node[draw, thick, minimum width=20mm] (re) at (0,-4) {Rectangle};
+  \node[box, below right=of re] (reSE) {};
+  \node[box, above left=of re] (reNW) {};
+  \node[draw, thick, rounded corners=3mm, minimum width=20mm] (rc) at (4,-4) {Rounded};
+  \node[box, below right=of rc] (rcSE) {};
+  \node[box, above left=of rc] (rcNW) {};
+  \node[draw, thick, ellipse] (el) at (8,-4) {Ellipse wide text};
+  \node[box, below right=of el] (elSE) {};
+  \node[box, above right=of el] (elNE) {};
+  \node[box, below left=of el] (elSW) {};
+  \node[box, above left=of el] (elNW) {};
+  \node[draw, thick, circle] (ci) at (12,-4) {Circle};
+  \node[box, below right=of ci] (ciSE) {};
+  \node[box, above left=of ci] (ciNW) {};
+  % Diamond, thick and thin.
+  \node[draw, thick, diamond, aspect=2.2, inner sep=1pt, minimum width=28mm, minimum height=9mm] (di) at (0,-8) {$n \le 1$?};
+  \node[box, below right=of di] (diSE) {};
+  \node[box, above right=of di] (diNE) {};
+  \node[box, below left=of di] (diSW) {};
+  \node[box, above left=of di] (diNW) {};
+  \node[draw, diamond] (dt) at (5,-8) {D};
+  \node[box, below right=of dt] (dtSE) {};
+  \node[box, above left=of dt] (dtNW) {};
+  % Rounded rectangle, cylinder, tape.
+  \node[draw, thick, rounded rectangle] (rr) at (8,-8) {Rounded rectangle};
+  \node[box, below right=of rr] (rrSE) {};
+  \node[box, above left=of rr] (rrNW) {};
+  \node[draw, thick, cylinder, shape border rotate=90, aspect=0.25, minimum height=12mm] (cy) at (0,-12) {Store};
+  \node[box, below right=of cy] (cySE) {};
+  \node[box, above left=of cy] (cyNW) {};
+  \node[draw, thick, cylinder] (ch) at (4,-12) {Lying};
+  \node[box, below right=of ch] (chSE) {};
+  \node[box, above left=of ch] (chNW) {};
+  \node[draw, thick, tape] (ta) at (8,-12) {Tape};
+  \node[box, below right=of ta] (taSE) {};
+  \node[box, above left=of ta] (taNW) {};
+  % Minimum sizes: a rounded rectangle wider than its text, a tall one, cylinders
+  % with a minimum height (along the axis) and width (across), one turned 270.
+  \node[draw, rounded rectangle, minimum width=30mm] (rw) at (4,-16) {Wide};
+  \node[box, below right=of rw] (rwSE) {};
+  \node[draw, rounded rectangle, minimum height=12mm] (rh) at (8,-16) {Tall};
+  \node[box, above left=of rh] (rhNW) {};
+  \node[draw, cylinder, minimum height=20mm, minimum width=10mm] (cm) at (12,-16) {Min};
+  \node[box, below right=of cm] (cmSE) {};
+  \node[draw, cylinder, shape border rotate=270, aspect=0.5] (cd) at (16,-16) {Down};
+  \node[box, below right=of cd] (cdSE) {};
+  \node[box, above left=of cd] (cdNW) {};
+  % A trapezium with both angles under 90, and one stretched.
+  \node[draw, trapezium, trapezium left angle=60, trapezium right angle=60, minimum width=25mm] (tw) at (16,0) {Wide};
+  \node[box, below right=of tw] (twSE) {};
+  \node[box, above left=of tw] (twNW) {};
+  % Multipart shapes.
+  \node[draw, thick, circle split] (cs) at (12,-12) {A \nodepart{lower} B};
+  \node[box, below right=of cs] (csSE) {};
+  \node[box, above left=of cs] (csNW) {};
+  \node[draw, thick, rectangle split, rectangle split parts=2] (rs) at (0,-16) {Top \nodepart{two} Bottom};
+  \node[box, below right=of rs] (rsSE) {};
+  \node[box, above left=of rs] (rsNW) {};
+\end{tikzpicture}
