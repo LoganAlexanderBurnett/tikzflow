@@ -30,7 +30,7 @@ Also read "Notes for later milestones" below.
 | 0 | `m5` branch; GitHub Actions test workflow (typecheck, Vitest, build, `check:dist`, Playwright in Edge) on every push | Done (D90) |
 | 1 | Two or three visual directions (palette, type, logo and favicon, home page and editor in one look) as screenshots; **checkpoint: the owner picks one** | Done: direction A, Manuscript (D91); the edge-menu fix went to `trunk` and is live (D91) |
 | 2 | Site structure: home page at `/` (with "Continue your diagram" when there is saved work), editor at `/editor/`, help at `/help/`; share links to `/#…` forwarded to the editor; service worker, offline and `404.html` per page; sitemap | Done (D92); help pages come in step 7 |
-| 3 | The chosen design applied to the home page, help and the editor's chrome; light/dark/system switch; self-hosted fonts; contrast rechecked | Not started |
+| 3 | The chosen design applied to the home page, help and the editor's chrome; light/dark/system switch; self-hosted fonts; contrast rechecked | Done (D93); **waiting for the owner's review of the look** (see "M5 steps 2 and 3" below) |
 | 4 | Nine templates (D89 item 4), with no locked blocks, compiled in CI by pdfLaTeX and our engine; gallery on the home page and in the editor's New menu; the state machine's `loop`/`initial`/`accepting` if moderate | Not started |
 | 5 | First run (Paste TikZ, Start blank, Start from a template; the sample becomes Basic process), the `?` shortcut overlay, the edit flicker (D69 item 4) | Not started |
 | 6 | Multiple tabs (D86 item 5): own code, undo, file, autosave and TeX picture per tab; open, import, share links and templates open a tab; engine stopped while the browser tab is hidden (D69 item 4) | Not started |
@@ -38,6 +38,44 @@ Also read "Notes for later milestones" below.
 | 8 | Goldens, end-to-end, offline and live checks on the `m5` preview; docs; **Milestone 5 report** | Not started |
 
 Milestone 6 (after M5's review): smooth dragging with 200 nodes; license audit and `THIRD_PARTY_LICENSES.md` (the items under "Milestone 5: license audit items" below move there); README with features, screenshots, local setup and deployment.
+
+## M5 steps 2 and 3: the site and the look (2026-10-11)
+The owner chose direction A (D91). The edge-menu fix of D90 went to `trunk` on its own: production serves it, `test:live` passed 11 of 11 there, and a script confirmed the menu opens on a press-time right click (D91). Then steps 2 (D92) and 3 (D93) on `m5`. **Stopped here for the owner's review of the look.**
+
+### How to try it
+Open https://m5.tikzflow.pages.dev (or `npm run dev`, then http://localhost:5173/). Screenshots are in `spike/design/shots/applied/`.
+- **The home page** at `/`: the pitch, the templates gallery, getting started, the privacy promise, the tip to bookmark `/editor/`. **Open the editor** goes to `/editor/`. Edit something there, come back to `/`: the button now says **Continue your diagram**, with the file's name and when it was edited.
+- **An old share link** (`https://tikzflow.pages.dev/#tf1=…`) opens in the editor: make a link with Share and change `/editor/#` to `/#`.
+- **The theme switch** (the half-filled circle, on every page) cycles same as system, light and dark, and the choice holds across pages and visits.
+- **The editor:** the logo leads home; the toolbar is grouped with icons; Share is the accent button. The canvas stays white in dark mode.
+- **An unknown address** (`/anything/`) gives the 404 page with a real 404 status.
+- **Offline:** visit `/` once, go offline, reload: the home page and `/editor/` both open (the TeX engine only after a visit to the editor).
+
+### What works
+- Static, crawlable home page with direction A's look, phone width included. `robots.txt`, `sitemap.xml`, a canonical address and a description on each page.
+- Share links to `/#tf1=…` forwarded to `/editor/` by `public/boot.js` before the first paint; new links point at `/editor/`.
+- Continue your diagram, read from the kept session without creating the database for a first-time visitor.
+- The service worker keeps both pages, each answering for its own address offline; the home page doesn't fetch the engine.
+- The editor in direction A, light and dark. Dark now follows the switch, not only the system.
+- **Placeholders:** the gallery's thumbnails are the mockup's drawings, and its cards open the editor, until step 4 makes the templates.
+
+### Tests
+- **Vitest:** 1,544 (12 new in `test/site.test.ts`: `pageFor` and the committed home-page picture).
+- **Playwright:** 162 end-to-end tests, all passing (`site.spec.ts` is new, 6 tests). `test/e2e/base.ts` opens the editor at `/editor/`; `/#tf1=…` goes through the home page's forward, so the damaged-link test covers it too.
+- **`npm run test:offline`:** 8 of 8 (2 new: the pages offline after one visit to the home page; the 404).
+- **CI on `m5`:** green on the step 2 commit (b0a4883).
+- **`TIKZFLOW_URL=https://m5.tikzflow.pages.dev npm run test:live`: 12 of 12** on the deploy of the step 3 commit (be7b75d; the preview serves `assets/editor-BxyGscSK.js`, the same as the local build). The 11 checks from before now run against `/editor/`. The new one checks the home page, the editor, a real 404 with the site's page, `robots.txt`, `sitemap.xml`, the icons and `boot.js`, and that the home page draws under the policy without asking for the engine. The share-link check also opens the link at `/#…`, as made before the move.
+- **Local timing:** two Vitest runs while the dev server and Edge were busy timed out in corpus-wide tests near their 5 s limit (different tests each time). Run alone they pass, and they pass in CI.
+- **`typecheck`, `build`, `check:dist`:** pass. `check:dist` now reads the worker's page list and checks `404.html` and `boot.js`.
+
+### For the owner's review
+1. **The look of the home page and the editor** (screenshots above, or the preview).
+2. **Canvas marks:** selection and handles are now vermilion, and alignment guides are blue (were pink). Locked nodes stay amber.
+3. **The site's pictures are committed, not built:** the home page's sample is rendered by the engine with `npm run site:assets` and checked by a test (D92). The template thumbnails will work the same way in step 4.
+
+### Known limits
+- The dev server answers an unknown address with an empty 404. Cloudflare and `vite preview` serve the 404 page.
+- Fonts are Latin and Latin Extended only: Greek, Cyrillic and other scripts (in a label, say) use the system's font in the interface. The canvas and code pane are unaffected for TeX's picture; the code pane's fallback is the system's monospace.
 
 ## M5 steps 0 and 1: CI, and the visual directions (2026-10-11)
 ### Step 0: tests on every push (D90)
