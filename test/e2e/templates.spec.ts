@@ -29,6 +29,10 @@ test("the New menu opens a template in a new tab; the work stays in its own (D97
   await page.getByTestId("new-button").click();
   const panel = page.getByTestId("new-panel");
   await expect(panel.locator(".tf-new-card")).toHaveCount(13);
+  // The neural-network templates have their own heading (D101), above the first of them and after the nine.
+  await expect(panel.getByTestId("new-section")).toHaveText("Neural networks");
+  expect(await panel.locator(".tf-new-heading + .tf-new-card").getAttribute("data-testid")).toBe("new-neural-network");
+  expect(await panel.locator(".tf-new-card").nth(10).getAttribute("data-testid")).toBe("new-neural-network");
   // The thumbnails are TeX's pictures, served with the editor.
   await expect(panel.locator('[data-testid="new-hierarchy"] img')).toHaveJSProperty("complete", true);
   expect(await panel.locator('[data-testid="new-hierarchy"] img').evaluate((i) => (i as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);

@@ -78,4 +78,28 @@ test.describe("with the TeX engine", () => {
     await page.locator('g.tf-node[data-node="read"]').click();
     await expect(page.getByTestId("misplaced-tex-box")).toHaveCount(1);
   });
+
+  test("a node 2pt off is in the notes but gets no marker on the canvas (D101)", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".tf-compiled-layer:not([data-stale])")).toBeAttached({ timeout: 15_000 });
+    await page.evaluate(() => {
+      type P = { x: number; y: number };
+      type C = { placements: Map<string, { north: P; south: P; east: P; west: P }> };
+      const w = window as unknown as { tikzflow: { preview: { compiled: { value: C } } } };
+      const c = w.tikzflow.preview.compiled.value;
+      const placements = new Map(c.placements);
+      const r = placements.get("read")!;
+      const m = (p: P) => ({ x: p.x + 2, y: p.y });
+      placements.set("read", { north: m(r.north), south: m(r.south), east: m(r.east), west: m(r.west) });
+      w.tikzflow.preview.compiled.value = { ...c, placements };
+    });
+    await expect(page.getByTestId("preview-state")).toHaveText("TeX preview: notes");
+    await page.getByTestId("preview-state").click();
+    const notes = page.getByTestId("preview-notices");
+    await expect(notes).toContainText("TeX puts read 2 pt from where the editor's own drawing does");
+    await expect(notes).not.toContainText("marked on the canvas");
+    await expect(page.getByTestId("misplaced-marker")).toHaveCount(0);
+    await page.locator('g.tf-node[data-node="read"]').click();
+    await expect(page.getByTestId("misplaced-tex-box")).toHaveCount(0);
+  });
 });

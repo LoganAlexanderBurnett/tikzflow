@@ -8,7 +8,7 @@ import { computed, effect, signal } from "@preact/signals";
 import { EngineClient, type EngineState } from "../engine/client.ts";
 import { buildCompileInput, type CompileInput, locate } from "../engine/input.ts";
 import { parsePlacements, type TexError, type TexPlacement } from "../engine/log.ts";
-import { type Misplaced, misplaced, reportNames } from "../engine/placement.ts";
+import { MARK_TOLERANCE, type Misplaced, misplaced, reportNames } from "../engine/placement.ts";
 import type { CompileOutcome } from "../engine/protocol.ts";
 import { engineBase } from "../engine/release.ts";
 import type { Range } from "../model/syntax.ts";
@@ -174,13 +174,18 @@ export const misplacedNodes = computed<Misplaced[]>(() => {
   return misplaced(l, c.placements);
 });
 
+/** The nodes beyond MARK_TOLERANCE: those that get a marker on the canvas (D101). The rest are only in the notes. */
+export const markedNodes = computed<Misplaced[]>(() => misplacedNodes.value.filter((m) => m.off > MARK_TOLERANCE));
+
 /** The note for misplaced nodes, naming the first few. */
 export function misplacedNote(list: readonly Misplaced[]): string {
   const names = list.slice(0, 4).map((m) => m.name).join(", ") + (list.length > 4 ? ", …" : "");
   const worst = Math.round(list[0]!.off * 10) / 10;
   const one = list.length === 1;
   const what = one ? `${names} ${worst} pt from where the editor's own drawing does` : `${list.length} nodes (${names}) up to ${worst} pt from where the editor's own drawing does`;
-  return `TeX puts ${what} (marked on the canvas; select one to see TeX's box). ${one ? "Its outline" : "Their outlines"} here, and positions written when you drag ${one ? "it" : "them"} or place nodes next to ${one ? "it" : "them"}, may be off by as much. A point or two comes from estimated text widths; if it is more, please tell us with Report a problem.`;
+  const marked = list.filter((m) => m.off > MARK_TOLERANCE).length;
+  const where = marked === 0 ? "" : ` (${marked === list.length ? "marked on the canvas" : `${marked} beyond ${MARK_TOLERANCE} pt are marked on the canvas`}; select one to see TeX's box)`;
+  return `TeX puts ${what}${where}. ${one ? "Its outline" : "Their outlines"} here, and positions written when you drag ${one ? "it" : "them"} or place nodes next to ${one ? "it" : "them"}, may be off by as much. Up to ${MARK_TOLERANCE} pt usually comes from estimated text widths; if it is more, please tell us with Report a problem.`;
 }
 
 /** Things the user should know about the latest compile: left-out packages, fonts, missing files. */

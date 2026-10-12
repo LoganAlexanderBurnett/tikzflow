@@ -33,9 +33,9 @@ Notes are things worth knowing that aren't errors:
 
 ## Nodes TeX places elsewhere
 
-After each compile, TeX reports where it put every named node, and the editor compares that with its own drawing. A node more than a point away, or a point bigger or smaller, gets a small amber marker; select it to see TeX's box, dashed. The notes list these nodes.
+After each compile, TeX reports where it put every named node, and the editor compares that with its own drawing. The notes list every node more than a point away, or a point bigger or smaller. One more than 3 points off also gets a small amber marker on the canvas; select it to see TeX's box, dashed.
 
-Such a node's outline on the canvas, and positions written when you drag it or attach other nodes to it, may be off by as much. A point or two usually comes from estimated text widths. If it is more, please [report it](https://github.com/LoganAlexanderBurnett/tikzflow/issues/new?template=problem.yml) with the code: it means the editor's geometry for that shape is wrong.
+Such a node's outline on the canvas, and positions written when you drag it or attach other nodes to it, may be off by as much. Up to 3 points usually comes from estimated text widths, which is why those get no marker. If it is more, please [report it](https://github.com/LoganAlexanderBurnett/tikzflow/issues/new?template=problem.yml) with the code: it means the editor's geometry for that shape is wrong.
 
 ## Your paper's page
 

@@ -8,7 +8,12 @@ export interface TemplateInfo {
   title: string;
   /** One line for the gallery. `code` is written in backticks. */
   blurb: string;
+  /** A heading the gallery and the New menu put above this template (and the ones after it until the next heading): D101. */
+  section?: string;
 }
+
+/** The heading over the neural-network templates (D101). */
+export const NEURAL_SECTION = "Neural networks";
 
 export const TEMPLATES: readonly TemplateInfo[] = [
   { id: "basic-process", title: "Basic process", blurb: "Start, input, steps and a stop, with one decision." },
@@ -21,7 +26,7 @@ export const TEMPLATES: readonly TemplateInfo[] = [
   { id: "state-machine", title: "State machine", blurb: "States, an initial arrow, loops and an accepting state." },
   { id: "hierarchy", title: "Hierarchy", blurb: "A tree placed with positioning and `-|` edges." },
   // Neural networks (M5 step 8, D96 item 4, D100): what the editor handles today, before Milestone 7.
-  { id: "neural-network", title: "Neural network", blurb: "A small fully connected network, every weight its own edge." },
+  { id: "neural-network", title: "Neural network", blurb: "A small fully connected network, every weight its own edge.", section: NEURAL_SECTION },
   { id: "lstm-cell", title: "LSTM cell", blurb: "Gates, pointwise operations and the cell state." },
   { id: "encoder-decoder", title: "Encoder–decoder", blurb: "Feature maps by size, with skip connections on top." },
 ];

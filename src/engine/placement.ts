@@ -15,6 +15,9 @@ import type { TexPlacement } from "./log.ts";
 /** How far TeX and the quick preview may disagree, in pt (the fidelity checks' bar, D23). */
 export const PLACEMENT_TOLERANCE = 1;
 
+/** Beyond this many pt a node also gets its marker on the canvas (D101); from PLACEMENT_TOLERANCE to here it is only in the TeX preview's notes, since estimated text widths add up to a point or three. */
+export const MARK_TOLERANCE = 3;
+
 export interface Misplaced {
   id: string;
   name: string;

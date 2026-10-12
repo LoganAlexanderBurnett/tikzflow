@@ -31,15 +31,22 @@ export function TemplateGrid({ onPick, prefix, blank = true }: { onPick: (id: st
         </button>
       )}
       {TEMPLATES.map((t) => (
-        <button class="tf-new-card" onClick={() => onPick(t.id)} data-testid={`${prefix}-${t.id}`}>
-          <span class="thumb">
-            <img src={THUMBS[`../site/thumbs/${t.id}.svg`]} alt="" loading="lazy" />
-          </span>
-          <span class="name">{t.title}</span>
-          <span class="blurb">
-            <Blurb text={t.blurb} />
-          </span>
-        </button>
+        <>
+          {t.section && (
+            <h4 class="tf-new-heading" data-testid={`${prefix}-section`}>
+              {t.section}
+            </h4>
+          )}
+          <button class="tf-new-card" onClick={() => onPick(t.id)} data-testid={`${prefix}-${t.id}`}>
+            <span class="thumb">
+              <img src={THUMBS[`../site/thumbs/${t.id}.svg`]} alt="" loading="lazy" />
+            </span>
+            <span class="name">{t.title}</span>
+            <span class="blurb">
+              <Blurb text={t.blurb} />
+            </span>
+          </button>
+        </>
       ))}
     </div>
   );

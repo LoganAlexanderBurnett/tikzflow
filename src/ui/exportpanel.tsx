@@ -95,7 +95,7 @@ async function exportPicture(format: Format, margin: number, dpi: number, transp
 export function ExportButton() {
   const open = useSignal(false);
   const button = useRef<HTMLButtonElement>(null);
-  // The toolbar scrolls sideways, which clips what hangs below it: the panel is placed on the window instead.
+  // The panel is placed on the window, not inside the toolbar, so no row of the toolbar can clip it.
   const at = useSignal({ top: 44, left: 10 });
   return (
     <span class="tf-export">

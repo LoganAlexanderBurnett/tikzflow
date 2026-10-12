@@ -92,6 +92,7 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; letter-spacing:
 
 /* Templates */
 .tgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.tgroup { grid-column: 1 / -1; margin: 18px 0 -4px; font-size: 22px; }
 .tcard { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; text-decoration: none; transition: border-color 0.15s, box-shadow 0.15s; }
 .tcard:hover { border-color: var(--line-strong); box-shadow: var(--shadow); }
 .thumb { background: #fff; border-bottom: 1px solid var(--line); padding: 14px 18px 8px; }

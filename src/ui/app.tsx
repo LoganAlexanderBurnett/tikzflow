@@ -302,79 +302,82 @@ function Toolbar() {
   const count = pictureCount.value;
   return (
     <div class="tf-toolbar" role="toolbar" aria-label="Editor">
-      <button
-        onClick={() => {
-          // Where the browser can, the file stays linked so Save writes back to it; elsewhere a file chooser.
-          void openWithPicker().then((handled) => {
-            if (!handled) input.current?.click();
-          });
-        }}
-        title="Open a .tex file (or a Mermaid or DOT file, which is imported)"
-        data-testid="open-button"
-      >
-        <Icon name="open" />Open…
-      </button>
-      <input
-        ref={input}
-        type="file"
-        accept=".tex,.tikz,.txt,.pgf,.mmd,.mermaid,.dot,.gv"
-        hidden
-        onChange={(e) => {
-          const f = (e.target as HTMLInputElement).files?.[0];
-          if (f) void openFile(f);
-          (e.target as HTMLInputElement).value = "";
-        }}
-      />
-      <button onClick={() => void saveFile()} title={canSaveInPlace() ? "Save to the file (Ctrl+S)" : "Download the code as a .tex file (Ctrl+S)"} data-testid="save-button">
-        <Icon name="save" />Save
-      </button>
-      {canSaveInPlace() && (
-        <button onClick={() => void saveFileAs()} title="Save to a new file" data-testid="save-as-button">
-          Save as…
+      <div class="tools tools-start">
+        <button
+          onClick={() => {
+            // Where the browser can, the file stays linked so Save writes back to it; elsewhere a file chooser.
+            void openWithPicker().then((handled) => {
+              if (!handled) input.current?.click();
+            });
+          }}
+          title="Open a .tex file (or a Mermaid or DOT file, which is imported)"
+          data-testid="open-button"
+        >
+          <Icon name="open" />Open…
         </button>
-      )}
-      <button onClick={download} title="Download the code as a .tex file" data-testid="download-button">
-        <Icon name="download" />Download
-      </button>
-      <NewButton />
-      <ImportButton />
-      <span class="sep" />
-      <button class="icon-only" onClick={undoEdit} title="Undo (Ctrl+Z)" aria-label="Undo">
-        <Icon name="undo" />
-      </button>
-      <button class="icon-only" onClick={redoEdit} title="Redo (Ctrl+Y)" aria-label="Redo">
-        <Icon name="redo" />
-      </button>
-      <span class="sep" />
-      <LayoutButton />
-      <PageButton />
-      {count > 1 && (
-        <label class="picker">
-          Picture{" "}
-          <select
-            value={currentPicture.value}
-            onChange={(e) => {
-              pictureIndex.value = Number((e.target as HTMLSelectElement).value);
-              fitRequests.value++;
-            }}
-          >
-            {doc.value.syntax.pictures.map((_, i) => (
-              <option value={i}>
-                {i + 1} of {count}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-      <span class="grow" />
-      <PreviewToggle />
-      <VisionSelect />
-      <button onClick={() => fitRequests.value++} title="Fit the picture to the canvas">
-        <Icon name="fit" />Fit
-      </button>
-      <span class="sep" />
-      <ExportButton />
-      <ShareButton />
+        <input
+          ref={input}
+          type="file"
+          accept=".tex,.tikz,.txt,.pgf,.mmd,.mermaid,.dot,.gv"
+          hidden
+          onChange={(e) => {
+            const f = (e.target as HTMLInputElement).files?.[0];
+            if (f) void openFile(f);
+            (e.target as HTMLInputElement).value = "";
+          }}
+        />
+        <button onClick={() => void saveFile()} title={canSaveInPlace() ? "Save to the file (Ctrl+S)" : "Download the code as a .tex file (Ctrl+S)"} data-testid="save-button">
+          <Icon name="save" />Save
+        </button>
+        {canSaveInPlace() && (
+          <button onClick={() => void saveFileAs()} title="Save to a new file" data-testid="save-as-button">
+            Save as…
+          </button>
+        )}
+        <button onClick={download} title="Download the code as a .tex file" data-testid="download-button">
+          <Icon name="download" />Download
+        </button>
+        <NewButton />
+        <ImportButton />
+        <span class="sep" />
+        <button class="icon-only" onClick={undoEdit} title="Undo (Ctrl+Z)" aria-label="Undo">
+          <Icon name="undo" />
+        </button>
+        <button class="icon-only" onClick={redoEdit} title="Redo (Ctrl+Y)" aria-label="Redo">
+          <Icon name="redo" />
+        </button>
+        <span class="sep" />
+        <LayoutButton />
+        <PageButton />
+        {count > 1 && (
+          <label class="picker">
+            Picture{" "}
+            <select
+              value={currentPicture.value}
+              onChange={(e) => {
+                pictureIndex.value = Number((e.target as HTMLSelectElement).value);
+                fitRequests.value++;
+              }}
+            >
+              {doc.value.syntax.pictures.map((_, i) => (
+                <option value={i}>
+                  {i + 1} of {count}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+      <div class="tools tools-end">
+        <PreviewToggle />
+        <VisionSelect />
+        <button onClick={() => fitRequests.value++} title="Fit the picture to the canvas">
+          <Icon name="fit" />Fit
+        </button>
+        <span class="sep" />
+        <ExportButton />
+        <ShareButton />
+      </div>
     </div>
   );
 }

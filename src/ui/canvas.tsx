@@ -35,7 +35,7 @@ import { WidthGuide } from "./pagepanel.tsx";
 import { ContrastMarks, selectContrastIssue } from "./contrastmarks.tsx";
 import { labelFix, LabelFixMenu, LabelWarnings } from "./labelwarning.tsx";
 import { VisionFilter, visionFilterAttr } from "./visionui.tsx";
-import { misplacedNodes, pickBlock, selectedBlock, showingTex, STALE_HIDE, STALE_SHOW, stalePicture } from "./preview.ts";
+import { markedNodes, pickBlock, selectedBlock, showingTex, STALE_HIDE, STALE_SHOW, stalePicture } from "./preview.ts";
 import {
   activeScope,
   applyEdgeEdit,
@@ -109,7 +109,7 @@ function CoordinateMark({ n, scale, selected, unused }: { n: LaidOutNode; scale:
  * marker on the editor's own box, whose outline the selection follows.
  */
 function MisplacedMarks({ layout, scale, selected }: { layout: PictureLayout | null; scale: number; selected: readonly string[] }) {
-  const list = misplacedNodes.value;
+  const list = markedNodes.value;
   if (!list.length || !layout) return null;
   return (
     <g class="tf-misplaced" data-testid="misplaced-marks">

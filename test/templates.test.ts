@@ -107,6 +107,14 @@ describe("the home page's gallery", () => {
       TEMPLATES.map((t) => [`/editor/#template=${t.id}`, `./src/site/thumbs/${t.id}.svg`, t.title, t.blurb]),
     );
   });
+
+  it("puts the catalog's section headings (Neural networks, D101) before the first card of each", () => {
+    const html = readFileSync(join(root, "index.html"), "utf8");
+    const seen = [...html.matchAll(/<h3 class="tgroup">([^<]*)<\/h3>\s*<a class="tcard" href="\/editor\/#template=([^"]*)"/g)].map((m) => [m[1], m[2]]);
+    expect(seen).toEqual(TEMPLATES.filter((t) => t.section).map((t) => [t.section, t.id]));
+    expect(seen).toEqual([["Neural networks", "neural-network"]]);
+    expect(html.match(/class="tgroup"/g)).toHaveLength(1);
+  });
 });
 
 describe.skipIf(!haveEngine())("compiled by our engine", () => {

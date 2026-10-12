@@ -311,13 +311,29 @@ body {
 /* The tools (D92): flat buttons in groups, the picture's view on the right, Share last. */
 .tf-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 2px;
+  justify-content: space-between;
+  column-gap: 12px;
+  row-gap: 2px;
   padding: 5px 10px;
   border-bottom: 1px solid var(--line);
   background: var(--bg);
   min-width: 0;
-  overflow-x: auto;
+}
+
+/* Two groups: the file and editing tools, then the picture's view, Export and Share. When the window is too narrow
+   for both on one row the second group drops to its own row, right-aligned; nothing is cut off (D101). */
+.tf-toolbar .tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tf-toolbar .tools-end {
+  margin-left: auto;
 }
 
 .tf-toolbar button,
@@ -1923,6 +1939,16 @@ button.tf-preview-state.busy {
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 8px;
   margin: 8px 0 2px;
+}
+/* A heading across the whole grid (D101). */
+.tf-new-heading {
+  grid-column: 1 / -1;
+  margin: 8px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
 }
 /* Inside the toolbar (and the start screen), so their button rules are overridden here. */
 .tf-toolbar .tf-new-card,

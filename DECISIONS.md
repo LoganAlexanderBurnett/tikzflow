@@ -1479,3 +1479,15 @@ The owner reviewed the home page, both themes, phone width, Continue your diagra
   3. **LSTM and GRU parts.** The cell works with today's editor; what is missing is convenience: palette entries for gates (σ, tanh) and pointwise operations (×, +), and a bus from a junction to several targets. Least urgent of the three.
 
 **Why:** D96 item 4 and the approved M5 plan (step 8).
+
+## D101: The owner's review of Milestone 5; the placement marker's bar, a Neural networks heading, the toolbar at laptop widths (2026-10-12)
+**The owner's answers to the Milestone 5 report:**
+1. **The placement flag (D98): marker beyond 3 pt only.** The amber marker on the canvas (and TeX's dashed box on selection) shows only for a node more than 3 pt from TeX's (`MARK_TOLERANCE` in `src/engine/placement.ts`, `markedNodes` in `src/ui/preview.ts`). Drifts of 1 to 3 pt stay in the TeX preview's notes (`PLACEMENT_TOLERANCE` is still 1 pt), and the note says which are marked. Why: on hand-written pictures a point or three is estimated text widths adding up, and a marker on each of them is noise; beyond 3 pt something in the editor's geometry is wrong. The help page "The TeX preview" says the same.
+2. **The neural-network templates get their own heading:** "Neural networks" over the three, in the home page's gallery, the New menu and the start screen's template list (`section` on the first of them in `src/templates/catalog.ts`; the home page's markup has `<h3 class="tgroup">`, and `test/templates.test.ts` checks the markup against the catalog). The nine before them have no heading.
+3. **Help screenshots without a staleness test: approved** (D99).
+4. **The toolbar at laptop widths: nothing may be cut off down to about 1,100 px.**
+   - **Done by wrapping, not a "More" menu.** The toolbar was one row that scrolled sideways (Export and Share out of view at 1,180 px). It is now two groups: the file and editing tools, then the picture's view (TeX preview, View, Fit), Export and Share. Each group wraps inside itself; when the first takes the width, the second drops to its own row, right-aligned. Nothing is hidden behind a menu, so every button stays one click away at any width (it holds down to phone widths too, which Milestone 6's note for small screens can build on). Why not a "More" menu: the buttons are used one at a time, no clear least-used set, and hiding Export or Share is the very problem.
+   - **Cost:** the toolbar is 73 px tall instead of 41 when it wraps. With one picture it is one row from 1,366 px up; with a Picture picker (several pictures in the code), or Save as (a file opened in place), it wraps at 1,440 px too.
+   - **Checked** at 1,100, 1,280, 1,366 and 1,440 px in light and dark: no element of the top row or the toolbar is outside the window, nothing scrolls, and the Export and Share panels open inside the window (`test/e2e/toolbar.spec.ts`).
+
+**Why:** the owner's review of the Milestone 5 report (2026-10-12).

@@ -80,7 +80,6 @@ The three templates are in `src/templates/neural-network.tex`, `lstm-cell.tex` a
 ### Known limits (new in this round)
 - **Shapes still off TeX:** tape 1.0pt (its wave); circle split and rectangle split 2–5pt (marked "not drawn" already). Snapping's guides for a cylinder now use its real anchors.
 - **The placement check** doesn't cover nodes the preview already marks as approximate, nodes in blocks kept as-is, or names with characters other than letters, digits, `-`, `_` and single spaces.
-- **The editor's toolbar is cut off in a 1,180 px window** (Export and Share out of view); for Milestone 6's narrow-screen work.
 - The limits listed under steps 4–6 still hold.
 
 ## M5 step 7: help (2026-10-12)

@@ -9,6 +9,7 @@ test("the home page is a static page with the pitch, the templates and the priva
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/Draw flowcharts\.\s*Keep your TikZ\./);
   await expect(page.getByRole("heading", { name: "Start from a template" })).toBeVisible();
   await expect(page.locator(".tcard")).toHaveCount(12);
+  await expect(page.locator(".tgroup")).toHaveText("Neural networks");
   await expect(page.getByRole("heading", { name: "Your diagrams never leave your browser" })).toBeVisible();
   await expect(page.getByText("bookmark")).toContainText("tikzflow.pages.dev/editor/");
   // No editor on the home page, and a first visit offers the editor, not "Continue".
