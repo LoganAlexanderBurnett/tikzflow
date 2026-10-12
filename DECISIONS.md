@@ -1222,3 +1222,19 @@ The owner confirmed that "Report a problem" shows the issue form when signed in 
   - **The test now behaves the same on every system.** It stops the browser's own `contextmenu` events, then dispatches a real `MouseEvent` on the canvas at press time. Checked: it fails on Windows without the fix and passes with it.
 
 **Why:** SPEC Milestone 5 ("A GitHub Actions workflow that runs the tests on every push"), moved into M5 step 0 by D89.
+
+## D91: The owner's decisions at the step 1 checkpoint: direction A, and the edge-menu hotfix (2026-10-11)
+**Decision:**
+1. **Visual direction: A · Manuscript, including its logo** (`spike/design/`). In detail:
+   - **Palette:** warm paper, dark ink and a vermilion accent, with a navy second color.
+   - **Fonts:** Source Serif 4 for headings, Source Sans 3 for the interface, Source Code Pro for code. All are OFL-1.1, self-hosted, and code is set with ligatures off.
+   - **Logo:** two nodes joined by a `|-` corner.
+   - **Canvas:** TeX's picture on a white sheet in both themes.
+2. **The edge-menu fix of D90 goes onto `trunk` at once, alone.**
+   - **What went to `trunk`:** commit 39da112 holds the fix in `src/ui/canvas.tsx` and its test in `pan.spec.ts`, and nothing else from `m5`.
+   - **The deploy:** production now serves `assets/index-_cEzVGfA.js`, the same as a local build of `trunk`.
+   - **`npm run test:live` against https://tikzflow.pages.dev:** 11 of 11 pass.
+   - **The fix on the live site:** a right click asked for on press opens the edge menu. Checked by a script that blocks the browser's own menu events and dispatches a press-time `MouseEvent`, as the test does.
+   - **`m5`:** `trunk` was merged into `m5` afterwards, so the two branches share the commit.
+
+**Why:** the owner's answers at the step 1 checkpoint (2026-10-11).
