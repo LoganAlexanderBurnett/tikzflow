@@ -69,7 +69,9 @@ Open https://m5.tikzflow.pages.dev (or `npm run dev`, then http://localhost:5173
   - `fixes.spec.ts` now uses `xslant` for its "not drawn" marker, since `double` is drawn.
   - `core-loop.spec.ts`'s locked-node drag failed once in 15 runs: it could start before the view had fitted the new picture. It now waits for the node to stop moving (45 of 45 since).
 - **Fidelity:** `npm run fidelity` now includes the templates and `p11-automata.tex`; `spike/engines/results/fidelity.json` is updated.
-- **Live:** `test:live` has a new check: the gallery's pictures load under the policy, a card opens its template, and New lists all ten.
+- **Live:** `test:live` has a new check: the gallery's pictures load under the policy, a card opens its template, and New lists all ten. **`TIKZFLOW_URL=https://m5.tikzflow.pages.dev npm run test:live`: 13 of 13** on the deploy of the step 4 commit (ce284bd; the preview serves `assets/editor-DD3gcK-w.js`, the same as the local build).
+- **CI on `m5` (ce284bd): green**, all three jobs. The new pdfLaTeX job compiled all ten files with no errors or warnings.
+- **`typecheck`, `build`, `check:dist`:** pass.
 
 ### Known limits
 - **Templates replace the work on screen** (it is put aside, as with Open) until tabs come in step 6.
