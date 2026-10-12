@@ -151,23 +151,42 @@ function emValue(v: string | undefined): number {
   return m ? parseFloat(m[1]!) : 0;
 }
 
-function katexWidth(node: KatexNode, scale: number): number {
+/**
+ * How much wider TeX's glyphs are than KaTeX's at a script size. KaTeX shrinks the 10pt fonts; TeX uses
+ * Computer Modern's own 7pt and 5pt designs, which are wider for their size: cmmi7, cmr7 and cmsy7 run
+ * about 1.15 times the 10pt widths scaled to 7pt, and the 5pt fonts about 1.33 times (D100). `ratio` is the
+ * script size over the text size.
+ */
+function designWidth(ratio: number): number {
+  if (ratio >= 0.95) return 1;
+  if (ratio <= 0.5) return 1.33;
+  if (ratio >= 0.7) return 1 + ((0.95 - ratio) / 0.25) * 0.15;
+  return 1.15 + ((0.7 - ratio) / 0.2) * 0.18;
+}
+
+function katexWidth(node: KatexNode, scale: number, glyphs = 1): number {
   const cls = node.classes ?? [];
   let s = scale;
-  if (cls.includes("sizing") || cls.includes("fontsize-ensurer")) {
+  let g = glyphs;
+  // KaTeX 0.19 calls the size classes katex-sizing and katex-fontsize-ensurer; earlier releases, sizing and fontsize-ensurer.
+  if (cls.some((c) => /^(katex-)?(sizing|fontsize-ensurer)$/.test(c))) {
     const reset = cls.find((c) => c.startsWith("reset-size"));
     const size = cls.find((c) => /^size\d+$/.test(c));
-    if (reset && size) s = (scale * KATEX_SIZES[+size.slice(4) - 1]!) / KATEX_SIZES[+reset.slice(10) - 1]!;
+    if (reset && size) {
+      const ratio = KATEX_SIZES[+size.slice(4) - 1]! / KATEX_SIZES[+reset.slice(10) - 1]!;
+      s = scale * ratio;
+      g = glyphs * designWidth(ratio);
+    }
   }
   const margins = (emValue(node.style?.marginLeft) + emValue(node.style?.marginRight)) * s;
-  if (node.text !== undefined) return ((node.width ?? 0) + (node.italic ?? 0)) * s + margins;
+  if (node.text !== undefined) return ((node.width ?? 0) + (node.italic ?? 0)) * s * g + margins;
   if (cls.includes("vlist-s") || cls.includes("pstrut") || cls.includes("katex-strut") || cls.includes("strut")) return 0;
   if (cls.includes("nulldelimiter")) return 0.12 * s;
   if (node.style?.width && !node.children?.length) return emValue(node.style.width) * s + margins;
   const kids = node.children ?? [];
-  if (cls.includes("vlist")) return Math.max(0, ...kids.map((k) => katexWidth(k, s))) + margins;
+  if (cls.includes("vlist")) return Math.max(0, ...kids.map((k) => katexWidth(k, s, g))) + margins;
   let w = 0;
-  for (const k of kids) w += katexWidth(k, s);
+  for (const k of kids) w += katexWidth(k, s, g);
   return w + margins + (node.style?.minWidth ? 0 : 0);
 }
 

@@ -5,6 +5,7 @@ import { diffRange } from "../src/edit/changes.ts";
 import { draftOf, labelBlocker, labelProblem, planLabelEdit } from "../src/edit/label.ts";
 import { analyzeDocument, layoutDocumentPicture } from "../src/model/document.ts";
 import { templateText } from "../src/templates/index.ts";
+import { measureMath } from "../src/text/label.ts";
 
 /** The Basic process template, which the editor used to start with. */
 const SAMPLE = templateText("basic-process")!;
@@ -142,4 +143,14 @@ describe("every corpus picture", () => {
       }
     });
   }
+});
+
+describe("script sizes (D100)", () => {
+  // TeX's widths, from the fonts: cmmi10 c, then t, − and 1 in cmmi7, cmsy7 and cmr7 at 7pt, and the 0.5pt script space.
+  it("measures sub- and superscripts at their size, in Computer Modern's script designs", () => {
+    expect(measureMath("c_{t-1}", false, {})!.width * 10).toBeCloseTo(4.33 + 2.93 + 6.25 + 3.99 + 0.5, 0);
+    expect(measureMath("c_{t}", false, {})!.width * 10).toBeCloseTo(4.33 + 2.93 + 0.5, 0);
+    // KaTeX 0.19's class is katex-sizing: before D100 a subscript was measured at full size (8.4pt here).
+    expect(measureMath("c_{t}", false, {})!.width * 10).toBeLessThan(8);
+  });
 });

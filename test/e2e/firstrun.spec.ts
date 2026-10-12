@@ -41,7 +41,7 @@ test("Start from a template shows the gallery, and a card opens its template", a
   await expect(page.getByTestId("start-hierarchy")).toHaveCount(0);
   await page.getByTestId("start-template").click();
   await expect(page.getByTestId("start-template")).toHaveAttribute("aria-expanded", "true");
-  await expect(page.getByTestId("empty-state").locator(".tf-new-card")).toHaveCount(9);
+  await expect(page.getByTestId("empty-state").locator(".tf-new-card")).toHaveCount(12);
   await page.getByTestId("start-swimlane-process").click();
   await expect(page.getByTestId("empty-state")).toHaveCount(0);
   await expect(page.getByTestId("summary-headline")).toHaveText("7 nodes, 3 groups and 7 edges editable");

@@ -20,6 +20,10 @@ export const TEMPLATES: readonly TemplateInfo[] = [
   { id: "prisma-2020", title: "PRISMA 2020", blurb: "Records identified, screened, excluded and included." },
   { id: "state-machine", title: "State machine", blurb: "States, an initial arrow, loops and an accepting state." },
   { id: "hierarchy", title: "Hierarchy", blurb: "A tree placed with positioning and `-|` edges." },
+  // Neural networks (M5 step 8, D96 item 4, D100): what the editor handles today, before Milestone 7.
+  { id: "neural-network", title: "Neural network", blurb: "A small fully connected network, every weight its own edge." },
+  { id: "lstm-cell", title: "LSTM cell", blurb: "Gates, pointwise operations and the cell state." },
+  { id: "encoder-decoder", title: "Encoder–decoder", blurb: "Feature maps by size, with skip connections on top." },
 ];
 
 /** The empty diagram the New menu offers before the templates (src/templates/blank.tex). */

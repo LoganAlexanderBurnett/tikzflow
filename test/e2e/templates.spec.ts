@@ -28,7 +28,7 @@ test("the New menu opens a template in a new tab; the work stays in its own (D97
   await setCode(page, MINE);
   await page.getByTestId("new-button").click();
   const panel = page.getByTestId("new-panel");
-  await expect(panel.locator(".tf-new-card")).toHaveCount(10);
+  await expect(panel.locator(".tf-new-card")).toHaveCount(13);
   // The thumbnails are TeX's pictures, served with the editor.
   await expect(panel.locator('[data-testid="new-hierarchy"] img')).toHaveJSProperty("complete", true);
   expect(await panel.locator('[data-testid="new-hierarchy"] img').evaluate((i) => (i as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
@@ -58,6 +58,9 @@ test("every template opens with all of it editable; group and lane boxes count a
     "prisma-2020": "9 nodes, 3 groups and 8 edges editable",
     "state-machine": "3 nodes and 6 edges editable",
     hierarchy: "6 nodes and 5 edges editable",
+    "neural-network": "12 nodes and 20 edges editable",
+    "lstm-cell": "15 nodes, 1 group and 17 edges editable",
+    "encoder-decoder": "9 nodes and 11 edges editable",
   };
   for (const [id, headline] of Object.entries(expected)) {
     await page.getByTestId("new-button").click();

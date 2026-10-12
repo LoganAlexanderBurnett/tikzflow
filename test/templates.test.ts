@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { type Compiler, engine, haveEngine } from "../scripts/lib/compile.ts";
 import { planMove } from "../src/edit/move.ts";
+import { keyNamedStyles } from "../src/edit/stylekeys.ts";
 import { analyzeDocument, layoutDocumentPicture } from "../src/model/document.ts";
 import { pictureEdges } from "../src/model/edges.ts";
 import { summarize } from "../src/model/summary.ts";
@@ -18,10 +19,10 @@ const MM = PT_PER_UNIT.mm!;
 const read = (id: string) => readFileSync(join(root, "src", "templates", `${id}.tex`), "utf8");
 
 describe("the catalog", () => {
-  it("lists nine templates, each with its file, and the blank diagram", () => {
-    expect(TEMPLATES).toHaveLength(9);
+  it("lists twelve templates, each with its file, and the blank diagram", () => {
+    expect(TEMPLATES).toHaveLength(12);
     const ids = TEMPLATES.map((t) => t.id);
-    expect(new Set(ids).size).toBe(9);
+    expect(new Set(ids).size).toBe(12);
     const files = readdirSync(join(root, "src", "templates")).filter((f) => f.endsWith(".tex"));
     expect(files.sort()).toEqual([...ids, BLANK_ID].map((id) => `${id}.tex`).sort());
   });
@@ -58,6 +59,8 @@ describe.each(TEMPLATES)("$title", ({ id }) => {
     const layout = layoutDocumentPicture(doc, 0)!;
     const s = summarize(doc, layout, 0);
     expect(layout.opaque).toEqual([]);
+    // No style named like a TikZ key (D87): TeX would fail on every node using it.
+    expect(keyNamedStyles(doc, doc.syntax.pictures[0]!).map((k) => k.name)).toEqual([]);
     expect(s.kept).toEqual({});
     expect(s.unknownKeys).toEqual([]);
     expect(s.notes).toEqual([]);
