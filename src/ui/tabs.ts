@@ -762,8 +762,12 @@ export function startAutosave(): () => void {
     takeIfFree();
   };
   const onChannel = (e: MessageEvent<Message>) => onMessage(e.data);
-  // A window that closes sends nothing: its tabs' markers go on the next look.
-  const poll = setInterval(() => document.visibilityState === "visible" && void refreshElsewhere(), ELSEWHERE_POLL_MS);
+  // A window that closes sends nothing: its tabs' markers go, and a tab it was editing becomes editable here, on the next look.
+  const poll = setInterval(() => {
+    if (document.visibilityState !== "visible") return;
+    void refreshElsewhere();
+    takeIfFree();
+  }, ELSEWHERE_POLL_MS);
   document.addEventListener("visibilitychange", onVisibility);
   window.addEventListener("pagehide", saveAll);
   window.addEventListener("focus", onFocus);

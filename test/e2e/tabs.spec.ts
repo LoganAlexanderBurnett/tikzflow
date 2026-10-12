@@ -143,8 +143,13 @@ test("two windows: one edits a diagram, the other shows it read-only and can tak
   // The second window closes: the first can edit again once it is in front.
   await second.close();
   await page.bringToFront();
-  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
-  await expect(page.getByTestId("lock-banner")).toHaveCount(0);
+  await expect
+    .poll(async () => {
+      // The browser lets go of the closed window's lock a moment after it closes.
+      await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+      return page.getByTestId("lock-banner").count();
+    })
+    .toBe(0);
   await type(page, "% mine again\n");
   await expect.poll(() => storedTexts(page)).toEqual([A, `% mine again\n% now the second\n% last word\n% from the first window\n${B}`].sort());
 });

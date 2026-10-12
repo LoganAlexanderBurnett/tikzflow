@@ -297,4 +297,48 @@ test.describe("the site", () => {
     await fresh.context().close();
     expect(problems).toEqual([]);
   });
+
+  test("tabs (D97): kept across a reload; a second window shows the first one's tab read-only and Edit here hands it over", async ({ page, context }) => {
+    const problems: string[] = [];
+    const watch = (p: Page) => {
+      p.on("console", (m) => /content security policy|refused to/i.test(m.text()) && problems.push(m.text()));
+      p.on("pageerror", (e) => problems.push(String(e)));
+    };
+    watch(page);
+    await page.goto(FIRST);
+    await page.waitForSelector(".cm-editor");
+    await setCode(page, FIGURE);
+    await page.getByTestId("new-button").click();
+    await page.getByTestId("new-hierarchy").click();
+    const names = (p: Page) => p.getByTestId("tab").locator(".name");
+    await expect(names(page)).toHaveText(["Basic process", "Hierarchy"]);
+    await page.waitForTimeout(1000);
+    await page.reload();
+    await page.waitForSelector(".cm-editor");
+    await expect(names(page)).toHaveText(["Basic process", "Hierarchy"]);
+    await expect(page.getByTestId("summary-headline")).toHaveText("6 nodes and 5 edges editable");
+
+    // A second window starts on the tab the first isn't showing, then opens the first one's.
+    const second = await context.newPage();
+    watch(second);
+    await second.goto("/editor/");
+    await second.waitForSelector(".cm-editor");
+    await expect(second.locator(".cm-content")).toContainText("LiveCheck");
+    await names(second).nth(1).click();
+    await expect(second.getByTestId("lock-banner")).toBeVisible();
+    await second.getByTestId("edit-here").click();
+    await expect(second.getByTestId("lock-banner")).toHaveCount(0);
+    await expect(page.getByTestId("lock-banner")).toBeVisible();
+    // The second window goes: the first one, in front again, can edit.
+    await second.close();
+    await page.bringToFront();
+    await expect
+      .poll(async () => {
+        // The browser lets go of the closed window's lock a moment after it closes.
+        await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+        return page.getByTestId("lock-banner").count();
+      })
+      .toBe(0);
+    expect(problems).toEqual([]);
+  });
 });
