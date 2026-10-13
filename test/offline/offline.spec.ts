@@ -184,6 +184,8 @@ test("after one visit to a help page, every help page and its search work offlin
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Saving, tabs and your work");
   await expect(page.locator("figure img").first()).toHaveJSProperty("complete", true);
   await page.locator("#help-q").fill("swimlanes");
+  // The index loads on the box's first focus: Enter opens the first result once there is one (it failed once in CI, pressed too early).
+  await expect(page.locator(".help-results a").first()).toBeVisible();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/help\/layout\//);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Layout, groups and swimlanes");

@@ -22,7 +22,7 @@ Milestone 0 is done and was approved on 2026-10-07:
 
 **Milestone 5 (user experience and website): done, reviewed by the owner, merged into `trunk` and live at https://tikzflow.pages.dev (2026-10-12, D101).** SPEC Milestone 5 was split (D89): M5 is the user-facing work, M6 the performance target and the release paperwork (license audit, README). Steps 0–8 are done; the owner's review answers (marker beyond 3 pt, a Neural networks heading, the toolbar wrapping at laptop widths) are D101. See "Milestone 5: merged and live" and "Milestone 5 report" below, and "M5 plan and status". **Milestone 7 (neural network diagrams)** was added after M6 by the owner (D96), to be planned later.
 
-**Milestone 6 (performance and release paperwork): in progress on `m6` (plan approved 2026-10-12, D102).** The owner added a step: placement links made visible, Unlink, Detach, Detach from style, and a proposal for the dragging default. Step 0 (the baseline, D103) is done; the owner decided the dragging default (D104: only the dragged node moves) and added a Venn template. Steps 1 and 1b are next, then `test:live` on the `m6` preview and a stop. See "M6 plan and status".
+**Milestone 6 (performance and release paperwork): in progress on `m6` (plan approved 2026-10-12, D102).** The owner added a step: placement links made visible, Unlink, Detach, Detach from style, and a proposal for the dragging default. Steps 0 (the baseline, D103), 1 (placement links and dragging only the dragged node, D104, D105) and 1b (the Venn template, D106) are done, pushed and checked on the `m6` preview (`test:live` 16 of 16); **stopped for the owner's review** before step 2 (drag performance). See "M6 plan and status" and "M6 steps 1 and 1b: checks" below.
 
 Also read "Notes for later milestones" below.
 
@@ -37,6 +37,20 @@ Also read "Notes for later milestones" below.
 | 4 | License audit, `THIRD_PARTY_LICENSES.md` (script and staleness test), `/licenses/`, the web2js issue text for the owner | |
 | 5 | README with screenshots made by a script; deployment steps | |
 | 6 | Release check (tests, CI, fidelity, `test:live` on the `m6` preview, docs); **Milestone 6 report** | |
+
+## M6 steps 1 and 1b: checks (2026-10-13)
+**Stopped here for the owner's review.**
+- **Locally:** `typecheck`, `build`, `check:dist` pass; Vitest 1,886 passed, 9 skipped; Playwright 210 of 210; `test:offline` 9 of 9; `npm run fidelity` 576 of 663 nodes within 1 pt (the Venn's 13 added; nothing else changed).
+- **CI on `m6`:** green on step 1 (c305db9); on step 1b (b79ad40) the offline help-search test failed once (Enter pressed before the search index had loaded; the ranking is right) and passed on the rerun. The test now waits for a result before pressing Enter.
+- **`TIKZFLOW_URL=https://m6.tikzflow.pages.dev npm run test:live`: 16 of 16** on the deploy of b79ad40 (the preview serves `assets/editor-Dpu-0Q4r.js`, the same as the local build).
+- **Every test expectation changed in steps 1 and 1b, and why:**
+  1. `test/e2e/toolbar.spec.ts`: "the toolbar is one row from 1366 px" became 1500 px: the "Move followers too" switch adds 131 px (D105). The checks that nothing is cut off from 1,100 px up are unchanged and pass.
+  2. `test/templates.test.ts`: 12 → 13 templates; the headings list gains "Other diagrams"; two `tgroup` headings instead of one; the Venn diagram is exempt from "every template has edges" (it is sets only, D106).
+  3. `test/e2e/firstrun.spec.ts` and `test/e2e/site.spec.ts`: 12 → 13 cards; headings "Neural networks" and "Other diagrams".
+  4. `test/e2e/templates.spec.ts`: 13 → 14 cards in New (with the blank diagram); both headings, and the first card under each (`new-neural-network`, `new-venn`); the Venn's headline "13 nodes and 0 edges editable" added to the list.
+  5. `test/live/live.spec.ts`: 12 → 13 gallery pictures, 13 → 14 cards in New.
+  6. `test/offline/offline.spec.ts`: no expectation changed; it now waits for a search result before pressing Enter (the CI failure above).
+  - Not changed: no existing golden file, and no other test (existing move goldens call `planMove` directly, which behaves as before). New: `links.test.ts`, `golden-links.test.ts` (152 golden files), `links.spec.ts` (10).
 
 ## M6 step 1b: the Venn diagram template (2026-10-13)
 Details in D106. **Open it:** New → Other diagrams → Venn diagram (also on the home page and the start screen). Three sets, a name on each and a count in each region; drag a circle (its name and counts stay, re-attached), Ctrl-drag it (they come along), recolor a set, Detach one.
@@ -55,8 +69,8 @@ Done as the owner decided (D104); details in D105.
 - **Detach from style:** select `rec`, **Detach from process**: its options are written out, and it looks the same.
 
 ### Tests
-- **Vitest:** 1,878 passed, 9 skipped (new: `links.test.ts` 12, `golden-links.test.ts` 151 with 148 golden files).
-- **Playwright:** 209 (new: `links.spec.ts`, 9). **One expectation changed:** `toolbar.spec.ts` "with one picture the toolbar is one row from 1366 px up" now says 1500 px: the "Move followers too" switch adds 131 px, so below 1,500 px the picture's tools take a second row (nothing is cut off; D105).
+- **Vitest:** 1,878 passed, 9 skipped at step 1's commit (new: `links.test.ts` 12, `golden-links.test.ts` 151 with 148 golden files; with the Venn, 155 and 152).
+- **Playwright:** 209 (new: `links.spec.ts`, 9; a tenth, on the Venn, came with step 1b). **One expectation changed:** `toolbar.spec.ts` "with one picture the toolbar is one row from 1366 px up" now says 1500 px: the "Move followers too" switch adds 131 px, so below 1,500 px the picture's tools take a second row (nothing is cut off; D105).
 
 ## M6 step 0: the drag benchmark and the baseline (2026-10-12)
 The owner chose option A, with the Ctrl and toolbar switches, for node and group drags (D104).
