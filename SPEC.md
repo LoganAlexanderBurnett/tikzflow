@@ -162,7 +162,8 @@ Features:
 - The license audit of every bundled component, summarized in `THIRD_PARTY_LICENSES.md`.
 - README with features, screenshots, local development setup, and deployment steps.
 - On phone-sized screens, the editor shows a friendly note ("TikZFlow works best on a larger screen") with viewing and sharing still available, instead of a cramped editor.
-- Placement links made visible: for the selected node, the properties panel lists what it follows and what follows it, each with an Unlink button, and a drag faintly shows the nodes that will move along. "Detach" on a node or a multi-selection removes all its placement links in both directions with nothing moving visually (the node gets coordinates; its followers are re-attached or pinned). "Detach from style" copies the style's effective options onto the node. The dragging default (move only the dragged node, or move it with its followers) is decided by the owner from a proposal with trade-offs.
+- Placement links made visible: for the selected node, the properties panel lists what it follows and what follows it, each with an Unlink button, and a drag faintly shows the nodes that will move along. "Detach" on a node or a multi-selection removes all its placement links in both directions with nothing moving visually (the node gets coordinates; its followers are re-attached or pinned). "Detach from style" copies the style's effective options onto the node. Dragging moves only the dragged node (its followers are re-attached or pinned, and named in the status bar); Ctrl (⌘) during a drag, or a toolbar switch "Move followers too", moves the followers along; group drags follow the same mode (D104).
+- A Venn diagram template, fully editable, under an "Other diagrams" heading in the gallery, the New menu and the start screen (D104).
 
 ### Milestone 7: Neural network diagrams
 (Added after the Milestone 5 step 4 review; scope to be planned later. Reasons in DECISIONS.md D96.)
@@ -260,3 +261,6 @@ Start with Milestone 0. Before writing code, give me a brief plan for the spike 
   - The phone note applies under 768 px wide, with an "Edit anyway" button remembered for the browser tab.
   - Added to Milestone 6: placement links made visible (what a node follows and what follows it, Unlink), Detach, Detach from style, and a proposal for the dragging default.
   - A `/licenses/` page alongside `THIRD_PARTY_LICENSES.md`; the Beta label stays until the wider launch.
+- **2026-10-12, the owner's decisions at the Milestone 6 step 0 checkpoint** (decided by the project owner; reasons in DECISIONS.md D104):
+  - Dragging moves only the dragged node; its followers are re-attached (to what the dragged node hung off first) or pinned, and named in the status bar. Ctrl (⌘) during a drag, or a toolbar switch "Move followers too", moves the followers along. Group drags follow the same mode.
+  - Added to Milestone 6: a Venn diagram template, fully editable, under a new "Other diagrams" heading.

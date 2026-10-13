@@ -22,15 +22,16 @@ Milestone 0 is done and was approved on 2026-10-07:
 
 **Milestone 5 (user experience and website): done, reviewed by the owner, merged into `trunk` and live at https://tikzflow.pages.dev (2026-10-12, D101).** SPEC Milestone 5 was split (D89): M5 is the user-facing work, M6 the performance target and the release paperwork (license audit, README). Steps 0–8 are done; the owner's review answers (marker beyond 3 pt, a Neural networks heading, the toolbar wrapping at laptop widths) are D101. See "Milestone 5: merged and live" and "Milestone 5 report" below, and "M5 plan and status". **Milestone 7 (neural network diagrams)** was added after M6 by the owner (D96), to be planned later.
 
-**Milestone 6 (performance and release paperwork): in progress on `m6` (plan approved 2026-10-12, D102).** The owner added a step: placement links made visible, Unlink, Detach, Detach from style, and a proposal for the dragging default. Step 0 (the drag benchmark's baseline) ends in a checkpoint. See "M6 plan and status".
+**Milestone 6 (performance and release paperwork): in progress on `m6` (plan approved 2026-10-12, D102).** The owner added a step: placement links made visible, Unlink, Detach, Detach from style, and a proposal for the dragging default. Step 0 (the baseline, D103) is done; the owner decided the dragging default (D104: only the dragged node moves) and added a Venn template. Steps 1 and 1b are next, then `test:live` on the `m6` preview and a stop. See "M6 plan and status".
 
 Also read "Notes for later milestones" below.
 
 ## M6 plan and status
 | Step | Content | Status |
 |---|---|---|
-| 0 | `m6` branch; `npm run drag:bench` and the baseline; **checkpoint: the numbers and the proposal for the dragging default** | Done (D103); **waiting for the owner** (see "M6 step 0" below) |
-| 1 | Links made visible (follows / followed by, Unlink, faint followers while dragging), Detach, Detach from style; the dragging default as the owner decides | |
+| 0 | `m6` branch; `npm run drag:bench` and the baseline; **checkpoint: the numbers and the proposal for the dragging default** | Done (D103); the owner decided (D104) |
+| 1 | Links made visible (follows / followed by, Unlink, faint followers while dragging), Detach, Detach from style; dragging moves only the dragged node, Ctrl or the toolbar switch "Move followers too" moves its followers (D104) | In progress |
+| 1b | A Venn diagram template under "Other diagrams" (D104 item 4) | |
 | 2 | Drag performance to the target (D102 item 1): 60 fps, 30 fps at 4× CPU slowdown, drop under 100 ms; no golden file changes | |
 | 3 | The phone note: under 768 px, Edit anyway per browser tab | |
 | 4 | License audit, `THIRD_PARTY_LICENSES.md` (script and staleness test), `/licenses/`, the web2js issue text for the owner | |
@@ -38,7 +39,7 @@ Also read "Notes for later milestones" below.
 | 6 | Release check (tests, CI, fidelity, `test:live` on the `m6` preview, docs); **Milestone 6 report** | |
 
 ## M6 step 0: the drag benchmark and the baseline (2026-10-12)
-**Stopped here for the owner** (D102): the baseline, and the proposal for the dragging default below.
+The owner chose option A, with the Ctrl and toolbar switches, for node and group drags (D104).
 
 ### How to run it
 `npm run drag:bench` (builds, then about 30 minutes; an Edge window opens and must stay unobstructed). Options: `--no-build`, `--only=200|500|dense`, `--modes=quick,tex`, `--throttle=1,4`, `--label=<name>` (saves `spike/perf/results/<name>.json`), `--profile` (one node drag with a CPU profile and a trace, unminified build), `--debug` (screenshots). `npm run layout:bench -- --picture=200|500|dense` times the layout parts in Node. How it measures: D103.

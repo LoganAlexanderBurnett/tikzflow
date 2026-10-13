@@ -1562,3 +1562,12 @@ Nothing meets the target (60 fps: 95% on time and no long task; 30 fps at 4×; d
 **What it means for step 2:** pacing alone would bring the node drag to about 26 fps (38 ms per update). Reaching 60 fps, and 30 fps at 4× (about 8 ms per update at 1×), needs all of: laying out only what the drag affects, rendering and repainting only what changed, an incremental stale patch, and keeping CodeMirror from forcing layouts. The drop needs the edit's own re-analysis and render to be cheaper, and the group drop's planning batched.
 
 **Why:** D102 (measure before and after; a concrete target).
+
+## D104: The owner's decisions at the step 0 checkpoint: dragging moves only the dragged node; a Venn template (2026-10-12)
+1. **Dragging default: option A.** Dragging moves only the dragged node. Holding Ctrl (⌘ on a Mac) during a drag switches to "move followers too" for that drag, live (pressed or released mid-drag). A toolbar switch **Move followers too** (off by default, remembered in this browser) flips the default. Followers are re-attached first to what the dragged node hung off, pinned only as a last resort, and every rewritten node is named in the status bar.
+2. **Group drags follow the same mode.**
+3. **The headless Edge crash** (twice, about 30 s after opening the 200-node picture with the TeX preview, D103's setup; not reproduced since): keep watching; if it reproduces in step 2, find the cause (the owner suspects memory first).
+4. **New: a Venn diagram template**, a small step right after step 1: 2-set and 3-set, or one 3-set if that reads better. It must open fully editable like every template: if the idiomatic `\clip`-based shading of intersections would be locked, either circle nodes with `fill opacity` for the overlaps or teaching the editor clipped regions, with the choice and the reason reported. It goes under a new **Other diagrams** heading in the gallery, the New menu and the start screen. It is also a test of Detach and moving alone with overlapping nodes.
+5. **Then:** step 1 and the Venn step, a commit after each, `m6` pushed, `test:live` against the `m6` preview, PROGRESS.md updated, and a stop.
+
+**Why:** the owner's answers at the step 0 checkpoint (2026-10-12).
