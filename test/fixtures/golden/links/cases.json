@@ -1,0 +1,1065 @@
+[
+ {
+  "file": "se-102785-foreach-scope.0.first.alone.tex",
+  "source": "corpus/se-102785-foreach-scope.tex",
+  "picture": 0,
+  "moved": [
+   "a"
+  ]
+ },
+ {
+  "file": "se-102785-foreach-scope.0.first.detach.tex",
+  "source": "corpus/se-102785-foreach-scope.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-102785-foreach-scope.0.middle.alone.tex",
+  "source": "corpus/se-102785-foreach-scope.tex",
+  "picture": 0,
+  "moved": [
+   "d"
+  ]
+ },
+ {
+  "file": "se-102785-foreach-scope.0.middle.detach.tex",
+  "source": "corpus/se-102785-foreach-scope.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-178617-matrix-arrows.0.first.alone.tex",
+  "source": "corpus/se-178617-matrix-arrows.tex",
+  "picture": 0,
+  "moved": [
+   "m1"
+  ]
+ },
+ {
+  "file": "se-178617-matrix-arrows.0.first.detach.tex",
+  "source": "corpus/se-178617-matrix-arrows.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-178617-matrix-arrows.0.middle.alone.tex",
+  "source": "corpus/se-178617-matrix-arrows.tex",
+  "picture": 0,
+  "moved": [
+   "m2"
+  ]
+ },
+ {
+  "file": "se-178617-matrix-arrows.0.middle.detach.tex",
+  "source": "corpus/se-178617-matrix-arrows.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-194593-styled-colors.0.first.alone.tex",
+  "source": "corpus/se-194593-styled-colors.tex",
+  "picture": 0,
+  "moved": [
+   "start"
+  ]
+ },
+ {
+  "file": "se-194593-styled-colors.0.first.detach.tex",
+  "source": "corpus/se-194593-styled-colors.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-194593-styled-colors.0.middle.alone.tex",
+  "source": "corpus/se-194593-styled-colors.tex",
+  "picture": 0,
+  "moved": [
+   "dec"
+  ]
+ },
+ {
+  "file": "se-194593-styled-colors.1.first.alone.tex",
+  "source": "corpus/se-194593-styled-colors.tex",
+  "picture": 1,
+  "moved": [
+   "start"
+  ]
+ },
+ {
+  "file": "se-194593-styled-colors.1.first.detach.tex",
+  "source": "corpus/se-194593-styled-colors.tex",
+  "picture": 1,
+  "moved": []
+ },
+ {
+  "file": "se-194593-styled-colors.1.middle.alone.tex",
+  "source": "corpus/se-194593-styled-colors.tex",
+  "picture": 1,
+  "moved": [
+   "dec"
+  ]
+ },
+ {
+  "file": "se-194593-styled-colors.1.middle.detach.tex",
+  "source": "corpus/se-194593-styled-colors.tex",
+  "picture": 1,
+  "moved": []
+ },
+ {
+  "file": "se-194593-styled-colors.2.first.alone.tex",
+  "source": "corpus/se-194593-styled-colors.tex",
+  "picture": 2,
+  "moved": [
+   "start"
+  ]
+ },
+ {
+  "file": "se-194593-styled-colors.2.first.detach.tex",
+  "source": "corpus/se-194593-styled-colors.tex",
+  "picture": 2,
+  "moved": []
+ },
+ {
+  "file": "se-194593-styled-colors.2.middle.alone.tex",
+  "source": "corpus/se-194593-styled-colors.tex",
+  "picture": 2,
+  "moved": [
+   "dec"
+  ]
+ },
+ {
+  "file": "se-194593-styled-colors.2.middle.detach.tex",
+  "source": "corpus/se-194593-styled-colors.tex",
+  "picture": 2,
+  "moved": []
+ },
+ {
+  "file": "se-218730-arrow-labels.0.first.alone.tex",
+  "source": "corpus/se-218730-arrow-labels.tex",
+  "picture": 0,
+  "moved": [
+   "init"
+  ]
+ },
+ {
+  "file": "se-218730-arrow-labels.0.first.detach.tex",
+  "source": "corpus/se-218730-arrow-labels.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-218730-arrow-labels.0.middle.alone.tex",
+  "source": "corpus/se-218730-arrow-labels.tex",
+  "picture": 0,
+  "moved": [
+   "setloadavg"
+  ]
+ },
+ {
+  "file": "se-218730-arrow-labels.0.middle.detach.tex",
+  "source": "corpus/se-218730-arrow-labels.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-263754-chains.0.first.alone.tex",
+  "source": "corpus/se-263754-chains.tex",
+  "picture": 0,
+  "moved": [
+   "chain-1"
+  ]
+ },
+ {
+  "file": "se-263754-chains.0.first.detach.tex",
+  "source": "corpus/se-263754-chains.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-30929-mixed-absolute.0.first.alone.tex",
+  "source": "corpus/se-30929-mixed-absolute.tex",
+  "picture": 0,
+  "moved": [
+   "stoffVor"
+  ]
+ },
+ {
+  "file": "se-30929-mixed-absolute.0.first.detach.tex",
+  "source": "corpus/se-30929-mixed-absolute.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-30929-mixed-absolute.0.middle.alone.tex",
+  "source": "corpus/se-30929-mixed-absolute.tex",
+  "picture": 0,
+  "moved": [
+   "haupt"
+  ]
+ },
+ {
+  "file": "se-30929-mixed-absolute.0.middle.detach.tex",
+  "source": "corpus/se-30929-mixed-absolute.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-338616-positioning-edges.0.first.alone.tex",
+  "source": "corpus/se-338616-positioning-edges.tex",
+  "picture": 0,
+  "moved": [
+   "start"
+  ]
+ },
+ {
+  "file": "se-338616-positioning-edges.0.first.detach.tex",
+  "source": "corpus/se-338616-positioning-edges.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-338616-positioning-edges.0.middle.alone.tex",
+  "source": "corpus/se-338616-positioning-edges.tex",
+  "picture": 0,
+  "moved": [
+   "in1"
+  ]
+ },
+ {
+  "file": "se-338616-positioning-edges.0.middle.detach.tex",
+  "source": "corpus/se-338616-positioning-edges.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-349800-wide-39-nodes.0.first.alone.tex",
+  "source": "corpus/se-349800-wide-39-nodes.tex",
+  "picture": 0,
+  "moved": [
+   "start"
+  ]
+ },
+ {
+  "file": "se-349800-wide-39-nodes.0.first.detach.tex",
+  "source": "corpus/se-349800-wide-39-nodes.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-349800-wide-39-nodes.0.middle.alone.tex",
+  "source": "corpus/se-349800-wide-39-nodes.tex",
+  "picture": 0,
+  "moved": [
+   "Gene_expression_data"
+  ]
+ },
+ {
+  "file": "se-349800-wide-39-nodes.0.middle.detach.tex",
+  "source": "corpus/se-349800-wide-39-nodes.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-350521-perp-coordinates.0.first.alone.tex",
+  "source": "corpus/se-350521-perp-coordinates.tex",
+  "picture": 0,
+  "moved": [
+   "db"
+  ]
+ },
+ {
+  "file": "se-350521-perp-coordinates.0.first.detach.tex",
+  "source": "corpus/se-350521-perp-coordinates.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-350521-perp-coordinates.0.middle.alone.tex",
+  "source": "corpus/se-350521-perp-coordinates.tex",
+  "picture": 0,
+  "moved": [
+   "d1"
+  ]
+ },
+ {
+  "file": "se-350521-perp-coordinates.0.middle.detach.tex",
+  "source": "corpus/se-350521-perp-coordinates.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-382997-chains-indented.0.first.alone.tex",
+  "source": "corpus/se-382997-chains-indented.tex",
+  "picture": 0,
+  "moved": [
+   "p0"
+  ]
+ },
+ {
+  "file": "se-382997-chains-indented.0.first.detach.tex",
+  "source": "corpus/se-382997-chains-indented.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-382997-chains-indented.0.middle.alone.tex",
+  "source": "corpus/se-382997-chains-indented.tex",
+  "picture": 0,
+  "moved": [
+   "p4"
+  ]
+ },
+ {
+  "file": "se-382997-chains-indented.0.middle.detach.tex",
+  "source": "corpus/se-382997-chains-indented.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-421789-complicated-fit.0.first.alone.tex",
+  "source": "corpus/se-421789-complicated-fit.tex",
+  "picture": 0,
+  "moved": [
+   "m1"
+  ]
+ },
+ {
+  "file": "se-421789-complicated-fit.0.first.detach.tex",
+  "source": "corpus/se-421789-complicated-fit.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-421789-complicated-fit.0.middle.alone.tex",
+  "source": "corpus/se-421789-complicated-fit.tex",
+  "picture": 0,
+  "moved": [
+   "m2"
+  ]
+ },
+ {
+  "file": "se-421789-complicated-fit.0.middle.detach.tex",
+  "source": "corpus/se-421789-complicated-fit.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-503226-custom-shape-matrix.0.first.alone.tex",
+  "source": "corpus/se-503226-custom-shape-matrix.tex",
+  "picture": 0,
+  "moved": [
+   "TS"
+  ]
+ },
+ {
+  "file": "se-503226-custom-shape-matrix.0.first.detach.tex",
+  "source": "corpus/se-503226-custom-shape-matrix.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-503226-custom-shape-matrix.0.middle.alone.tex",
+  "source": "corpus/se-503226-custom-shape-matrix.tex",
+  "picture": 0,
+  "moved": [
+   "VS"
+  ]
+ },
+ {
+  "file": "se-503226-custom-shape-matrix.0.middle.detach.tex",
+  "source": "corpus/se-503226-custom-shape-matrix.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-62804-tikzstyle-resizebox.0.first.alone.tex",
+  "source": "corpus/se-62804-tikzstyle-resizebox.tex",
+  "picture": 0,
+  "moved": [
+   "init"
+  ]
+ },
+ {
+  "file": "se-62804-tikzstyle-resizebox.0.first.detach.tex",
+  "source": "corpus/se-62804-tikzstyle-resizebox.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-62804-tikzstyle-resizebox.0.middle.alone.tex",
+  "source": "corpus/se-62804-tikzstyle-resizebox.tex",
+  "picture": 0,
+  "moved": [
+   "nbrh"
+  ]
+ },
+ {
+  "file": "se-62804-tikzstyle-resizebox.0.middle.detach.tex",
+  "source": "corpus/se-62804-tikzstyle-resizebox.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-679521-decorations.0.first.alone.tex",
+  "source": "corpus/se-679521-decorations.tex",
+  "picture": 0,
+  "moved": [
+   "A"
+  ]
+ },
+ {
+  "file": "se-679521-decorations.0.first.detach.tex",
+  "source": "corpus/se-679521-decorations.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-679521-decorations.0.middle.alone.tex",
+  "source": "corpus/se-679521-decorations.tex",
+  "picture": 0,
+  "moved": [
+   "B"
+  ]
+ },
+ {
+  "file": "se-679521-decorations.0.middle.detach.tex",
+  "source": "corpus/se-679521-decorations.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-730217-algorithm.0.first.alone.tex",
+  "source": "corpus/se-730217-algorithm.tex",
+  "picture": 0,
+  "moved": [
+   "start"
+  ]
+ },
+ {
+  "file": "se-730217-algorithm.0.first.detach.tex",
+  "source": "corpus/se-730217-algorithm.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-730217-algorithm.0.middle.alone.tex",
+  "source": "corpus/se-730217-algorithm.tex",
+  "picture": 0,
+  "moved": [
+   "employedBee"
+  ]
+ },
+ {
+  "file": "se-730217-algorithm.0.middle.detach.tex",
+  "source": "corpus/se-730217-algorithm.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-78697-tikzset-classic.0.first.alone.tex",
+  "source": "corpus/se-78697-tikzset-classic.tex",
+  "picture": 0,
+  "moved": [
+   "init"
+  ]
+ },
+ {
+  "file": "se-78697-tikzset-classic.0.first.detach.tex",
+  "source": "corpus/se-78697-tikzset-classic.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "se-78697-tikzset-classic.0.middle.alone.tex",
+  "source": "corpus/se-78697-tikzset-classic.tex",
+  "picture": 0,
+  "moved": [
+   "identify"
+  ]
+ },
+ {
+  "file": "se-78697-tikzset-classic.0.middle.detach.tex",
+  "source": "corpus/se-78697-tikzset-classic.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "self-bare-crlf.0.first.alone.tex",
+  "source": "corpus/self-bare-crlf.tex",
+  "picture": 0,
+  "moved": [
+   "a"
+  ]
+ },
+ {
+  "file": "self-bare-crlf.0.first.detach.tex",
+  "source": "corpus/self-bare-crlf.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "self-bom-crlf-unicode.0.first.alone.tex",
+  "source": "corpus/self-bom-crlf-unicode.tex",
+  "picture": 0,
+  "moved": [
+   "a"
+  ]
+ },
+ {
+  "file": "self-bom-crlf-unicode.0.first.detach.tex",
+  "source": "corpus/self-bom-crlf-unicode.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "self-bom-crlf-unicode.0.middle.alone.tex",
+  "source": "corpus/self-bom-crlf-unicode.tex",
+  "picture": 0,
+  "moved": [
+   "b"
+  ]
+ },
+ {
+  "file": "self-bom-crlf-unicode.0.middle.detach.tex",
+  "source": "corpus/self-bom-crlf-unicode.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "self-document.0.first.alone.tex",
+  "source": "corpus/self-document.tex",
+  "picture": 0,
+  "moved": [
+   "start"
+  ]
+ },
+ {
+  "file": "self-document.0.first.detach.tex",
+  "source": "corpus/self-document.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "self-document.0.middle.alone.tex",
+  "source": "corpus/self-document.tex",
+  "picture": 0,
+  "moved": [
+   "read"
+  ]
+ },
+ {
+  "file": "self-document.0.middle.detach.tex",
+  "source": "corpus/self-document.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "self-figure-multi.0.first.alone.tex",
+  "source": "corpus/self-figure-multi.tex",
+  "picture": 0,
+  "moved": [
+   "in"
+  ]
+ },
+ {
+  "file": "self-figure-multi.0.first.detach.tex",
+  "source": "corpus/self-figure-multi.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "self-figure-multi.0.middle.alone.tex",
+  "source": "corpus/self-figure-multi.tex",
+  "picture": 0,
+  "moved": [
+   "odd"
+  ]
+ },
+ {
+  "file": "self-figure-multi.0.middle.detach.tex",
+  "source": "corpus/self-figure-multi.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "self-figure-multi.1.first.alone.tex",
+  "source": "corpus/self-figure-multi.tex",
+  "picture": 1,
+  "moved": [
+   "b"
+  ]
+ },
+ {
+  "file": "self-figure-multi.1.first.detach.tex",
+  "source": "corpus/self-figure-multi.tex",
+  "picture": 1,
+  "moved": []
+ },
+ {
+  "file": "self-hybrid-surrogate.0.first.alone.tex",
+  "source": "corpus/self-hybrid-surrogate.tex",
+  "picture": 0,
+  "moved": [
+   "temporal"
+  ]
+ },
+ {
+  "file": "self-hybrid-surrogate.0.first.detach.tex",
+  "source": "corpus/self-hybrid-surrogate.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "self-hybrid-surrogate.0.middle.alone.tex",
+  "source": "corpus/self-hybrid-surrogate.tex",
+  "picture": 0,
+  "moved": [
+   "latent"
+  ]
+ },
+ {
+  "file": "self-hybrid-surrogate.0.middle.detach.tex",
+  "source": "corpus/self-hybrid-surrogate.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "self-latin1.0.first.alone.tex",
+  "source": "corpus/self-latin1.tex",
+  "picture": 0,
+  "moved": [
+   "s"
+  ]
+ },
+ {
+  "file": "self-latin1.0.first.detach.tex",
+  "source": "corpus/self-latin1.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "self-swimlanes.0.first.alone.tex",
+  "source": "corpus/self-swimlanes.tex",
+  "picture": 0,
+  "moved": [
+   "submit"
+  ]
+ },
+ {
+  "file": "self-swimlanes.0.first.detach.tex",
+  "source": "corpus/self-swimlanes.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "self-swimlanes.0.middle.alone.tex",
+  "source": "corpus/self-swimlanes.tex",
+  "picture": 0,
+  "moved": [
+   "attach"
+  ]
+ },
+ {
+  "file": "self-swimlanes.0.middle.detach.tex",
+  "source": "corpus/self-swimlanes.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "self-tikzstyle-paths.0.first.alone.tex",
+  "source": "corpus/self-tikzstyle-paths.tex",
+  "picture": 0,
+  "moved": [
+   "idle"
+  ]
+ },
+ {
+  "file": "self-tikzstyle-paths.0.first.detach.tex",
+  "source": "corpus/self-tikzstyle-paths.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "self-tikzstyle-paths.0.middle.alone.tex",
+  "source": "corpus/self-tikzstyle-paths.tex",
+  "picture": 0,
+  "moved": [
+   "ready"
+  ]
+ },
+ {
+  "file": "self-tikzstyle-paths.0.middle.detach.tex",
+  "source": "corpus/self-tikzstyle-paths.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "template-algorithm-with-a-loop.0.first.alone.tex",
+  "source": "src/templates/algorithm-with-a-loop.tex",
+  "picture": 0,
+  "moved": [
+   "start"
+  ]
+ },
+ {
+  "file": "template-algorithm-with-a-loop.0.first.detach.tex",
+  "source": "src/templates/algorithm-with-a-loop.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "template-algorithm-with-a-loop.0.middle.alone.tex",
+  "source": "src/templates/algorithm-with-a-loop.tex",
+  "picture": 0,
+  "moved": [
+   "read"
+  ]
+ },
+ {
+  "file": "template-algorithm-with-a-loop.0.middle.detach.tex",
+  "source": "src/templates/algorithm-with-a-loop.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "template-basic-process.0.first.alone.tex",
+  "source": "src/templates/basic-process.tex",
+  "picture": 0,
+  "moved": [
+   "start"
+  ]
+ },
+ {
+  "file": "template-basic-process.0.first.detach.tex",
+  "source": "src/templates/basic-process.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "template-basic-process.0.middle.alone.tex",
+  "source": "src/templates/basic-process.tex",
+  "picture": 0,
+  "moved": [
+   "read"
+  ]
+ },
+ {
+  "file": "template-basic-process.0.middle.detach.tex",
+  "source": "src/templates/basic-process.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "template-decision-flowchart.0.first.alone.tex",
+  "source": "src/templates/decision-flowchart.tex",
+  "picture": 0,
+  "moved": [
+   "start"
+  ]
+ },
+ {
+  "file": "template-decision-flowchart.0.first.detach.tex",
+  "source": "src/templates/decision-flowchart.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "template-decision-flowchart.0.middle.alone.tex",
+  "source": "src/templates/decision-flowchart.tex",
+  "picture": 0,
+  "moved": [
+   "paid"
+  ]
+ },
+ {
+  "file": "template-decision-flowchart.0.middle.detach.tex",
+  "source": "src/templates/decision-flowchart.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "template-encoder-decoder.0.first.alone.tex",
+  "source": "src/templates/encoder-decoder.tex",
+  "picture": 0,
+  "moved": [
+   "in"
+  ]
+ },
+ {
+  "file": "template-encoder-decoder.0.first.detach.tex",
+  "source": "src/templates/encoder-decoder.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "template-encoder-decoder.0.middle.alone.tex",
+  "source": "src/templates/encoder-decoder.tex",
+  "picture": 0,
+  "moved": [
+   "e1"
+  ]
+ },
+ {
+  "file": "template-encoder-decoder.0.middle.detach.tex",
+  "source": "src/templates/encoder-decoder.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "template-feedback-block-diagram.0.first.alone.tex",
+  "source": "src/templates/feedback-block-diagram.tex",
+  "picture": 0,
+  "moved": [
+   "ref"
+  ]
+ },
+ {
+  "file": "template-feedback-block-diagram.0.first.detach.tex",
+  "source": "src/templates/feedback-block-diagram.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "template-feedback-block-diagram.0.middle.alone.tex",
+  "source": "src/templates/feedback-block-diagram.tex",
+  "picture": 0,
+  "moved": [
+   "sum"
+  ]
+ },
+ {
+  "file": "template-feedback-block-diagram.0.middle.detach.tex",
+  "source": "src/templates/feedback-block-diagram.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "template-hierarchy.0.first.alone.tex",
+  "source": "src/templates/hierarchy.tex",
+  "picture": 0,
+  "moved": [
+   "director"
+  ]
+ },
+ {
+  "file": "template-hierarchy.0.first.detach.tex",
+  "source": "src/templates/hierarchy.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "template-hierarchy.0.middle.alone.tex",
+  "source": "src/templates/hierarchy.tex",
+  "picture": 0,
+  "moved": [
+   "research"
+  ]
+ },
+ {
+  "file": "template-hierarchy.0.middle.detach.tex",
+  "source": "src/templates/hierarchy.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "template-left-to-right-pipeline.0.first.alone.tex",
+  "source": "src/templates/left-to-right-pipeline.tex",
+  "picture": 0,
+  "moved": [
+   "input"
+  ]
+ },
+ {
+  "file": "template-left-to-right-pipeline.0.first.detach.tex",
+  "source": "src/templates/left-to-right-pipeline.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "template-left-to-right-pipeline.0.middle.alone.tex",
+  "source": "src/templates/left-to-right-pipeline.tex",
+  "picture": 0,
+  "moved": [
+   "tok"
+  ]
+ },
+ {
+  "file": "template-left-to-right-pipeline.0.middle.detach.tex",
+  "source": "src/templates/left-to-right-pipeline.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "template-lstm-cell.0.first.alone.tex",
+  "source": "src/templates/lstm-cell.tex",
+  "picture": 0,
+  "moved": [
+   "forget"
+  ]
+ },
+ {
+  "file": "template-lstm-cell.0.first.detach.tex",
+  "source": "src/templates/lstm-cell.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "template-lstm-cell.0.middle.alone.tex",
+  "source": "src/templates/lstm-cell.tex",
+  "picture": 0,
+  "moved": [
+   "inputg"
+  ]
+ },
+ {
+  "file": "template-lstm-cell.0.middle.detach.tex",
+  "source": "src/templates/lstm-cell.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "template-neural-network.0.first.alone.tex",
+  "source": "src/templates/neural-network.tex",
+  "picture": 0,
+  "moved": [
+   "x1",
+   "input"
+  ]
+ },
+ {
+  "file": "template-neural-network.0.first.detach.tex",
+  "source": "src/templates/neural-network.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "template-neural-network.0.middle.alone.tex",
+  "source": "src/templates/neural-network.tex",
+  "picture": 0,
+  "moved": [
+   "x2"
+  ]
+ },
+ {
+  "file": "template-neural-network.0.middle.detach.tex",
+  "source": "src/templates/neural-network.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "template-prisma-2020.0.first.alone.tex",
+  "source": "src/templates/prisma-2020.tex",
+  "picture": 0,
+  "moved": [
+   "identified"
+  ]
+ },
+ {
+  "file": "template-prisma-2020.0.first.detach.tex",
+  "source": "src/templates/prisma-2020.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "template-prisma-2020.0.middle.alone.tex",
+  "source": "src/templates/prisma-2020.tex",
+  "picture": 0,
+  "moved": [
+   "screened"
+  ]
+ },
+ {
+  "file": "template-prisma-2020.0.middle.detach.tex",
+  "source": "src/templates/prisma-2020.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "template-state-machine.0.first.alone.tex",
+  "source": "src/templates/state-machine.tex",
+  "picture": 0,
+  "moved": [
+   "q0"
+  ]
+ },
+ {
+  "file": "template-state-machine.0.first.detach.tex",
+  "source": "src/templates/state-machine.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "template-state-machine.0.middle.alone.tex",
+  "source": "src/templates/state-machine.tex",
+  "picture": 0,
+  "moved": [
+   "q1"
+  ]
+ },
+ {
+  "file": "template-state-machine.0.middle.detach.tex",
+  "source": "src/templates/state-machine.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "template-swimlane-process.0.first.alone.tex",
+  "source": "src/templates/swimlane-process.tex",
+  "picture": 0,
+  "moved": [
+   "submit"
+  ]
+ },
+ {
+  "file": "template-swimlane-process.0.first.detach.tex",
+  "source": "src/templates/swimlane-process.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "template-swimlane-process.0.middle.alone.tex",
+  "source": "src/templates/swimlane-process.tex",
+  "picture": 0,
+  "moved": [
+   "review"
+  ]
+ },
+ {
+  "file": "template-swimlane-process.0.middle.detach.tex",
+  "source": "src/templates/swimlane-process.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "template-venn.0.first.alone.tex",
+  "source": "src/templates/venn.tex",
+  "picture": 0,
+  "moved": [
+   "a",
+   "reading",
+   "only-a"
+  ]
+ },
+ {
+  "file": "template-venn.0.first.detach.tex",
+  "source": "src/templates/venn.tex",
+  "picture": 0,
+  "moved": []
+ },
+ {
+  "file": "template-venn.0.middle.alone.tex",
+  "source": "src/templates/venn.tex",
+  "picture": 0,
+  "moved": [
+   "b",
+   "sport",
+   "only-b"
+  ]
+ },
+ {
+  "file": "template-venn.0.middle.detach.tex",
+  "source": "src/templates/venn.tex",
+  "picture": 0,
+  "moved": []
+ }
+]

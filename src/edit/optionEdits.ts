@@ -195,6 +195,19 @@ export function addOptionList(syn: NodeSyntax, itemText: string): Change {
 export function removeAtClause(text: string, syn: NodeSyntax): Change | null {
   if (!syn.at) return null;
   let { from, to } = syn.at.range;
+  // A clause on a line of its own goes with its line: a blank line inside a statement is a
+  // paragraph break, which TeX refuses in a node ("A node must have a label text").
+  let start = from;
+  while (isHSpace(text[start - 1])) start--;
+  let end = to;
+  while (isHSpace(text[end])) end++;
+  const lineStart = start === 0 || text[start - 1] === "\n";
+  const lineEnd = end === text.length || text[end] === "\n" || text[end] === "\r";
+  if (lineStart && lineEnd && start > 0) {
+    // Take the line break before it, so the lines around it close up.
+    const before = text[start - 2] === "\r" ? start - 2 : start - 1;
+    return { from: before, to: end, insert: "" };
+  }
   if (isHSpace(text[from - 1])) {
     while (isHSpace(text[from - 1])) from--;
   } else {

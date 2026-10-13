@@ -32,11 +32,28 @@ Also read "Notes for later milestones" below.
 | 0 | `m6` branch; `npm run drag:bench` and the baseline; **checkpoint: the numbers and the proposal for the dragging default** | Done (D103); the owner decided (D104) |
 | 1 | Links made visible (follows / followed by, Unlink, faint followers while dragging), Detach, Detach from style; dragging moves only the dragged node, Ctrl or the toolbar switch "Move followers too" moves its followers (D104) | Done (D105) |
 | 1b | A Venn diagram template under "Other diagrams" (D104 item 4) | Done (D106) |
+| 1c | The owner's review of 1 and 1b: the icon toggle; resizing follows the dragging rule; the diagonal and `at` fixes found with pdfTeX, and the check of rewritten pictures against TeX; labels move with their node | Done (D107) |
 | 2 | Drag performance to the target (D102 item 1): 60 fps, 30 fps at 4× CPU slowdown, drop under 100 ms; no golden file changes | |
 | 3 | The phone note: under 768 px, Edit anyway per browser tab | |
 | 4 | License audit, `THIRD_PARTY_LICENSES.md` (script and staleness test), `/licenses/`, the web2js issue text for the owner | |
 | 5 | README with screenshots made by a script; deployment steps | |
 | 6 | Release check (tests, CI, fidelity, `test:live` on the `m6` preview, docs); **Milestone 6 report** | |
+
+## M6 fixes after the step 1 review (2026-10-13)
+The owner's review of steps 1 and 1b and the three fixes are D107.
+- **Toolbar:** Move followers too is an icon (two linked nodes with arrows), pressed in the accent color when on, its name and state in the tooltip; one row from 1,366 px again.
+- **A. Resizing** keeps what is placed against the node where it is, as dragging does (Ctrl moves it along; the node's labels move with it). **Resizing from the center is now Shift** (it was Ctrl): for the owner to confirm. Resizing a style is unchanged.
+- **B. Why the rewritten followers moved in TeX:** pgf puts `above left=2.4cm of b` 2.4 cm away *along the diagonal* (√½ of it on each axis); the editor read and wrote it as 2.4 cm on each axis. Fixed in the layout and the emitter (which now writes `2.4cm and 2.4cm`). The new check against TeX found three more: an `at` clause on a node a relation or a chain also places (TeX keeps the relation's shift and anchor), a blank line left inside a `\node` when an `at` clause on its own line was removed (a TeX error), and `every node/.style={draw}` not drawn by the quick preview. All fixed, with pdfTeX probes p13 and p14.
+- **The check:** `npm run fidelity` now also compiles the 151 rewritten pictures of `golden-links` (a node moved alone, or detached) and compares every other node with where pdfTeX put it before: 145 of 151 within 1 pt; the other 6 move a node 1.6–7 pt where the editor's own estimate of a node was already that far off TeX's (D107 explains).
+- **C. Labels move with their node:** a follower that draws only text, hangs off the dragged node alone, has no edge, nothing placed against it, isn't a group's title and doesn't sit inside another shape moves with it. On the corpus and templates that is 10 nodes in 7 cases, all labels (the Venn's names and own counts, the neural network's layer titles, a panel title). Ctrl still flips the mode for one drag.
+
+### How to try it
+`npm run dev`, New → Other diagrams → Venn diagram: drag a set (its name and count go with it, the overlap's counts stay, the status bar names both), resize a set by a corner (the other sets stay; Ctrl moves them), Shift-resize from the center. The toolbar's switch is the icon left of TeX preview.
+
+### Tests
+- **Vitest:** 1,907 passed, 9 skipped (new: `diagonal.test.ts` 18, three annotation tests in `links.test.ts`; `golden-links` writes `cases.json`). 23 golden files changed, each listed with its reason in D107.
+- **Playwright:** 213 of 213 (new: a Venn resize test, Ctrl-resize, the icon toggle).
+- **Fidelity:** corpus and templates unchanged (576 of 663 within 1 pt); p13 and p14 34 of 34; rewritten pictures 145 of 151.
 
 ## M6 steps 1 and 1b: checks (2026-10-13)
 **Stopped here for the owner's review.**

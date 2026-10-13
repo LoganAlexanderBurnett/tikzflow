@@ -151,7 +151,9 @@ test("Ctrl while dragging moves the followers too, and shows them; pressed mid-d
 test("the toolbar's Move followers too switch flips the default, and is remembered", async ({ page }) => {
   const toggle = page.getByTestId("move-followers-toggle");
   await expect(toggle).not.toBeChecked();
-  await toggle.check();
+  // The switch is an icon (D107): clicking it switches the checkbox inside.
+  await page.getByTestId("move-followers").click();
+  await expect(toggle).toBeChecked();
   const c0 = await centers(page);
   await drag(page, "read", 90, 0);
   const c1 = await centers(page);
@@ -165,7 +167,8 @@ test("the toolbar's Move followers too switch flips the default, and is remember
   await page.keyboard.up("Control");
   const c3 = await centers(page);
   expectSame(c2, c3, ["read"]);
-  await page.getByTestId("move-followers-toggle").uncheck();
+  await page.getByTestId("move-followers").click();
+  await expect(page.getByTestId("move-followers-toggle")).not.toBeChecked();
 });
 
 test("a group drag moves only the selection; what follows it stays", async ({ page }) => {
@@ -185,17 +188,22 @@ test("a group drag moves only the selection; what follows it stays", async ({ pa
   expectSame(c0, c1, ["read", "small"]);
 });
 
-test("the Venn template (D106): a set dragged alone leaves its counts and name; Detach on an overlapped set moves nothing", async ({ page }) => {
+test("the Venn template (D106, D107): a set dragged alone takes its name and own count, leaves the overlap's; Detach on an overlapped set moves nothing", async ({ page }) => {
   await page.goto("/editor/#template=venn");
   await expect(page.getByTestId("summary-headline")).toHaveText("13 nodes and 0 edges editable");
   const c0 = await centers(page);
   await drag(page, "b", 60, 0);
-  await expect(page.getByTestId("status")).toContainText("Kept in place");
+  await expect(page.getByTestId("status")).toContainText("Its labels moved with it: sport, only-b.");
+  await expect(page.getByTestId("status")).toContainText("Kept in place: bc");
   const c1 = await centers(page);
-  expect(c1.b!.x - c0.b!.x).toBeGreaterThan(20);
-  expectSame(c0, c1, ["b"]);
+  const dx = c1.b!.x - c0.b!.x;
+  expect(dx).toBeGreaterThan(20);
+  // Its name and own count moved by as much; everything else stayed.
+  for (const id of ["sport", "only-b"]) expect(Math.abs(c1[id]!.x - c0[id]!.x - dx), id).toBeLessThan(0.5);
+  expectSame(c0, c1, ["b", "sport", "only-b"]);
   const after = await code(page);
-  for (const name of ["sport", "only-b", "bc"]) expect(line(after, name), name).not.toMatch(/of b\b/);
+  for (const name of ["sport", "only-b"]) expect(line(after, name), name).toMatch(/of b\b/);
+  expect(line(after, "bc")).not.toMatch(/of b\b/);
   await page.keyboard.press("Control+z");
   // a lies under b and c where they overlap; click it where it is alone.
   const box = (await page.locator('g.tf-node[data-node="a"] path').first().boundingBox())!;
@@ -204,4 +212,38 @@ test("the Venn template (D106): a set dragged alone leaves its counts and name; 
   await page.getByTestId("detach").click();
   await expect(page.getByTestId("status")).toContainText("Detached a");
   expectSame(c0, await centers(page));
+});
+
+test("resizing follows the dragging rule (D107): a Venn set keeps the other sets and the overlaps' counts in place, takes its name and own count; Ctrl moves them all", async ({ page }) => {
+  await page.goto("/editor/#template=venn");
+  await expect(page.getByTestId("summary-headline")).toHaveText("13 nodes and 0 edges editable");
+  const c0 = await centers(page);
+  // a lies under b and c where they overlap; click it where it is alone, then drag its south-east handle.
+  const box = (await page.locator('g.tf-node[data-node="a"] path').first().boundingBox())!;
+  await page.mouse.click(box.x + box.width * 0.2, box.y + box.height * 0.5);
+  const resize = async (ctrl: boolean) => {
+    const h = (await page.locator('[data-handle="se"]').boundingBox())!;
+    await page.mouse.move(h.x + h.width / 2, h.y + h.height / 2);
+    await page.mouse.down();
+    if (ctrl) await page.keyboard.down("Control");
+    await page.mouse.move(h.x + h.width / 2 + 20, h.y + h.height / 2 + 20, { steps: 4 });
+    await page.mouse.move(h.x + h.width / 2 + 40, h.y + h.height / 2 + 40, { steps: 4 });
+    await page.mouse.up();
+    if (ctrl) await page.keyboard.up("Control");
+  };
+  await resize(false);
+  await expect(page.getByTestId("status")).toContainText("Kept in place");
+  const c1 = await centers(page);
+  // The north-west edge is held, so a's middle moved; its name and own count moved by as much.
+  const move = { x: c1.a!.x - c0.a!.x, y: c1.a!.y - c0.a!.y };
+  expect(Math.hypot(move.x, move.y)).toBeGreaterThan(5);
+  for (const id of ["reading", "only-a"]) expect(Math.hypot(c1[id]!.x - c0[id]!.x - move.x, c1[id]!.y - c0[id]!.y - move.y), id).toBeLessThan(0.5);
+  expectSame(c0, c1, ["a", "reading", "only-a"]);
+  await page.keyboard.press("Control+z");
+  expectSame(c0, await centers(page));
+  // With Ctrl, what is placed against a goes along, as TeX would have it.
+  await page.mouse.click(box.x + box.width * 0.2, box.y + box.height * 0.5);
+  await resize(true);
+  const c2 = await centers(page);
+  for (const id of ["b", "c", "ab"]) expect(Math.hypot(c2[id]!.x - c0[id]!.x, c2[id]!.y - c0[id]!.y), id).toBeGreaterThan(5);
 });

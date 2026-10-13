@@ -23,9 +23,9 @@ myedge/.style=
 
 \begin{tikzpicture}
 \node (a) {A};
-\node[below right=5mm of a] (d) {D};
-\node[below right=1cm of a] (e) {E};
-\node[below left=1cm of a] (b) {B};
+\node[below right=5mm and 5mm of a] (d) {D};
+\node[below right=1cm and 1cm of a] (e) {E};
+\node[below left=1cm and 1cm of a] (b) {B};
 \node[below=of b] (c) {C};
 \foreach \pare/\chil in {a/b,a/d,a/e,b/c,d/c} 
   \draw[myedge] (\pare.south) -- (\chil.north);

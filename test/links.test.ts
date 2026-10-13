@@ -4,7 +4,8 @@
 import { describe, expect, it } from "vitest";
 import { applyChanges } from "../src/edit/changes.ts";
 import { planDetachStyle } from "../src/edit/detachstyle.ts";
-import { keepInPlace, placementLinks, planDetach, planUnlink } from "../src/edit/links.ts";
+import { annotationsOf, followsByDesign, keepInPlace, placementLinks, planDetach, planUnlink } from "../src/edit/links.ts";
+import { templateText } from "../src/templates/index.ts";
 import { formatDistance, planMove } from "../src/edit/move.ts";
 import { analyzeDocument, layoutDocumentPicture } from "../src/model/document.ts";
 import type { PictureLayout } from "../src/tikz/layout.ts";
@@ -160,5 +161,45 @@ describe("planDetachStyle", () => {
     const r = planDetachStyle(text, 0, ["e"], "fancy");
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toContain("/.code");
+  });
+});
+
+describe("annotations move with their node (D107)", () => {
+  const ann = (text: string, ids: string[]) => {
+    const l = layoutOf(text);
+    return annotationsOf(text, l, ids, followsByDesign(text, l));
+  };
+  const venn = templateText("venn")!;
+
+  it("a Venn set's name and own count are its annotations; the overlaps' counts belong to two sets and stay", () => {
+    expect(ann(venn, ["a"])).toEqual(["reading", "only-a"]);
+    expect(ann(venn, ["b"])).toEqual(["sport", "only-b"]);
+    expect(ann(venn, ["a", "b"])).toEqual(["reading", "sport", "only-a", "only-b", "ab"]);
+  });
+
+  it("drawn nodes, nodes an edge reaches, nodes others are placed against, group titles and empty anchors are not annotations", () => {
+    const pic = [
+      "\\begin{tikzpicture}[node distance=5mm]",
+      "\\node[draw] (n) {N};",
+      "\\node[above=of n] (title) {Title};", // a label: moves
+      "\\node[right=of n] (tail) {tail};", // an edge reaches it: stays
+      "\\node[draw, below=of n] (box) {Box};", // drawn: stays
+      "\\node[left=of n] (row) {row};", // something else is placed against it: stays
+      "\\node[below=of row] (sub) {sub};",
+      "\\node[draw] (far) at (5,0) {F};",
+      "\\node at (row.west |- far) (pct) {50\\%};",
+      "\\node[right=of far] (anchor) {};", // empty: stays
+      "\\node[below=of far] (gt) {group title};",
+      "\\node[fit=(far)(gt), draw] (g) {};", // a group's title: stays
+      "\\draw (n) -- (tail);",
+      "\\end{tikzpicture}",
+    ].join("\n");
+    expect(ann(pic, ["n"])).toEqual(["title"]);
+    expect(ann(pic, ["far"])).toEqual([]);
+  });
+
+  it("a name a \\foreach draws to is a part of the diagram", () => {
+    const pic = ["\\begin{tikzpicture}", "\\node[draw] (a) {A};", "\\node[below=of a] (b) {B};", "\\foreach \\x in {b} \\draw (a) -- (\\x);", "\\end{tikzpicture}"].join("\n");
+    expect(ann(pic, ["a"])).toEqual([]);
   });
 });

@@ -3,7 +3,7 @@
 // state.unknown, never guessed at.
 import type { ColorTable, RGB } from "./colors.ts";
 import { indexTopLevel, type KeyValue, parseOptionString, stripBraces } from "./options.ts";
-import { type ArrowTip, type AutomataArrow, initialState, multiply, type State } from "./state.ts";
+import { type ArrowTip, type AutomataArrow, initialState, multiply, type NodeDistance, type State } from "./state.ts";
 import { CM, evalLength, evalNumber, evalQuantity, type FontUnits } from "./units.ts";
 
 export interface StyleEntry {
@@ -274,11 +274,12 @@ function lengthOrUnits(v: string, s: State): number | null {
   return q.dimensioned ? q.value : q.value * CM;
 }
 
-export function parseNodeDistance(v: string, s: State): { v: number; h: number } | null {
+export function parseNodeDistance(v: string, s: State): NodeDistance | null {
   const parts = v.split(/\s+and\s+/);
   const a = lengthOrUnits(parts[0]!, s);
   if (a === null) return null;
-  const b = parts[1] !== undefined ? lengthOrUnits(parts[1], s) : a;
+  if (parts[1] === undefined) return { v: a, h: a, single: true };
+  const b = lengthOrUnits(parts[1], s);
   if (b === null) return null;
   return { v: a, h: b };
 }
@@ -583,6 +584,7 @@ export function applyKey(s: State, kv: KeyValue, ctx: KeyContext, depth = 0): vo
   }
   if (key === "on chain") {
     s.onChain = value ? value.replace(/\s+going\s+.+$/, "").trim() || true : true;
+    s.atAfterPlacement = false;
     s.chainAt = { onGrid: s.onGrid, distance: { ...s.nodeDistance }, ...(s.placement ? { placement: s.placement } : {}), ...(s.at !== undefined ? { at: s.at } : {}) };
     return;
   }
@@ -875,8 +877,10 @@ export function applyKey(s: State, kv: KeyValue, ctx: KeyContext, depth = 0): vo
       if (value) s.name = value;
       return;
     case "at":
-      if (value) s.at = value;
-      else unknown();
+      if (value) {
+        s.at = value;
+        s.atAfterPlacement = true;
+      } else unknown();
       return;
     case "on background layer":
       s.layer = -1;
@@ -1070,6 +1074,7 @@ export function applyKey(s: State, kv: KeyValue, ctx: KeyContext, depth = 0): vo
       const target = value.slice(of + 3).trim();
       const at = { onGrid: s.onGrid, distance: { ...s.nodeDistance } };
       s.placement = shift ? { kind: "relative", dir: key, shift, of: target, ...at } : { kind: "relative", dir: key, of: target, ...at };
+      s.atAfterPlacement = false;
     } else s.placement = { kind: "relative", dir: key, shift: value };
     return;
   }

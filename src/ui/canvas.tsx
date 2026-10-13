@@ -6,7 +6,7 @@ import type { JSX } from "preact";
 import { memo } from "preact/compat";
 import { useCallback, useEffect, useMemo, useRef } from "preact/hooks";
 import { planMove, planPin, positioningText, referenceCandidates } from "../edit/move.ts";
-import { followsByDesign, keptMessage } from "../edit/links.ts";
+import { annotationsOf, followsByDesign, keptMessage } from "../edit/links.ts";
 import { groupBlocker, groupMembers, groupMessage, movingWith, planGroupMove } from "../edit/group.ts";
 import { conversionMessage, planChainMove } from "../edit/chains.ts";
 import type { Scope } from "../edit/properties.ts";
@@ -21,7 +21,7 @@ import { edgeOpBlocker } from "../edit/edgeop.ts";
 import { fixLabelSides, planSlideLabel, slideBlocker } from "../edit/labels.ts";
 import { edgeVertices, isEdgeOperation, planAddVertex } from "../edit/vertices.ts";
 import { EdgeMenu, type EdgeMenuAt } from "./edgemenu.tsx";
-import { pictureEnv } from "../model/document.ts";
+import { analyzeDocument, layoutDocumentPicture, pictureEnv } from "../model/document.ts";
 import { type Edge, edgeD, edgeEnds, edgeOfLabel } from "../model/edges.ts";
 import { undrawable } from "../model/explain.ts";
 import { type RGB, cssColor } from "../tikz/colors.ts";
@@ -761,8 +761,8 @@ interface GroupDrag {
   moving: Set<string>;
   /** Why the group can't be moved, or null. */
   blocked: string | null;
-  /** Nodes outside the group that follow it (D104): they stay where they are unless followers move too. */
-  followers: string[];
+  /** Nodes outside the group that follow it (D104): they stay where they are unless followers move too; its annotations always move (D107). */
+  followers: Followers;
   /** Whether the followers move along in this drag, and the last pointer position, for Ctrl pressed mid-drag. */
   along: boolean;
   last: { raw: Point; alt: boolean } | null;
@@ -777,22 +777,50 @@ interface NodeDrag {
   moved: boolean;
   target: Point;
   alignedWith: string[];
-  followers: string[];
+  followers: Followers;
   along: boolean;
   last: { raw: Point; alt: boolean } | null;
+}
+
+/** What follows dragged nodes: every node that moves along with them, and of those their annotations, which move even when only the dragged nodes do (D107). */
+interface Followers {
+  ids: string[];
+  annotations: string[];
 }
 
 /**
  * The nodes that move along with `members` because they are placed against them, not counting group
  * and lane boxes and the coordinates lanes share (they follow their members) or labels on paths.
  */
-function followersOf(text: string, l: PictureLayout, members: readonly string[]): string[] {
+function followersOf(text: string, l: PictureLayout, members: readonly string[]): Followers {
   const design = followsByDesign(text, l);
-  return [...movingWith(l, members)].filter((id) => {
+  const ids = [...movingWith(l, members)].filter((id) => {
     if (members.includes(id) || design.has(id)) return false;
     const n = l.nodes.find((x) => x.id === id);
     return !!n && n.kind !== "path" && n.lock?.kind !== "path";
   });
+  return { ids, annotations: annotationsOf(text, l, members, design).filter((id) => ids.includes(id)) };
+}
+
+/** The followers held where they are while only the dragged nodes (and their annotations) move. */
+const staying = (f: Followers) => f.ids.filter((id) => !f.annotations.includes(id));
+
+/** The followers that stay, held at their centers in `l`, as drag overrides. */
+function holds(l: PictureLayout, f: Followers): Array<readonly [string, Point]> {
+  return staying(f).flatMap((id) => {
+    const c = l.nodes.find((x) => x.id === id)?.shape.center;
+    return c ? [[id, c] as const] : [];
+  });
+}
+
+/** " Its labels moved with it: Reading, 12." */
+function annotationNote(l: PictureLayout | null, f: Followers, group = false): string {
+  if (!f.annotations.length) return "";
+  const names = f.annotations.map((id) => {
+    const n = l?.nodes.find((x) => x.id === id);
+    return n?.name ?? n?.syntax.label?.text.trim() ?? id;
+  });
+  return ` ${group ? "Their" : "Its"} ${names.length === 1 ? "label" : "labels"} moved with ${group ? "them" : "it"}: ${names.slice(0, 4).join(", ")}${names.length > 4 ? `, and ${names.length - 4} more` : ""}.`;
 }
 
 /** Ctrl, or ⌘ on a Mac: the key that moves followers along for one drag. */
@@ -802,29 +830,31 @@ const modKey = () => (isMac() ? "⌘" : "Ctrl");
 const followersAlong = (e: { ctrlKey: boolean; metaKey: boolean }) => moveFollowers.value !== (e.ctrlKey || e.metaKey);
 
 /** The followers of the node or group being dragged, shown faintly: moving along, or staying where they are. */
-const dragFollowers = signal<{ ids: string[]; along: boolean } | null>(null);
+const dragFollowers = signal<{ followers: Followers; along: boolean } | null>(null);
 
-/** Faint outlines on the dragged node's followers (D102): solid when they move along, dashed when they stay. */
+/** Faint outlines on the dragged node's followers (D102): solid when they move along (annotations always do, D107), dashed when they stay. */
 function FollowerMarks({ layout, scale }: { layout: PictureLayout | null; scale: number }) {
   const d = dragFollowers.value;
-  if (!d || !d.ids.length || !layout) return null;
+  if (!d || !d.followers.ids.length || !layout) return null;
   return (
     <g class={`tf-followers${d.along ? " along" : " staying"}`} data-testid="follower-marks" data-along={d.along ? "yes" : "no"}>
-      {d.ids.map((id) => {
+      {d.followers.ids.map((id) => {
         const n = layout.nodes.find((x) => x.id === id);
         if (!n) return null;
+        const moves = d.along || d.followers.annotations.includes(id);
         const mid = shapeMiddle(n.shape);
         const pad = 3 / scale;
         return (
           <rect
             key={id}
             data-follower={id}
+            data-moving={moves ? "yes" : "no"}
             x={f(mid.x - n.shape.hw - pad)}
             y={f(-(mid.y + n.shape.hh + pad))}
             width={f(2 * (n.shape.hw + pad))}
             height={f(2 * (n.shape.hh + pad))}
             stroke-width={f(1.5 / scale)}
-            stroke-dasharray={d.along ? undefined : `${4 / scale} ${3 / scale}`}
+            stroke-dasharray={moves ? undefined : `${4 / scale} ${3 / scale}`}
           />
         );
       })}
@@ -845,6 +875,9 @@ interface ResizeDrag {
   last: Extract<ResizeOutcome, { ok: true }> | null;
   /** Nodes whose width or height the drag snapped to. */
   match: { w?: LaidOutNode; h?: LaidOutNode };
+  /** What follows the node: it stays where it is unless followers move too (Ctrl, or the toolbar's switch), as in dragging (D107). */
+  followers: Followers;
+  along: boolean;
 }
 
 const MM_PT = PT_PER_UNIT.mm!;
@@ -1199,6 +1232,8 @@ export function Canvas() {
           key: "",
           last: null,
           match: {},
+          followers: scope.kind === "style" || !baseLayout.value ? { ids: [], annotations: [] } : followersOf(text.value, baseLayout.value, [n.id]),
+          along: followersAlong(e),
         };
         svg.setPointerCapture(e.pointerId);
       }
@@ -1244,7 +1279,7 @@ export function Canvas() {
       // places is dragged too: dropping it writes the chain out (D77 item 4).
       if (n && (!n.locked || n.lock?.kind === "undefined-ref" || n.lock?.kind === "chain")) {
         const p = toModel(e);
-        drag.current = { kind: "node", id, pointer: p, center: n.shape.center, moved: false, target: n.shape.center, alignedWith: [], followers: l ? followersOf(text.value, l, [id]) : [], along: followersAlong(e), last: null };
+        drag.current = { kind: "node", id, pointer: p, center: n.shape.center, moved: false, target: n.shape.center, alignedWith: [], followers: l ? followersOf(text.value, l, [id]) : { ids: [], annotations: [] }, along: followersAlong(e), last: null };
         svg.setPointerCapture(e.pointerId);
         if (n.lock?.kind === "chain") status.value = "This node's position is set by a chain. Dropping it writes out the positions of the chain's nodes, so they can all be dragged.";
         else if (n.locked) status.value = `${n.locked}. Drag it to pin it where you drop it, or see the panel for other fixes.`;
@@ -1304,9 +1339,11 @@ export function Canvas() {
     if (!l) return;
     const { fx, fy } = d.handle;
     // The edge opposite the handle stays put, as in PowerPoint or Figma. With
-    // Ctrl (Cmd on a Mac) the center stays and both edges move, so the size
-    // changes twice as fast as the pointer. Alt is taken: it turns snapping off.
-    const symmetric = e.ctrlKey || e.metaKey;
+    // Shift the center stays and both edges move, so the size changes twice as
+    // fast as the pointer. Alt turns snapping off, and Ctrl (⌘) moves the nodes
+    // placed against it along, as in dragging (D107).
+    const symmetric = e.shiftKey;
+    d.along = followersAlong(e);
     const share = symmetric ? 0.5 : 1;
     const hold: Hold = { x: symmetric ? 0 : ((-fx) as -1 | 0 | 1), y: symmetric ? 0 : ((-fy) as -1 | 0 | 1) };
     const want: SizeWant = {};
@@ -1351,7 +1388,7 @@ export function Canvas() {
     }
     d.last = out;
     d.match = {};
-    previewLayout.value = out.changes.length ? out.layout : null;
+    resizePreview(d);
     // Mark the nodes it now has the same width or height as.
     const after = out.layout.nodes.find((n) => n.id === d.id);
     const gaps: GapMark[] = [];
@@ -1373,6 +1410,20 @@ export function Canvas() {
       if (other) mark(other, axis);
     }
     guides.value = { lines: [], gaps };
+  };
+
+  /** Shows the resize's last plan, with the node's followers held where they are unless they move too (D107). */
+  const resizePreview = (d: ResizeDrag) => {
+    const out = d.last;
+    const l = baseLayout.value;
+    if (!out || !out.changes.length || !l) {
+      previewLayout.value = null;
+      dragFollowers.value = null;
+      return;
+    }
+    const held = d.along ? [] : holds(l, d.followers);
+    previewLayout.value = held.length ? (layoutDocumentPicture(analyzeDocument(out.text), currentPicture.value, new Map(held)) ?? out.layout) : out.layout;
+    dragFollowers.value = d.followers.ids.length ? { followers: d.followers, along: d.along } : null;
   };
 
   /** Dragging a group: snap the node under the pointer, and show every member moved by as much. */
@@ -1406,12 +1457,9 @@ export function Canvas() {
         const c = at(id);
         return c ? [[id, { x: c.x + dx, y: c.y + dy }] as const] : [];
       }),
-      ...(d.along ? [] : d.followers.flatMap((id) => {
-        const c = at(id);
-        return c ? [[id, c] as const] : [];
-      })),
+      ...(d.along ? [] : holds(l, d.followers)),
     ]);
-    dragFollowers.value = { ids: d.followers, along: d.along };
+    dragFollowers.value = { followers: d.followers, along: d.along };
     guides.value = { lines: snapped.guides, gaps: snapped.gaps };
   };
 
@@ -1631,12 +1679,8 @@ export function Canvas() {
     const snapped = alt ? { center: raw, guides: [], gaps: [], targets: [] } : snapNode(l, n, raw, 7 / view.value.scale);
     d.target = snapped.center;
     d.alignedWith = snapped.targets;
-    const held = d.along ? [] : d.followers.flatMap((id) => {
-      const c = l.nodes.find((x) => x.id === id)?.shape.center;
-      return c ? [[id, c] as const] : [];
-    });
-    overrides.value = new Map([[d.id, snapped.center], ...held]);
-    dragFollowers.value = { ids: d.followers, along: d.along };
+    overrides.value = new Map([[d.id, snapped.center], ...(d.along ? [] : holds(l, d.followers))]);
+    dragFollowers.value = { followers: d.followers, along: d.along };
     guides.value = { lines: snapped.guides, gaps: snapped.gaps };
   };
 
@@ -1645,12 +1689,13 @@ export function Canvas() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Control" && e.key !== "Meta") return;
       const d = drag.current;
-      if (!d || (d.kind !== "node" && d.kind !== "group") || !d.moved) return;
+      if (!d || (d.kind !== "node" && d.kind !== "group" && d.kind !== "resize") || !d.moved) return;
       const along = followersAlong(e);
       if (along === d.along) return;
       d.along = along;
       if (d.kind === "node") nodeUpdate(d);
-      else groupUpdate(d);
+      else if (d.kind === "group") groupUpdate(d);
+      else resizePreview(d);
     };
     window.addEventListener("keydown", onKey);
     window.addEventListener("keyup", onKey);
@@ -1742,13 +1787,13 @@ export function Canvas() {
       const renamed = new Map(r.conversions.flatMap((c) => [...c.ids]));
       let changes = r.changes;
       let kept = "";
-      if (!d.along && d.followers.length) {
-        // Only the group moves (D104): what follows it stays where it is.
+      if (!d.along && staying(d.followers).length) {
+        // Only the group moves (D104): what follows it stays where it is, but for its annotations (D107).
         const l = baseLayout.value;
         const memberNames = new Set(d.members.flatMap((id) => l?.nodes.find((n) => n.id === id)?.name ?? []));
         const prefer = new Set(d.members.flatMap((id) => l?.nodes.find((n) => n.id === id)?.position.refs ?? []).filter((x) => !memberNames.has(x)));
         const boxes = groupMembers(l!, d.ids).boxes;
-        const k = keepFollowers(r.changes, new Set([...d.members, ...boxes]), prefer, renamed);
+        const k = keepFollowers(r.changes, new Set([...d.members, ...boxes, ...d.followers.annotations]), prefer, renamed);
         if (!k.ok) {
           status.value = `${k.reason} Nothing was moved. Hold ${modKey()} while dragging to move the nodes placed against the group too.`;
           return;
@@ -1757,6 +1802,7 @@ export function Canvas() {
         for (const [a, b] of k.ids) renamed.set(a, b);
         kept = keptMessage(k.kept);
       }
+      if (!d.along) kept = annotationNote(baseLayout.value, d.followers, true) + kept;
       applyEdit(changes, "move.group");
       status.value = groupMessage(r, d.members.length) + kept;
       if (renamed.size) selectNodes(d.ids.map((id) => renamed.get(id) ?? id));
@@ -1765,10 +1811,24 @@ export function Canvas() {
     if (d.kind === "resize") {
       previewLayout.value = null;
       guides.value = { lines: [], gaps: [] };
+      dragFollowers.value = null;
       if (!d.moved || !d.last) return;
       const name = (n: LaidOutNode) => n.name ?? n.id;
       const same = [d.match.w && `width as ${name(d.match.w)}`, d.match.h && `height as ${name(d.match.h)}`].filter(Boolean);
-      applyResize(d.last.changes, d.last.written, d.scope, d.last.notes, d.last.position, same.length ? ` Same ${same.join(" and ")}.` : "");
+      let changes = d.last.changes;
+      let kept = "";
+      // As in dragging (D104, D107): what is placed against the node stays where it is, but for its annotations.
+      if (!d.along && changes.length && staying(d.followers).length) {
+        const n = baseLayout.value?.nodes.find((x) => x.id === d.id);
+        const k = keepFollowers(changes, new Set([d.id, ...d.followers.annotations]), new Set(n?.position.refs ?? []));
+        if (!k.ok) {
+          status.value = `${k.reason} Nothing was changed. Hold ${modKey()} while resizing to move the nodes placed against it too.`;
+          return;
+        }
+        changes = k.changes;
+        kept = keptMessage(k.kept);
+      }
+      applyResize(changes, d.last.written, d.scope, d.last.notes, d.last.position, (same.length ? ` Same ${same.join(" and ")}.` : "") + kept);
       return;
     }
     dragFollowers.value = null;
@@ -1779,15 +1839,17 @@ export function Canvas() {
     const node = before?.nodes.find((x) => x.id === d.id);
     // Only the dragged node moves (D104): what follows it is kept where it is, re-attached to what
     // the node hung off first, in the same undo step. Ctrl (⌘) or the toolbar's switch moves it along.
-    const alone = !d.along && d.followers.length > 0;
+    // Its annotations (labels that hang off it alone) move with it either way (D107).
+    const alone = !d.along && staying(d.followers).length > 0;
+    const labels = d.along ? "" : annotationNote(before ?? null, d.followers);
     const keep = (changes: Change[], renamed?: ReadonlyMap<string, string>) => {
-      if (!alone) return { ok: true as const, changes, kept: "", ids: new Map<string, string>() };
-      const k = keepFollowers(changes, new Set([d.id]), new Set(node?.position.refs ?? []), renamed);
+      if (!alone) return { ok: true as const, changes, kept: labels, ids: new Map<string, string>() };
+      const k = keepFollowers(changes, new Set([d.id, ...d.followers.annotations]), new Set(node?.position.refs ?? []), renamed);
       if (!k.ok) {
         status.value = `${k.reason} Nothing was moved. Hold ${modKey()} while dragging to move the nodes placed against it too.`;
         return null;
       }
-      return { ok: true as const, changes: k.changes, kept: keptMessage(k.kept), ids: k.ids };
+      return { ok: true as const, changes: k.changes, kept: labels + keptMessage(k.kept), ids: k.ids };
     };
     if (node?.lock?.kind === "chain") {
       const r = planChainMove(text.value, currentPicture.value, d.id, d.target);
@@ -2168,7 +2230,7 @@ export function Canvas() {
                 style={{ cursor: h.cursor }}
                 stroke-width={f(1 / v.scale)}
               >
-                <title>Drag to resize. Ctrl resizes from the center, Alt turns snapping off.</title>
+                <title>{`Drag to resize. Shift resizes from the center, ${modKey()} moves the nodes placed against it too, Alt turns snapping off.`}</title>
               </rect>
             );
           })}

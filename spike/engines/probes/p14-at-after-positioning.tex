@@ -1,0 +1,31 @@
+\documentclass[tikz]{standalone}
+% An `at` clause on a node that also has a positioning key, or is on a chain
+% (M6, found by the kept-in-place check on se-382997's rewritten chain). The
+% positioning library keeps its shift in \tikz@lib@pos@call and sets the
+% anchor; the clause replaces only the point. Which of the three survive?
+\usetikzlibrary{positioning,chains}
+\begin{tikzpicture}[every node/.style={draw, minimum width=12mm, minimum height=6mm, inner sep=0pt, outer sep=0pt}]
+  \node (a) {A};
+  % A relation and a clause.
+  \node[below=of a] (b) at (3,0) {B};
+  \node[on grid, below=5mm of a] (c) at (5,0) {C};
+  \node[below=2pt] (d) at (7,0) {D};
+  \node[below=of a, anchor=west] (e) at (9,0) {E};
+  \node[above right=4mm and 6mm of a] (f) at (11,0) {F};
+  % A relation after an `at=` option, and before one.
+  \node[at={(13,0)}, below=of a] (g) {G};
+  \node[below=of a, at={(15,0)}] (h) {H};
+\end{tikzpicture}
+\begin{tikzpicture}[start chain=going below, node distance=8mm and 20mm,
+    every node/.style={draw, minimum width=12mm, minimum height=6mm, inner sep=0pt, outer sep=0pt}]
+  % Chain nodes with a clause: the first (nothing before it) and the next.
+  \node[on chain] (p0) at (0,-3) {P0};
+  \node[on chain] (p1) at (2,-3) {P1};
+  % An explicit relation after "on chain", and a clause.
+  \node[on chain, right=of p1] (p2) at (4,-3) {P2};
+  % On grid set before "on chain".
+  \node[on grid, on chain] (p3) at (6,-3) {P3};
+  % A chain node without a clause after them, to see where the chain goes on.
+  \node[on chain] (p4) {P4};
+\end{tikzpicture}
+\end{document}

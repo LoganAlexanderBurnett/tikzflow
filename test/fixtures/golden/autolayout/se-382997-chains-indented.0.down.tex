@@ -83,7 +83,7 @@
     \node [proc,  left=of p2] (p4) {Exchange inforamtion maps with all neighbours.};
     \node [proc, join=by free, right=of p7] (transimitInformation)   {Transimit information lists to all neighbours.};
     \node [test, join, right=of transimitInformation] (t3) {other nodes?};
-    \node [proc, join=by free] (p5) at (p2 |- t1) {Transimit information lists to these nodes.};
+    \node [proc, join=by free, above=2.8cm of p2] (p5) {Transimit information lists to these nodes.};
     \node [proc,  right=of t1] (p6) {Calculate $q_{i_s}$ as in Section \ref{sec:Proposed distributed semi-flocking}-C.};
     \node [proc, join=by free, right=of t3]  (p8) {Calculate $f_i^s$ as in Eq. (13).};
     % Some more nodes specifically positioned (we could have avoided this,

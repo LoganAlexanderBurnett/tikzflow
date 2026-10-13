@@ -299,16 +299,35 @@ function AppBar() {
   );
 }
 
-/** "Move followers too" (D104): off, dragging moves only the dragged node. Ctrl (⌘) during a drag does the other. */
+/**
+ * "Move followers too" (D104): off, dragging (and resizing) moves only the dragged node and its
+ * labels. Ctrl (⌘) during a drag does the other. An icon that looks pressed when on, with the
+ * name and what it does in its tooltip, so the toolbar fits one row from 1,366 px (D107).
+ */
 function FollowersToggle() {
   const mod = isMac() ? "⌘" : "Ctrl";
+  const on = moveFollowers.value;
   return (
     <label
-      class="tf-preview-toggle"
-      title={`On: dragging a node also moves the nodes placed against it. Off: only the node you drag moves, and the nodes placed against it are rewritten to stay where they are. Hold ${mod} while dragging for the other way, for that drag.`}
+      class={`tf-icon-toggle${on ? " on" : ""}`}
+      data-testid="move-followers"
+      title={[
+        `Move followers too: ${on ? "on" : "off"}.`,
+        on
+          ? "Dragging or resizing a node also moves the nodes placed against it."
+          : "Only the node you drag or resize moves (with its labels); the nodes placed against it are rewritten to stay where they are.",
+        `Hold ${mod} while dragging for the other way, for that drag.`,
+      ].join("\n")}
     >
-      <input type="checkbox" checked={moveFollowers.value} onChange={(e) => setMoveFollowers((e.target as HTMLInputElement).checked)} data-testid="move-followers-toggle" />
-      Move followers too
+      <input
+        type="checkbox"
+        class="tf-sr-only"
+        aria-label="Move followers too"
+        checked={on}
+        onChange={(e) => setMoveFollowers((e.target as HTMLInputElement).checked)}
+        data-testid="move-followers-toggle"
+      />
+      <Icon name="followers" size={18} />
     </label>
   );
 }

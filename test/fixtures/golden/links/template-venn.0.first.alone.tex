@@ -15,12 +15,12 @@
   \node[set, fill=red!70]         (b) at (2.4,0) {};
   \node[set, fill=yellow!80!orange, below left=2.08cm and 1.2cm of b] (c) {};
 
-  \node[set name, above left=2.4cm of b] (reading) {Reading};
+  \node[set name, above=24mm of a] (reading) {Reading};
   \node[set name, above=24mm of b] (sport)   {Sport};
   \node[set name, below=24mm of c] (music)   {Music};
 
   % How many belong to each region.
-  \node[count, below left=1.95cm and 7.8mm of reading]   (only-a)  {12};
+  \node[count, above left=4.5mm and 7.8mm of a]   (only-a)  {12};
   \node[count, above right=4.5mm and 7.8mm of b]  (only-b)  {9};
   \node[count, below=9mm of c]                    (only-c)  {7};
   \node[count, above=2.58cm of c]     (ab)      {4};

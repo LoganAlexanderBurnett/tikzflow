@@ -59,6 +59,22 @@ try {
     }
   }
   console.log(`\n${within1} of ${all} nodes within 1 pt of pdfTeX (center, size and corner anchors).`);
+  // Rewritten pictures (D107): every node but the dragged one where TeX put it before the edit.
+  const kept = (results as FidelityResult[]).filter((r) => r.kept);
+  if (kept.length) {
+    const moved = kept.filter((r) => r.kept!.worst > 1);
+    // A rewrite keeps a node where the editor has it. Where the editor's own estimate was already off
+    // from TeX's before the edit, TeX now puts it there: the largest such difference says how much.
+    const before = (r: FidelityResult) => {
+      const src = (results as FidelityResult[]).find((s) => !s.kept && s.picture === r.picture && r.kept!.source.endsWith(`/${s.file}`));
+      return src ? Math.max(0, ...src.nodes.map((n) => n.center)) : NaN;
+    };
+    for (const r of moved) {
+      console.log(`  MOVED IN TeX: ${r.file}: ${r.kept!.worstName} is ${r.kept!.worst.toFixed(2)} pt from where TeX put it in ${r.kept!.source} (before the edit, the editor was up to ${before(r).toFixed(2)} pt off TeX there)`);
+    }
+    console.log(`${kept.length - moved.length} of ${kept.length} rewritten pictures (a node moved alone, or detached): every other node within 1 pt of where pdfTeX put it before.`);
+    if (moved.some((r) => !(before(r) > 1))) process.exitCode = 1;
+  }
 } finally {
   await browser.close();
   await server.close();

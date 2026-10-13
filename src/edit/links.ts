@@ -12,7 +12,8 @@
 // first (D79) when one of them has to stay where it is.
 import { analyzeDocument, layoutDocumentPicture } from "../model/document.ts";
 import type { LaidOutNode, PictureLayout } from "../tikz/layout.ts";
-import type { Point } from "../tikz/shapes.ts";
+import { coordNames } from "../model/references.ts";
+import { borderToward, type Point } from "../tikz/shapes.ts";
 import { applyChanges, type Change, composeChanges } from "./changes.ts";
 import { planChainConversion } from "./chains.ts";
 import { laneSets } from "./lanes.ts";
@@ -75,6 +76,81 @@ export function placementLinks(text: string, layout: PictureLayout, n: LaidOutNo
     }
   }
   return { follows, followers };
+}
+
+/** Draws nothing but its text, and has some: no border, fill, shading, shadow or double line. */
+const textOnly = (n: LaidOutNode) => n.kind === "statement" && !!n.syntax.label?.text.trim() && !n.stroke && !n.fill && !n.shading && !n.shadow && !n.double;
+
+/** Whether `name` appears as a word in `code` (a `\foreach` list of names, a coordinate). */
+const mentions = (code: string, name: string) => new RegExp(`(^|[^A-Za-z0-9_-])${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^A-Za-z0-9_-])`).test(code);
+
+/** Whether `p` is inside node `m`'s border. */
+function inside(m: LaidOutNode, p: Point): boolean {
+  const c = m.shape.center;
+  if (Math.abs(p.x - c.x) > m.shape.hw || Math.abs(p.y - c.y) > m.shape.hh) return false;
+  const b = borderToward(m.shape, p);
+  return Math.hypot(p.x - c.x, p.y - c.y) <= Math.hypot(b.x - c.x, b.y - c.y) + 0.01;
+}
+
+/**
+ * The annotations of the nodes `members` (D107): followers that only label them, so they move
+ * with them even when only the dragged nodes move. A follower is an annotation when it
+ * - draws nothing but its text (no `draw`, `fill`, shading or shadow) and has some,
+ * - is placed only against the members or their other annotations,
+ * - has no edge or path drawn to or from it (in the code the editor reads or in a block kept as
+ *   it is, such as a `\foreach`),
+ * - has nothing else placed against it (a column of labels other things line up with stays),
+ * - isn't named in a group box's `fit` (a group's title belongs to the group), and
+ * - doesn't sit inside another drawn node (a count in the overlap of two Venn sets belongs to both).
+ * Everything else that follows them is a part of the diagram and stays where it is.
+ */
+export function annotationsOf(text: string, layout: PictureLayout, members: readonly string[], design: ReadonlySet<string>): string[] {
+  // Names and ids any path goes through: a node an edge or a line reaches is a part of the diagram.
+  const reached = new Set<string>();
+  for (const p of layout.paths) {
+    for (const s of p.route?.stops ?? []) {
+      if (s.node) reached.add(s.node);
+      for (const c of coordNames(s.text)) reached.add(c.name);
+    }
+  }
+  const opaque = layout.opaque.map((o) => text.slice(o.range.from, o.range.to)).join("\n");
+  const drawn = layout.nodes.filter((m) => m.kind === "statement" && (m.stroke || m.fill || m.shading) && !design.has(m.id));
+  const grouped = new Set(layout.nodes.filter((m) => m.position.kind === "fit").flatMap((m) => m.position.refs));
+  const candidate = (n: LaidOutNode) =>
+    !members.includes(n.id) &&
+    !design.has(n.id) &&
+    !onPath(n) &&
+    textOnly(n) &&
+    n.position.refs.length > 0 &&
+    !reached.has(n.id) &&
+    !(n.name && (reached.has(n.name) || grouped.has(n.name) || mentions(opaque, n.name)));
+  const moving = new Set(members);
+  const hangsOnMoving = (n: LaidOutNode) => n.position.refs.every((r) => moving.has(named(layout, r, n)?.id ?? ""));
+  const placedAgainst = (n: LaidOutNode) =>
+    n.name ? layout.nodes.filter((m) => m !== n && !onPath(m) && !design.has(m.id) && m.position.refs.includes(n.name!) && named(layout, n.name!, m)?.id === n.id) : [];
+  // Grow from the members through candidates placed only against what moves; then drop each one
+  // that something staying is placed against, and what hung off it. A dropped node stays dropped.
+  const dropped = new Set<string>();
+  for (let changed = true; changed; ) {
+    changed = false;
+    for (let grew = true; grew; ) {
+      grew = false;
+      for (const n of layout.nodes) {
+        if (moving.has(n.id) || dropped.has(n.id) || !candidate(n) || !hangsOnMoving(n)) continue;
+        if (drawn.some((m) => !moving.has(m.id) && inside(m, n.shape.center))) continue;
+        moving.add(n.id);
+        grew = true;
+      }
+    }
+    for (const n of layout.nodes) {
+      if (!moving.has(n.id) || members.includes(n.id)) continue;
+      if (hangsOnMoving(n) && placedAgainst(n).every((m) => moving.has(m.id))) continue;
+      moving.delete(n.id);
+      dropped.add(n.id);
+      changed = true;
+    }
+  }
+  return layout.nodes.filter((n) => moving.has(n.id) && !members.includes(n.id)).map((n) => n.id);
 }
 
 /** A node rewritten so it stays put, and how it is placed now. */

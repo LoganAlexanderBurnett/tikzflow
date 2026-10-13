@@ -32,7 +32,8 @@ export const SHORTCUT_SECTIONS: Array<{ title: string; note?: string; rows: Row[
     rows: [
       [[["Shift", "click"]], "Add to the selection, or take out of it"],
       [[["Alt", "drag"]], "Move or resize without snapping"],
-      [[["Mod", "drag"]], "On a node: move the nodes placed against it too (or only it, with Move followers too on). On a resize handle: resize from the center"],
+      [[["Mod", "drag"]], "On a node or a resize handle: move the nodes placed against it too (or only it and its labels, with Move followers too on)"],
+      [[["Shift", "drag"]], "On a resize handle: resize from the center"],
       [[["Right-drag"], ["Middle-drag"]], "Pan (dragging the background does too)"],
       [[["Wheel"]], "Zoom, about the pointer"],
       [[["Right-click"]], "An edge's menu"],

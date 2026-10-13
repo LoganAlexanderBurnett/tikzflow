@@ -336,7 +336,8 @@ export function positioningText(spec: PositionSpec & { kind: "positioning" }): s
   if (diag && (spec.v !== undefined || spec.h !== undefined)) {
     const v = fd(spec.v ?? 0);
     const h = fd(spec.h ?? 0);
-    dist = v === h ? `${v} ` : `${v} and ${h} `;
+    // Both written, even when equal: one length on a diagonal means √½ of it on each axis.
+    dist = `${v} and ${h} `;
   } else if (spec.v !== undefined) dist = `${fd(spec.v)} `;
   else if (spec.h !== undefined) dist = `${fd(spec.h)} `;
   const main = `${spec.dir}=${dist}of ${spec.target}`;

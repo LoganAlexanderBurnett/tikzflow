@@ -81,6 +81,19 @@ export interface ArrowTip {
   reversed: boolean;
 }
 
+/**
+ * A positioning distance, vertical and horizontal. `single` when it was
+ * written as one length ("2cm", not "2cm and 1cm"): the positioning library
+ * then shifts a diagonal ("above left") by the length times √½ on each axis,
+ * so the node is that far away along the diagonal (checked against pdfTeX:
+ * spike/engines/probes/p13-diagonal-distances.tex).
+ */
+export interface NodeDistance {
+  v: number;
+  h: number;
+  single?: boolean;
+}
+
 export type Placement =
   /** positioning library: "below=of a", "below=1cm of a", "below=2pt", "below". */
   | {
@@ -90,7 +103,7 @@ export type Placement =
       of?: string;
       /** "on grid" and "node distance" as they were when the key ran: later ones don't apply. */
       onGrid?: boolean;
-      distance?: { v: number; h: number };
+      distance?: NodeDistance;
     }
   /** pre-positioning syntax: "below of=a". */
   | {
@@ -99,7 +112,7 @@ export type Placement =
       of: string;
       /** What a positioning key in the same place would see; the old syntax itself reads them at the end. */
       onGrid?: boolean;
-      distance?: { v: number; h: number };
+      distance?: NodeDistance;
     };
 
 export interface Shading {
@@ -138,7 +151,7 @@ export interface State {
   endTip: ArrowTip | null;
   shortenStart: number;
   shortenEnd: number;
-  nodeDistance: { v: number; h: number };
+  nodeDistance: NodeDistance;
   onGrid: boolean;
   /**
    * The coordinate transformation, as in PGF: canvas x = a*x + c*y + e,
@@ -188,6 +201,11 @@ export interface State {
   /** Set by node keys. */
   name?: string;
   at?: string;
+  /**
+   * The `at=` option came after the last positioning key or `on chain`: it replaces only the
+   * point, and the positioning's anchor and shift still apply (p14-at-after-positioning.tex).
+   */
+  atAfterPlacement?: boolean;
   placement?: Placement;
   xshift: number;
   yshift: number;
@@ -202,7 +220,7 @@ export interface State {
    * "on grid" and "node distance" when "on chain" ran, which places the node, and the
    * position keys set before it: the chain's placement replaces those, not ones set after.
    */
-  chainAt?: { onGrid: boolean; distance: { v: number; h: number }; placement?: Placement; at?: string };
+  chainAt?: { onGrid: boolean; distance: NodeDistance; placement?: Placement; at?: string };
   /** "join" (true) or "join=by style" / "join=with node". */
   join?: string | true;
   labels: string[];

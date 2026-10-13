@@ -7,7 +7,7 @@ import { type CoordEnv, type CoordResult, evalCoordText, type NameEntry, splitNo
 import { applyKeys, applyStyle, defaultTipLength, defaultTipWidth, KNOWN_SHAPES, parseNodeDistance, SHAPE_LIBRARY, StyleTable } from "./keys.ts";
 import { type KeyValue, parseOptionString } from "./options.ts";
 import { anchorOffset, anchorPoint, borderToward, makeShape, type NodeShape, outline, type Point, shapeBounds } from "./shapes.ts";
-import { applyLinear, applyMatrix, type ArrowTip, type AutomataArrow, initialState, itemCopy, type Matrix, multiply, scopeCopy, type Shading, type SizeTable, type State } from "./state.ts";
+import { applyLinear, applyMatrix, type ArrowTip, type AutomataArrow, initialState, itemCopy, type Matrix, multiply, type NodeDistance, scopeCopy, type Shading, type SizeTable, type State } from "./state.ts";
 import { CM, evalQuantity, type PageLengths, setPageLengths } from "./units.ts";
 
 export interface LayoutEnv {
@@ -60,7 +60,7 @@ export interface LaidOutNode {
   units: { x: number; y: number };
   /** How much positioning distances and node shifts are scaled: 1 unless "transform shape". */
   vectorScale: number;
-  nodeDistance: { v: number; h: number };
+  nodeDistance: NodeDistance;
   onGrid: boolean;
   /** Why the node can't be dragged, or undefined if it can. */
   locked?: string;
@@ -96,7 +96,7 @@ export interface ChainPlace {
   prev?: string;
   dir: string;
   onGrid: boolean;
-  distance: { v: number; h: number };
+  distance: NodeDistance;
 }
 
 /** What a node's drawn size is made of. Lengths are canvas pt. */
@@ -563,13 +563,14 @@ function layoutNode(
   const outer = st.matrix;
   const styles = scope.styles.child();
   const kc = keyCtx(ctx, styles);
-  if (kind === "coordinate") st.shape = "coordinate";
-  else applyStyle(st, "every node", kc);
-  // Path state options like "draw" don't carry over to nodes on the path.
+  // Path state options like "draw" don't carry over to nodes on the path; "every node" can set
+  // them again (TeX draws the border of every node then, labels on paths included).
   st.draw = false;
   st.fill = false;
   delete st.shading;
   st.shadow = false;
+  if (kind === "coordinate") st.shape = "coordinate";
+  else applyStyle(st, "every node", kc);
   // Positioning keys set the anchor as they are applied, so a later "anchor=" wins.
   for (const list of syn.options) {
     for (const kv of keysOf(list)) {
@@ -594,15 +595,17 @@ function layoutNode(
       ctx.chains.set(chainName, chain);
     }
     // "on chain" places the node when it runs ("below=of chain-2"), so a position set before
-    // it is replaced and one set after it wins; an "at" clause comes after all options
-    // (checked against pdfTeX: spike/engines/probes/p8-chains-explicit.tex).
+    // it is replaced and one set after it wins (checked against pdfTeX:
+    // spike/engines/probes/p8-chains-explicit.tex).
     const when = st.chainAt ?? { onGrid: st.onGrid, distance: st.nodeDistance };
-    const later = (!!st.placement && st.placement !== st.chainAt?.placement) || (st.at !== undefined && st.at !== st.chainAt?.at);
-    if (!later && !syn.at && chain.last) {
+    const later = !!st.placement && st.placement !== st.chainAt?.placement;
+    if (!later && chain.last) {
       st.placement = { kind: "relative", dir: chain.dir, of: chain.last.name, onGrid: when.onGrid, distance: when.distance };
       st.anchor = positioningAnchor(chain.dir);
-      delete st.at;
-      chainPlace = { serial: chain.serial, placed: true, prev: chain.last.id, dir: chain.dir, onGrid: when.onGrid, distance: { ...when.distance } };
+      // An `at` clause, or `at=` after `on chain`, takes the point; the chain's anchor and shift stay (p14).
+      const own = !!syn.at || !!st.atAfterPlacement;
+      if (!st.atAfterPlacement) delete st.at;
+      chainPlace = { serial: chain.serial, placed: !own, ...(own ? {} : { prev: chain.last.id }), dir: chain.dir, onGrid: when.onGrid, distance: { ...when.distance } };
     } else chainPlace = { serial: chain.serial, placed: false, dir: chain.dir, onGrid: when.onGrid, distance: { ...when.distance } };
   }
   const name = syn.name?.text ?? st.name ?? (chain ? `${chainName}-${chain.count + 1}` : undefined);
@@ -701,7 +704,14 @@ function layoutNode(
     posKind = "path";
     at = pathPos.point;
   }
-  const atText = syn.at?.coord.text ?? st.at;
+  const placement = st.placement;
+  // An `at` clause, or an `at=` option after the positioning key, replaces only the point a
+  // relation gives: its anchor and shift still apply (pgf keeps the shift in \tikz@lib@pos@call;
+  // checked against pdfTeX: spike/engines/probes/p14-at-after-positioning.tex). An `at=` before
+  // the key is replaced by it.
+  const relativeOf = placement?.kind === "relative" && placement.of !== undefined;
+  const atText = syn.at?.coord.text ?? (!relativeOf || st.atAfterPlacement ? st.at : undefined);
+  const pointOverride = relativeOf && atText !== undefined;
   if (atText !== undefined) {
     posKind = "at";
     // Read without the node's own turning (a node's rotate turns it about its at point).
@@ -711,7 +721,6 @@ function layoutNode(
     if (r.ok) at = r.point;
     else lockCoord(r);
   }
-  const placement = st.placement;
   // The positioning library reads "on grid" and "node distance" when its key
   // runs, so "[below=of a, on grid]" is not on grid. (The old "below of="
   // syntax reads them at the end.) Checked against TeX: DECISIONS.md D23.
@@ -744,32 +753,38 @@ function layoutNode(
       const [ux, uy] = positioningDirection(placement.dir);
       let shiftV = 0;
       let shiftH = 0;
+      // One length on a diagonal goes that far along it: √½ of it on each axis (NodeDistance).
+      const along = (d: NodeDistance) => (ux && uy && d.single ? Math.SQRT1_2 : 1);
       if (placement.shift !== undefined) {
         const d = parseNodeDistance(placement.shift, st);
         if (d) {
-          shiftV = d.v;
-          shiftH = d.h;
+          shiftV = d.v * along(d);
+          shiftH = d.h * along(d);
         } else locked.push({ kind: "position", message: `distance "${placement.shift}"` });
       }
       if (placement.of !== undefined) {
-        posKind = "positioning";
+        if (!pointOverride) posKind = "positioning";
         // Grid and node distance as they were when the key ran (see placementGrid).
         if (placement.shift === undefined) {
-          shiftV = (placement.distance ?? st.nodeDistance).v;
-          shiftH = (placement.distance ?? st.nodeDistance).h;
+          const d = placement.distance ?? st.nodeDistance;
+          shiftV = d.v * along(d);
+          shiftH = d.h * along(d);
         }
         const target = evalLoose(placement.of, ctx, st);
-        refs.push(...target.refs);
+        // With its point replaced, the node doesn't follow the target.
+        if (!pointOverride) refs.push(...target.refs);
         if (target.ok) {
           let base = target.point;
           if (target.node) {
             // A bare node name: measure from its border, or its center on grid.
             base = grid ? target.node.shape.center : (anchorPoint(target.node.shape, OPPOSITE[positioningAnchor(placement.dir)] ?? "center") ?? base);
           }
-          if (grid && anchor === positioningAnchor(placement.dir)) anchor = "center";
+          // On grid takes the center as the anchor only against a node (positioning's \tikz@lib@place@of@).
+          if (grid && target.node && anchor === positioningAnchor(placement.dir)) anchor = "center";
+          if (pointOverride) base = at;
           const [dx, dy] = nodeVector(st, ux * shiftH, uy * shiftV);
           at = { x: base.x + dx, y: base.y + dy };
-        } else lockCoord(target);
+        } else if (!pointOverride) lockCoord(target);
       } else {
         // "below=2pt": shift the node away from its at point.
         const [dx, dy] = nodeVector(st, ux * shiftH, uy * shiftV);

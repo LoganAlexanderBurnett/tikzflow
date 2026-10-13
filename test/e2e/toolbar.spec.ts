@@ -61,10 +61,28 @@ for (const scheme of ["light", "dark"] as const) {
   });
 }
 
-// Was 1366 px until the "Move followers too" switch (D104, D105): with its label the toolbar needs about 1,470 px.
-test("with one picture the toolbar is one row from 1500 px up", async ({ page }) => {
-  await page.setViewportSize({ width: 1500, height: 800 });
+// One row from 1366 px again since "Move followers too" became an icon (D107; with its label it needed 1,500 px, D105).
+test("with one picture the toolbar is one row from 1366 px up", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 800 });
   await page.goto("/");
   const rows = await page.locator(".tf-toolbar .tools").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
   expect(new Set(rows).size).toBe(1);
+});
+
+test("Move followers too is an icon that shows when it is on, with its name and state in the tooltip", async ({ page }) => {
+  await page.goto("/");
+  const toggle = page.getByTestId("move-followers");
+  const box = (await toggle.boundingBox())!;
+  expect(box.width).toBeLessThanOrEqual(32);
+  await expect(toggle).not.toHaveClass(/\bon\b/);
+  await expect(toggle).toHaveAttribute("title", /^Move followers too: off\./);
+  await expect(page.getByRole("checkbox", { name: "Move followers too" })).not.toBeChecked();
+  await toggle.click();
+  await expect(toggle).toHaveClass(/\bon\b/);
+  await expect(toggle).toHaveAttribute("title", /^Move followers too: on\./);
+  await expect(page.getByRole("checkbox", { name: "Move followers too" })).toBeChecked();
+  // Pressed looks different from not pressed.
+  const bg = await toggle.evaluate((el) => getComputedStyle(el).backgroundColor);
+  await toggle.click();
+  expect(await toggle.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(bg);
 });

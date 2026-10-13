@@ -544,8 +544,10 @@ export function readGrid(members: readonly LaidOutNode[], centers: ReadonlyMap<s
 export function placeRelative(ref: LaidOutNode, at: Point, n: LaidOutNode, dir: string, v?: number, h?: number): Point | null {
   const [ux, uy] = positioningDirection(dir);
   const s = n.vectorScale;
-  const dv = (v ?? n.nodeDistance.v) * s;
-  const dh = (h ?? n.nodeDistance.h) * s;
+  // The node distance as one length goes that far along a diagonal (NodeDistance in state.ts).
+  const k = ux && uy && v === undefined && h === undefined && n.nodeDistance.single ? Math.SQRT1_2 : 1;
+  const dv = (v ?? n.nodeDistance.v * k) * s;
+  const dh = (h ?? n.nodeDistance.h * k) * s;
   const shift = { x: ux * dh, y: uy * dv };
   if (n.onGrid) return { x: at.x + shift.x, y: at.y + shift.y };
   const anchor = positioningAnchor(dir);

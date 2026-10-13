@@ -72,7 +72,7 @@
     % -------------------------------------------------
     % Use join to connect a node to the previous one 
     \node [term, join]  (p0) at (1,0.5)    {t  =  0\\ Intialize $m_i$, $q_i$, $p_i$,\\ and $q_k$, $p_k$, $a_k$.};
-    \node [proc, join, on grid=false] (p1) at (0,-2.37) {Sense AoI and update inforamtion maps.};
+    \node [proc, join, on grid=false] (p1) at (0,-0.81) {Sense AoI and update inforamtion maps.};
     \node [proc, join, on grid=false, below=of p1] (detectTargetsUpdate)      {Detect targets and update inforamtion lists.};
     \node [test, join, on grid=false, below=of detectTargetsUpdate] (t1) {Is $N_i={\emptyset}$?};
     \node [proc, on grid=false, below=of t1] (p2) {Evaluate the fitness of each target as in Section \ref{sec:Proposed distributed semi-flocking}-A.};

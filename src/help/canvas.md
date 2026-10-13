@@ -27,6 +27,8 @@ Hold <kbd>Alt</kbd> while dragging to move freely, without snapping.
 
 In TikZ, a node placed relative to another (`below=of read`) follows it: move `read` and everything placed against it goes along. TikZFlow moves only the node you drag. The nodes that were placed against it stay where they are: each is rewritten in the same step, against what the dragged node was placed against when that works (`below=2.53cm of start`), against another node otherwise, and with coordinates only as a last resort. The status bar names every node it rewrote ("Kept in place: small (below=2.53cm of start)"), and <kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes it all at once.
 
+Labels move with their node. A node placed against the one you drag that only labels it moves along: it draws only its text (no border or fill), hangs off that node alone, has no edge to it, nothing else is placed against it, it isn't a group's title, and it doesn't sit inside another shape. In the Venn diagram template, a set's name and its own count go with the circle; the counts in the overlaps stay, since they belong to two sets.
+
 While you drag, the nodes that follow the one you hold have a faint outline: dashed when they stay where they are, solid when they move along.
 
 To move a node together with its followers, as TeX would, hold <kbd>Ctrl</kbd> (<kbd>⌘</kbd> on a Mac) while you drag. You can press or let go of it during the drag. **Move followers too** in the toolbar makes that the default (this browser remembers it); <kbd>Ctrl</kbd> then moves only the node.
@@ -64,7 +66,7 @@ Double-click a node, or select it and press <kbd>F2</kbd>, to edit its label in 
 
 ## Resizing
 
-Select one node and drag a handle on its corners or sides. The edge or corner opposite the handle stays put. Hold <kbd>Ctrl</kbd> to resize from the center, or <kbd>Alt</kbd> to turn off snapping. Sizes snap to whole millimeters and to the sizes of other nodes, and are written as `minimum width` and `minimum height` (or `text width` when the text should wrap).
+Select one node and drag a handle on its corners or sides. The edge or corner opposite the handle stays put. Hold <kbd>Shift</kbd> to resize from the center, or <kbd>Alt</kbd> to turn off snapping. As in dragging, the nodes placed against the one you resize stay where they are (its labels move with it), unless you hold <kbd>Ctrl</kbd> (<kbd>⌘</kbd> on a Mac) or **Move followers too** is on. Resizing a style ("All process nodes") changes every node that uses it, as an edit in the properties panel does. Sizes snap to whole millimeters and to the sizes of other nodes, and are written as `minimum width` and `minimum height` (or `text width` when the text should wrap).
 
 To give several nodes the same size, select them (the first one you click sets the size) and use **Match width** or **Match height** in the properties panel.
 

@@ -17,6 +17,8 @@ const PATHS = {
   restore: "M4 12a8 8 0 1 0 2.4-5.7M4 4v4.5h4.5",
   paste: "M9 3.5h6v3H9zM9 5H6.5a1 1 0 0 0-1 1v13.5a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1H15M8.5 11h7M8.5 14.5h7M8.5 18h4",
   template: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
+  // Two linked nodes, each with an arrow: the node and what is placed against it move together (D107).
+  followers: "M3.5 4h7v6h-7zM3.5 14h7v6h-7zM7 10v4M14 7h6.5M18 4.5 20.5 7 18 9.5M14 17h6.5M18 14.5l2.5 2.5-2.5 2.5",
   keyboard: "M3.5 6.5h17a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-17a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1ZM6.5 10h1M10 10h1M13.5 10h1M17 10h1M8 14h8",
 } as const;
 

@@ -51,8 +51,12 @@ test("dragging the east handle writes a round minimum width on that node, and un
   const after = await code(page);
   // The west edge is held, so the node gets a shift to stay put; the relation stays as written.
   expect(line(after, "(rec)")).toMatch(/\\node\[process, below=of small, xshift=\d+mm, minimum width=\d+(\.\d)?(mm|cm)\] \(rec\)/);
-  expect(after.split("\n").filter((l) => !l.includes("(rec)"))).toEqual(before.split("\n").filter((l) => !l.includes("(rec)")));
-  const w1 = (await page.locator('g[data-node="rec"] path').first().boundingBox())!.width;
+  // "stop" is placed below rec, so it would move with rec's middle: it is rewritten to stay where it is (D107).
+  const others = (t: string) => t.split("\n").filter((l) => !l.includes("(rec)") && !l.includes("(stop)"));
+  expect(others(after)).toEqual(others(before));
+  expect(line(after, "(stop)")).not.toContain("below=of rec");
+  await expect(page.getByTestId("status")).toContainText("Kept in place: stop");
+  const w1 =(await page.locator('g[data-node="rec"] path').first().boundingBox())!.width;
   expect(w1).toBeGreaterThan(w0 + 60);
   await expect(page.getByTestId("status")).toContainText("Wrote minimum width=");
   await page.keyboard.press("Control+z");
@@ -128,15 +132,31 @@ test("a side whose edge the anchor already holds only changes the size", async (
   const after = await code(page);
   expect(line(after, "(rec)")).toMatch(/\\node\[process, below=of small, minimum height=\d+(\.\d)?(mm|cm)\] \(rec\)/);
   expect(line(after, "(rec)")).not.toContain("shift");
-  expect(after.split("\n").filter((l) => !l.includes("(rec)"))).toEqual(before.split("\n").filter((l) => !l.includes("(rec)")));
+  // "stop", below rec, stays where it is: it is rewritten, and nothing else changes (D107).
+  const others = (t: string) => t.split("\n").filter((l) => !l.includes("(rec)") && !l.includes("(stop)"));
+  expect(others(after)).toEqual(others(before));
+  expect(line(after, "(stop)")).not.toContain("below=of rec");
 });
 
-test("holding Ctrl resizes from the center", async ({ page }) => {
+test("holding Ctrl moves the nodes placed against it along, as TeX would, and only the resized line changes", async ({ page }) => {
+  await select(page, "rec");
+  const before = await code(page);
+  const s0 = await edges(page, "stop");
+  await page.keyboard.down("Control");
+  await dragHandle(page, "s", 0, 30);
+  await page.keyboard.up("Control");
+  const after = await code(page);
+  expect(after.split("\n").filter((l) => !l.includes("(rec)"))).toEqual(before.split("\n").filter((l) => !l.includes("(rec)")));
+  // stop is below=of rec: it went down with rec's bottom edge.
+  expect((await edges(page, "stop")).t - s0.t).toBeGreaterThan(20);
+});
+
+test("holding Shift resizes from the center", async ({ page }) => {
   await select(page, "stop");
   const e0 = await edges(page, "stop");
-  await page.keyboard.down("Control");
+  await page.keyboard.down("Shift");
   await dragHandle(page, "e", 30, 0);
-  await page.keyboard.up("Control");
+  await page.keyboard.up("Shift");
   const e1 = await edges(page, "stop");
   expect((e1.l + e1.r) / 2).toBeCloseTo((e0.l + e0.r) / 2, 0);
   // The pointer moved the east edge 30 px, so the width grew by about twice that.

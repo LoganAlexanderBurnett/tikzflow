@@ -54,6 +54,12 @@ export class Busytex implements Engine {
     this.#pack = pack.map(({ name, text }) => ({ path: name, contents: text }));
   }
 
+  /** Stops the worker (after a run that left it unable to compile). */
+  dispose(): void {
+    this.#worker?.terminate();
+    this.#worker = null;
+  }
+
   async compile(job: Job = SAMPLE_JOB): Promise<CompileResult> {
     const done = this.#next();
     this.#prints = [];
