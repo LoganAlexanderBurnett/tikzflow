@@ -1491,3 +1491,31 @@ The owner reviewed the home page, both themes, phone width, Continue your diagra
    - **Checked** at 1,100, 1,280, 1,366 and 1,440 px in light and dark: no element of the top row or the toolbar is outside the window, nothing scrolls, and the Export and Share panels open inside the window (`test/e2e/toolbar.spec.ts`).
 
 **Why:** the owner's review of the Milestone 5 report (2026-10-12).
+
+## D102: Milestone 6 plan, as approved: performance, links made visible, the phone note, licenses, README (2026-10-12)
+**The owner's answers to the plan:**
+1. **The drag target: approved.** On the 200-node, 250-edge bench picture (`scripts/layout-bench.ts`'s), production build, Edge on the owner's Windows machine, TeX preview off and on: node drags with 95% of frames under 16.7 ms (60 fps) and no task over 50 ms; the same bar for group drags (20 nodes), dragging an edge's corner, and resizing; with the CPU slowed 4× (Chrome DevTools Protocol), 95% of frames under 33 ms (30 fps); the drop (writing the code) under 100 ms. **The dense Milestone 7 pictures** (a 4–16–16–4 network written out, 40 nodes and 576 edges; a 500-node picture) are measured and reported, not a target.
+2. **The phone note:** under 768 px wide, with an **Edit anyway** button remembered for that browser tab (sessionStorage).
+3. **web2js:** (a) recorded as GPL-3.0, as its `package.json` declares, with the inconsistency of its `LICENSE.md` noted in `THIRD_PARTY_LICENSES.md`; and (b) the text of a GitHub issue for its author, drafted for the owner to post (the `gh` token covers the tikzflow repository only).
+4. **A `/licenses/` page**, generated from the same source as `THIRD_PARTY_LICENSES.md`, linked from the site's footer and the help.
+5. **The Beta label stays;** it comes off at the wider launch, not in Milestone 6.
+
+**The owner's addition (from their own use):** "I often can't tell why a node moves with another, or how to move one without moving another, and end up editing code." A new step, right after the baseline and before the performance work:
+- **Links made visible.** For the selected node, the properties panel lists what it follows ("placed below read") and what follows it ("rec and stop are placed relative to this"), each with an **Unlink** button. While dragging, the nodes that will move along are shown faintly.
+- **Detach** on a node or a multi-selection: removes every placement link in both directions with nothing moving on screen. The node gets its current position as coordinates; its followers are re-attached to another node or pinned where they are.
+- **Detach from style:** the style's effective options (font, fill and so on) are copied onto the node, so later edits of the style don't affect it.
+- **The dragging default** (move only the dragged node, rewriting its followers so they stay, with a toolbar toggle for "move with followers"; or the reverse): proposed with its trade-offs at the step 0 checkpoint, built only after the owner decides.
+- **The guard, as always:** nothing moves on screen unless the user moved it, and golden tests cover every corpus picture and template.
+
+**Steps**, all on `m6`, merged into `trunk` only after the owner reviews the report (D77 item 7):
+| Step | Content |
+|---|---|
+| 0 | `m6` branch; `npm run drag:bench` (Playwright in Edge, frame times measured in the page, the CPU slowdown); the baseline and a profile; **checkpoint: the baseline numbers and the proposal for the dragging default** |
+| 1 | Links made visible, Unlink, Detach, Detach from style; the dragging default as decided |
+| 2 | Drag performance to the target: frame-paced updates, laying out only what a drag affects (checked against a full layout on every corpus picture), redrawing only what changed, cached label typesetting, a spatial index for snapping, the stale patch's cost (D96), typing in the code pane on the big picture; work-count tests in CI (timings aren't stable there); no golden file may change |
+| 3 | The phone note (under 768 px, Edit anyway; viewing, Share and Export available) |
+| 4 | License audit from what the build ships; `THIRD_PARTY_LICENSES.md` written by a script with a staleness test; `/licenses/`; GPL source obligations for the engine release; web2js settled as far as we can, and the issue text for the owner |
+| 5 | README: features, screenshots made by a script, local development, tests, the engine release, Cloudflare Pages deployment step by step |
+| 6 | Release check: all tests, CI, fidelity, `test:live` on `m6.tikzflow.pages.dev`, docs; **Milestone 6 report** |
+
+**Why:** the owner's approval of the Milestone 6 plan and their addition (2026-10-12).

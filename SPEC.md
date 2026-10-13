@@ -162,6 +162,7 @@ Features:
 - The license audit of every bundled component, summarized in `THIRD_PARTY_LICENSES.md`.
 - README with features, screenshots, local development setup, and deployment steps.
 - On phone-sized screens, the editor shows a friendly note ("TikZFlow works best on a larger screen") with viewing and sharing still available, instead of a cramped editor.
+- Placement links made visible: for the selected node, the properties panel lists what it follows and what follows it, each with an Unlink button, and a drag faintly shows the nodes that will move along. "Detach" on a node or a multi-selection removes all its placement links in both directions with nothing moving visually (the node gets coordinates; its followers are re-attached or pinned). "Detach from style" copies the style's effective options onto the node. The dragging default (move only the dragged node, or move it with its followers) is decided by the owner from a proposal with trade-offs.
 
 ### Milestone 7: Neural network diagrams
 (Added after the Milestone 5 step 4 review; scope to be planned later. Reasons in DECISIONS.md D96.)
@@ -254,3 +255,8 @@ Start with Milestone 0. Before writing code, give me a brief plan for the spike 
   - Added Milestone 7: neural network diagrams (dense networks edited as layer components written as `\foreach` code the editor understands; CNN feature-map blocks and LSTM/GRU cell parts), after Milestone 6 and depending on its performance work. In M5 step 8, if time allows, two or three neural-network templates the current editor handles fully, with a report of which Milestone 7 features they show are needed most.
 - **2026-10-12, the owner's review of Milestone 5 step 5** (decided by the project owner; reasons in DECISIONS.md D97):
   - Added to Milestone 6: on phone-sized screens, a friendly note in the editor ("TikZFlow works best on a larger screen") with viewing and sharing still available, instead of a cramped editor.
+- **2026-10-12, approving the Milestone 6 plan** (approved by the project owner; reasons in DECISIONS.md D102):
+  - The drag target: 60 fps on the 200-node, 250-edge picture on the owner's machine, 30 fps with the CPU slowed 4×, the drop under 100 ms; dense Milestone 7 pictures measured only.
+  - The phone note applies under 768 px wide, with an "Edit anyway" button remembered for the browser tab.
+  - Added to Milestone 6: placement links made visible (what a node follows and what follows it, Unlink), Detach, Detach from style, and a proposal for the dragging default.
+  - A `/licenses/` page alongside `THIRD_PARTY_LICENSES.md`; the Beta label stays until the wider launch.

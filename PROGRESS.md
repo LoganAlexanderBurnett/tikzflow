@@ -22,7 +22,20 @@ Milestone 0 is done and was approved on 2026-10-07:
 
 **Milestone 5 (user experience and website): done, reviewed by the owner, merged into `trunk` and live at https://tikzflow.pages.dev (2026-10-12, D101).** SPEC Milestone 5 was split (D89): M5 is the user-facing work, M6 the performance target and the release paperwork (license audit, README). Steps 0–8 are done; the owner's review answers (marker beyond 3 pt, a Neural networks heading, the toolbar wrapping at laptop widths) are D101. See "Milestone 5: merged and live" and "Milestone 5 report" below, and "M5 plan and status". **Milestone 7 (neural network diagrams)** was added after M6 by the owner (D96), to be planned later.
 
+**Milestone 6 (performance and release paperwork): in progress on `m6` (plan approved 2026-10-12, D102).** The owner added a step: placement links made visible, Unlink, Detach, Detach from style, and a proposal for the dragging default. Step 0 (the drag benchmark's baseline) ends in a checkpoint. See "M6 plan and status".
+
 Also read "Notes for later milestones" below.
+
+## M6 plan and status
+| Step | Content | Status |
+|---|---|---|
+| 0 | `m6` branch; `npm run drag:bench` and the baseline; **checkpoint: the numbers and the proposal for the dragging default** | In progress |
+| 1 | Links made visible (follows / followed by, Unlink, faint followers while dragging), Detach, Detach from style; the dragging default as the owner decides | |
+| 2 | Drag performance to the target (D102 item 1): 60 fps, 30 fps at 4× CPU slowdown, drop under 100 ms; no golden file changes | |
+| 3 | The phone note: under 768 px, Edit anyway per browser tab | |
+| 4 | License audit, `THIRD_PARTY_LICENSES.md` (script and staleness test), `/licenses/`, the web2js issue text for the owner | |
+| 5 | README with screenshots made by a script; deployment steps | |
+| 6 | Release check (tests, CI, fidelity, `test:live` on the `m6` preview, docs); **Milestone 6 report** | |
 
 ## M5 plan and status
 | Step | Content | Status |
@@ -1574,7 +1587,10 @@ After Milestone 6. The scope is to be planned later; nothing of it is built befo
 - **Depends on Milestone 6's performance work.**
 
 ### Milestone 6: phone-sized screens (2026-10-12, D97 item 4)
-- On phone-sized screens, show a friendly note in the editor ("TikZFlow works best on a larger screen") with viewing and sharing still available, instead of a cramped editor.
+- On phone-sized screens, show a friendly note in the editor ("TikZFlow works best on a larger screen") with viewing and sharing still available, instead of a cramped editor. Under 768 px wide, with an Edit anyway button remembered for the browser tab (D102 item 2).
+
+### Milestone 6: placement links (2026-10-12, D102; in SPEC.md)
+- The owner's own use: "I often can't tell why a node moves with another, or how to move one without moving another." The properties panel lists what the selected node follows and what follows it, each with Unlink; a drag faintly shows the followers; Detach and Detach from style. The dragging default is proposed at the step 0 checkpoint and built after the owner decides. Nothing may move on screen unless the user moved it.
 
 ### Milestone 5: multiple tabs (2026-10-11, D86 item 5)
 - *Done (step 6, D97).* **Multiple tabs**, so a user can work on more than one flowchart at once. Each tab keeps its own code, undo history, autosave and preview. Opening a file, an import or a share link opens in a new tab instead of putting the current work aside (today's "Restore previous work", D74, D77 item 5).
