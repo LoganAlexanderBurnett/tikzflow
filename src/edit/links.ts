@@ -158,10 +158,13 @@ function stillInPlace(w: Work, before: PictureLayout, after: PictureLayout, allo
  * the earliest one first, re-attached to something that didn't move (`prefer`
  * first) or pinned, until nothing else has moved. Fails with a reason when a
  * node can't be rewritten (locked, or in a block kept as it is), so the caller
- * can refuse rather than move it.
+ * can refuse rather than move it. `renamed` maps ids of `base` to ids in
+ * `text` for nodes the edit renamed.
  */
-export function keepInPlace(text: string, picIndex: number, base: PictureLayout, allowed: ReadonlySet<string>, prefer?: ReadonlySet<string>): LinkOutcome {
+export function keepInPlace(text: string, picIndex: number, base: PictureLayout, allowed: ReadonlySet<string>, prefer?: ReadonlySet<string>, renamed?: ReadonlyMap<string, string>): LinkOutcome {
   const w = new Work(text);
+  // Nodes the edit before this one renamed (a chain written out, D79): original id → id in `text`.
+  if (renamed) for (const [k, v] of renamed) w.ids.set(k, v);
   const kept: Kept[] = [];
   const tried = new Set<string>();
   const was = new Map(base.nodes.map((n) => [n.id, n.shape.center]));
@@ -173,7 +176,7 @@ export function keepInPlace(text: string, picIndex: number, base: PictureLayout,
     if (!now) return { ok: false, reason: "The picture couldn't be laid out." };
     const origin = new Map([...was.keys()].map((id) => [w.now(id), id]));
     const moved = now.nodes.filter((n) => !onPath(n) && origin.has(n.id) && far(n.shape.center, was.get(origin.get(n.id)!)!));
-    const next = moved.find((n) => !allowed.has(origin.get(n.id)!) && !design.has(origin.get(n.id)!));
+    const next = moved.find((n) => !allowed.has(origin.get(n.id)!) && !design.has(n.id));
     if (!next) break;
     const name = nameOf(next);
     if (next.lock?.kind === "chain") {

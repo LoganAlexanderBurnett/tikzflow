@@ -21,11 +21,30 @@ Drag a node. While you drag, guides show when it lines up with another node, and
 2. a line-up with two nodes: `at (a |- b)`;
 3. plain coordinates, only when nothing else fits.
 
-Hold <kbd>Alt</kbd> while dragging to move freely, without snapping. Nodes placed relative to the one you move go with it, as they do in TeX.
+Hold <kbd>Alt</kbd> while dragging to move freely, without snapping.
+
+### Only the node you drag moves
+
+In TikZ, a node placed relative to another (`below=of read`) follows it: move `read` and everything placed against it goes along. TikZFlow moves only the node you drag. The nodes that were placed against it stay where they are: each is rewritten in the same step, against what the dragged node was placed against when that works (`below=2.53cm of start`), against another node otherwise, and with coordinates only as a last resort. The status bar names every node it rewrote ("Kept in place: small (below=2.53cm of start)"), and <kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes it all at once.
+
+While you drag, the nodes that follow the one you hold have a faint outline: dashed when they stay where they are, solid when they move along.
+
+To move a node together with its followers, as TeX would, hold <kbd>Ctrl</kbd> (<kbd>⌘</kbd> on a Mac) while you drag. You can press or let go of it during the drag. **Move followers too** in the toolbar makes that the default (this browser remembers it); <kbd>Ctrl</kbd> then moves only the node.
+
+If a node that would move along can't be rewritten (it is in a block kept as it is, say), the drag is refused and the status bar says why. Hold <kbd>Ctrl</kbd> to move it along instead.
+
+### What a node follows
+
+Select a node, and **Placement** in the properties panel lists what it is placed against ("Follows read: below=of read") and the nodes placed against it. Nothing moves when you change these:
+
+- **Unlink** next to an entry cuts that one link: the node is placed against something else where it stands, or pinned with coordinates.
+- **Detach** cuts all of them: the node gets its current position as coordinates, and the nodes placed against it are re-attached to something else (or pinned). With several nodes selected, it detaches each of them.
+
+A group's or a lane's box always follows its members, and a label on an edge follows the edge: those aren't placement links.
 
 ### Moving several nodes
 
-Select several nodes with Shift-click and drag one of them: they move together, and each is written relative to what it was placed against. Dragging a group's or a lane's box moves everything in it.
+Select several nodes with Shift-click and drag one of them: they move together, and each is written relative to what it was placed against. Nodes outside the selection that were placed against it stay where they are, as for one node (hold <kbd>Ctrl</kbd> to move them along). Dragging a group's or a lane's box moves everything in it.
 
 ### Chains
 

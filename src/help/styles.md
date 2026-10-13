@@ -27,6 +27,8 @@ Most nodes get their look from a named style, such as `process` in `\tikzset`. T
 
 When a style isn't written in a form the editor can change safely, the second choice is grayed out and says why.
 
+**Detach from process** (one button per style the node names) copies the style's options into the node's own, so later edits of the style don't change it. The node looks exactly as before; the style's own styles are copied too, and an option the node already sets after the style is left out. A style written as code (`/.code`) or with two arguments can't be copied, and the status bar says so.
+
 ## Colors
 
 The color picker offers, in order: the colors your document already defines (`\definecolor`), common xcolor mixes such as `blue!20`, the basic colors, and a custom color. Give a custom color a name and **Add named color** adds a `\definecolor` and uses it; **Use without a name** writes its RGB values instead.

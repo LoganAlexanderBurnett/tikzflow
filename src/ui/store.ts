@@ -21,6 +21,8 @@ import { type EdgeEdit, type EdgeScope, planEdgeProperty, planSplitAndApply } fr
 import { draftOf, labelBlocker, labelledNode, labelProblem, planLabelEdit } from "../edit/label.ts";
 import { withLibraries } from "../edit/libraries.ts";
 import { formatDistance, planAttach, planPin } from "../edit/move.ts";
+import { type Kept, keepInPlace, keptMessage, planDetach, planUnlink } from "../edit/links.ts";
+import { planDetachStyle } from "../edit/detachstyle.ts";
 import { type LaneOutcome, laneAt, planGroup, planJoin, planLane, planLeave, planTitle, withLaneUpkeep } from "../edit/lanes.ts";
 import { type PropEdit, propertyChanges, type Scope, sharedStyles } from "../edit/properties.ts";
 import { planMatch } from "../edit/resize.ts";
@@ -466,6 +468,98 @@ export function attachNode(id: string, from: string, to: string): void {
   }
   applyEdit(r.changes, "fix.attach");
   status.value = `Now placed relative to ${to} instead of ${from}. You can drag it now.`;
+}
+
+// ---------------------------------------------------------------- placement links (M6 step 1, D102, D104)
+
+const FOLLOWERS_KEY = "tikzflow.moveFollowers";
+
+function loadMoveFollowers(): boolean {
+  try {
+    return localStorage.getItem(FOLLOWERS_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The toolbar's "Move followers too" (D104): whether dragging a node also moves the nodes placed
+ * against it. Off by default, so only the dragged node moves; remembered in this browser. Holding
+ * Ctrl (⌘ on a Mac) during a drag does the opposite of this for that drag.
+ */
+export const moveFollowers = signal(loadMoveFollowers());
+
+export function setMoveFollowers(v: boolean): void {
+  moveFollowers.value = v;
+  try {
+    localStorage.setItem(FOLLOWERS_KEY, v ? "1" : "0");
+  } catch {
+    // Storage can be blocked; the switch still works for this visit.
+  }
+}
+
+/**
+ * After a drag's own edit `moved` (of the nodes `allowed`), the edit that keeps every other node
+ * where it was (D104), as one set of changes against the text now. `prefer`: what the dragged
+ * nodes were placed against, tried first for their followers.
+ */
+export function keepFollowers(
+  moved: readonly Change[],
+  allowed: ReadonlySet<string>,
+  prefer: ReadonlySet<string>,
+  renamed?: ReadonlyMap<string, string>,
+): { ok: true; changes: Change[]; kept: Kept[]; ids: Map<string, string> } | { ok: false; reason: string } {
+  const base = baseLayout.value;
+  if (!base) return { ok: false, reason: "There is no picture." };
+  const k = keepInPlace(applyChanges(text.value, moved), currentPicture.value, base, allowed, prefer, renamed);
+  if (!k.ok) return k;
+  return { ok: true, changes: composeChanges(text.value, [...moved], k.changes), kept: k.kept, ids: k.ids };
+}
+
+/** Unlink in the properties panel: node `id` stops following `other`, or `other` stops following it. Nothing moves. */
+export function unlinkNode(id: string, other: string, direction: "follows" | "follower"): void {
+  const r = planUnlink(text.value, currentPicture.value, id, other, direction);
+  if (!r.ok) {
+    status.value = r.reason;
+    return;
+  }
+  const lib = withLibraries(text.value, currentPicture.value, r.changes);
+  applyEdit(lib.changes, "links.unlink");
+  const k = r.kept[0]!;
+  const l = baseLayout.value;
+  const name = (x: string) => l?.nodes.find((n) => n.id === x)?.name ?? x;
+  status.value = `${k.name} no longer follows ${direction === "follows" ? name(other) : name(id)}: it is ${k.how === "pinned with coordinates" ? "pinned with coordinates where it is" : `placed ${k.how}`}, and nothing moved.${libraryNote(lib.added, lib.removed, lib.notes)}`;
+}
+
+/** Detach the selected nodes (D102): no placement links in either direction, nothing moving. */
+export function detachSelection(): void {
+  const ids = selectedIds.value;
+  if (!ids.length) return;
+  const r = planDetach(text.value, currentPicture.value, ids);
+  if (!r.ok) {
+    status.value = r.reason;
+    return;
+  }
+  const l = baseLayout.value;
+  const names = ids.map((id) => l?.nodes.find((n) => n.id === id)?.name ?? id);
+  const lib = withLibraries(text.value, currentPicture.value, r.changes);
+  applyEdit(lib.changes, "links.detach");
+  if (r.ids.size) selectNodes(ids.map((id) => r.ids.get(id) ?? id));
+  const who = names.length === 1 ? names[0] : `${names.length} nodes`;
+  status.value = `Detached ${who}: ${names.length === 1 ? "it stays" : "they stay"} where ${names.length === 1 ? "it is" : "they are"}, with coordinates, and nothing is placed against ${names.length === 1 ? "it" : "them"} now.${keptMessage(r.kept, "Re-attached")}${libraryNote(lib.added, lib.removed, lib.notes)}`;
+}
+
+/** Detach from style (D102): the selected nodes get style `name`'s options written into their own. */
+export function detachFromStyle(name: string): void {
+  const ids = selectedIds.value;
+  const r = planDetachStyle(text.value, currentPicture.value, ids, name);
+  if (!r.ok) {
+    status.value = r.reason;
+    return;
+  }
+  applyEdit(r.changes, "links.style");
+  scopeStyle.value = null;
+  status.value = `Copied the ${name} style's options into ${r.nodes === 1 ? "the node" : `${r.nodes} nodes`}: later edits of ${name} won't change ${r.nodes === 1 ? "it" : "them"}.`;
 }
 
 /** Whether an auto-layout is being worked out (in the layout worker, D87). */

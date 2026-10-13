@@ -2223,3 +2223,43 @@ button.tf-preview-state.busy {
   margin-left: auto;
   margin-right: 16px;
 }
+
+/* Placement links (M6 step 1, D102): what a node follows and what follows it. */
+.tf-links {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.tf-link-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+}
+.tf-link-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 0;
+}
+.tf-link-list li span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.tf-link-list code {
+  font-size: 12px;
+}
+.tf-detach-style {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 10px;
+}
+
+/* While dragging (D104): the nodes that follow, faintly. Moving along, or staying where they are. */
+.tf-followers rect {
+  fill: none;
+  stroke: var(--guide);
+  opacity: 0.55;
+  pointer-events: none;
+}

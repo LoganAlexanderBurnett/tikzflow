@@ -24,7 +24,7 @@ import { keyNamedMessage } from "../edit/stylekeys.ts";
 import { nextTheme, setThemeChoice, type ThemeChoice, themeChoice, themeIcon, themeLabel } from "../theme/theme.ts";
 import { Icon, Logo } from "./icons.tsx";
 import { EmptyState } from "./firstrun.tsx";
-import { isShortcutsKey, ShortcutsDialog, shortcutsOpen } from "./shortcuts.tsx";
+import { isMac, isShortcutsKey, ShortcutsDialog, shortcutsOpen } from "./shortcuts.tsx";
 import {
   attachEditor,
   contrast,
@@ -41,6 +41,8 @@ import {
   describeError,
   editLock,
   lineOf,
+  moveFollowers,
+  setMoveFollowers,
   status,
   summary,
   text,
@@ -297,6 +299,20 @@ function AppBar() {
   );
 }
 
+/** "Move followers too" (D104): off, dragging moves only the dragged node. Ctrl (⌘) during a drag does the other. */
+function FollowersToggle() {
+  const mod = isMac() ? "⌘" : "Ctrl";
+  return (
+    <label
+      class="tf-preview-toggle"
+      title={`On: dragging a node also moves the nodes placed against it. Off: only the node you drag moves, and the nodes placed against it are rewritten to stay where they are. Hold ${mod} while dragging for the other way, for that drag.`}
+    >
+      <input type="checkbox" checked={moveFollowers.value} onChange={(e) => setMoveFollowers((e.target as HTMLInputElement).checked)} data-testid="move-followers-toggle" />
+      Move followers too
+    </label>
+  );
+}
+
 function Toolbar() {
   const input = useRef<HTMLInputElement>(null);
   const count = pictureCount.value;
@@ -349,6 +365,7 @@ function Toolbar() {
         <span class="sep" />
         <LayoutButton />
         <PageButton />
+        <FollowersToggle />
         {count > 1 && (
           <label class="picker">
             Picture{" "}

@@ -75,9 +75,21 @@
           <li>a line-up with two nodes: <code>at (a |- b)</code>;</li>
           <li>plain coordinates, only when nothing else fits.</li>
           </ol>
-          <p>Hold <kbd>Alt</kbd> while dragging to move freely, without snapping. Nodes placed relative to the one you move go with it, as they do in TeX.</p>
+          <p>Hold <kbd>Alt</kbd> while dragging to move freely, without snapping.</p>
+          <h3 id="only-the-node-you-drag-moves"><a class="anchor" href="#only-the-node-you-drag-moves" aria-hidden="true" tabindex="-1">#</a>Only the node you drag moves</h3>
+          <p>In TikZ, a node placed relative to another (<code>below=of read</code>) follows it: move <code>read</code> and everything placed against it goes along. TikZFlow moves only the node you drag. The nodes that were placed against it stay where they are: each is rewritten in the same step, against what the dragged node was placed against when that works (<code>below=2.53cm of start</code>), against another node otherwise, and with coordinates only as a last resort. The status bar names every node it rewrote (&quot;Kept in place: small (below=2.53cm of start)&quot;), and <kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes it all at once.</p>
+          <p>While you drag, the nodes that follow the one you hold have a faint outline: dashed when they stay where they are, solid when they move along.</p>
+          <p>To move a node together with its followers, as TeX would, hold <kbd>Ctrl</kbd> (<kbd>⌘</kbd> on a Mac) while you drag. You can press or let go of it during the drag. <strong>Move followers too</strong> in the toolbar makes that the default (this browser remembers it); <kbd>Ctrl</kbd> then moves only the node.</p>
+          <p>If a node that would move along can&#39;t be rewritten (it is in a block kept as it is, say), the drag is refused and the status bar says why. Hold <kbd>Ctrl</kbd> to move it along instead.</p>
+          <h3 id="what-a-node-follows"><a class="anchor" href="#what-a-node-follows" aria-hidden="true" tabindex="-1">#</a>What a node follows</h3>
+          <p>Select a node, and <strong>Placement</strong> in the properties panel lists what it is placed against (&quot;Follows read: below=of read&quot;) and the nodes placed against it. Nothing moves when you change these:</p>
+          <ul>
+          <li><strong>Unlink</strong> next to an entry cuts that one link: the node is placed against something else where it stands, or pinned with coordinates.</li>
+          <li><strong>Detach</strong> cuts all of them: the node gets its current position as coordinates, and the nodes placed against it are re-attached to something else (or pinned). With several nodes selected, it detaches each of them.</li>
+          </ul>
+          <p>A group&#39;s or a lane&#39;s box always follows its members, and a label on an edge follows the edge: those aren&#39;t placement links.</p>
           <h3 id="moving-several-nodes"><a class="anchor" href="#moving-several-nodes" aria-hidden="true" tabindex="-1">#</a>Moving several nodes</h3>
-          <p>Select several nodes with Shift-click and drag one of them: they move together, and each is written relative to what it was placed against. Dragging a group&#39;s or a lane&#39;s box moves everything in it.</p>
+          <p>Select several nodes with Shift-click and drag one of them: they move together, and each is written relative to what it was placed against. Nodes outside the selection that were placed against it stay where they are, as for one node (hold <kbd>Ctrl</kbd> to move them along). Dragging a group&#39;s or a lane&#39;s box moves everything in it.</p>
           <h3 id="chains"><a class="anchor" href="#chains" aria-hidden="true" tabindex="-1">#</a>Chains</h3>
           <p>Nodes placed with the <code>chains</code> library (<code>on chain</code>) can be dragged too. The first time you drag one, the editor writes the chain out as ordinary positions so the node can move, and says so in the status bar.</p>
           <h2 id="adding-nodes"><a class="anchor" href="#adding-nodes" aria-hidden="true" tabindex="-1">#</a>Adding nodes</h2>

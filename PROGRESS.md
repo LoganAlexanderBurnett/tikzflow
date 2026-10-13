@@ -30,13 +30,26 @@ Also read "Notes for later milestones" below.
 | Step | Content | Status |
 |---|---|---|
 | 0 | `m6` branch; `npm run drag:bench` and the baseline; **checkpoint: the numbers and the proposal for the dragging default** | Done (D103); the owner decided (D104) |
-| 1 | Links made visible (follows / followed by, Unlink, faint followers while dragging), Detach, Detach from style; dragging moves only the dragged node, Ctrl or the toolbar switch "Move followers too" moves its followers (D104) | In progress |
+| 1 | Links made visible (follows / followed by, Unlink, faint followers while dragging), Detach, Detach from style; dragging moves only the dragged node, Ctrl or the toolbar switch "Move followers too" moves its followers (D104) | Done (D105) |
 | 1b | A Venn diagram template under "Other diagrams" (D104 item 4) | |
 | 2 | Drag performance to the target (D102 item 1): 60 fps, 30 fps at 4× CPU slowdown, drop under 100 ms; no golden file changes | |
 | 3 | The phone note: under 768 px, Edit anyway per browser tab | |
 | 4 | License audit, `THIRD_PARTY_LICENSES.md` (script and staleness test), `/licenses/`, the web2js issue text for the owner | |
 | 5 | README with screenshots made by a script; deployment steps | |
 | 6 | Release check (tests, CI, fidelity, `test:live` on the `m6` preview, docs); **Milestone 6 report** | |
+
+## M6 step 1: placement links, Detach, only the dragged node moves (2026-10-13)
+Done as the owner decided (D104); details in D105.
+
+### How to try it
+`npm run dev`, then the Basic process template (or https://m6.tikzflow.pages.dev once deployed).
+- **Placement:** select `read`: the panel says "Follows start: below=of start", lists `small` as placed relative to it, each with **Unlink**, and **Detach**. Click Unlink or Detach: nothing moves; the code and the status bar say how each node is placed now.
+- **Dragging:** drag `read` sideways: only it moves; `small` is rewritten to stay (the status bar: "Kept in place: small (below=2.53cm of start)"). During the drag its followers have a faint dashed outline. Press **Ctrl** (⌘) during the drag: they move along (solid outline) and come back when you let go of Ctrl. **Move followers too** in the toolbar makes moving along the default.
+- **Detach from style:** select `rec`, **Detach from process**: its options are written out, and it looks the same.
+
+### Tests
+- **Vitest:** 1,878 passed, 9 skipped (new: `links.test.ts` 12, `golden-links.test.ts` 151 with 148 golden files).
+- **Playwright:** 209 (new: `links.spec.ts`, 9). **One expectation changed:** `toolbar.spec.ts` "with one picture the toolbar is one row from 1366 px up" now says 1500 px: the "Move followers too" switch adds 131 px, so below 1,500 px the picture's tools take a second row (nothing is cut off; D105).
 
 ## M6 step 0: the drag benchmark and the baseline (2026-10-12)
 The owner chose option A, with the Ctrl and toolbar switches, for node and group drags (D104).

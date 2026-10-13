@@ -61,8 +61,9 @@ for (const scheme of ["light", "dark"] as const) {
   });
 }
 
-test("with one picture the toolbar is one row from 1366 px up", async ({ page }) => {
-  await page.setViewportSize({ width: 1366, height: 800 });
+// Was 1366 px until the "Move followers too" switch (D104, D105): with its label the toolbar needs about 1,470 px.
+test("with one picture the toolbar is one row from 1500 px up", async ({ page }) => {
+  await page.setViewportSize({ width: 1500, height: 800 });
   await page.goto("/");
   const rows = await page.locator(".tf-toolbar .tools").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
   expect(new Set(rows).size).toBe(1);

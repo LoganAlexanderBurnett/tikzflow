@@ -2,6 +2,7 @@
 // it, and its properties (colors, font, alignment) for the node or its style.
 import { signal, useSignal } from "@preact/signals";
 import type { Change } from "../edit/changes.ts";
+import { placementLinks } from "../edit/links.ts";
 import { attachCandidates } from "../edit/move.ts";
 import {
   addColorDefinition,
@@ -29,7 +30,23 @@ import { ContrastNote } from "./contrastmarks.tsx";
 import { EdgePanel, PathPanel } from "./edgepanel.tsx";
 import { GroupPanel } from "./grouppanel.tsx";
 import { StylePanel } from "./stylepanel.tsx";
-import { applyProperty, attachNode, contrast, deleteSelection, baseLayout, currentPicture, doc, matchSize, pinNode, scopeStyle, selectedNodes, selection } from "./store.ts";
+import {
+  applyProperty,
+  attachNode,
+  baseLayout,
+  contrast,
+  currentPicture,
+  deleteSelection,
+  detachFromStyle,
+  detachSelection,
+  doc,
+  matchSize,
+  pinNode,
+  scopeStyle,
+  selectedNodes,
+  selection,
+  unlinkNode,
+} from "./store.ts";
 
 function LockCard({ layout, node }: { layout: PictureLayout; node: LaidOutNode }) {
   const candidates = attachCandidates(layout, node).map((n) => n.name!);
@@ -68,6 +85,79 @@ function LockCard({ layout, node }: { layout: PictureLayout; node: LaidOutNode }
           )}
         </div>
       )}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------- placement links (M6 step 1, D102)
+
+/** What the selected node is placed against and what is placed against it, each with Unlink; Detach. */
+function LinksPanel({ layout, nodes }: { layout: PictureLayout; nodes: LaidOutNode[] }) {
+  const text = doc.value.text;
+  const placed = nodes.filter((n) => n.position.kind !== "fit");
+  if (!placed.length) return null;
+  if (placed.length > 1) {
+    return (
+      <section class="tf-links" data-testid="links">
+        <h3>Placement</h3>
+        <button data-testid="detach" onClick={() => detachSelection()} title="Write each selected node's position as coordinates, and re-attach the nodes placed against them to something else (or pin them), so nothing moves">
+          Detach {placed.length} nodes
+        </button>
+      </section>
+    );
+  }
+  const n = placed[0]!;
+  const { follows, followers } = placementLinks(text, layout, n);
+  const names = followers.map((f) => f.name);
+  const list = names.length <= 2 ? names.join(" and ") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+  return (
+    <section class="tf-links" data-testid="links">
+      <h3>Placement</h3>
+      {follows.length ? (
+        <ul class="tf-link-list">
+          {follows.map((l) => (
+            <li data-testid="link-follows">
+              <span>
+                Follows <b>{l.name}</b>: <code>{l.how}</code>
+              </span>
+              <button onClick={() => unlinkNode(n.id, l.id, "follows")} title={`Place it without ${l.name}, where it is now: against another node, or with coordinates. Nothing moves.`}>
+                Unlink
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p class="tf-note" data-testid="link-none">Not placed against another node.</p>
+      )}
+      {followers.length ? (
+        <>
+          <p class="tf-note">
+            {list} {followers.length === 1 ? "is" : "are"} placed relative to this, so {followers.length === 1 ? "it moves" : "they move"} with it when followers move too.
+          </p>
+          <ul class="tf-link-list">
+            {followers.map((f) => (
+              <li data-testid="link-follower">
+                <span>
+                  <b>{f.name}</b>: <code>{f.how}</code>
+                </span>
+                <button onClick={() => unlinkNode(n.id, f.id, "follower")} title={`Place ${f.name} against another node (or with coordinates) where it is now. Nothing moves.`}>
+                  Unlink
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <p class="tf-note" data-testid="link-no-followers">Nothing is placed relative to this.</p>
+      )}
+      <button
+        data-testid="detach"
+        disabled={!follows.length && !followers.length}
+        onClick={() => detachSelection()}
+        title={follows.length || followers.length ? "Write its position as coordinates, and re-attach what is placed against it to something else (or pin it). Nothing moves." : "It is already detached."}
+      >
+        Detach
+      </button>
     </section>
   );
 }
@@ -159,6 +249,15 @@ function Properties({ layout, nodes }: { layout: PictureLayout; nodes: LaidOutNo
           );
         })}
       </div>
+      {shared.length > 0 && (
+        <div class="tf-detach-style">
+          {shared.map((s) => (
+            <button data-testid={`detach-style-${s}`} onClick={() => detachFromStyle(s)} title={`Copy the ${s} style's options into ${nodes.length === 1 ? "this node" : "these nodes"}, so later edits of ${s} don't change ${nodes.length === 1 ? "it" : "them"}. Nothing changes on screen.`}>
+              Detach from {s}
+            </button>
+          ))}
+        </div>
+      )}
 
       {nodes.length > 1 && (
         <div class="tf-prop">
@@ -386,6 +485,7 @@ export function Inspector() {
               {nodes.length === 1 ? "Delete node" : `Delete ${nodes.length} nodes`}
             </button>
           </div>
+          <LinksPanel layout={layout} nodes={nodes} />
           <GroupPanel layout={layout} nodes={nodes} />
           {statements.length > 0 ? (
             <Properties key={key} layout={layout} nodes={statements} />
