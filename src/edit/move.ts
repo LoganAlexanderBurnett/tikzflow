@@ -21,13 +21,13 @@ const ROUND_TOLERANCE = 0.75 * MM;
 
 export type PositionSpec =
   /** positioning library; distances in pt, undefined meaning "node distance". */
-  | { kind: "positioning"; dir: string; target: string; v?: number; h?: number; shift?: Point }
+  | { kind: "positioning"; dir: string; target: string; v?: number; h?: number; shift?: Point; fine?: boolean }
   /** "at (a |- b)": x from one node, y from another. */
   | { kind: "perp"; xFrom: string; yFrom: string }
   /** "at (x,y)" in the node's own frame. */
   | { kind: "absolute"; local: Point }
   /** Keep the position as written and set the node's own xshift/yshift, in local pt. */
-  | { kind: "shift"; shift: Point };
+  | { kind: "shift"; shift: Point; fine?: boolean };
 
 export interface MoveResult {
   spec: PositionSpec;
@@ -100,7 +100,7 @@ const OPPOSITE_ANCHOR: Record<string, string> = {
 };
 
 /** Candidate specs for putting `node` with its center at `c`, best first. */
-export function candidateSpecs(layout: PictureLayout, node: LaidOutNode, c: Point, exclude?: ReadonlySet<string>): PositionSpec[] {
+export function candidateSpecs(layout: PictureLayout, node: LaidOutNode, c: Point, exclude?: ReadonlySet<string>, far = FAR): PositionSpec[] {
   const refs = referenceCandidates(layout, node, exclude).sort(
     (a, b) => Math.hypot(a.shape.center.x - c.x, a.shape.center.y - c.y) - Math.hypot(b.shape.center.x - c.x, b.shape.center.y - c.y),
   );
@@ -182,7 +182,7 @@ export function candidateSpecs(layout: PictureLayout, node: LaidOutNode, c: Poin
       if (Math.abs(cross) <= ALIGN_EPS) {
         if (Math.abs(local - nodeDist) <= ROUND_TOLERANCE) (onlyPrev ? kept : specs).push(base);
         else if (isPrev && dir === prev!.dir && alongShift) nudged.push(alongShift);
-        else if (onlyPrev || gap <= FAR) (onlyPrev ? kept : explicit).push(vertical ? { ...base, v: local } : { ...base, h: local });
+        else if (onlyPrev || gap <= far) (onlyPrev ? kept : explicit).push(vertical ? { ...base, v: local } : { ...base, h: local });
         continue;
       }
       // Off-axis: keep the direction and add a shift across it, but only while
@@ -260,12 +260,12 @@ function ownShift(syn: NodeSyntax): Point | null {
  * place: the last item for each axis gets the new value. Returns the items it
  * kept and the shift still to be written for axes that have no item.
  */
-function updateShifts(syn: NodeSyntax, shift: Point): { changes: Change[]; kept: OptionItem[]; missing?: Point } {
+function updateShifts(syn: NodeSyntax, shift: Point, fine = false): { changes: Change[]; kept: OptionItem[]; missing?: Point } {
   const changes: Change[] = [];
   const kept: OptionItem[] = [];
   const missing = { x: 0, y: 0 };
   for (const axis of ["x", "y"] as const) {
-    const value = formatDistance(shift[axis]);
+    const value = formatDistance(shift[axis], fine);
     if (value === "0pt") continue;
     const item = ownItems(syn, (i) => i.key === `${axis}shift` && i.valueRange !== undefined && evalLength(i.value ?? "") !== null).at(-1)?.item;
     if (!item) {
@@ -273,15 +273,15 @@ function updateShifts(syn: NodeSyntax, shift: Point): { changes: Change[]; kept:
       continue;
     }
     kept.push(item);
-    if (formatDistance(evalLength(item.value!)!) !== value) changes.push({ from: item.valueRange!.from, to: item.valueRange!.to, insert: value });
+    if (formatDistance(evalLength(item.value!)!, fine) !== value) changes.push({ from: item.valueRange!.from, to: item.valueRange!.to, insert: value });
   }
   return missing.x || missing.y ? { changes, kept, missing } : { changes, kept };
 }
 
-function shiftText(shift: Point): string {
+function shiftText(shift: Point, fine = false): string {
   const parts: string[] = [];
-  if (formatDistance(shift.x) !== "0pt") parts.push(`xshift=${formatDistance(shift.x)}`);
-  if (formatDistance(shift.y) !== "0pt") parts.push(`yshift=${formatDistance(shift.y)}`);
+  if (formatDistance(shift.x, fine) !== "0pt") parts.push(`xshift=${formatDistance(shift.x, fine)}`);
+  if (formatDistance(shift.y, fine) !== "0pt") parts.push(`yshift=${formatDistance(shift.y, fine)}`);
   return parts.join(", ");
 }
 
@@ -310,8 +310,18 @@ function toLocal(frame: Matrix, p: Point): Point {
   return { x, y };
 }
 
-/** "5mm", "1.5cm", "0pt": distances as a person would write them. */
-export function formatDistance(pt: number): string {
+/**
+ * "5mm", "1.5cm", "0pt": distances as a person would write them, to the whole millimetre. `fine`
+ * writes tenths of a millimetre ("22.4mm", "2.24cm"), for placements that must not move a node at
+ * all (re-attaching it where it is, D104).
+ */
+export function formatDistance(pt: number, fine = false): string {
+  if (fine) {
+    const tenths = Math.round((pt / MM) * 10);
+    if (tenths === 0) return "0pt";
+    if (Math.abs(tenths) < 100) return `${trimNumber(tenths / 10)}mm`;
+    return `${trimNumber(tenths / 100)}cm`;
+  }
   const mm = Math.round(pt / MM);
   if (mm === 0) return "0pt";
   if (Math.abs(mm) < 10) return `${mm}mm`;
@@ -321,24 +331,26 @@ export function formatDistance(pt: number): string {
 /** The option text for a positioning spec, e.g. "below right=5mm and 1cm of a". */
 export function positioningText(spec: PositionSpec & { kind: "positioning" }): string {
   const diag = spec.dir.includes(" ");
+  const fd = (pt: number) => formatDistance(pt, spec.fine);
   let dist = "";
   if (diag && (spec.v !== undefined || spec.h !== undefined)) {
-    const v = formatDistance(spec.v ?? 0);
-    const h = formatDistance(spec.h ?? 0);
+    const v = fd(spec.v ?? 0);
+    const h = fd(spec.h ?? 0);
     dist = v === h ? `${v} ` : `${v} and ${h} `;
-  } else if (spec.v !== undefined) dist = `${formatDistance(spec.v)} `;
-  else if (spec.h !== undefined) dist = `${formatDistance(spec.h)} `;
+  } else if (spec.v !== undefined) dist = `${fd(spec.v)} `;
+  else if (spec.h !== undefined) dist = `${fd(spec.h)} `;
   const main = `${spec.dir}=${dist}of ${spec.target}`;
   const shifts: string[] = [];
-  if (spec.shift && formatDistance(spec.shift.x) !== "0pt") shifts.push(`xshift=${formatDistance(spec.shift.x)}`);
-  if (spec.shift && formatDistance(spec.shift.y) !== "0pt") shifts.push(`yshift=${formatDistance(spec.shift.y)}`);
+  if (spec.shift && fd(spec.shift.x) !== "0pt") shifts.push(`xshift=${fd(spec.shift.x)}`);
+  if (spec.shift && fd(spec.shift.y) !== "0pt") shifts.push(`yshift=${fd(spec.shift.y)}`);
   return [main, ...shifts].join(", ");
 }
 
 /** Coordinate text in the node's units: "(1.5,-2)". Matches the spacing of the existing clause. */
-function absoluteText(syn: NodeSyntax, local: Point, xUnit: number, yUnit: number): string {
+function absoluteText(syn: NodeSyntax, local: Point, xUnit: number, yUnit: number, digits = 2): string {
   const sep = syn.at && /,\s/.test(syn.at.coord.text) ? ", " : ",";
-  const fmt = (v: number, unit: number) => trimNumber(Math.round((v / unit) * 100) / 100);
+  const k = 10 ** digits;
+  const fmt = (v: number, unit: number) => trimNumber(Math.round((v / unit) * k) / k);
   return `${fmt(local.x, xUnit)}${sep}${fmt(local.y, yUnit)}`;
 }
 
@@ -374,10 +386,10 @@ export function specChanges(text: string, syn: NodeSyntax, spec: PositionSpec, c
   if (spec.kind === "positioning" || spec.kind === "shift") {
     // Shifts the node already has are updated in place, one per axis; only a
     // missing one is added (D36).
-    const shifts = updateShifts(syn, spec.shift ?? { x: 0, y: 0 });
+    const shifts = updateShifts(syn, spec.shift ?? { x: 0, y: 0 }, spec.fine);
     changes.push(...shifts.changes);
     remove = remove.filter((r) => !shifts.kept.includes(r.item));
-    const extra = shifts.missing ? shiftText(shifts.missing) : "";
+    const extra = shifts.missing ? shiftText(shifts.missing, spec.fine) : "";
     if (spec.kind === "positioning") {
       const { shift: _, ...relation } = spec;
       const newText = [positioningText(relation), extra].filter(Boolean).join(", ");
@@ -429,18 +441,45 @@ function mergeInserts(changes: Change[]): Change[] {
   return out;
 }
 
+/** Options for planning a position. */
+export interface PlanOptions {
+  /**
+   * The node must stay exactly where it is (within ALIGN_EPS), as when it is re-attached rather
+   * than dragged (D104): a distance that whole millimetres don't reproduce is written to the tenth.
+   */
+  exact?: boolean;
+  /** Names to try first as targets (what a dragged node hung off, for the nodes that followed it). */
+  prefer?: ReadonlySet<string>;
+}
+
+/** Whether a spec places the node against one of `names`. */
+function specUses(spec: PositionSpec, names: ReadonlySet<string>): boolean {
+  if (spec.kind === "positioning") return names.has(spec.target);
+  if (spec.kind === "perp") return names.has(spec.xFrom) || names.has(spec.yFrom);
+  return false;
+}
+
 /**
  * Plans moving node `nodeId` of picture `picIndex` so its center is at
  * `center`. Returns null if the node can't be moved.
  */
-export function planMove(text: string, picIndex: number, nodeId: string, center: Point, exclude?: ReadonlySet<string>): MoveResult | null {
+export function planMove(text: string, picIndex: number, nodeId: string, center: Point, exclude?: ReadonlySet<string>, opts: PlanOptions = {}): MoveResult | null {
   const doc = analyzeDocument(text);
   const layout = layoutDocumentPicture(doc, picIndex);
   const node = layout?.nodes.find((n) => n.id === nodeId);
   if (!layout || !node || node.locked || node.kind === "path") return null;
   const syn = node.syntax;
-  for (const spec of candidateSpecs(layout, node, center, exclude)) {
-    const result = trySpec(text, picIndex, node, syn, spec, center);
+  let specs = candidateSpecs(layout, node, center, exclude);
+  if (opts.prefer?.size) {
+    // The preferred targets on their own first (in the full list a nearer node can crowd their forms out), at any distance.
+    const others = new Set([...(exclude ?? []), ...layout.nodes.flatMap((n) => (n.name && !opts.prefer!.has(n.name) ? [n.name] : []))]);
+    const first = candidateSpecs(layout, node, center, others, Infinity).filter((s) => specUses(s, opts.prefer!));
+    specs = [...first, ...specs.filter((s) => !specUses(s, opts.prefer!))];
+  }
+  for (const spec of specs) {
+    let result = trySpec(text, picIndex, node, syn, spec, center, opts.exact);
+    // Exactly where it is: the same form with distances to the tenth of a millimetre.
+    if (!result && opts.exact && (spec.kind === "positioning" || spec.kind === "shift")) result = trySpec(text, picIndex, node, syn, { ...spec, fine: true }, center, true);
     if (!result) continue;
     // Relational positions need the positioning library.
     if (spec.kind === "positioning") {
@@ -468,12 +507,12 @@ export function planMove(text: string, picIndex: number, nodeId: string, center:
  * and shifts stay and are accounted for. Returns null if the node would still
  * be locked afterwards.
  */
-export function planPin(text: string, picIndex: number, nodeId: string, center?: Point): MoveResult | null {
+export function planPin(text: string, picIndex: number, nodeId: string, center?: Point, exact = false): MoveResult | null {
   const layout = layoutDocumentPicture(analyzeDocument(text), picIndex);
   const node = layout?.nodes.find((n) => n.id === nodeId);
   if (!layout || !node || node.kind === "path") return null;
   const c = center ?? node.shape.center;
-  const result = trySpec(text, picIndex, node, node.syntax, { kind: "absolute", local: toLocal(node.frame, c) }, c);
+  const result = trySpec(text, picIndex, node, node.syntax, { kind: "absolute", local: toLocal(node.frame, c) }, c, exact);
   if (!result) return null;
   const after = layoutDocumentPicture(analyzeDocument(result.text), picIndex)?.nodes.find((n) => n.id === nodeId);
   return after && !after.locked ? result : null;
@@ -524,6 +563,7 @@ function trySpec(
   syn: NodeSyntax,
   spec: PositionSpec,
   want: Point,
+  exact = false,
 ): MoveResult | null {
   const { x: ux, y: uy } = node.units;
   if (spec.kind === "absolute") {
@@ -536,17 +576,20 @@ function trySpec(
     const inv = invert(node.frame);
     const [dx, dy] = inv ? applyLinear(inv, want.x - got.x, want.y - got.y) : [want.x - got.x, want.y - got.y];
     const local = { x: spec.local.x + dx, y: spec.local.y + dy };
-    changes = specChanges(text, syn, { kind: "absolute", local }, absoluteText(syn, local, ux, uy));
-    next = applyChanges(text, changes);
-    const final = centerOf(next, picIndex, node.id);
-    if (!final || Math.hypot(final.x - want.x, final.y - want.y) > 2 * ROUND_TOLERANCE) return null;
-    return { spec: { kind: "absolute", local }, changes, text: next, center: final, notes: [] };
+    // Two decimals of the unit; a node that must stay exactly where it is gets a third when two aren't enough.
+    for (const digits of exact ? [2, 3] : [2]) {
+      changes = specChanges(text, syn, { kind: "absolute", local }, absoluteText(syn, local, ux, uy, digits));
+      next = applyChanges(text, changes);
+      const final = centerOf(next, picIndex, node.id);
+      if (final && Math.hypot(final.x - want.x, final.y - want.y) <= (exact ? ALIGN_EPS : 2 * ROUND_TOLERANCE)) return { spec: { kind: "absolute", local }, changes, text: next, center: final, notes: [] };
+    }
+    return null;
   }
   const changes = specChanges(text, syn, spec);
   const next = applyChanges(text, changes);
   const got = centerOf(next, picIndex, node.id);
   if (!got) return null;
-  const tolerance = spec.kind === "perp" ? ALIGN_EPS : Math.SQRT2 * ROUND_TOLERANCE;
+  const tolerance = spec.kind === "perp" || exact ? ALIGN_EPS : Math.SQRT2 * ROUND_TOLERANCE;
   if (Math.hypot(got.x - want.x, got.y - want.y) > tolerance) return null;
   return { spec, changes, text: next, center: got, notes: [] };
 }
