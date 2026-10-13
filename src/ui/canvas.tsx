@@ -466,7 +466,8 @@ const gradId = (id: string) => `sh-${id.replace(/[^A-Za-z0-9_-]/g, "_")}`;
 const nodeSig = (n: LaidOutNode) =>
   [n.id, n.shape.kind, n.shape.center.x, n.shape.center.y, n.shape.hw, n.shape.hh, n.shape.rotate, n.shape.roundedCorners, n.stroke, n.fill, n.lineWidth, n.dash, n.opacity, n.fillOpacity, n.shadow, n.locked, n.shading && JSON.stringify(n.shading), n.double && JSON.stringify(n.double)].join("|");
 
-const NodeShape = memo(NodeShapeView, (a, b) => a.scale === b.scale && a.selected === b.selected && a.inert === b.inert && nodeSig(a.n) === nodeSig(b.n));
+// A drag frame keeps the objects of what it didn't move (D108): the same object draws the same.
+const NodeShape = memo(NodeShapeView, (a, b) => a.scale === b.scale && a.selected === b.selected && a.inert === b.inert && (a.n === b.n || nodeSig(a.n) === nodeSig(b.n)));
 
 /** `inert`: a copy that only shows (the patch over a stale TeX picture, D96), without the ids the pointer and tests look for. */
 function NodeShapeView({ n, scale, selected, inert }: { n: LaidOutNode; scale: number; selected: boolean; inert?: boolean }) {
@@ -504,12 +505,13 @@ const NodeLabel = memo(
   (a, b) =>
     a.macros === b.macros &&
     a.inert === b.inert &&
-    a.n.text === b.n.text &&
+    (a.n === b.n ||
+      (a.n.text === b.n.text &&
     a.n.textOrigin.x === b.n.textOrigin.x &&
     a.n.textOrigin.y === b.n.textOrigin.y &&
     a.n.rotate === b.n.rotate &&
     a.n.opacity === b.n.opacity &&
-    String(a.n.textColor) === String(b.n.textColor),
+    String(a.n.textColor) === String(b.n.textColor))),
 );
 
 function NodeLabelView({ n, macros, inert }: { n: LaidOutNode; macros: Record<string, string>; inert?: boolean }) {
@@ -537,9 +539,42 @@ interface EdgeHit {
   d: string;
 }
 
+/** Each edge's click area, kept per edge object: a drag frame keeps those of the paths it didn't lay out again (D108). */
+const hitCache = new WeakMap<Edge, EdgeHit>();
+/** The hits of one path, kept per path object so a memoized path sees the same list. */
+const pathHitCache = new WeakMap<LaidOutPath, EdgeHit[]>();
+
+function pathHits(edges: readonly Edge[]): Map<string, EdgeHit[]> {
+  const byPath = new Map<string, { path: LaidOutPath; hits: EdgeHit[] }>();
+  for (const e of edges) {
+    let h = hitCache.get(e);
+    if (!h) {
+      h = { id: e.id, d: edgeD(e) };
+      hitCache.set(e, h);
+    }
+    const entry = byPath.get(e.path.id);
+    if (entry) entry.hits.push(h);
+    else byPath.set(e.path.id, { path: e.path, hits: [h] });
+  }
+  const out = new Map<string, EdgeHit[]>();
+  for (const [id, { path, hits }] of byPath) {
+    const known = pathHitCache.get(path);
+    if (known && known.length === hits.length && known.every((k, i) => k === hits[i])) out.set(id, known);
+    else {
+      pathHitCache.set(path, hits);
+      out.set(id, hits);
+    }
+  }
+  return out;
+}
+
 const PathShape = memo(
   PathShapeView,
-  (a, b) => a.scale === b.scale && a.selected === b.selected && a.inert === b.inert && pathSig(a.p) === pathSig(b.p) && a.hits.map((h) => h.id + h.d).join("|") === b.hits.map((h) => h.id + h.d).join("|"),
+  (a, b) =>
+    a.scale === b.scale &&
+    a.selected === b.selected &&
+    a.inert === b.inert &&
+    ((a.p === b.p && a.hits === b.hits) || (pathSig(a.p) === pathSig(b.p) && a.hits.map((h) => h.id + h.d).join("|") === b.hits.map((h) => h.id + h.d).join("|"))),
 );
 
 function PathShapeView({ p, scale, selected, hits, inert }: { p: LaidOutPath; scale: number; selected: boolean; hits: readonly EdgeHit[]; inert?: boolean }) {
@@ -1615,12 +1650,29 @@ export function Canvas() {
     if (id !== hover.value) hover.value = id;
   };
 
+  // Frame pacing (D108): Edge hands the page every move of a fast mouse, each in its own task, and
+  // draws only when the page has time. A drag keeps the latest move and handles it once per frame.
+  const pendingMove = useRef<PointerEvent | null>(null);
+  const moveFrame = useRef(0);
+  const flushMove = () => {
+    if (moveFrame.current) cancelAnimationFrame(moveFrame.current);
+    moveFrame.current = 0;
+    const e = pendingMove.current;
+    pendingMove.current = null;
+    if (e && drag.current) handleMove(e);
+  };
   const onPointerMove = (e: PointerEvent) => {
-    const d = drag.current;
-    if (!d) {
+    if (!drag.current) {
       hoverMove(e);
       return;
     }
+    pendingMove.current = e;
+    if (!moveFrame.current) moveFrame.current = requestAnimationFrame(flushMove);
+  };
+
+  const handleMove = (e: PointerEvent) => {
+    const d = drag.current;
+    if (!d) return;
     if (d.kind === "end") {
       endMove(d, e);
       return;
@@ -1706,6 +1758,8 @@ export function Canvas() {
   }, []);
 
   const onPointerUp = () => {
+    // The last move first, so the drop is where the pointer was let go.
+    if (pendingMove.current) flushMove();
     const d = drag.current;
     drag.current = null;
     if (!d) return;
@@ -2079,12 +2133,7 @@ export function Canvas() {
 
   const items = l ? drawOrder(l) : [];
   const edgeList = shownEdges.value;
-  const hitsByPath = new Map<string, EdgeHit[]>();
-  for (const e of edgeList) {
-    const list = hitsByPath.get(e.path.id) ?? [];
-    list.push({ id: e.id, d: edgeD(e) });
-    hitsByPath.set(e.path.id, list);
-  }
+  const hitsByPath = pathHits(edgeList);
   // The selected edge as shown (it follows a node being dragged).
   const selEdgeId = selectedEdge.value?.id;
   const selEdge: Edge | undefined = selEdgeId ? edgeList.find((x) => x.id === selEdgeId) : undefined;

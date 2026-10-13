@@ -46,8 +46,19 @@ const PAD = 2;
 
 const json = (v: unknown) => (v === undefined ? "" : JSON.stringify(v));
 
+/** Signatures worked out once per object: a drag frame keeps the objects of what it didn't change (D108). */
+const sigCache = new WeakMap<object, string>();
+
 /** What a node draws. Its id and code position don't matter: two layouts that draw the same thing match. */
 export function nodeSig(n: LaidOutNode): string {
+  const known = sigCache.get(n);
+  if (known !== undefined) return known;
+  const sig = nodeSigOf(n);
+  sigCache.set(n, sig);
+  return sig;
+}
+
+function nodeSigOf(n: LaidOutNode): string {
   return [
     outline(n.shape),
     n.shape.rotate ?? 0,
@@ -70,7 +81,11 @@ export function nodeSig(n: LaidOutNode): string {
 
 /** What a path draws. */
 export function pathSig(p: LaidOutPath): string {
-  return [p.d, json(p.stroke), json(p.fill), p.lineWidth, json(p.dash), p.opacity, p.fillOpacity, json(p.shading), json(p.double), json(p.tips), p.layer].join("|");
+  const known = sigCache.get(p);
+  if (known !== undefined) return known;
+  const sig = [p.d, json(p.stroke), json(p.fill), p.lineWidth, json(p.dash), p.opacity, p.fillOpacity, json(p.shading), json(p.double), json(p.tips), p.layer].join("|");
+  sigCache.set(p, sig);
+  return sig;
 }
 
 const union = (a: Box, b: Box): Box => ({ x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1) });

@@ -354,6 +354,7 @@ export function itemCopy(s: State): State {
   delete c.accepting;
   delete c.name;
   delete c.at;
+  delete c.atAfterPlacement;
   delete c.placement;
   delete c.fit;
   delete c.onChain;

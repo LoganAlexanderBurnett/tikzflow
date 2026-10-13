@@ -3,7 +3,7 @@
 import type { BodyItem, NodeSyntax, OptionList, PathItemSyntax, PathSyntax, PictureSyntax, Range } from "../model/syntax.ts";
 import { layoutLabel, type LabelEnv, type Macro, type TextLayout } from "../text/label.ts";
 import { ColorTable, type RGB } from "./colors.ts";
-import { type CoordEnv, type CoordResult, evalCoordText, type NameEntry, splitNodeRef } from "./coords.ts";
+import { type CoordEnv, type CoordResult, evalCoordText, type NameEntry, type NameLookup, splitNodeRef } from "./coords.ts";
 import { applyKeys, applyStyle, defaultTipLength, defaultTipWidth, KNOWN_SHAPES, parseNodeDistance, SHAPE_LIBRARY, StyleTable } from "./keys.ts";
 import { type KeyValue, parseOptionString } from "./options.ts";
 import { anchorOffset, anchorPoint, borderToward, makeShape, type NodeShape, outline, type Point, shapeBounds } from "./shapes.ts";
@@ -241,9 +241,14 @@ interface Scope {
   box?: { name: string; nodes: number; paths: number };
 }
 
+/** The names the layout reads and sets: a Map, or a drag replay's view of the names as they were (M6 step 2). */
+interface NameTable extends NameLookup {
+  set(name: string, entry: NameEntry): unknown;
+}
+
 interface Ctx {
   env: LayoutEnv;
-  names: Map<string, NameEntry>;
+  names: NameTable;
   ids: Map<string, number>;
   unnamed: number;
   overrides: ReadonlyMap<string, Point>;
@@ -317,7 +322,7 @@ function keyCtx(ctx: Ctx, styles: StyleTable) {
 }
 
 /** Lays out a picture. `overrides` pins node centers (by id) while dragging. */
-export function layoutPicture(pic: PictureSyntax, env: LayoutEnv, overrides: ReadonlyMap<string, Point> = new Map()): PictureLayout {
+export function layoutPicture(pic: PictureSyntax, env: LayoutEnv, overrides: ReadonlyMap<string, Point> = new Map(), record?: LayoutRecord): PictureLayout {
   setPageLengths(env.page ?? null);
   const out: PictureLayout = {
     nodes: [],
@@ -331,7 +336,7 @@ export function layoutPicture(pic: PictureSyntax, env: LayoutEnv, overrides: Rea
   };
   const ctx: Ctx = {
     env,
-    names: new Map(),
+    names: record ? new LoggedNames(record.log) : new Map(),
     ids: new Map(),
     unnamed: 0,
     overrides,
@@ -357,8 +362,16 @@ export function layoutPicture(pic: PictureSyntax, env: LayoutEnv, overrides: Rea
   foldShift(root);
   const scopes: Scope[] = [{ state: root, styles: rootStyles }];
 
+  let started = false;
   for (const item of pic.items) {
     const scope = scopes[scopes.length - 1]!;
+    if (record && !record.unsafe) {
+      // A drag replays paths with the styles and colors as they are at the end: one defined again
+      // after the first node or path would read differently, so such a picture is laid out whole.
+      if (started && (item.kind === "styles" || item.kind === "definition")) record.unsafe = "styles or colors are defined again inside the picture";
+      if (item.kind === "opaque" && /^\\chainin\b/.test(item.text)) record.unsafe = "\\chainin";
+      if (item.kind === "node" || item.kind === "path") started = true;
+    }
     switch (item.kind) {
       case "scope-begin": {
         const st = scopeCopy(scope.state);
@@ -426,23 +439,33 @@ export function layoutPicture(pic: PictureSyntax, env: LayoutEnv, overrides: Rea
         break;
       }
       case "node": {
+        const at = record?.log.length ?? 0;
+        const before = out.paths.length;
         const node = layoutNode(item.node, scope, ctx, item.node.kind === "coordinate" ? "coordinate" : "statement", undefined, item.node);
+        if (node && record) record.nodes.set(node.id, { at, made: out.paths.slice(before).map((x) => x.id) });
         if (node && item.trailing) {
           // "\node (a) {A} edge (b);" continues as a path from the node.
+          const startRange = item.node.name?.range ?? item.node;
+          const startText = item.node.name?.text ?? "";
+          const rec = record && startRecord(record, item.trailing, scope, ctx);
           layoutPath(item.trailing, scope, ctx, { point: node.shape.center, node: { shape: node.shape, nodeId: node.id }, ref: node.id }, {
             item: -1,
-            range: item.node.name?.range ?? item.node,
-            text: item.node.name?.text ?? "",
+            range: startRange,
+            text: startText,
             point: node.shape.center,
             node: node.id,
             bare: true,
           });
+          if (rec) endRecord(record!, { ...rec, start: { id: node.id, range: startRange, text: startText } }, ctx);
         }
         break;
       }
-      case "path":
+      case "path": {
+        const rec = record && startRecord(record, item.path, scope, ctx);
         layoutPath(item.path, scope, ctx);
+        if (rec) endRecord(record!, rec, ctx);
         break;
+      }
     }
   }
   out.bounds = computeBounds(out);
@@ -1810,4 +1833,329 @@ function outerSep(st: State, v: number | string | undefined): number {
   if (typeof v === "number") return v;
   const units = { em: st.baseFontSize, ex: st.baseFontSize * 0.430554, lineWidth: st.lineWidth };
   return (v !== undefined ? evalQuantity(v, units)?.value : undefined) ?? st.lineWidth / 2;
+}
+
+// ---------------------------------------------------------------- drags (M6 step 2, D108)
+
+/**
+ * How a picture was laid out, kept with its layout so that a drag lays out again only what it
+ * changes: every name set (in order), and for each path the state and the point in that order it was
+ * laid out at. A drag frame moves the dragged nodes and those that follow them rigidly, and lays out
+ * again only the paths that mention them; anything else (a group box around a moved node, a node
+ * placed with `|-` against one, a chain's join) gets a full layout.
+ */
+export interface LayoutRecord {
+  env: LayoutEnv;
+  log: Array<{ name: string; entry: NameEntry }>;
+  /** Per node statement: where the log was before it, and the paths it made itself (joins, automata arrows). */
+  nodes: Map<string, { at: number; made: string[] }>;
+  paths: PathRecord[];
+  /** Why a drag needs a full layout every frame, or null. */
+  unsafe: string | null;
+}
+
+interface PathRecord {
+  syn: PathSyntax;
+  scope: Scope;
+  at: number;
+  /** How many of the names kept-as-is blocks define came before it. */
+  opaqueNames: number;
+  /** What it mentions (coordinates, options, its nodes' options), to find the paths a moved node touches. */
+  text: string;
+  /** A "\node … edge" path: the node it starts from. */
+  start?: { id: string; range: Range; text: string };
+  /** The paths, path nodes and nodes (coordinates on the path) it made. */
+  paths: string[];
+  pathNodes: string[];
+  nodes: string[];
+}
+
+/** The layout's names, with every name set written to the record's log as well. */
+class LoggedNames extends Map<string, NameEntry> {
+  readonly #log: Array<{ name: string; entry: NameEntry }>;
+  constructor(log: Array<{ name: string; entry: NameEntry }>) {
+    super();
+    this.#log = log;
+  }
+  override set(name: string, entry: NameEntry): this {
+    // Map's constructor doesn't call set without entries, so #log is there by now.
+    this.#log.push({ name, entry });
+    return super.set(name, entry);
+  }
+}
+
+export function newLayoutRecord(env: LayoutEnv): LayoutRecord {
+  return { env, log: [], nodes: new Map(), paths: [], unsafe: null };
+}
+
+/** Everything a path's code mentions, as text. */
+function mentions(syn: PathSyntax): string {
+  const parts: string[] = [];
+  const list = (l: OptionList) => {
+    for (const i of l.items) parts.push(i.key, i.value ?? "");
+  };
+  for (const it of syn.items) {
+    if (it.kind === "coord") parts.push(it.coord.text);
+    else if (it.kind === "options") list(it.list);
+    else if (it.kind === "node") {
+      for (const l of it.node.options) list(l);
+      if (it.node.at) parts.push(it.node.at.coord.text);
+      if (it.node.name) parts.push(it.node.name.text);
+    } else if (it.kind === "unknown") parts.push(it.text);
+  }
+  return parts.join("\n");
+}
+
+/** A path's record before it is laid out, with how many paths, path nodes and nodes there were. */
+type PendingRecord = Omit<PathRecord, "paths" | "pathNodes" | "nodes"> & { counts: [number, number, number] };
+
+function startRecord(record: LayoutRecord, syn: PathSyntax, scope: Scope, ctx: Ctx): PendingRecord {
+  return {
+    syn,
+    scope: { state: itemCopy(scope.state), styles: scope.styles },
+    at: record.log.length,
+    opaqueNames: ctx.out.opaqueNames.size,
+    text: mentions(syn),
+    counts: [ctx.out.paths.length, ctx.out.pathNodes.length, ctx.out.nodes.length],
+  };
+}
+
+function endRecord(record: LayoutRecord, rec: PendingRecord, ctx: Ctx): void {
+  const { counts, ...rest } = rec;
+  record.paths.push({
+    ...rest,
+    paths: ctx.out.paths.slice(counts[0]).map((x) => x.id),
+    pathNodes: ctx.out.pathNodes.slice(counts[1]).map((x) => x.id),
+    nodes: ctx.out.nodes.slice(counts[2]).map((x) => x.id),
+  });
+}
+
+/** Whether `text` mentions `name` as a whole name ("a" in "(a.east)", not in "above"). */
+function mentionsName(text: string, name: string): boolean {
+  let from = 0;
+  // A hyphen ends a name here too: "(a |-b)". Finding "a" in "only-a" only lays out a path more.
+  const word = /[A-Za-z0-9_@]/;
+  for (;;) {
+    const i = text.indexOf(name, from);
+    if (i < 0) return false;
+    const before = i > 0 ? text[i - 1]! : "";
+    const after = text[i + name.length] ?? "";
+    if (!word.test(before) && !word.test(after)) return true;
+    from = i + 1;
+  }
+}
+
+/** The names as they were at `at` in the log, with moved nodes' new shapes, and what the replay sets itself. */
+class NamesAt implements NameTable {
+  readonly #own = new Map<string, NameEntry>();
+  readonly #index: ReadonlyMap<string, number[]>;
+  readonly #log: ReadonlyArray<{ name: string; entry: NameEntry }>;
+  readonly #at: number;
+  readonly #shapes: ReadonlyMap<string, NodeShape>;
+  constructor(index: ReadonlyMap<string, number[]>, log: ReadonlyArray<{ name: string; entry: NameEntry }>, at: number, shapes: ReadonlyMap<string, NodeShape>) {
+    this.#index = index;
+    this.#log = log;
+    this.#at = at;
+    this.#shapes = shapes;
+  }
+  get(name: string): NameEntry | undefined {
+    const mine = this.#own.get(name);
+    if (mine) return mine;
+    const list = this.#index.get(name);
+    if (!list) return undefined;
+    // The latest entry before `at`.
+    let lo = 0;
+    let hi = list.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (list[mid]! < this.#at) lo = mid + 1;
+      else hi = mid;
+    }
+    if (!lo) return undefined;
+    const e = this.#log[list[lo - 1]!]!.entry;
+    const moved = e.nodeId !== undefined ? this.#shapes.get(e.nodeId) : undefined;
+    return moved ? { ...e, shape: moved } : e;
+  }
+  has(name: string): boolean {
+    return this.get(name) !== undefined;
+  }
+  set(name: string, entry: NameEntry): this {
+    this.#own.set(name, entry);
+    return this;
+  }
+}
+
+/** What a drag keeps between frames: the layout it started from and what it learned of it. */
+export interface DragSession {
+  pic: PictureSyntax;
+  base: PictureLayout;
+  record: LayoutRecord | null;
+  /** Name → indices into the log, built on the first frame. */
+  index: Map<string, number[]> | null;
+  /** Ids of nodes made by paths (coordinates on a path). */
+  pathMade: Set<string> | null;
+  /** The paths each set of moved nodes touches. */
+  dirty: Map<string, PathRecord[]>;
+  /** The work of the last frame, for tests and the bench: full layouts so far, paths and nodes laid out again. */
+  stats: { frames: number; full: number; paths: number; nodes: number; why: string | null };
+}
+
+const add = (p: Point, d: Point): Point => ({ x: p.x + d.x, y: p.y + d.y });
+
+/** `n` moved by `d`, with its labels. */
+function translated(n: LaidOutNode, d: Point): LaidOutNode {
+  const out: LaidOutNode = { ...n, shape: { ...n.shape, center: add(n.shape.center, d) }, textOrigin: add(n.textOrigin, d), extras: n.extras.map((x) => translated(x, d)) };
+  if (n.pathPos) out.pathPos = { t: n.pathPos.t, point: add(n.pathPos.point, d) };
+  return out;
+}
+
+/** A node placed only by one name, `below=of a` or `at (a.east)`: it moves exactly as that node does. */
+function followsRigidly(n: LaidOutNode): boolean {
+  if (n.position.refs.length !== 1) return false;
+  if (n.position.kind === "positioning" || n.position.kind === "old-positioning") return true;
+  return n.position.kind === "at" && !!n.syntax.at && /^\s*[^,|()$!+:]+\s*$/.test(n.syntax.at.coord.text) && !n.syntax.options.some((l) => l.items.some((i) => i.key === "at"));
+}
+
+/**
+ * The picture with `overrides` applied, as `layoutPicture` lays it out, doing only the work the
+ * overrides change when it can (D108). `fullLayout` lays the picture out whole, for the rest.
+ */
+export function dragLayout(s: DragSession, overrides: ReadonlyMap<string, Point>, fullLayout: () => PictureLayout): PictureLayout {
+  s.stats.frames++;
+  const full = (why: string) => {
+    s.stats.full++;
+    s.stats.why = why;
+    s.stats.paths = s.base.paths.length;
+    s.stats.nodes = s.base.nodes.length;
+    return fullLayout();
+  };
+  const rec = s.record;
+  if (!rec) return full("the picture wasn't recorded");
+  if (rec.unsafe) return full(rec.unsafe);
+  const base = s.base;
+  if (!s.index) {
+    s.index = new Map();
+    rec.log.forEach((e, i) => {
+      const list = s.index!.get(e.name);
+      if (list) list.push(i);
+      else s.index!.set(e.name, [i]);
+    });
+    s.pathMade = new Set(rec.paths.flatMap((p) => p.nodes));
+  }
+  const index = s.index;
+  const resolve = (name: string, at: number): string | undefined => {
+    const list = index.get(name);
+    if (!list) return undefined;
+    let id: string | undefined;
+    for (const i of list) {
+      if (i >= at) break;
+      id = rec.log[i]!.entry.nodeId;
+    }
+    return id;
+  };
+
+  // 1. The nodes that move, and by how much.
+  const delta = new Map<string, Point>();
+  for (const n of base.nodes) {
+    if (s.pathMade!.has(n.id)) continue;
+    const o = overrides.get(n.id);
+    if (o) {
+      const d = { x: o.x - n.shape.center.x, y: o.y - n.shape.center.y };
+      if (d.x || d.y) delta.set(n.id, d);
+      continue;
+    }
+    if (!n.position.refs.length) continue;
+    const at = rec.nodes.get(n.id)?.at;
+    if (at === undefined) return full(`${n.id} wasn't recorded`);
+    const targets = n.position.refs.map((r) => resolve(r, at));
+    const moving = targets.filter((t): t is string => !!t && delta.has(t));
+    if (!moving.length) continue;
+    if (n.position.kind === "fit") return full(`the group box ${n.id} fits a moved node`);
+    if (!followsRigidly(n)) return full(`${n.id} doesn't move rigidly with what it follows`);
+    delta.set(n.id, delta.get(moving[0]!)!);
+  }
+  if (!delta.size) {
+    s.stats.paths = 0;
+    s.stats.nodes = 0;
+    return base;
+  }
+  for (const [id] of delta) {
+    if (rec.nodes.get(id)?.made.length) return full(`${id} draws its own paths (a join, an automata arrow, a pin)`);
+  }
+  for (const [, ids] of base.boxes) if (ids.some((id) => delta.has(id))) return full("a local bounding box holds a moved node");
+  // Joins and other paths nodes make, from or to a moved node.
+  for (const [, r] of rec.nodes) {
+    for (const pid of r.made) {
+      const p = base.paths.find((x) => x.id === pid);
+      if (p?.connects.some((c) => delta.has(c))) return full(`${pid} joins a moved node`);
+    }
+  }
+
+  // 2. The nodes as they are now, and the names that mean the moved ones.
+  const nodes = base.nodes.map((n) => {
+    const d = delta.get(n.id);
+    return d ? translated(n, d) : n;
+  });
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const shapes = new Map([...delta.keys()].map((id) => [id, byId.get(id)!.shape]));
+  const movedNames = new Set(rec.log.filter((e) => e.entry.nodeId !== undefined && delta.has(e.entry.nodeId)).map((e) => e.name));
+
+  // 3. The paths that mention a moved node, laid out again with the names as they were.
+  const key = [...delta.keys()].join("\n");
+  let dirty = s.dirty.get(key);
+  if (!dirty) {
+    dirty = rec.paths.filter((p) => (p.start && delta.has(p.start.id)) || [...movedNames].some((name) => mentionsName(p.text, name)));
+    s.dirty.set(key, dirty);
+  }
+  // A name such a path makes (a coordinate on it, a named label) that something else refers to: lay out whole.
+  const made = new Set(dirty.flatMap((p) => [...p.pathNodes, ...p.nodes]));
+  const madeNames = rec.log.filter((e) => e.entry.nodeId !== undefined && made.has(e.entry.nodeId)).map((e) => e.name);
+  if (madeNames.length) {
+    const users = rec.paths.filter((p) => !dirty!.includes(p) && madeNames.some((m) => mentionsName(p.text, m)));
+    if (users.length || base.nodes.some((n) => !made.has(n.id) && n.position.refs.some((r) => madeNames.includes(r)))) return full("a moved path makes a name something else refers to");
+  }
+  setPageLengths(rec.env.page ?? null);
+  const opaqueList = [...base.opaqueNames];
+  const newPaths = new Map<string, LaidOutPath>();
+  const newPathNodes = new Map<string, LaidOutNode>();
+  const newNodes = new Map<string, LaidOutNode>();
+  for (const p of dirty) {
+    const out: PictureLayout = { nodes: [], pathNodes: [], paths: [], opaque: [], bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0 }, opaqueNames: new Set(opaqueList.slice(0, p.opaqueNames)), boxes: new Map(), issues: [] };
+    const env = rec.env;
+    const ctx: Ctx = {
+      env,
+      names: new NamesAt(index, rec.log, p.at, shapes),
+      ids: new Map(),
+      unnamed: 0,
+      overrides,
+      out,
+      labelEnv: { macros: env.macros, color: (e) => env.colors.parse(e), ...(env.font ? { sizes: env.font.sizes } : {}) },
+      chains: new Map(),
+      chainSerial: 0,
+    };
+    if (p.start) {
+      const node = byId.get(p.start.id);
+      if (!node) return full(`${p.start.id} is missing`);
+      layoutPath(p.syn, p.scope, ctx, { point: node.shape.center, node: { shape: node.shape, nodeId: node.id }, ref: node.id }, { item: -1, range: p.start.range, text: p.start.text, point: node.shape.center, node: node.id, bare: true });
+    } else layoutPath(p.syn, p.scope, ctx);
+    if (out.paths.length !== p.paths.length || out.pathNodes.length !== p.pathNodes.length || out.nodes.length !== p.nodes.length) return full(`${p.paths[0] ?? "a path"} made something else`);
+    out.paths.forEach((x) => newPaths.set(x.id, x));
+    // Ids the replay made up itself ("#1"): the ones the picture gave them.
+    const rename = (n: LaidOutNode, id: string): LaidOutNode => ({ ...n, id, extras: n.extras.map((x) => rename(x, x.id.replace(n.id, id))) });
+    out.pathNodes.forEach((x, i) => newPathNodes.set(p.pathNodes[i]!, rename(x, p.pathNodes[i]!)));
+    out.nodes.forEach((x, i) => newNodes.set(p.nodes[i]!, rename(x, p.nodes[i]!)));
+    // A later path that draws to a coordinate or label this one made sees it where it is now.
+    for (const [id, n] of [...newPathNodes, ...newNodes]) shapes.set(id, n.shape);
+  }
+  const layout: PictureLayout = {
+    ...base,
+    nodes: nodes.map((n) => newNodes.get(n.id) ?? n),
+    pathNodes: base.pathNodes.map((n) => newPathNodes.get(n.id) ?? n),
+    paths: base.paths.map((x) => newPaths.get(x.id) ?? x),
+  };
+  layout.bounds = computeBounds(layout);
+  s.stats.paths = dirty.length;
+  s.stats.nodes = delta.size;
+  s.stats.why = null;
+  return layout;
 }

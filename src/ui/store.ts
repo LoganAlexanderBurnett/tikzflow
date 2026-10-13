@@ -29,6 +29,7 @@ import { planMatch } from "../edit/resize.ts";
 import type { GapMark, Guide } from "../edit/snap.ts";
 import { planFactor, planStyleEdit, type Repeat } from "../edit/styleedit.ts";
 import { analyzeDocument, layoutDocumentPicture } from "../model/document.ts";
+import { type Drag, dragLayout, recordedLayout, startDrag } from "../model/drag.ts";
 import { type Edge, edgeOfLabel, edgeTitle, pictureEdges } from "../model/edges.ts";
 import type { Range } from "../model/syntax.ts";
 import { unusedCoordinates } from "../model/references.ts";
@@ -66,12 +67,15 @@ export const doc = computed(() => analyzeDocument(text.value));
 export const pictureCount = computed(() => doc.value.syntax.pictures.length);
 export const currentPicture = computed(() => Math.min(pictureIndex.value, Math.max(0, pictureCount.value - 1)));
 
-/** The layout as the text describes it. */
+/** The layout as the text describes it, recorded so that a drag lays out only what it changes (D108). */
 export const baseLayout = computed<PictureLayout | null>(() => {
   // The page the figure goes on sets what \textwidth means (D73): a change of settings draws it again.
   void pageSettings.value;
-  return layoutDocumentPicture(doc.value, currentPicture.value);
+  return recordedLayout(doc.value, currentPicture.value);
 });
+
+/** The drag of the layout as it is (D108): kept from frame to frame, started again when the code changes. */
+let drag: Drag | null = null;
 
 /** The picture as it would be laid out with the resize or creation in progress applied. */
 export const previewLayout = signal<PictureLayout | null>(null);
@@ -81,10 +85,17 @@ export const layout = computed<PictureLayout | null>(() => {
   const preview = previewLayout.value;
   if (preview) return preview;
   const o = overrides.value;
-  if (!o.size) return baseLayout.value;
+  const base = baseLayout.value;
+  if (!o.size) return base;
   void pageSettings.value;
-  return layoutDocumentPicture(doc.value, currentPicture.value, o);
+  if (!drag || drag.session.base !== base || drag.doc !== doc.value || drag.index !== currentPicture.value) drag = startDrag(doc.value, currentPicture.value, base);
+  return dragLayout(drag, o);
 });
+
+/** The work the last drag frame did (for the drag bench): full layouts so far, and paths and nodes laid out again. */
+export function dragWork(): { frames: number; full: number; paths: number; nodes: number; why: string | null } | null {
+  return drag ? { ...drag.session.stats } : null;
+}
 
 /** The edges of the picture as the text describes it (M2b). */
 export const edges = computed<Edge[]>(() => {

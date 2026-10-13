@@ -11,8 +11,14 @@ export interface NameEntry {
   nodeId?: string;
 }
 
+/** The names a coordinate can refer to: a Map, or a view of one as it was earlier in the picture (a drag's replay, M6 step 2). */
+export interface NameLookup {
+  get(name: string): NameEntry | undefined;
+  has(name: string): boolean;
+}
+
 export interface CoordEnv {
-  names: ReadonlyMap<string, NameEntry>;
+  names: NameLookup;
   state: State;
 }
 
@@ -54,7 +60,7 @@ function topLevelIndex(s: string, needle: string): number {
 }
 
 /** Splits "name.anchor", allowing dots in node names. */
-export function splitNodeRef(ref: string, names: ReadonlyMap<string, NameEntry>): { name: string; anchor?: string } | null {
+export function splitNodeRef(ref: string, names: NameLookup): { name: string; anchor?: string } | null {
   const t = ref.trim();
   if (names.has(t)) return { name: t };
   const dot = t.lastIndexOf(".");

@@ -11,6 +11,7 @@
 //   --only=<picture>  200, 500 or dense (repeatable; default: all)
 //   --modes=quick,tex the preview modes (default both; tex needs the engine)
 //   --throttle=1,4    CPU slowdowns (default both)
+//   --interactions=node,group,corner,resize  the drags (default: all the picture has)
 //   --headless        run Edge headless (default: a window, so frames are paced and drawn as for a user)
 //   --label=<name>    save the results to spike/perf/results/<name>.json
 //   --profile         instead: one node drag on the 200-node picture in a build that isn't minified,
@@ -393,7 +394,7 @@ async function openPicture(browser: Browser, c: PictureCase, mode: string) {
   await context.addInitScript(instrument);
   const page = await context.newPage();
   const cdp = await context.newCDPSession(page);
-  await page.goto(`${BASE}/editor/#${await encodeShare(c.text)}`);
+  await page.goto(`${BASE}/editor/${process.env.BENCH_QUERY ?? ""}#${await encodeShare(c.text)}`);
   await page.waitForSelector(`g.tf-node[data-node="${c.target}"]`, { timeout: 60_000 });
   if (mode === "tex") await waitForTeX(page);
   await zoomTo(page, c.target);
@@ -623,7 +624,8 @@ async function main() {
           continue;
         }
         const { context, page, cdp } = opened;
-        for (const interaction of c.interactions)
+        const only = list("interactions", c.interactions);
+        for (const interaction of c.interactions.filter((i) => only.includes(i)))
           for (const throttle of throttles) {
             let r: Result;
             try {

@@ -170,11 +170,22 @@ const edgeCache = new WeakMap<PictureLayout, Edge[]>();
 export function pictureEdges(layout: PictureLayout): Edge[] {
   let edges = edgeCache.get(layout);
   if (!edges) {
-    edges = layout.paths.flatMap((p) => pathEdges(p, layout));
+    edges = layout.paths.flatMap((p) => {
+      // A path's edges depend on it, its labels and which of its stops are nodes: a drag frame keeps
+      // the path object (and its labels) when it doesn't lay it out again (D108).
+      let mine = pathEdgeCache.get(p);
+      if (!mine) {
+        mine = pathEdges(p, layout);
+        pathEdgeCache.set(p, mine);
+      }
+      return mine;
+    });
     edgeCache.set(layout, edges);
   }
   return edges;
 }
+
+const pathEdgeCache = new WeakMap<LaidOutPath, Edge[]>();
 
 const f3 = (v: number) => Math.round(v * 1000) / 1000;
 const P = (p: Point) => `${f3(p.x)} ${f3(p.y)}`;
