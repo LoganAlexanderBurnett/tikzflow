@@ -26,7 +26,7 @@ When the editor has nothing open, it offers three ways to start:
 
 - **Paste TikZ** takes a `tikzpicture`, or a whole `.tex` file, from the clipboard. A Mermaid or Graphviz DOT diagram is imported as TikZ instead. Pressing <kbd>Ctrl</kbd>+<kbd>V</kbd> anywhere on this screen does the same.
 - **Start blank** opens an empty picture.
-- **Start from a template** shows twelve ready-made diagrams to adapt.
+- **Start from a template** shows thirteen ready-made diagrams to adapt.
 
 Then build it up:
 

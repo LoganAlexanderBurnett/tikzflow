@@ -31,12 +31,19 @@ Also read "Notes for later milestones" below.
 |---|---|---|
 | 0 | `m6` branch; `npm run drag:bench` and the baseline; **checkpoint: the numbers and the proposal for the dragging default** | Done (D103); the owner decided (D104) |
 | 1 | Links made visible (follows / followed by, Unlink, faint followers while dragging), Detach, Detach from style; dragging moves only the dragged node, Ctrl or the toolbar switch "Move followers too" moves its followers (D104) | Done (D105) |
-| 1b | A Venn diagram template under "Other diagrams" (D104 item 4) | |
+| 1b | A Venn diagram template under "Other diagrams" (D104 item 4) | Done (D106) |
 | 2 | Drag performance to the target (D102 item 1): 60 fps, 30 fps at 4× CPU slowdown, drop under 100 ms; no golden file changes | |
 | 3 | The phone note: under 768 px, Edit anyway per browser tab | |
 | 4 | License audit, `THIRD_PARTY_LICENSES.md` (script and staleness test), `/licenses/`, the web2js issue text for the owner | |
 | 5 | README with screenshots made by a script; deployment steps | |
 | 6 | Release check (tests, CI, fidelity, `test:live` on the `m6` preview, docs); **Milestone 6 report** | |
+
+## M6 step 1b: the Venn diagram template (2026-10-13)
+Details in D106. **Open it:** New → Other diagrams → Venn diagram (also on the home page and the start screen). Three sets, a name on each and a count in each region; drag a circle (its name and counts stay, re-attached), Ctrl-drag it (they come along), recolor a set, Detach one.
+- **Why circles with fill opacity, not `clip`:** a `clip` scope is a locked block in the editor, and templates must open fully editable; teaching the editor clipped regions is a feature of its own. The cost: an overlap's color is always the mix of its sets' colors.
+- **One template with three sets** rather than a two-set one as well: three sets show every kind of region, and deleting a circle gives two.
+- **Checks:** fully editable, compiled by our engine (thumbnail) and pdfLaTeX (CI), 13 of 13 nodes within 1 pt of pdfTeX.
+- **Tests changed:** the template count (12 → 13) and the second heading in `templates.test.ts`, `firstrun.spec.ts`, `site.spec.ts`, `templates.spec.ts` and `test/live/live.spec.ts`; `templates.test.ts` no longer requires edges of the Venn diagram (D106 lists each).
 
 ## M6 step 1: placement links, Detach, only the dragged node moves (2026-10-13)
 Done as the owner decided (D104); details in D105.

@@ -28,10 +28,11 @@ test("the New menu opens a template in a new tab; the work stays in its own (D97
   await setCode(page, MINE);
   await page.getByTestId("new-button").click();
   const panel = page.getByTestId("new-panel");
-  await expect(panel.locator(".tf-new-card")).toHaveCount(13);
-  // The neural-network templates have their own heading (D101), above the first of them and after the nine.
-  await expect(panel.getByTestId("new-section")).toHaveText("Neural networks");
-  expect(await panel.locator(".tf-new-heading + .tf-new-card").getAttribute("data-testid")).toBe("new-neural-network");
+  await expect(panel.locator(".tf-new-card")).toHaveCount(14);
+  // The neural-network templates have their own heading (D101), above the first of them and after the nine;
+  // the Venn diagram is under Other diagrams (D106).
+  await expect(panel.getByTestId("new-section")).toHaveText(["Neural networks", "Other diagrams"]);
+  expect(await panel.locator(".tf-new-heading + .tf-new-card").evaluateAll((els) => els.map((e) => e.getAttribute("data-testid")))).toEqual(["new-neural-network", "new-venn"]);
   expect(await panel.locator(".tf-new-card").nth(10).getAttribute("data-testid")).toBe("new-neural-network");
   // The thumbnails are TeX's pictures, served with the editor.
   await expect(panel.locator('[data-testid="new-hierarchy"] img')).toHaveJSProperty("complete", true);
@@ -65,6 +66,7 @@ test("every template opens with all of it editable; group and lane boxes count a
     "neural-network": "12 nodes and 20 edges editable",
     "lstm-cell": "15 nodes, 1 group and 17 edges editable",
     "encoder-decoder": "9 nodes and 11 edges editable",
+    venn: "13 nodes and 0 edges editable",
   };
   for (const [id, headline] of Object.entries(expected)) {
     await page.getByTestId("new-button").click();

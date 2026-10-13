@@ -270,7 +270,7 @@ test.describe("the site", () => {
     page.on("pageerror", (e) => problems.push(String(e)));
     await page.goto("/");
     const thumbs = page.locator(".tcard img");
-    await expect(thumbs).toHaveCount(12);
+    await expect(thumbs).toHaveCount(13);
     for (const img of await thumbs.all()) {
       await img.scrollIntoViewIfNeeded();
       await expect.poll(() => img.evaluate((i) => (i as HTMLImageElement).naturalWidth), { message: (await img.getAttribute("src")) ?? "" }).toBeGreaterThan(0);
@@ -281,7 +281,7 @@ test.describe("the site", () => {
     await expect(page.locator(".cm-content")).toContainText("\\usetikzlibrary{automata, positioning, arrows.meta}");
     await expect(page.getByTestId("summary-headline")).toHaveText("3 nodes and 6 edges editable");
     await page.getByTestId("new-button").click();
-    await expect(page.getByTestId("new-panel").locator(".tf-new-card")).toHaveCount(13);
+    await expect(page.getByTestId("new-panel").locator(".tf-new-card")).toHaveCount(14);
     await page.getByTestId("new-prisma-2020").click();
     await expect(page.getByTestId("summary-headline")).toHaveText("9 nodes, 3 groups and 8 edges editable");
     // A first visit to the editor shows the start screen (D96), its gallery's pictures under the policy.

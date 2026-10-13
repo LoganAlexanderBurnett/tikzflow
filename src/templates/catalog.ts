@@ -14,6 +14,8 @@ export interface TemplateInfo {
 
 /** The heading over the neural-network templates (D101). */
 export const NEURAL_SECTION = "Neural networks";
+/** The heading over diagrams that aren't flowcharts or networks (D104 item 4). */
+export const OTHER_SECTION = "Other diagrams";
 
 export const TEMPLATES: readonly TemplateInfo[] = [
   { id: "basic-process", title: "Basic process", blurb: "Start, input, steps and a stop, with one decision." },
@@ -29,6 +31,8 @@ export const TEMPLATES: readonly TemplateInfo[] = [
   { id: "neural-network", title: "Neural network", blurb: "A small fully connected network, every weight its own edge.", section: NEURAL_SECTION },
   { id: "lstm-cell", title: "LSTM cell", blurb: "Gates, pointwise operations and the cell state." },
   { id: "encoder-decoder", title: "Encoder–decoder", blurb: "Feature maps by size, with skip connections on top." },
+  // Other diagrams (M6, D104 item 4, D106): circle nodes filled at 30% opacity, so the overlaps show and every set can be dragged.
+  { id: "venn", title: "Venn diagram", blurb: "Three overlapping sets, with a count in each region.", section: OTHER_SECTION },
 ];
 
 /** The empty diagram the New menu offers before the templates (src/templates/blank.tex). */

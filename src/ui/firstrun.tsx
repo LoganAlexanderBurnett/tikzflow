@@ -63,7 +63,7 @@ export function EmptyState() {
           <button class="choice" onClick={() => (templates.value = !templates.value)} aria-expanded={templates.value} data-testid="start-template">
             <Icon name="template" size={22} />
             <span class="name">Start from a template</span>
-            <span class="blurb">Twelve flowcharts and diagrams, ready to adapt.</span>
+            <span class="blurb">Thirteen flowcharts and diagrams, ready to adapt.</span>
           </button>
         </div>
         {templates.value && <TemplateGrid onPick={(id) => void openTemplate(id)} prefix="start" blank={false} />}

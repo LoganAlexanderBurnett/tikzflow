@@ -1,4 +1,4 @@
-// The templates (D89 item 4, D95): nine hand-written pictures that open with nothing kept as-is, every
+// The templates (D89 item 4, D95, D100, D106): thirteen hand-written pictures that open with nothing kept as-is, every
 // node draggable, every edge editable, and that our engine compiles cleanly into the committed
 // thumbnails (regenerate with npm run site:assets). CI also compiles them with pdfLaTeX (test.yml).
 import { readdirSync, readFileSync } from "node:fs";
@@ -19,10 +19,10 @@ const MM = PT_PER_UNIT.mm!;
 const read = (id: string) => readFileSync(join(root, "src", "templates", `${id}.tex`), "utf8");
 
 describe("the catalog", () => {
-  it("lists twelve templates, each with its file, and the blank diagram", () => {
-    expect(TEMPLATES).toHaveLength(12);
+  it("lists thirteen templates, each with its file, and the blank diagram", () => {
+    expect(TEMPLATES).toHaveLength(13);
     const ids = TEMPLATES.map((t) => t.id);
-    expect(new Set(ids).size).toBe(12);
+    expect(new Set(ids).size).toBe(13);
     const files = readdirSync(join(root, "src", "templates")).filter((f) => f.endsWith(".tex"));
     expect(files.sort()).toEqual([...ids, BLANK_ID].map((id) => `${id}.tex`).sort());
   });
@@ -80,7 +80,8 @@ describe.each(TEMPLATES)("$title", ({ id }) => {
       expect(p.issues, p.id).toEqual([]);
     }
     const edges = pictureEdges(layout);
-    expect(edges.length).toBeGreaterThan(0);
+    // Every template has edges, except the Venn diagram (D106), which is overlapping sets only.
+    if (id !== "venn") expect(edges.length).toBeGreaterThan(0);
     for (const e of edges) expect(e.lock, e.id).toBeUndefined();
   });
 
@@ -108,12 +109,15 @@ describe("the home page's gallery", () => {
     );
   });
 
-  it("puts the catalog's section headings (Neural networks, D101) before the first card of each", () => {
+  it("puts the catalog's section headings (Neural networks, D101; Other diagrams, D106) before the first card of each", () => {
     const html = readFileSync(join(root, "index.html"), "utf8");
     const seen = [...html.matchAll(/<h3 class="tgroup">([^<]*)<\/h3>\s*<a class="tcard" href="\/editor\/#template=([^"]*)"/g)].map((m) => [m[1], m[2]]);
     expect(seen).toEqual(TEMPLATES.filter((t) => t.section).map((t) => [t.section, t.id]));
-    expect(seen).toEqual([["Neural networks", "neural-network"]]);
-    expect(html.match(/class="tgroup"/g)).toHaveLength(1);
+    expect(seen).toEqual([
+      ["Neural networks", "neural-network"],
+      ["Other diagrams", "venn"],
+    ]);
+    expect(html.match(/class="tgroup"/g)).toHaveLength(2);
   });
 });
 

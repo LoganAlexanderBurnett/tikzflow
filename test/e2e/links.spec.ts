@@ -184,3 +184,24 @@ test("a group drag moves only the selection; what follows it stays", async ({ pa
   for (const id of ["read", "small"]) expect(c0[id]!.x - c1[id]!.x, `${id}`).toBeGreaterThan(20);
   expectSame(c0, c1, ["read", "small"]);
 });
+
+test("the Venn template (D106): a set dragged alone leaves its counts and name; Detach on an overlapped set moves nothing", async ({ page }) => {
+  await page.goto("/editor/#template=venn");
+  await expect(page.getByTestId("summary-headline")).toHaveText("13 nodes and 0 edges editable");
+  const c0 = await centers(page);
+  await drag(page, "b", 60, 0);
+  await expect(page.getByTestId("status")).toContainText("Kept in place");
+  const c1 = await centers(page);
+  expect(c1.b!.x - c0.b!.x).toBeGreaterThan(20);
+  expectSame(c0, c1, ["b"]);
+  const after = await code(page);
+  for (const name of ["sport", "only-b", "bc"]) expect(line(after, name), name).not.toMatch(/of b\b/);
+  await page.keyboard.press("Control+z");
+  // a lies under b and c where they overlap; click it where it is alone.
+  const box = (await page.locator('g.tf-node[data-node="a"] path').first().boundingBox())!;
+  await page.mouse.click(box.x + box.width * 0.2, box.y + box.height * 0.5);
+  await expect(page.getByTestId("link-follower")).toHaveCount(7); // b, c, reading, only-a, ab, ac, abc
+  await page.getByTestId("detach").click();
+  await expect(page.getByTestId("status")).toContainText("Detached a");
+  expectSame(c0, await centers(page));
+});

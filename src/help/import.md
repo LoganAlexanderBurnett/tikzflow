@@ -9,7 +9,7 @@ Everything below opens in a new tab, so the diagram you were working on stays in
 
 ## Templates
 
-**New** in the toolbar offers a blank diagram and twelve templates: Basic process, Decision flowchart, Algorithm with a loop, Swimlane process, Left-to-right pipeline, Feedback block diagram, PRISMA 2020, State machine, Hierarchy, and three neural networks (a fully connected network, an LSTM cell and an encoder–decoder). The home page shows the same gallery.
+**New** in the toolbar offers a blank diagram and thirteen templates: Basic process, Decision flowchart, Algorithm with a loop, Swimlane process, Left-to-right pipeline, Feedback block diagram, PRISMA 2020, State machine, Hierarchy, three neural networks (a fully connected network, an LSTM cell and an encoder–decoder), and a Venn diagram under Other diagrams. The home page shows the same gallery.
 
 Each template is plain, hand-written TikZ: named styles in `\tikzset`, positions written as relations, and nothing the editor can't edit. It compiles with pdfLaTeX as it is.
 
