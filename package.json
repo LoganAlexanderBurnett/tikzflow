@@ -27,6 +27,7 @@
     "compare-engines": "node scripts/compare-engines.ts",
     "fidelity": "node scripts/fidelity.ts",
     "layout:bench": "node scripts/layout-bench.ts",
+    "drag:bench": "node scripts/drag-bench.ts",
     "autolayout:report": "node scripts/autolayout-report.ts",
     "import:report": "node scripts/import-report.ts",
     "golden:review": "node scripts/golden-review.ts",

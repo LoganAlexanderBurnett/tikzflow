@@ -48,7 +48,8 @@ A free, static, fully client-side web app for creating and editing TikZ flowchar
   - `npm run grammar:inspect`: prints byte coverage and parse errors for each corpus file.
   - `npm run grammar:bench`: runs the parse benchmark.
   - `npm run corpus:report [-- <filter>] [-- -v]`: lays out every corpus picture and prints the "what I understood" summary. `-v` adds locked nodes and node geometry.
-  - `npm run layout:bench`: times the model, layout, snapping, a move and auto-layout on a 200-node picture.
+  - `npm run layout:bench [-- --picture=200|500|dense]`: times the model, layout, snapping, a move and auto-layout on a generated picture (`scripts/lib/benchpictures.ts`; 200 nodes by default).
+  - `npm run drag:bench [-- --no-build] [-- --only=200|500|dense] [-- --modes=quick,tex] [-- --throttle=1,4] [-- --label=<name>] [-- --profile]` (D103): drags on a production build in a windowed Edge and measures frames on time, the cost of one update (traced) and the drop, against the target of D102. About 30 minutes for everything; `--label` saves `spike/perf/results/<name>.json` (`baseline.json` is the M6 baseline). Edge hands the page every mouse move, unpaced: the bench sends moves at 125 Hz through the DevTools protocol for that reason.
   - `npm run autolayout:report [-- <filter>] [-- --right] [-- --full] [-- --out=<dir>]`: runs auto-layout (D80) on every corpus picture and prints what it writes (changed lines, or the whole picture before and after with `--full`).
   - `npm run import:report [-- <file or folder>…] [-- --right] [-- --out=<dir>]`: imports Mermaid and DOT files (default: `test/fixtures/import/`) and prints the TikZ they become, with the notes (D84).
   - `UPDATE_GOLDEN=1 npx vitest run test/golden.test.ts`: regenerates `test/fixtures/golden/`. Review the result with `npm run golden:review` before committing.

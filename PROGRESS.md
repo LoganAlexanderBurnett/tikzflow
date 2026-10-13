@@ -29,13 +29,55 @@ Also read "Notes for later milestones" below.
 ## M6 plan and status
 | Step | Content | Status |
 |---|---|---|
-| 0 | `m6` branch; `npm run drag:bench` and the baseline; **checkpoint: the numbers and the proposal for the dragging default** | In progress |
+| 0 | `m6` branch; `npm run drag:bench` and the baseline; **checkpoint: the numbers and the proposal for the dragging default** | Done (D103); **waiting for the owner** (see "M6 step 0" below) |
 | 1 | Links made visible (follows / followed by, Unlink, faint followers while dragging), Detach, Detach from style; the dragging default as the owner decides | |
 | 2 | Drag performance to the target (D102 item 1): 60 fps, 30 fps at 4× CPU slowdown, drop under 100 ms; no golden file changes | |
 | 3 | The phone note: under 768 px, Edit anyway per browser tab | |
 | 4 | License audit, `THIRD_PARTY_LICENSES.md` (script and staleness test), `/licenses/`, the web2js issue text for the owner | |
 | 5 | README with screenshots made by a script; deployment steps | |
 | 6 | Release check (tests, CI, fidelity, `test:live` on the `m6` preview, docs); **Milestone 6 report** | |
+
+## M6 step 0: the drag benchmark and the baseline (2026-10-12)
+**Stopped here for the owner** (D102): the baseline, and the proposal for the dragging default below.
+
+### How to run it
+`npm run drag:bench` (builds, then about 30 minutes; an Edge window opens and must stay unobstructed). Options: `--no-build`, `--only=200|500|dense`, `--modes=quick,tex`, `--throttle=1,4`, `--label=<name>` (saves `spike/perf/results/<name>.json`), `--profile` (one node drag with a CPU profile and a trace, unminified build), `--debug` (screenshots). `npm run layout:bench -- --picture=200|500|dense` times the layout parts in Node. How it measures: D103.
+
+### The baseline (details and causes in D103)
+- **200 nodes, 250 edges, quick preview, node drag:** 9 frames drawn in a 1.5 s drag (22% on time); one update costs 38 ms (script 14, paint 17), 191 ms at 4×; the drop 232 ms.
+- **The same with the TeX preview:** 3 frames; 76 ms per update; drop 304 ms.
+- **Group drag (20 nodes):** 36 ms per update; **the drop takes 1.2 s** (6.5 s at 4×).
+- **Corner drag:** 89% of frames on time, a few 80–100 ms spikes; drop 104 ms. **Resize:** 86%; 37 ms per update; drop 108 ms.
+- **Measured only:** 500 nodes 72 ms per update (191 with TeX); the dense 4–16–16–4 network 15 ms (94% on time in the quick preview), 36 ms with TeX.
+- **Nothing meets the target.** The main causes: Edge hands the page every move of a 125 Hz mouse separately and the editor does a whole update for each (no frame pacing); each update lays out the whole picture and re-renders the whole canvas, so the browser repaints all of it; with TeX on, the stale patch is worked out for the whole picture; CodeMirror forces a layout of the whole page when it reads the selection; the drop re-reads, lays out and renders everything, and a group drop plans its nodes one by one.
+
+### Proposal for the dragging default (for the owner; the decision goes in D104)
+**Today:** a node placed relative to another (`below=of read`) follows it, so dragging `read` moves everything that hangs off it. The code changes in one line, and what follows on screen is TikZ's own meaning.
+
+**A. Move only this node (the owner's leaning).** The dragged node moves; each node that followed it directly is rewritten in the same undo step so that it stays where it is.
+- **For:** it's what every drawing tool does, and it is the guard taken literally: nothing moves that the user didn't drag. It answers the owner's own problem. Only the dragged node is redrawn during the drag, which also helps step 2.
+- **Against:**
+  - **Bigger diffs.** The dragged node plus each direct follower (usually one to three lines; further followers ride on those).
+  - **The code loses its structure.** A column written as a chain (`below=of b`, `below=of c`, …) gets a gap: after dragging `b` aside, `c` becomes, say, `below=19mm of a`. Later, a taller `a` still pushes `c` down, but a taller `b` no longer does.
+  - **Coordinates where nothing fits.** When no relation reproduces a follower's place, it is pinned with coordinates, which the user never wrote. The re-attaching is the move planner Delete already uses (D56).
+  - **Moving a branch** becomes select-and-drag, or the switch below.
+  - **A hub is slower to drop.** Each re-attached follower is planned and checked like a move (about 34 ms each on the 200-node picture today), which counts against the 100 ms target.
+- **Tests:** a new golden set (every corpus picture and template: a node with followers moved with A) and a check that after each drop every other node is exactly where it was. Today's move goldens stay, for B.
+
+**B. Move with followers (today), made visible.** Step 1's panel lists and the faint followers during the drag explain what happens, with a switch for "only this node".
+- **For:** one-line diffs, and the author's structure is kept.
+- **Against:** surprises anyone who thinks in drawing-tool terms; the owner found exactly that.
+
+**Recommendation: A as the default, with:**
+- **Ctrl (⌘ on a Mac) held during a drag** switches to the other mode for that drag, and can be pressed or released mid-drag (the followers jump along or back). Ctrl is free on a node drag; Alt is "no snapping".
+- **A toolbar switch "Move followers too"** (off by default), remembered in this browser.
+- **Re-attaching prefers what keeps the shape:**
+  - a follower that hung off the dragged node first tries what the dragged node itself hung off (`c` below `a`);
+  - pinning is the last resort;
+  - the status bar names each follower rewritten ("c is now placed below=19mm of a").
+- **Faint followers in both modes:** with A they stay put, faintly marked as "will be re-attached"; with B they move, faintly highlighted.
+- **Group drags follow the same mode.**
+- **Unchanged:** nodes inside a `fit` group, lanes and edges' own corners behave as today (a group box follows its members; a corner written as `(a |- b)` follows its nodes).
 
 ## M5 plan and status
 | Step | Content | Status |

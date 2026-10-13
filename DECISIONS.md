@@ -1494,7 +1494,7 @@ The owner reviewed the home page, both themes, phone width, Continue your diagra
 
 ## D102: Milestone 6 plan, as approved: performance, links made visible, the phone note, licenses, README (2026-10-12)
 **The owner's answers to the plan:**
-1. **The drag target: approved.** On the 200-node, 250-edge bench picture (`scripts/layout-bench.ts`'s), production build, Edge on the owner's Windows machine, TeX preview off and on: node drags with 95% of frames under 16.7 ms (60 fps) and no task over 50 ms; the same bar for group drags (20 nodes), dragging an edge's corner, and resizing; with the CPU slowed 4× (Chrome DevTools Protocol), 95% of frames under 33 ms (30 fps); the drop (writing the code) under 100 ms. **The dense Milestone 7 pictures** (a 4–16–16–4 network written out, 40 nodes and 576 edges; a 500-node picture) are measured and reported, not a target.
+1. **The drag target: approved.** On the 200-node, 250-edge bench picture (`scripts/layout-bench.ts`'s), production build, Edge on the owner's Windows machine, TeX preview off and on: node drags with 95% of frames under 16.7 ms (60 fps) and no task over 50 ms; the same bar for group drags (20 nodes), dragging an edge's corner, and resizing; with the CPU slowed 4× (Chrome DevTools Protocol), 95% of frames under 33 ms (30 fps); the drop (writing the code) under 100 ms. **The dense Milestone 7 pictures** (a 4–16–16–4 network written out, 40 nodes and 384 edges; a 500-node, 600-edge picture) are measured and reported, not a target.
 2. **The phone note:** under 768 px wide, with an **Edit anyway** button remembered for that browser tab (sessionStorage).
 3. **web2js:** (a) recorded as GPL-3.0, as its `package.json` declares, with the inconsistency of its `LICENSE.md` noted in `THIRD_PARTY_LICENSES.md`; and (b) the text of a GitHub issue for its author, drafted for the owner to post (the `gh` token covers the tikzflow repository only).
 4. **A `/licenses/` page**, generated from the same source as `THIRD_PARTY_LICENSES.md`, linked from the site's footer and the help.
@@ -1519,3 +1519,46 @@ The owner reviewed the home page, both themes, phone width, Continue your diagra
 | 6 | Release check: all tests, CI, fidelity, `test:live` on `m6.tikzflow.pages.dev`, docs; **Milestone 6 report** |
 
 **Why:** the owner's approval of the Milestone 6 plan and their addition (2026-10-12).
+
+## D103: The drag benchmark and the baseline (M6 step 0, 2026-10-12)
+**Decision: how drags are measured** (`npm run drag:bench`, `scripts/drag-bench.ts`):
+- **What runs:** a production build served by `vite preview`, in Edge with a window (not headless, so frames are paced and drawn as for a user), 1920×1080 CSS pixels at 1.5× (a large window on the owner's 3840×2160 screen at 150%, 60 Hz), service workers blocked so the engine's background download doesn't run during a drag. Each picture opens from a share link; the view is fitted, then zoomed with the wheel until the dragged node is 28–40 px tall. The pictures (`scripts/lib/benchpictures.ts`, also `npm run layout:bench -- --picture=…`): the 200-node, 250-edge one (dragging `n100`), and, measured only, a 500-node, 600-edge one (`n250`) and the dense 4–16–16–4 network written out (`l1n7`). Both now start with `\usetikzlibrary{positioning}`: without it TeX stopped with 100 errors, so the TeX preview had never drawn them.
+- **Two runs per interaction**, each followed by Ctrl+Z:
+  - **A 125 Hz mouse** (the target's measure): 180 moves 8 ms apart, sent straight to the browser through the DevTools protocol without waiting for each to be handled (Playwright's `mouse.move` waits, which lets a slow page set the pace). The page records every animation frame; a frame is on time when its interval is within 16.7 ms plus 10% (two frames for 30 fps). Long tasks (over 50 ms) are observed. **The drop** is timed from `pointerup` (a capturing listener on the window, so before the canvas's handler) to the frame after it.
+  - **One update at a time, traced:** 30 moves, each sent only after the page has drawn the frame of the one before (two animation frames); a Chromium trace splits the main thread's time per move (its handler, the render, and that frame's style, layout and paint) and by kind (script, style, layout, paint, GC). This is the cost of one drag update whatever the browser does with input, and what step 2 works on.
+- **The CPU slowdown** is the DevTools protocol's `Emulation.setCPUThrottlingRate`, set only around the drag.
+- `--profile` drags once in a build that isn't minified, with source maps, and prints a CPU profile by source and function and the trace's breakdown. `--label=<name>` saves `spike/perf/results/<name>.json` (the baseline: `baseline.json`).
+
+**Found while building it: Edge doesn't hold mouse moves back to one per frame.** A plain test page (a `pointermove` handler that takes 30 ms, a 125 Hz stream of moves) got 49 moves handled and 10 frames drawn in 1.5 s: each move is handled as it comes, and drawing waits. The editor handles every move in full (layout, edges, a Preact render of the whole canvas), so at 125 Hz it falls behind and draws a frame every few hundred milliseconds. This is the first thing step 2 fixes: work once per frame, with the latest pointer position.
+
+**The baseline** (Edge 155, 2026-10-12; `spike/perf/results/baseline.json`). "Frames on time" is the share of frame intervals within one frame during the 125 Hz drag; "one update" is the median (95th percentile) cost of one move drawn in its own frame.
+
+| Picture | Preview | Drag | Frames on time (1×) | One update 1× | One update 4× | Drop 1× | Drop 4× |
+|---|---|---|---|---|---|---|---|
+| 200 / 250 | quick | node | 22% (9 frames in 1.5 s) | 38 (49) ms | 191 (239) ms | 232 ms | 852 ms |
+| | quick | group (20) | 13% | 36 (47) ms | 211 (304) ms | 1,206 ms | 6,466 ms |
+| | quick | corner | 89% | 4 (88) ms | 21 (451) ms | 104 ms | 554 ms |
+| | quick | resize | 86% | 37 (55) ms | 216 (276) ms | 108 ms | 562 ms |
+| | TeX | node | 33% (3 frames) | 76 (136) ms | 395 (548) ms | 304 ms | 1,135 ms |
+| | TeX | group (20) | 13% | 78 (110) ms | 517 (596) ms | 1,268 ms | 7,013 ms |
+| | TeX | corner | 89% | 4 (103) ms | 21 (617) ms | 125 ms | 811 ms |
+| | TeX | resize | 19% | 75 (120) ms | 409 (708) ms | 175 ms | 894 ms |
+| 500 / 600 (measured) | quick | node | 13% | 72 (93) ms | 419 (522) ms | 381 ms | 1,845 ms |
+| | TeX | node | 50% (4 frames) | 191 (359) ms | 1,152 (1,920) ms | 678 ms | 2,727 ms |
+| dense 40 / 384 (measured) | quick | node | 94% | 15 (22) ms | 77 (92) ms | 94 ms | 392 ms |
+| | TeX | node | 47% | 36 (50) ms | 161 (266) ms | 117 ms | 533 ms |
+
+Nothing meets the target (60 fps: 95% on time and no long task; 30 fps at 4×; drop under 100 ms). The dense network nearly does in the quick preview.
+
+**Where the time goes** (200-node node drag, one update, quick preview): script 14 ms, paint 17 ms, style 2.4 ms, layout 1.5 ms, GC 1.4 ms; with the TeX preview: script 33, paint 36, style 9. From the profile:
+1. **No frame pacing** (above): every move does the whole update.
+2. **The whole picture is laid out again** on every move (`layoutDocumentPicture` with the drag's override, 8 ms in Node, and the edge model on top), although dragging `n100` changes only it and the nodes that follow it.
+3. **The whole canvas is rendered again:** Preact compares and rewrites every node, edge and label element (`setAttribute` is the largest single item after the browser's own work), so the browser repaints the whole canvas (paint is as large as all the script).
+4. **With the TeX preview,** the stale patch (D96) is worked out for the whole picture on each move (`stalepatch.ts`, 122 ms over a 1.5 s drag), and TeX's own picture (about 23,600 elements on the page with the 200-node picture) doubles style and paint.
+5. **The code pane forces a layout of the whole page:** CodeMirror reads the browser's selection when it measures (after a selection change, and on the drop's edit), and reading it makes the browser lay out the page first (`get anchorNode`, 190 ms in the profile).
+6. **The drop** plans the move (34 ms in Node), then the edit re-reads the whole document, lays it out and renders everything again; a group drop plans its 20 nodes one by one, each checked with a layout (1.2 s, 6.5 s at 4×).
+- Also seen: with nothing happening, the page allocates and frees about 15 MB every 8 s (a timer to find in step 2).
+
+**What it means for step 2:** pacing alone would bring the node drag to about 26 fps (38 ms per update). Reaching 60 fps, and 30 fps at 4× (about 8 ms per update at 1×), needs all of: laying out only what the drag affects, rendering and repainting only what changed, an incremental stale patch, and keeping CodeMirror from forcing layouts. The drop needs the edit's own re-analysis and render to be cheaper, and the group drop's planning batched.
+
+**Why:** D102 (measure before and after; a concrete target).
