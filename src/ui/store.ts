@@ -92,6 +92,47 @@ export const layout = computed<PictureLayout | null>(() => {
   return dragLayout(drag, o);
 });
 
+/**
+ * What a drag moved (D108): the ids of the nodes, path nodes and paths of the shown layout that aren't
+ * the base layout's own objects. The same object from frame to frame while the same things move, so the
+ * canvas draws everything else once, as a layer that doesn't change, and only these on top. Empty when
+ * nothing is dragged, and when most of the picture changed (a full layout, a resize's preview).
+ */
+export interface Moved {
+  key: string;
+  ids: ReadonlySet<string>;
+}
+export const NOTHING_MOVED: Moved = { key: "", ids: new Set() };
+let lastMoved: Moved = NOTHING_MOVED;
+export const dragMoved = computed<Moved>(() => {
+  const base = baseLayout.value;
+  const now = layout.value;
+  if (!base || !now || now === base || previewLayout.value) return (lastMoved = NOTHING_MOVED);
+  const own = new Map<string, object>();
+  for (const n of base.nodes) own.set(n.id, n);
+  for (const n of base.pathNodes) own.set(n.id, n);
+  for (const p of base.paths) own.set(p.id, p);
+  const ids = new Set<string>();
+  for (const n of now.nodes) if (own.get(n.id) !== n) ids.add(n.id);
+  for (const n of now.pathNodes) if (own.get(n.id) !== n) ids.add(n.id);
+  for (const p of now.paths) if (own.get(p.id) !== p) ids.add(p.id);
+  if (ids.size > own.size / 2) return (lastMoved = NOTHING_MOVED);
+  const key = [...ids].join("\n");
+  if (key !== lastMoved.key) lastMoved = { key, ids };
+  return lastMoved;
+});
+
+/** `base` without what moved: what a drag leaves where it was (the TeX preview's patch during a drag, D108). */
+const withoutCache = new WeakMap<Moved, { base: PictureLayout; layout: PictureLayout }>();
+export function withoutMoved(base: PictureLayout, moved: Moved): PictureLayout {
+  const known = withoutCache.get(moved);
+  if (known?.base === base) return known.layout;
+  const keep = <T extends { id: string }>(xs: T[]) => xs.filter((x) => !moved.ids.has(x.id));
+  const out: PictureLayout = { ...base, nodes: keep(base.nodes), pathNodes: keep(base.pathNodes), paths: keep(base.paths) };
+  withoutCache.set(moved, { base, layout: out });
+  return out;
+}
+
 /** The work the last drag frame did (for the drag bench): full layouts so far, and paths and nodes laid out again. */
 export function dragWork(): { frames: number; full: number; paths: number; nodes: number; why: string | null } | null {
   return drag ? { ...drag.session.stats } : null;

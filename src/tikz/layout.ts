@@ -1860,8 +1860,8 @@ interface PathRecord {
   at: number;
   /** How many of the names kept-as-is blocks define came before it. */
   opaqueNames: number;
-  /** What it mentions (coordinates, options, its nodes' options), to find the paths a moved node touches. */
-  text: string;
+  /** What it mentions (coordinates, options, its nodes' options), to find the paths a moved node touches; worked out on a drag's first need. */
+  text: string | null;
   /** A "\node … edge" path: the node it starts from. */
   start?: { id: string; range: Range; text: string };
   /** The paths, path nodes and nodes (coordinates on the path) it made. */
@@ -1912,10 +1912,12 @@ type PendingRecord = Omit<PathRecord, "paths" | "pathNodes" | "nodes"> & { count
 function startRecord(record: LayoutRecord, syn: PathSyntax, scope: Scope, ctx: Ctx): PendingRecord {
   return {
     syn,
-    scope: { state: itemCopy(scope.state), styles: scope.styles },
+    // Not a copy: once the record is safe (no styles set again after the first node or path), nothing
+    // changes a scope's state after its paths are laid out.
+    scope: { state: scope.state, styles: scope.styles },
     at: record.log.length,
     opaqueNames: ctx.out.opaqueNames.size,
-    text: mentions(syn),
+    text: null,
     counts: [ctx.out.paths.length, ctx.out.pathNodes.length, ctx.out.nodes.length],
   };
 }
@@ -2104,14 +2106,14 @@ export function dragLayout(s: DragSession, overrides: ReadonlyMap<string, Point>
   const key = [...delta.keys()].join("\n");
   let dirty = s.dirty.get(key);
   if (!dirty) {
-    dirty = rec.paths.filter((p) => (p.start && delta.has(p.start.id)) || [...movedNames].some((name) => mentionsName(p.text, name)));
+    dirty = rec.paths.filter((p) => (p.start && delta.has(p.start.id)) || [...movedNames].some((name) => mentionsName((p.text ??= mentions(p.syn)), name)));
     s.dirty.set(key, dirty);
   }
   // A name such a path makes (a coordinate on it, a named label) that something else refers to: lay out whole.
   const made = new Set(dirty.flatMap((p) => [...p.pathNodes, ...p.nodes]));
   const madeNames = rec.log.filter((e) => e.entry.nodeId !== undefined && made.has(e.entry.nodeId)).map((e) => e.name);
   if (madeNames.length) {
-    const users = rec.paths.filter((p) => !dirty!.includes(p) && madeNames.some((m) => mentionsName(p.text, m)));
+    const users = rec.paths.filter((p) => !dirty!.includes(p) && madeNames.some((m) => mentionsName((p.text ??= mentions(p.syn)), m)));
     if (users.length || base.nodes.some((n) => !made.has(n.id) && n.position.refs.some((r) => madeNames.includes(r)))) return full("a moved path makes a name something else refers to");
   }
   setPageLengths(rec.env.page ?? null);

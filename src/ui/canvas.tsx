@@ -22,7 +22,7 @@ import { fixLabelSides, planSlideLabel, slideBlocker } from "../edit/labels.ts";
 import { edgeVertices, isEdgeOperation, planAddVertex } from "../edit/vertices.ts";
 import { EdgeMenu, type EdgeMenuAt } from "./edgemenu.tsx";
 import { analyzeDocument, layoutDocumentPicture, pictureEnv } from "../model/document.ts";
-import { type Edge, edgeD, edgeEnds, edgeOfLabel } from "../model/edges.ts";
+import { type Edge, edgeD, edgeEnds, edgeOfLabel, pictureEdges } from "../model/edges.ts";
 import { undrawable } from "../model/explain.ts";
 import { type RGB, cssColor } from "../tikz/colors.ts";
 import { defaultTipLength, defaultTipWidth } from "../tikz/keys.ts";
@@ -30,7 +30,7 @@ import type { LaidOutNode, LaidOutPath, PictureLayout, Tip } from "../tikz/layou
 import { anchorPoint, outline, type Point, shapeMiddle } from "../tikz/shapes.ts";
 import { PT_PER_UNIT } from "../tikz/units.ts";
 import type { Shading } from "../tikz/state.ts";
-import { katexMacros, labelHtml } from "./labelHtml.ts";
+import { baselines, katexMacros, labelHtml } from "./labelHtml.ts";
 import { CompiledPicture } from "./compiled.tsx";
 import { isMac } from "./shortcuts.tsx";
 import { WidthGuide } from "./pagepanel.tsx";
@@ -42,6 +42,9 @@ import {
   activeScope,
   applyEdgeEdit,
   applyEdit,
+  dragMoved,
+  type Moved,
+  withoutMoved,
   dropIntoLane,
   keepFollowers,
   moveFollowers,
@@ -114,7 +117,8 @@ function CoordinateMark({ n, scale, selected, unused }: { n: LaidOutNode; scale:
  */
 function MisplacedMarks({ layout, scale, selected }: { layout: PictureLayout | null; scale: number; selected: readonly string[] }) {
   const list = markedNodes.value;
-  if (!list.length || !layout) return null;
+  // Always there, empty when there is nothing to mark (as FollowerMarks).
+  if (!list.length || !layout) return <g class="tf-misplaced" />;
   return (
     <g class="tf-misplaced" data-testid="misplaced-marks">
       {list.map((m) => {
@@ -463,14 +467,26 @@ const gradId = (id: string) => `sh-${id.replace(/[^A-Za-z0-9_-]/g, "_")}`;
 
 // The components below are memoized on what they draw: while dragging, only
 // the moved node and the paths touching it change.
-const nodeSig = (n: LaidOutNode) =>
-  [n.id, n.shape.kind, n.shape.center.x, n.shape.center.y, n.shape.hw, n.shape.hh, n.shape.rotate, n.shape.roundedCorners, n.stroke, n.fill, n.lineWidth, n.dash, n.opacity, n.fillOpacity, n.shadow, n.locked, n.shading && JSON.stringify(n.shading), n.double && JSON.stringify(n.double)].join("|");
+/** Signatures kept per object: a drop draws everything again with new objects, compared field by field once. */
+const sigs = new WeakMap<object, string>();
+const kept = <T extends object>(f: (x: T) => string) => (x: T): string => {
+  let s = sigs.get(x);
+  if (s === undefined) {
+    s = f(x);
+    sigs.set(x, s);
+  }
+  return s;
+};
+
+const nodeSig = kept((n: LaidOutNode) =>
+  [n.id, n.shape.kind, n.shape.center.x, n.shape.center.y, n.shape.hw, n.shape.hh, n.shape.rotate, n.shape.roundedCorners, n.stroke, n.fill, n.lineWidth, n.dash, n.opacity, n.fillOpacity, n.shadow, n.locked, n.shading && JSON.stringify(n.shading), n.double && JSON.stringify(n.double)].join("|"));
 
 // A drag frame keeps the objects of what it didn't move (D108): the same object draws the same.
-const NodeShape = memo(NodeShapeView, (a, b) => a.scale === b.scale && a.selected === b.selected && a.inert === b.inert && (a.n === b.n || nodeSig(a.n) === nodeSig(b.n)));
+const NodeShape = memo(NodeShapeView, (a, b) => a.scale === b.scale && a.selected === b.selected && a.inert === b.inert && a.hidden === b.hidden && (a.n === b.n || nodeSig(a.n) === nodeSig(b.n)));
 
 /** `inert`: a copy that only shows (the patch over a stale TeX picture, D96), without the ids the pointer and tests look for. */
-function NodeShapeView({ n, scale, selected, inert }: { n: LaidOutNode; scale: number; selected: boolean; inert?: boolean }) {
+/** `hidden`: kept in place, not drawn, while a drag draws it elsewhere (D108); not clickable then either. */
+function NodeShapeView({ n, scale, selected, inert, hidden }: { n: LaidOutNode; scale: number; selected: boolean; inert?: boolean; hidden?: boolean }) {
   // Coordinates are drawn as markers on top (CoordinateMark).
   if (n.kind === "coordinate") return null;
   const d = outline(n.shape);
@@ -480,7 +496,7 @@ function NodeShapeView({ n, scale, selected, inert }: { n: LaidOutNode; scale: n
   // Outlines are drawn y up (the text y down), so the turn is counterclockwise there.
   const turn = n.shape.rotate ? `rotate(${n.shape.rotate} ${f(n.shape.center.x)} ${f(n.shape.center.y)})` : undefined;
   return (
-    <g data-node={inert ? undefined : n.id} class={`tf-node${n.locked ? " locked" : ""}${selected ? " selected" : ""}`} transform={turn}>
+    <g data-node={inert || hidden ? undefined : n.id} class={`tf-node${n.locked ? " locked" : ""}${selected ? " selected" : ""}${hidden ? " tf-hidden" : ""}`} transform={turn}>
       {n.shadow && d && <path d={d} transform="translate(2.5 -2.5)" fill="#000" opacity={0.35} />}
       {d && (
         <path
@@ -530,8 +546,8 @@ function NodeLabelView({ n, macros, inert }: { n: LaidOutNode; macros: Record<st
   );
 }
 
-const pathSig = (p: LaidOutPath) =>
-  [p.id, p.d, p.stroke, p.fill, p.lineWidth, p.dash, p.opacity, p.fillOpacity, p.shading && JSON.stringify(p.shading), p.double && JSON.stringify(p.double), JSON.stringify(p.tips)].join("|");
+const pathSig = kept((p: LaidOutPath) =>
+  [p.id, p.d, p.stroke, p.fill, p.lineWidth, p.dash, p.opacity, p.fillOpacity, p.shading && JSON.stringify(p.shading), p.double && JSON.stringify(p.double), JSON.stringify(p.tips)].join("|"));
 
 /** Where each edge of a path can be clicked. */
 interface EdgeHit {
@@ -574,15 +590,16 @@ const PathShape = memo(
     a.scale === b.scale &&
     a.selected === b.selected &&
     a.inert === b.inert &&
+    a.hidden === b.hidden &&
     ((a.p === b.p && a.hits === b.hits) || (pathSig(a.p) === pathSig(b.p) && a.hits.map((h) => h.id + h.d).join("|") === b.hits.map((h) => h.id + h.d).join("|"))),
 );
 
-function PathShapeView({ p, scale, selected, hits, inert }: { p: LaidOutPath; scale: number; selected: boolean; hits: readonly EdgeHit[]; inert?: boolean }) {
+function PathShapeView({ p, scale, selected, hits, inert, hidden }: { p: LaidOutPath; scale: number; selected: boolean; hits: readonly EdgeHit[]; inert?: boolean; hidden?: boolean }) {
   if (!p.d && !p.tips.length) return null;
   const minStroke = 0.6 / scale;
   const fill = p.shading ? `url(#${gradId(p.id)})` : rgba(p.fill);
   return (
-    <g data-path={inert ? undefined : p.id} class={`tf-path${selected ? " selected" : ""}`}>
+    <g data-path={inert || hidden ? undefined : p.id} class={`tf-path${selected ? " selected" : ""}${hidden ? " tf-hidden" : ""}`}>
       {selected && <path d={p.d} class="tf-path-halo" stroke-width={p.lineWidth + 4 / scale} />}
       {/* A path with edges is clicked edge by edge; other paths as a whole. */}
       {hits.length || inert ? null : <path d={p.d} class="tf-path-hit" stroke-width={10 / scale} />}
@@ -610,10 +627,158 @@ function PathShapeView({ p, scale, selected, hits, inert }: { p: LaidOutPath; sc
           />
         );
       })}
-      {hits.map((h) => (
-        <path key={h.id} d={h.d} data-edge={h.id} data-testid="edge-hit" class="tf-path-hit" stroke-width={10 / scale} />
+      {hits.map((h, k) => (
+        <path key={k} d={h.d} data-edge={hidden ? undefined : h.id} data-testid={hidden ? undefined : "edge-hit"} class="tf-path-hit" stroke-width={10 / scale} />
       ))}
     </g>
+  );
+}
+
+/**
+ * Labels as HTML, all in one foreignObject (D108): a foreignObject per label is a layer of its own to
+ * the browser, and 200 of them made every frame of a drag spend most of its time arranging layers.
+ * Labels ignore the pointer (the shapes take it), so drawing them together, above the shapes, changes
+ * only which of two overlapping things shows on top in the quick preview.
+ */
+const Labels = memo(
+  function LabelsView({ list, box, macros, hidden }: { list: readonly LaidOutNode[]; box: PictureLayout["bounds"]; macros: Record<string, string>; hidden: ReadonlySet<string> | null }) {
+    // Snapped to a coarse grid, so the box (and with it every label's place in it) stays put when an
+    // edit or a drag changes the picture's bounds a little: moving it lays every label out again.
+    const ox = Math.floor((box.minX - LABEL_MARGIN) / LABEL_GRID) * LABEL_GRID;
+    const oy = Math.floor((-box.maxY - LABEL_MARGIN) / LABEL_GRID) * LABEL_GRID;
+    const width = Math.ceil((box.maxX + LABEL_MARGIN - ox) / LABEL_GRID) * LABEL_GRID;
+    const height = Math.ceil((-box.minY + LABEL_MARGIN - oy) / LABEL_GRID) * LABEL_GRID;
+    return (
+      <foreignObject x={ox} y={oy} width={width} height={height} class="tf-label-box" data-testid="labels">
+        <div class="tf-labels">
+          {list.map((n) => (
+            <LabelDiv key={n.id} n={n} macros={macros} ox={ox} oy={oy} hidden={!!hidden?.has(n.id) || !!hidden?.has(ownerOf(n.id))} />
+          ))}
+        </div>
+      </foreignObject>
+    );
+  },
+  (a, b) => a.list === b.list && a.box === b.box && a.macros === b.macros && a.hidden === b.hidden,
+);
+
+/** The node a `label=` extra belongs to ("a/label" → "a"). */
+const ownerOf = (id: string) => id.replace(/\/[^/]*$/, "");
+
+/** Room around the picture for labels that stick out of it, and the grid the labels' box is snapped to, in pt. */
+const LABEL_MARGIN = 100;
+const LABEL_GRID = 500;
+
+/** One label, placed in the labels' box whose top left is (ox, oy) on the canvas. */
+const LabelDiv = memo(
+  function LabelDivView({ n, macros, ox, oy, hidden }: { n: LaidOutNode; macros: Record<string, string>; ox: number; oy: number; hidden: boolean }) {
+    const t = n.text;
+    const html = useMemo(() => (t ? labelHtml(t, macros) : ""), [t, macros]);
+    if (!t || !html) return null;
+    const w = Math.max(t.width, 1);
+    const h = t.height + t.depth;
+    const x = n.textOrigin.x - ox;
+    const y = -n.textOrigin.y - oy;
+    // Turned about the node's center (a sloped label), which is (cx, cy) inside this box.
+    const turn = n.rotate ? `rotate(${f(-n.rotate)}deg)` : undefined;
+    const origin = n.rotate ? `${f(n.shape.center.x - n.textOrigin.x)}px ${f(-n.shape.center.y + n.textOrigin.y)}px` : undefined;
+    return (
+      <div
+        class={hidden ? "tf-label tf-hidden" : "tf-label"}
+        data-label-of={n.id}
+        style={{ left: `${f(x)}px`, top: `${f(y)}px`, width: `${f(w + 2)}px`, height: `${f(h + 2)}px`, color: cssColor(n.textColor), opacity: n.opacity === 1 ? undefined : n.opacity, transform: turn, transformOrigin: origin }}
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    );
+  },
+  (a, b) => a.macros === b.macros && a.ox === b.ox && a.oy === b.oy && a.hidden === b.hidden && (a.n === b.n || (a.n.text === b.n.text && a.n.textOrigin.x === b.n.textOrigin.x && a.n.textOrigin.y === b.n.textOrigin.y && a.n.rotate === b.n.rotate && a.n.opacity === b.n.opacity && String(a.n.textColor) === String(b.n.textColor))),
+);
+
+/** Which items of a layout a drawing draws: everything, all but what a drag moved, or only that. */
+type Part = { kind: "all" } | { kind: "still"; moved: Moved } | { kind: "moving"; moved: Moved };
+const ALL: Part = { kind: "all" };
+/** The two parts of a drag, the same objects for the same moved set, so the drawings' memo holds. */
+const partCache = new WeakMap<Moved, { still: Part; moving: Part }>();
+function partsOf(moved: Moved) {
+  let p = partCache.get(moved);
+  if (!p) {
+    p = { still: { kind: "still", moved }, moving: { kind: "moving", moved } };
+    partCache.set(moved, p);
+  }
+  return p;
+}
+const movingPart = (moved: Moved) => partsOf(moved).moving;
+/** What the moving drawing draws when nothing moves: its containers stay, empty (D108). */
+const EMPTY_LAYOUT: PictureLayout = { nodes: [], pathNodes: [], paths: [], opaque: [], bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0 }, opaqueNames: new Set(), boxes: new Map(), issues: [] };
+const stillPart = (moved: Moved) => (moved.ids.size ? partsOf(moved).still : ALL);
+
+interface DrawingProps {
+  l: PictureLayout;
+  part: Part;
+  scale: number;
+  /** Selected node ids, joined by newlines (a string, so the memo compares it cheaply). */
+  selected: string;
+  selPath: string | null;
+  pickedLabel: string | null;
+  macros: Record<string, string>;
+}
+
+/**
+ * The native drawing of `l` (D108): shapes and paths in drawing order, then the labels. During a drag
+ * the canvas draws it twice: everything that didn't move, which doesn't change from frame to frame and
+ * so isn't drawn again, and on top only what moved.
+ */
+const Drawing = memo(
+  DrawingView,
+  (a, b) => a.l === b.l && a.part === b.part && a.scale === b.scale && a.selected === b.selected && a.selPath === b.selPath && a.pickedLabel === b.pickedLabel && a.macros === b.macros,
+);
+
+function DrawingView({ l, part, scale, selected, selPath, pickedLabel, macros }: DrawingProps) {
+  // What a drag moved stays in the drawing of what didn't, hidden, so that the drop changes those
+  // elements in place: leaving them out and putting them back moved elements around, and the browser
+  // laid out again everything it moved (D108).
+  const hide = part.kind === "still" ? part.moved.ids : null;
+  const only = part.kind === "moving" ? part.moved.ids : null;
+  const items = only ? drawOrder(l).filter((it) => only.has(it.kind === "node" ? it.n.id : it.p.id)) : drawOrder(l);
+  const pathNodes = only ? l.pathNodes.filter((n) => only.has(n.id)) : l.pathNodes;
+  const hidden = (id: string) => !!hide?.has(id);
+  const hits = pathHits(pictureEdges(l));
+  // Keyed by place, not id: a path's id is where its code starts, which an edit above it changes, and a
+  // new key would make the browser build the path again (all 250 of them after a drop on the bench picture).
+  const order = useMemo(() => new Map(l.paths.map((p, i) => [p.id, i])), [l]);
+  const pathKey = (id: string) => `p${order.get(id) ?? id}`;
+  const sel = new Set(selected ? selected.split("\n") : []);
+  const labels = useMemo(() => [...items.flatMap((it) => (it.kind === "node" ? [it.n, ...it.n.extras] : [])), ...pathNodes].filter((n) => n.text), [l, part]);
+  return (
+    <>
+      {/* One flip for all the shapes (y up): a transform per item made a paint layer per item. */}
+      <g transform="scale(1 -1)">
+        {items.map((it) =>
+          it.kind === "node" ? (
+            <NodeShape key={it.n.id} n={it.n} scale={scale} selected={sel.has(it.n.id)} hidden={hidden(it.n.id)} />
+          ) : (
+            <PathShape key={pathKey(it.p.id)} p={it.p} scale={scale} selected={selPath === it.p.id} hits={hits.get(it.p.id) ?? NO_HITS} hidden={hidden(it.p.id)} />
+          ),
+        )}
+        {pathNodes.map((n) => (n.stroke || n.fill ? <NodeShape key={n.id} n={n} scale={scale} selected={false} hidden={hidden(n.id)} /> : null))}
+      </g>
+      <Labels list={labels} box={l.bounds} macros={macros} hidden={hide} />
+      {pathNodes.map((n) =>
+        n.kind === "path" && n.text ? (
+          <rect
+            key={`hit-${n.id}`}
+            data-label={hidden(n.id) ? undefined : n.id}
+            data-testid={hidden(n.id) ? undefined : "edge-label"}
+            class={`tf-label-hit${n.id === pickedLabel ? " picked" : ""}${hidden(n.id) ? " tf-hidden" : ""}`}
+            x={f(n.shape.center.x - n.shape.hw)}
+            y={f(-n.shape.center.y - n.shape.hh)}
+            width={f(2 * n.shape.hw)}
+            height={f(2 * n.shape.hh)}
+          >
+            <title>Double-click to edit this label</title>
+          </rect>
+        ) : null,
+      )}
+    </>
   );
 }
 
@@ -842,10 +1007,22 @@ const staying = (f: Followers) => f.ids.filter((id) => !f.annotations.includes(i
 
 /** The followers that stay, held at their centers in `l`, as drag overrides. */
 function holds(l: PictureLayout, f: Followers): Array<readonly [string, Point]> {
+  const byId = nodeIndex(l);
   return staying(f).flatMap((id) => {
-    const c = l.nodes.find((x) => x.id === id)?.shape.center;
+    const c = byId.get(id)?.shape.center;
     return c ? [[id, c] as const] : [];
   });
+}
+
+/** A layout's nodes by id, kept per layout: a drag looks nodes up on every frame. */
+const nodeIndexes = new WeakMap<PictureLayout, Map<string, LaidOutNode>>();
+function nodeIndex(l: PictureLayout): Map<string, LaidOutNode> {
+  let m = nodeIndexes.get(l);
+  if (!m) {
+    m = new Map(l.nodes.map((n) => [n.id, n]));
+    nodeIndexes.set(l, m);
+  }
+  return m;
 }
 
 /** " Its labels moved with it: Reading, 12." */
@@ -870,7 +1047,9 @@ const dragFollowers = signal<{ followers: Followers; along: boolean } | null>(nu
 /** Faint outlines on the dragged node's followers (D102): solid when they move along (annotations always do, D107), dashed when they stay. */
 function FollowerMarks({ layout, scale }: { layout: PictureLayout | null; scale: number }) {
   const d = dragFollowers.value;
-  if (!d || !d.followers.ids.length || !layout) return null;
+  // Always there, empty when nothing is dragged: a child taken out of the canvas's <svg> made the browser
+  // lay out the whole drawing again at every drop (D108).
+  if (!d || !d.followers.ids.length || !layout) return <g class="tf-followers" />;
   return (
     <g class={`tf-followers${d.along ? " along" : " staying"}`} data-testid="follower-marks" data-along={d.along ? "yes" : "no"}>
       {d.followers.ids.map((id) => {
@@ -1122,10 +1301,16 @@ export function Canvas() {
     if (cx !== v.cx || cy !== v.cy) view.value = { ...v, cx, cy };
   });
 
+  // The same object while the macros are the same, and a new one when the fonts have been measured, so
+  // that labels are drawn again exactly when what they show changes (D108).
+  const lastMacros = useRef<{ key: string; value: Record<string, string> }>({ key: "", value: {} });
   const macros = useComputed(() => {
     const d = doc.value;
     const pic = d.syntax.pictures[currentPicture.value];
-    return pic ? katexMacros(pictureEnv(d, pic).macros) : {};
+    const value = pic ? katexMacros(pictureEnv(d, pic).macros) : {};
+    const key = `${baselines.value}\u0000${JSON.stringify(value)}`;
+    if (key !== lastMacros.current.key) lastMacros.current = { key, value };
+    return lastMacros.current.value;
   });
 
   const toModel = (e: { clientX: number; clientY: number }): Point => {
@@ -1486,7 +1671,8 @@ export function Canvas() {
     d.target = snapped.center;
     const dx = d.target.x - d.center.x;
     const dy = d.target.y - d.center.y;
-    const at = (id: string) => l.nodes.find((x) => x.id === id)?.shape.center;
+    const byId = nodeIndex(l);
+    const at = (id: string) => byId.get(id)?.shape.center;
     overrides.value = new Map([
       ...d.members.flatMap((id) => {
         const c = at(id);
@@ -2131,9 +2317,18 @@ export function Canvas() {
   const sel = selection.value;
   const g = guides.value;
 
-  const items = l ? drawOrder(l) : [];
+  // During a drag, what didn't move is drawn from the base layout, as one layer that stays (D108).
+  const moved = dragMoved.value;
+  const still = moved.ids.size ? baseLayout.value : l;
+  const staleLayout = moved.ids.size && baseLayout.value ? withoutMoved(baseLayout.value, moved) : l;
+  const drawingProps = {
+    scale: v.scale,
+    selected: selectedIds.value.join("\n"),
+    selPath: sel?.kind === "path" ? sel.id : null,
+    pickedLabel: selectedLabelId.value,
+    macros: macros.value,
+  };
   const edgeList = shownEdges.value;
-  const hitsByPath = pathHits(edgeList);
   // The selected edge as shown (it follows a node being dragged).
   const selEdgeId = selectedEdge.value?.id;
   const selEdge: Edge | undefined = selEdgeId ? edgeList.find((x) => x.id === selEdgeId) : undefined;
@@ -2188,58 +2383,24 @@ export function Canvas() {
       {/* The grayscale and colorblind views (D85) filter the drawing, not the handles and guides. */}
       <g filter={visionFilterAttr()} data-testid="drawing">
       <CompiledPicture scale={v.scale} />
-      <StalePatchLayer l={l} scale={v.scale} macros={macros.value} />
+      <StalePatchLayer l={staleLayout} scale={v.scale} macros={macros.value} />
       {/* With TeX's picture shown (or its last one, patched: D96), the native drawing stays only to answer the pointer (D68). */}
       <g class={`tf-native${showingTex.value ? " ghost" : ""}`} data-testid="native-drawing">
-      {items.map((it) =>
-        it.kind === "node" ? (
-          <g key={it.n.id}>
-            <g transform="scale(1 -1)">
-              <NodeShape n={it.n} scale={v.scale} selected={selIds.includes(it.n.id)} />
-            </g>
-            <NodeLabel n={it.n} macros={macros.value} />
-            {it.n.extras.map((x) => (
-              <NodeLabel key={x.id} n={x} macros={macros.value} />
-            ))}
-          </g>
-        ) : (
-          <g key={it.p.id} transform="scale(1 -1)">
-            <PathShape p={it.p} scale={v.scale} selected={sel?.kind === "path" && sel.id === it.p.id} hits={hitsByPath.get(it.p.id) ?? NO_HITS} />
-          </g>
-        ),
-      )}
-      {l?.pathNodes.map((n) => (
-        <g key={n.id}>
-          {(n.stroke || n.fill) && (
-            <g transform="scale(1 -1)">
-              <NodeShape n={n} scale={v.scale} selected={false} />
-            </g>
-          )}
-          <NodeLabel n={n} macros={macros.value} />
-          {n.kind === "path" && n.text && (
-            <rect
-              data-label={n.id}
-              data-testid="edge-label"
-              class={`tf-label-hit${n.id === selectedLabelId.value ? " picked" : ""}`}
-              x={f(n.shape.center.x - n.shape.hw)}
-              y={f(-n.shape.center.y - n.shape.hh)}
-              width={f(2 * n.shape.hw)}
-              height={f(2 * n.shape.hh)}
-            >
-              <title>Double-click to edit this label</title>
-            </rect>
-          )}
-        </g>
-      ))}
+        {still && <Drawing l={still} part={stillPart(moved)} {...drawingProps} />}
       </g>
+      {/* What a drag moves, drawn on top, and seen even over TeX's picture (D108). */}
+      {/* Always there, empty when nothing moves: taking a group out of the canvas made the browser lay all of it out again. */}
+      <g class="tf-native tf-moving" data-testid="moving-drawing">{l && <Drawing l={moved.ids.size ? l : EMPTY_LAYOUT} part={movingPart(moved)} {...drawingProps} />}</g>
       </g>
-      {l?.nodes.map((n) =>
-        n.kind === "coordinate" ? (
-          <CoordinateMark key={`mark-${n.id}`} n={n} scale={v.scale} selected={selIds.includes(n.id)} unused={unusedCoords.value.has(n.id)} />
-        ) : n.kind === "statement" ? (
-          <UndrawnMark key={`mark-${n.id}`} n={n} scale={v.scale} />
-        ) : null,
-      )}
+      <g class="tf-node-marks">
+        {l?.nodes.map((n) =>
+          n.kind === "coordinate" ? (
+            <CoordinateMark key={`mark-${n.id}`} n={n} scale={v.scale} selected={selIds.includes(n.id)} unused={unusedCoords.value.has(n.id)} />
+          ) : n.kind === "statement" ? (
+            <UndrawnMark key={`mark-${n.id}`} n={n} scale={v.scale} />
+          ) : null,
+        )}
+      </g>
       <MisplacedMarks layout={l} scale={v.scale} selected={selIds} />
       <FollowerMarks layout={l} scale={v.scale} />
       <g transform="scale(1 -1)" class="tf-overlay">

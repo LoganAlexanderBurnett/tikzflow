@@ -5,10 +5,11 @@ import { parser } from "../parser/parser.ts";
 import type { Macro } from "../text/label.ts";
 import { ColorTable } from "../tikz/colors.ts";
 import { addAutomataStyles, builtinStyles } from "../tikz/keys.ts";
-import { type LayoutEnv, layoutPicture, type PictureLayout } from "../tikz/layout.ts";
+import { type LayoutEnv, layoutPicture, type LayoutRecord, newLayoutRecord, type PictureLayout } from "../tikz/layout.ts";
 import type { KeyValue } from "../tikz/options.ts";
 import { effectivePage, NO_PAGE_SETTINGS, ownPreamble, type PageSettings, pageLengths } from "../tikz/page.ts";
 import { fontSizes, type SizeTable } from "../tikz/state.ts";
+import { setPageLengths } from "../tikz/units.ts";
 import type { Point } from "../tikz/shapes.ts";
 import { type DocumentSyntax, documentSyntax, type PictureSyntax, type Range } from "./syntax.ts";
 
@@ -22,7 +23,29 @@ export interface DocumentModel {
   errors: Range[];
 }
 
+/**
+ * The last few analyses, by text (D108). An edit is checked by analyzing and laying out the text it
+ * makes, often more than once on the way (a drag's move, then keeping its followers in place), and the
+ * editor then analyzes the text it applied: the same text gives the same model, so it is kept.
+ */
+const analyses: DocumentModel[] = [];
+const KEPT_ANALYSES = 8;
+
 export function analyzeDocument(text: string): DocumentModel {
+  const i = analyses.findIndex((d) => d.text === text);
+  if (i >= 0) {
+    const d = analyses[i]!;
+    analyses.splice(i, 1);
+    analyses.unshift(d);
+    return d;
+  }
+  const d = analyzeText(text);
+  analyses.unshift(d);
+  if (analyses.length > KEPT_ANALYSES) analyses.pop();
+  return d;
+}
+
+function analyzeText(text: string): DocumentModel {
   // Always a full parse: the model must not depend on edit history (D17).
   const tree = parser.parse(text);
   // Error nodes, one per place: recovery can leave nested or repeated
@@ -103,10 +126,41 @@ export function classFont(before: string): { sizes: SizeTable; family: "rm" | "s
   return { sizes: fontSizes(size ? +size : beamer ? 11 : 10), family: beamer ? "sf" : "rm" };
 }
 
+/** Each model's layouts (D108), with the page settings they were made for; none changes once made. */
+const layouts = new WeakMap<DocumentModel, Map<number, { page: PageSettings; env: LayoutEnv; layout: PictureLayout }>>();
+/** How each layout was made, for a drag to start from (src/model/drag.ts). */
+const records = new WeakMap<PictureLayout, { pic: PictureSyntax; record: LayoutRecord }>();
+
+/** The record of a layout `layoutDocumentPicture` made without overrides. */
+export function layoutRecordOf(layout: PictureLayout): { pic: PictureSyntax; record: LayoutRecord } | undefined {
+  return records.get(layout);
+}
+
+/**
+ * Picture `index` laid out, with `overrides` (node id → center) applied. Without overrides the layout
+ * is kept with the model and recorded for drags: callers share it and must not change it.
+ */
 export function layoutDocumentPicture(doc: DocumentModel, index: number, overrides?: ReadonlyMap<string, Point>): PictureLayout | null {
   const pic = doc.syntax.pictures[index];
   if (!pic) return null;
-  return layoutPicture(pic, pictureEnv(doc, pic), overrides);
+  if (overrides?.size) return layoutPicture(pic, pictureEnv(doc, pic), overrides);
+  let mine = layouts.get(doc);
+  if (!mine) {
+    mine = new Map();
+    layouts.set(doc, mine);
+  }
+  const known = mine.get(index);
+  if (known && known.page === pageSettings) {
+    // What laying it out would have left in units.ts, for code that reads page lengths next.
+    setPageLengths(known.env.page ?? null);
+    return known.layout;
+  }
+  const env = pictureEnv(doc, pic);
+  const record = newLayoutRecord(env);
+  const layout = layoutPicture(pic, env, undefined, record);
+  records.set(layout, { pic, record });
+  mine.set(index, { page: pageSettings, env, layout });
+  return layout;
 }
 
 /** Libraries loaded before `pic`. */

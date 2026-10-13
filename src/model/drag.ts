@@ -1,23 +1,13 @@
 // Drags (M6 step 2, D108): a node or a group dragged lays out again only what it changes. The
 // picture's layout is recorded once (its names in order, and each path's state), and every frame
 // of the drag starts from it. See `dragLayout` in src/tikz/layout.ts.
-import { type DragSession, dragLayout as dragFrame, layoutPicture, type LayoutRecord, newLayoutRecord, type PictureLayout } from "../tikz/layout.ts";
+import { type DragSession, dragLayout as dragFrame, type PictureLayout } from "../tikz/layout.ts";
 import type { Point } from "../tikz/shapes.ts";
-import type { PictureSyntax } from "./syntax.ts";
-import { type DocumentModel, layoutDocumentPicture, pictureEnv } from "./document.ts";
+import { type DocumentModel, layoutDocumentPicture, layoutRecordOf } from "./document.ts";
 
-/** The records of layouts made by `recordedLayout`. */
-const records = new WeakMap<PictureLayout, { pic: PictureSyntax; record: LayoutRecord }>();
-
-/** Lays picture `index` out as `layoutDocumentPicture` does, keeping what a drag needs to start from it. */
+/** Picture `index` laid out, recorded so that a drag can start from it (`layoutDocumentPicture` keeps the record). */
 export function recordedLayout(doc: DocumentModel, index: number): PictureLayout | null {
-  const pic = doc.syntax.pictures[index];
-  if (!pic) return null;
-  const env = pictureEnv(doc, pic);
-  const record = newLayoutRecord(env);
-  const layout = layoutPicture(pic, env, undefined, record);
-  records.set(layout, { pic, record });
-  return layout;
+  return layoutDocumentPicture(doc, index);
 }
 
 export interface Drag {
@@ -28,11 +18,11 @@ export interface Drag {
 
 /** Starts a drag on picture `index`, from `base` when it is a recorded layout of it (else it is laid out again). */
 export function startDrag(doc: DocumentModel, index: number, base?: PictureLayout | null): Drag {
-  let known = base ? records.get(base) : undefined;
+  let known = base ? layoutRecordOf(base) : undefined;
   let start = base ?? null;
   if (!known) {
     start = recordedLayout(doc, index);
-    known = start ? records.get(start) : undefined;
+    known = start ? layoutRecordOf(start) : undefined;
   }
   const session: DragSession = {
     pic: known?.pic ?? doc.syntax.pictures[index]!,

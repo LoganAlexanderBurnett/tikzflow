@@ -4,8 +4,9 @@
 // canvas origin. Locked blocks (\foreach, \matrix, …) that TeX drew get an
 // outline that can be clicked to show their code.
 
-import { useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { freshCompiled, pickBlock, selectedBlock, STALE_HIDE, stalePicture } from "./preview.ts";
+import { overrides, previewLayout } from "./store.ts";
 
 const f = (v: number) => Math.round(v * 1000) / 1000;
 
@@ -17,6 +18,46 @@ const f = (v: number) => Math.round(v * 1000) / 1000;
 export function compiledInner(svg: string): string {
   const inner = svg.replace(/^<svg[^>]*>/, "").replace(/<\/svg>\s*$/, "");
   return inner.replace(/stroke-width="([\d.]+)"/g, (_m, w: string) => `style="stroke-width:max(${w}px,var(--tf-min-stroke))"`);
+}
+
+/**
+ * TeX's picture as one image (D108), for drags: drawn inline, its thousands of elements are arranged
+ * into layers by the browser again on every frame, even though none of them changes. The minimum
+ * stroke is written in for zoom `scale`. Ready (decoded) a moment after the picture or the zoom
+ * changes, so a drag can swap it in at once; null until then.
+ */
+function usePictureImage(svg: string | null, scale: number): string | null {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    setUrl(null);
+    if (!svg) return;
+    let made: string | null = null;
+    let live = true;
+    const timer = setTimeout(() => {
+      const min = `${f(0.75 / scale)}px`;
+      const doc = svg.replace(/stroke-width="([\d.]+)"/g, (_m, w: string) => `style="stroke-width:max(${w}px,${min})"`);
+      made = URL.createObjectURL(new Blob([doc], { type: "image/svg+xml" }));
+      const img = new Image();
+      img.src = made;
+      img.decode().then(
+        () => live && setUrl(made),
+        () => {},
+      );
+    }, 250);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+      if (made) URL.revokeObjectURL(made);
+    };
+  }, [svg, scale]);
+  return url;
+}
+
+/** The viewBox of TeX's SVG, where its image goes in the SVG's own coordinates. */
+function viewBoxOf(svg: string): { x: number; y: number; width: number; height: number } | null {
+  const m = /<svg[^>]*\sviewBox="([^"]+)"/.exec(svg);
+  const v = m?.[1]!.trim().split(/[\s,]+/).map(Number);
+  return v && v.length === 4 && v.every(Number.isFinite) ? { x: v[0]!, y: v[1]!, width: v[2]!, height: v[3]! } : null;
 }
 
 interface BlockBox {
@@ -90,6 +131,9 @@ export function CompiledPicture({ scale }: { scale: number }) {
   useLayoutEffect(() => {
     setBlocks(ref.current && c?.input.blocks.size ? blockBoxes(ref.current) : []);
   }, [inner]);
+  const image = usePictureImage(svg, scale);
+  const box = useMemo(() => (svg ? viewBoxOf(svg) : null), [svg]);
+  const asImage = (overrides.value.size > 0 || !!previewLayout.value) && !!image && !!box;
   if (!svg || !p) return null;
   // Canvas coordinates of a point of TeX's SVG.
   const k = 1 / p.scale;
@@ -98,14 +142,16 @@ export function CompiledPicture({ scale }: { scale: number }) {
   const pad = 2 / scale;
   return (
     <g class="tf-compiled-layer" mask={stale?.patch.marks.length ? `url(#${STALE_HIDE})` : undefined} data-stale={stale ? "" : undefined}>
+      {/* Kept in the page while the image stands in for it, so the drop doesn't build it again. */}
       <g
         ref={ref}
         class="tf-compiled"
         data-testid="compiled-picture"
         transform={transform}
-        style={{ "--tf-min-stroke": `${f(0.75 / scale)}px` }}
+        style={{ "--tf-min-stroke": `${f(0.75 / scale)}px`, display: asImage ? "none" : undefined }}
         dangerouslySetInnerHTML={{ __html: inner }}
       />
+      {asImage && <image href={image!} x={box!.x} y={box!.y} width={box!.width} height={box!.height} preserveAspectRatio="none" transform={transform} class="tf-compiled-image" data-testid="compiled-image" />}
       {!stale &&
         blocks.map((b) => (
         <rect

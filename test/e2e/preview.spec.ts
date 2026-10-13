@@ -74,8 +74,13 @@ test.describe("with the TeX engine", () => {
     expect(Math.abs(tex.y - native.y)).toBeLessThan(2);
     expect(Math.abs(tex.x + tex.width - native.right)).toBeLessThan(2);
     expect(Math.abs(tex.y + tex.height - native.bottom)).toBeLessThan(2);
-    // Clicking the node still selects it.
-    await page.locator('[data-node] path').first().click();
+    // Clicking the node still selects it: where TeX draws it, the native node (hidden, D108) takes the click.
+    const at = await page.locator("[data-node] path").first().evaluate((e) => {
+      const r = e.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+    await page.mouse.click(at.x, at.y);
+    await expect(page.locator("g.tf-node.selected")).toHaveCount(1);
     await expect(page.getByTestId("status")).not.toContainText("Kept as written");
   });
 

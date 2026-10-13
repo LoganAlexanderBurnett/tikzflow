@@ -1,5 +1,6 @@
 // Renders a laid-out label as HTML for an SVG foreignObject. Positions come
 // from the label layout (Computer Modern metrics); the browser only draws.
+import { signal } from "@preact/signals";
 import katex from "katex";
 import type { Macro, Run, TextLayout, TextStyle } from "../text/label.ts";
 import { cssColor } from "../tikz/colors.ts";
@@ -12,6 +13,12 @@ const FAMILY: Record<TextStyle["family"], string> = {
 
 /** Distance from the top of a line box to the baseline, per pt of font size, for line-height 1. */
 const baselineRatio = new Map<string, number>();
+
+/**
+ * Counts the calibrations, so labels drawn before the fonts were measured are drawn again once (D108):
+ * nothing else redraws a label that didn't change, and before this one edit redrew them all.
+ */
+export const baselines = signal(0);
 
 /** Measures where the browser puts the baseline. Call again after fonts load. */
 export function calibrateBaselines(): void {
@@ -30,6 +37,7 @@ export function calibrateBaselines(): void {
     box.remove();
     if (ratio > 0.2 && ratio < 1.5) baselineRatio.set(family, ratio);
   }
+  baselines.value++;
 }
 
 function ratio(family: string): number {
@@ -88,7 +96,7 @@ export function labelHtml(layout: TextLayout, macros: Record<string, string>): s
       const family = FAMILY[line.runs[0]!.style.family];
       const top = line.baseline - ratio(family) * size;
       return (
-        `<div class="tf-line" style="left:${line.x}px;top:${top}px;font-size:${size}px;font-family:${family}">` +
+        `<div class="tf-line" style="margin-left:${line.x}px;margin-top:${top}px;font-size:${size}px;font-family:${family}">` +
         line.runs.map((r) => runHtml(r, macros)).join("") +
         "</div>"
       );

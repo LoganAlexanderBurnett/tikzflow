@@ -474,6 +474,10 @@ button.link {
   min-height: 0;
   overflow: hidden;
   background: var(--panel);
+  /* Its size comes from the grid, never from the code: an edit in it lays out nothing outside it. Without
+     this, every edit made the browser lay out the canvas's whole drawing again (15 ms on a 200-node picture,
+     and up to 90 ms at a drop; D108). */
+  contain: strict;
 }
 
 .tf-code .cm-editor {
@@ -602,9 +606,16 @@ button.link {
   border-top: 1px solid var(--line);
   color: var(--muted);
   background: var(--panel);
+}
+
+/* One line of a fixed height, laid out on its own (D108, see StatusBar): a grid item can't be a layout
+   boundary, a block inside it can. */
+.tf-status-text {
+  height: 1lh;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  contain: strict;
 }
 
 /* Canvas drawing */
@@ -640,6 +651,28 @@ button.link {
   pointer-events: none;
 }
 
+/* What a drag moved, kept in place, unseen, in the drawing of what didn't move (D108). */
+.tf-hidden,
+.tf-hidden *,
+.tf-node.tf-hidden path {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* All the labels of a drawing in one box (D108), each placed in it by its margins in a one-cell grid:
+   a positioned element is a paint layer of its own, and hundreds of them slow every frame of a drag. */
+.tf-labels {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.tf-labels > .tf-label {
+  position: absolute;
+  /* Its size is given: placing it, or changing it, lays out nothing else. */
+  contain: strict;
+}
+
 /* Labels on edges: clicked to select the edge, double-clicked to edit. */
 .tf-label-hit {
   fill: transparent;
@@ -673,15 +706,19 @@ button.link {
   stroke: var(--lock);
 }
 
+/* A label's lines, placed by their margins in a one-cell grid (D108). */
 .tf-label {
-  position: relative;
+  display: grid;
+  grid-template: 0 / 0;
   width: 100%;
   height: 100%;
   color: #000;
 }
 
 .tf-line {
-  position: absolute;
+  grid-area: 1 / 1;
+  justify-self: start;
+  align-self: start;
   line-height: 1;
   white-space: pre;
 }
@@ -1612,10 +1649,12 @@ button:disabled {
 .tf-stale-patch * {
   pointer-events: none !important;
 }
+/* Hidden, not transparent (D108): nodes still take the pointer (pointer-events: all), and the browser
+   doesn't keep a layer for each of hundreds of transparent elements on every frame of a drag. */
 .tf-native.ghost .tf-node > *,
 .tf-native.ghost .tf-path > path:not(.tf-path-halo):not(.tf-path-hit),
 .tf-native.ghost .tf-label-box {
-  opacity: 0;
+  visibility: hidden;
 }
 /* A block kept as written that TeX drew: outlined on hover, clickable to show its code. */
 .tf-block-hit {

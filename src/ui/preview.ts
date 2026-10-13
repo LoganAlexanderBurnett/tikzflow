@@ -15,7 +15,7 @@ import type { Range } from "../model/syntax.ts";
 import { prefetchEngine } from "./offline.ts";
 import { pageSettings } from "./pagesettings.ts";
 import type { PictureLayout } from "../tikz/layout.ts";
-import { baseLayout, currentPicture, doc, layout, overrides, previewLayout, revealInCode, text } from "./store.ts";
+import { baseLayout, currentPicture, doc, dragMoved, layout, overrides, previewLayout, revealInCode, text, withoutMoved } from "./store.ts";
 import { type Patch, stalePatch } from "./stalepatch.ts";
 
 /** "accurate": TeX's picture when it is ready; "quick": the native drawing only. Kept per viewer. */
@@ -99,15 +99,25 @@ export const STALE_SHOW = "tf-stale-show";
  * dragged, with the patch that draws what changed since natively (D69 item 4, D96). Null when TeX's picture of
  * the code is ready, when there is none to keep, or when too much changed to patch (the native drawing shows).
  */
+let lastStale: { compiled: Compiled; old: PictureLayout; now: PictureLayout; result: { compiled: Compiled; patch: Patch } | null } | null = null;
+
 export const stalePicture = computed<{ compiled: Compiled; patch: Patch } | null>(() => {
   if (previewMode.value !== "accurate" || freshCompiled.value) return null;
   const last = lastPicture.value;
   if (!last || last.compiled.picture !== currentPicture.value) return null;
   const dragging = !!previewLayout.value || overrides.value.size > 0;
   if (!dragging && !compiling.value) return null;
-  const now = layout.value;
+  // During a drag, the patch covers what the drag leaves where it was: it stays the same from frame to
+  // frame, so TeX's picture isn't drawn again; what moves is drawn natively on top (D108).
+  const moved = dragMoved.value;
+  const base = baseLayout.value;
+  const now = moved.ids.size && base ? withoutMoved(base, moved) : layout.value;
+  // The same picture against the same layout: the same patch, so nothing drawn from it changes.
+  if (now && lastStale && lastStale.compiled === last.compiled && lastStale.old === last.layout && lastStale.now === now) return lastStale.result;
   const patch = now && stalePatch(last.layout, now);
-  return patch ? { compiled: last.compiled, patch } : null;
+  const result = patch ? { compiled: last.compiled, patch } : null;
+  if (now) lastStale = { compiled: last.compiled, old: last.layout, now, result };
+  return result;
 });
 
 /** TeX's picture is on the canvas, up to date or patched: the native drawing then only answers the pointer. */

@@ -13,15 +13,19 @@ const text = { "200": BENCH_200, "500": BENCH_500, dense: DENSE_4_16_16_4 }[whic
 if (!text) throw new Error(`unknown picture ${which}: 200, 500 or dense`);
 console.log(`Picture: ${which}`);
 
-const time = (label: string, f: () => void, runs = 20) => {
-  f();
+const time = (label: string, f: (i: number) => void, runs = 20) => {
+  f(-1);
   const t = performance.now();
-  for (let i = 0; i < runs; i++) f();
+  for (let i = 0; i < runs; i++) f(i);
   console.log(`${label.padEnd(28)} ${((performance.now() - t) / runs).toFixed(2)} ms`);
 };
+// Analyses and layouts are kept by text and model (D108): each run gets a text of its own (a comment
+// at the end), so the times are of the work, not of the caches.
+const variant = (i: number) => `${text}% run ${i}\n`;
 const doc = analyzeDocument(text);
-time("parse + extract", () => analyzeDocument(text));
-time("layout", () => layoutDocumentPicture(doc, 0));
+time("parse + extract", (i) => analyzeDocument(variant(i)));
+const docs = Array.from({ length: 21 }, (_, i) => analyzeDocument(variant(100 + i)));
+time("layout", (i) => layoutDocumentPicture(docs[i + 1]!, 0));
 const layout = layoutDocumentPicture(doc, 0)!;
 // The node the drag bench drags: in the middle of the flow, or a hidden neuron.
 const n = layout.nodes.find((x) => x.name === { "200": "n100", "500": "n250", dense: "l1n7" }[which])!;
@@ -29,7 +33,7 @@ time("layout with drag override", () => layoutDocumentPicture(doc, 0, new Map([[
 time("snap", () => snapNode(layout, n, { x: n.shape.center.x + 10, y: n.shape.center.y }, 3));
 // pictureEdges is kept per layout, so time it as a drag frame does: on a layout it hasn't seen.
 time("drag frame: layout + edges", () => pictureEdges(layoutDocumentPicture(doc, 0, new Map([[n.id, { x: n.shape.center.x + 10, y: n.shape.center.y }]]))!));
-time("plan move (drop)", () => planMove(text, 0, n.id, { x: n.shape.center.x + 40, y: n.shape.center.y - 20 }), 5);
+time("plan move (drop)", (i) => planMove(variant(200 + i), 0, n.id, { x: n.shape.center.x + 40, y: n.shape.center.y - 20 }), 5);
 
 // Auto-layout (D80): ELK plus writing every node's relation, on the same picture.
 for (const direction of ["down", "right"] as const) {

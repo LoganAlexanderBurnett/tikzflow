@@ -11,7 +11,10 @@
 //   --only=<picture>  200, 500 or dense (repeatable; default: all)
 //   --modes=quick,tex the preview modes (default both; tex needs the engine)
 //   --throttle=1,4    CPU slowdowns (default both)
-//   --interactions=node,group,corner,resize  the drags (default: all the picture has)
+//   --interactions=node,group,corner,resize  the drags (default: all the picture has; with --profile, the first)
+// Debugging (D108): BENCH_QUERY=?x adds a query to the editor's address; with --profile, BENCH_MUTATIONS=<n>
+// lists the n most frequent DOM changes after the pointerup and traces why the browser lays things out
+// (profile-<mode>.trace.json).
 //   --headless        run Edge headless (default: a window, so frames are paced and drawn as for a user)
 //   --label=<name>    save the results to spike/perf/results/<name>.json
 //   --profile         instead: one node drag on the 200-node picture in a build that isn't minified,
@@ -573,18 +576,45 @@ async function main() {
     if (profile) {
       const c = PICTURES[0]!;
       const modes = list("modes", ["quick"]);
+      const kind = list("interactions", ["node"])[0] as Interaction;
       for (const mode of modes) {
         const { context, page, cdp } = await openPicture(browser, c, mode);
-        const from = await prepare(page, c, "node");
+        const from = await prepare(page, c, kind);
         await cdp.send("Profiler.enable");
         await cdp.send("Profiler.setSamplingInterval", { interval: 100 });
-        await browser.startTracing(page, { categories: ["devtools.timeline", "disabled-by-default-devtools.timeline", "v8", "disabled-by-default-v8.gc"] });
+        await browser.startTracing(page, { categories: ["devtools.timeline", "disabled-by-default-devtools.timeline", "v8", "disabled-by-default-v8.gc", ...(process.env.BENCH_MUTATIONS ? ["disabled-by-default-devtools.timeline.invalidationTracking"] : [])] });
         await cdp.send("Profiler.start");
-        const b = await measuredDrag(page, cdp, from, ...MOVES.node);
+        if (process.env.BENCH_MUTATIONS) {
+          await page.evaluate(() => {
+            const w = window as unknown as { __muts: string[] };
+            w.__muts = [];
+            const obs = new MutationObserver((ms) => {
+              for (const m of ms) {
+                const el = (m.target.nodeType === 1 ? m.target : m.target.parentElement) as Element;
+                const label = el?.closest?.(".tf-label")?.getAttribute("data-label-of");
+                w.__muts.push(`${label ? `label ${label}` : el?.closest?.(".tf-labels") ? "labels box" : el?.closest?.(".cm-editor") ? "code" : el?.closest?.("svg") ? "svg" : "other"} ${m.type} ${m.type === "attributes" ? m.attributeName : `+${m.addedNodes.length}/-${m.removedNodes.length}`} ${el?.nodeName}.${el?.getAttribute?.("class") ?? ""}`);
+              }
+            });
+            window.addEventListener("pointerup", () => obs.observe(document.body, { subtree: true, attributes: true, childList: true, characterData: true }), { capture: true, once: true });
+            const svg = document.querySelector("svg.tf-canvas");
+            if (svg) new ResizeObserver((es) => es.forEach((e) => w.__muts.push(`RESIZE canvas ${Math.round(e.contentRect.width)}x${Math.round(e.contentRect.height)}`))).observe(svg);
+          });
+        }
+        const b = await measuredDrag(page, cdp, from, ...MOVES[kind]);
+        if (process.env.BENCH_MUTATIONS) {
+          await page.waitForTimeout(300);
+          const muts = await page.evaluate(() => (window as unknown as { __muts: string[] }).__muts);
+          const counts = new Map<string, number>();
+          for (const m of muts) counts.set(m, (counts.get(m) ?? 0) + 1);
+          console.log(`\nMutations after the pointerup (${muts.length}):`);
+          for (const [k, v] of [...counts].sort((x, y) => y[1] - x[1]).slice(0, Number(process.env.BENCH_MUTATIONS) || 40)) console.log(`  ${String(v).padStart(4)}  ${k}`);
+        }
         const { profile: cpu } = (await cdp.send("Profiler.stop")) as unknown as { profile: CpuProfile };
-        const trace = JSON.parse((await browser.stopTracing()).toString("utf8")) as { traceEvents: TraceEvent[] };
+        const raw = (await browser.stopTracing()).toString("utf8");
+        const trace = JSON.parse(raw) as { traceEvents: TraceEvent[] };
+        writeFileSync(join(root, "spike", "perf", "results", `profile-${mode}${kind === "node" ? "" : `-${kind}`}.trace.json`), raw);
         const intervals = b.frames.slice(1).map((t, i) => t - b.frames[i]!);
-        console.log(`\n=== Profile: node drag, ${c.title}, ${mode} preview (Edge ${version}) ===`);
+        console.log(`\n=== Profile: ${kind} drag, ${c.title}, ${mode} preview (Edge ${version}) ===`);
         console.log(`frames ${intervals.length}, p50 ${fmt(quantile(intervals, 0.5))} ms, p95 ${fmt(quantile(intervals, 0.95))} ms, drop ${fmt(b.drop)} ms (unminified build, profiler on)`);
         const t = traceWindow(trace.traceEvents);
         if (t) {
@@ -599,7 +629,7 @@ async function main() {
         console.log("  by function:");
         for (const [f, ms] of p.byFn) console.log(`    ${fmt(ms, 0).padStart(6)} ms  ${f}`);
         mkdirSync(join(root, "spike", "perf", "results"), { recursive: true });
-        writeFileSync(join(root, "spike", "perf", "results", `profile-${mode}.cpuprofile`), JSON.stringify(cpu));
+        writeFileSync(join(root, "spike", "perf", "results", `profile-${mode}${kind === "node" ? "" : `-${kind}`}.cpuprofile`), JSON.stringify(cpu));
         await context.close();
       }
       return;

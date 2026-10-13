@@ -5,6 +5,7 @@
 import { type ContrastIssue, betterText, formatRatio } from "../edit/contrast.ts";
 import { edgeOfLabel } from "../model/edges.ts";
 import { baseLayout, contrast, edges, selectFromCanvas } from "./store.ts";
+import { useMemo } from "preact/hooks";
 
 const f = (v: number) => Math.round(v * 1000) / 1000;
 
@@ -24,20 +25,22 @@ export function selectContrastIssue(id: string): void {
 export function ContrastMarks({ scale, hidden }: { scale: number; hidden: boolean }) {
   const l = baseLayout.value;
   const list = contrast.value;
-  if (hidden || !l || !list.length) return null;
+  const byId = useMemo(() => new Map([...(l?.nodes ?? []), ...(l?.pathNodes ?? [])].map((n) => [n.id, n])), [l]);
+  if (!l || !list.length) return null;
   const r = 5 / scale;
+  // Hidden during a drag, and drawn without a transform each, as the label warnings (D108).
   return (
-    <g class="tf-contrast-marks">
+    <g class="tf-contrast-marks" visibility={hidden ? "hidden" : undefined}>
       {list.map((i) => {
-        const n = l.nodes.find((x) => x.id === i.id) ?? l.pathNodes.find((x) => x.id === i.id);
+        const n = byId.get(i.id);
         if (!n) return null;
         const x = n.shape.center.x - n.shape.hw - r * 0.6;
         const y = n.shape.center.y + n.shape.hh + r * 0.6;
         return (
-          <g key={i.id} data-contrast-mark={i.id} data-testid="contrast-mark" class="tf-contrast-mark" transform={`translate(${f(x)} ${f(y)})`}>
-            <circle r={f(r)} stroke-width={f(1 / scale)} />
+          <g key={i.id} data-contrast-mark={i.id} data-testid="contrast-mark" class="tf-contrast-mark">
+            <circle cx={f(x)} cy={f(y)} r={f(r)} stroke-width={f(1 / scale)} />
             {/* A half-filled disc: the usual sign for contrast. */}
-            <path d={`M0 ${f(-3 / scale)} A${f(3 / scale)} ${f(3 / scale)} 0 0 1 0 ${f(3 / scale)} Z`} />
+            <path d={`M${f(x)} ${f(y - 3 / scale)} A${f(3 / scale)} ${f(3 / scale)} 0 0 1 ${f(x)} ${f(y + 3 / scale)} Z`} />
             <title>{`Low contrast. ${contrastMessage(i)} Click to select it.`}</title>
           </g>
         );

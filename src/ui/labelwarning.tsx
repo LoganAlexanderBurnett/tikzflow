@@ -3,7 +3,7 @@
 // node never rewrites labels; this tells the user instead.
 
 import { signal } from "@preact/signals";
-import { useEffect, useRef } from "preact/hooks";
+import { useEffect, useMemo, useRef } from "preact/hooks";
 import type { LaidOutNode } from "../tikz/layout.ts";
 import { baseLayout, flipLabel, labelWarnings, putLabelBesideLine } from "./store.ts";
 
@@ -16,19 +16,22 @@ export const labelFix = signal<{ labelId: string; x: number; y: number } | null>
 export function LabelWarnings({ scale, hidden }: { scale: number; hidden: boolean }) {
   const l = baseLayout.value;
   const list = labelWarnings.value;
-  if (hidden || !l || !list.length) return null;
+  const byId = useMemo(() => new Map((l?.pathNodes ?? []).map((n) => [n.id, n])), [l]);
+  if (!l || !list.length) return null;
   const r = 5 / scale;
+  // Hidden, not taken out, during a drag (D108): putting hundreds of markers back made the drop lay the
+  // whole canvas out again. Drawn where they are, without a transform each (a transform is a layer).
   return (
-    <g class="tf-label-warnings">
+    <g class="tf-label-warnings" visibility={hidden ? "hidden" : undefined}>
       {list.map(({ labelId }) => {
-        const n: LaidOutNode | undefined = l.pathNodes.find((x) => x.id === labelId);
+        const n: LaidOutNode | undefined = byId.get(labelId);
         if (!n) return null;
         const x = n.shape.center.x + n.shape.hw + r * 0.6;
         const y = n.shape.center.y + n.shape.hh + r * 0.6;
         return (
-          <g key={labelId} data-label-warning={labelId} data-testid="label-warning" class="tf-label-warning" transform={`translate(${f(x)} ${f(y)})`}>
-            <circle r={f(r)} stroke-width={f(1 / scale)} />
-            <path d={`M0 ${f(2.6 / scale)} V${f(-0.4 / scale)} M0 ${f(-1.9 / scale)} V${f(-2.5 / scale)}`} stroke-width={f(1.3 / scale)} />
+          <g key={labelId} data-label-warning={labelId} data-testid="label-warning" class="tf-label-warning">
+            <circle cx={f(x)} cy={f(y)} r={f(r)} stroke-width={f(1 / scale)} />
+            <path d={`M${f(x)} ${f(y + 2.6 / scale)} V${f(y - 0.4 / scale)} M${f(x)} ${f(y - 1.9 / scale)} V${f(y - 2.5 / scale)}`} stroke-width={f(1.3 / scale)} />
             <title>Its line runs through this label. Click to flip it or put it beside the line.</title>
           </g>
         );

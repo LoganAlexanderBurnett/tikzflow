@@ -1,6 +1,6 @@
 // The application shell: toolbar, code pane, canvas, and summary.
 import { EditorView } from "@codemirror/view";
-import { useSignal } from "@preact/signals";
+import { useSignal, useSignalEffect } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
 import { Canvas } from "./canvas.tsx";
 import { Inspector } from "./inspector.tsx";
@@ -332,6 +332,31 @@ function FollowersToggle() {
   );
 }
 
+/**
+ * The status bar, a component of its own (D108): a new message draws only it. Its text sits in a box the
+ * browser lays out on its own: the footer is an item of the grid that holds the canvas, and a message
+ * changed in it made the browser lay the canvas's whole drawing out again (70–110 ms after a drop on a
+ * 200-node picture).
+ */
+function StatusBar() {
+  // A new message is shown in the frame after it was written (D108): written with a drop, it came in the
+  // same layout as the drop's changes to the canvas, and the browser then laid the canvas's whole drawing
+  // out again (70–110 ms on a 200-node picture). A frame later it lays out only itself.
+  const shown = useSignal(status.peek());
+  useSignalEffect(() => {
+    const next = status.value;
+    const frame = requestAnimationFrame(() => (shown.value = next));
+    return () => cancelAnimationFrame(frame);
+  });
+  return (
+    <footer class="tf-status" data-testid="status">
+      <div class="tf-status-text">
+        {shown.value ?? "Drag nodes to move them. Hold Alt to drag without snapping. Tab adds a connected node. Scroll to zoom, drag the background to pan. Press ? for all the shortcuts."}
+      </div>
+    </footer>
+  );
+}
+
 function Toolbar() {
   const input = useRef<HTMLInputElement>(null);
   const count = pictureCount.value;
@@ -508,9 +533,7 @@ export function App() {
             <Canvas />
             <Inspector />
           </div>
-          <footer class="tf-status" data-testid="status">
-            {status.value ?? "Drag nodes to move them. Hold Alt to drag without snapping. Tab adds a connected node. Scroll to zoom, drag the background to pan. Press ? for all the shortcuts."}
-          </footer>
+          <StatusBar />
         </section>
       </main>
       <ShortcutsDialog />
