@@ -1650,3 +1650,88 @@ Nothing meets the target (60 fps: 95% on time and no long task; 30 fps at 4×; d
 - New: `test/diagonal.test.ts` (18 tests, with pdfTeX's numbers from p13) and three annotation tests in `test/links.test.ts`.
 
 **Why:** the owner's review of M6 steps 1 and 1b (2026-10-13).
+
+## D108: Drag performance (M6 step 2, 2026-10-13 to 2026-10-16): what was built, where it stands against the target, and the options for what is left
+**Decision: what step 2 changed** (commits 75944fb, 8ce418e, 4c63c50, fe5f688; no golden file changed):
+- **Frame pacing.** The canvas handles the latest pointer move once per animation frame. Edge delivers every move of a 125 Hz mouse (D103).
+- **A drag lays out only what moves** (`dragLayout` in `src/tikz/layout.ts`, `src/model/drag.ts`). The base layout is recorded (names in order, each path's state). A drag frame moves the dragged nodes, and what follows them rigidly, and lays out again only the paths that mention them. It falls back to a full layout for group boxes, local bounding boxes and nodes that draw their own paths, and says why (`dragWork()`).
+  - `test/draglayout.test.ts` (45 tests): on every corpus picture and template, every node dragged alone, with its followers, and a group gives exactly what a full layout gives.
+  - Work counts on the bench pictures, which are stable in CI where timings aren't: dragging `n100` lays out at most 6 paths and 2 nodes, and a neuron of the dense network 40 of 384 paths.
+- **A still layer and a moving layer.** During a drag, what didn't move is drawn once from the base layout. The moved items are kept in place there, `visibility: hidden`. Only what moved is drawn on top (`dragMoved`, `withoutMoved` in `store.ts`). Edges, click areas and drawing signatures are kept per object, so a frame reuses everything it didn't lay out again.
+- **Fewer paint layers.** All labels are HTML in one `foreignObject` per drawing (one each made a paint layer each), placed by margins in a one-cell grid. All shapes share one flip group. Markers are drawn without a transform each, and hidden rather than removed while dragging.
+- **TeX's picture as one image** (a `blob:` SVG image, ready 250 ms after a compile or a zoom): during a drag, and since 4c63c50 also after a drop or an edit until TeX's new picture is ready.
+  - Drawn inline, its thousands of elements were layered again on every frame.
+  - Showing it inline again at the drop cost the 200-node picture's drop about 40 ms of style and layout.
+  - The inline copy stays in the page, hidden. TeX's stale patch (D96) stays the same through a drag.
+- **Native nodes are `visibility: hidden` under TeX's picture,** not transparent: hundreds of transparent elements each kept a layer. They still take the pointer (`pointer-events: all`).
+- **A drop without repeated work.**
+  - The last 8 analyses are kept by text, and each model keeps its layouts, so the editor doesn't analyze and lay out again a text the drop already checked.
+  - `dependents()` keeps an index per layout (nodes by id, who refers to each name, the boxes around each node) and its answers. A 20-node group drop spent about 45 ms walking the whole picture for each member: `planGroupMove` went from 75 to 28 ms in Node.
+- **The code pane and the status bar are laid out on their own** (`contain: strict`), and a status message is shown a frame after it is written. Either one, in the same layout as a drop's canvas changes, made the browser lay out the whole drawing again.
+- **Paths are keyed by position,** not by their offset-based ids, so an edit above a path doesn't make Preact rebuild it.
+- **`npm run drag:bench`:** `--interactions`, `--profile` for any drag, `--drop` (profile only the drop), and debugging aids (`BENCH_QUERY`, `BENCH_MUTATIONS`). Traces are no longer committed (gitignored like the CPU profiles).
+- **Runs that measured nothing are marked "not valid":** the page was hidden, or frames came a second apart. Twice the TeX-preview group rows measured exactly 1,000 ms between frames, most likely while the bench's window was covered. The same rows were normal when run again.
+
+**Where it stands** (Edge 155, windowed, `spike/perf/results/step2.json`; baseline from D103).
+- "On time" is the share of frame intervals within one frame at 1× and within two at 4×.
+- "One update" is the median (95th percentile) cost of one move drawn in its own frame.
+- Drops at 1× varied from run to run: the ranges are over the four runs of 2026-10-16.
+
+| Picture | Preview | Drag | On time 1× (was) | One update 1× (was) | On time 4× | Drop 1× (was) | Drop 4× (was) |
+|---|---|---|---|---|---|---|---|
+| 200 / 250 | quick | node | **100%** (22%) | 6.1 (12.7) ms (38) | **99%** | 102 ms, 100–102 (232) | 154 ms (852) |
+| | quick | group | **100%** (13%) | 10.3 (13.2) ms (36) | 86%, 86–98% | **99 ms**, 99–117 (1,206) | 224 ms (6,466) |
+| | quick | corner | **100%** (89%) | 1.3 (31.9) ms (4) | 87% | **35 ms** (104) | 158 ms (554) |
+| | quick | resize | **100%** (86%) | 27.1 (33.8) ms (37) | 18% | **51 ms** (108) | 207 ms (562) |
+| | TeX | node | **100%** (33%) | 6.4 (7.2) ms (76) | **96%** | 136 ms, 108–144 (304) | 226 ms (1,135) |
+| | TeX | group | **100%** (13%) | 13.2 (127.5) ms (78) | 37%, 37–49% | 184 ms, 146–213 (1,268) | 552 ms (7,013) |
+| | TeX | corner | 91%, 91–93% (89%) | 1.8 (49.6) ms (4) | 63% | **37 ms** (125) | 342 ms (811) |
+| | TeX | resize | 83%, 83–93% (19%) | 28.9 (58.7) ms (75) | 27% | **89 ms** (175) | 241 ms (894) |
+| 500 / 600 (measured) | quick | node | 100% (13%) | 8.5 (11.8) ms (72) | 96% | 171 ms (381) | 261 ms (1,845) |
+| | TeX | node | 99% (50%) | 11.9 (16.2) ms (191) | 79% | 211 ms (678) | 931 ms (2,727) |
+| dense 40 / 384 (measured) | quick | node | 100% (94%) | 5.6 (6.7) ms (15) | 100% | 52 ms (94) | 86 ms (392) |
+| | TeX | node | 100% (47%) | 6.6 (7.9) ms (36) | 100% | 69 ms (117) | 169 ms (533) |
+
+- **Met:**
+  - 60 fps for node and group drags in both previews, and for corner and resize drags in the quick preview.
+  - 30 fps at 4× for node drags in both previews.
+  - The drop under 100 ms for corner and resize in both previews, and for the group drag in the quick preview.
+- **At the line:** the quick preview's node drop, at 100–102 ms.
+- **Not met:**
+  - The drop with the TeX preview: node 108–144 ms, group 146–213 ms.
+  - Corner (91–93%) and resize (83–93%) with the TeX preview at 1×.
+  - At 4×: corner and resize in both previews, and the group drag (37–49% with TeX, 86–98% in the quick preview).
+- **Typing in the code pane** (a one-off script, not in the bench): on the 200-node picture, 58–60 ms from a key to its frame in the quick preview and about 100 ms with TeX (up to 315 ms when TeX's new picture arrives).
+- **Measured, no target:** the 500-node picture drags at 60 fps in both previews. The dense network meets every target in both.
+
+**Why the rest is not met: one cause.** Every edit that has to be checked is analyzed and laid out in full: a parse of the whole text (8 ms on the 200-node picture in Node) and a layout of the whole picture (11 ms).
+- A node drop does this three times (the move's candidates, then keeping its follower in place). That is about 60 of its 100 ms; Preact's render of the new layout and the browser's paint take the rest.
+- A corner, segment or resize drag does it for every new millimetre, then draws the whole canvas again, because the preview is a new layout. That is the 30–50 ms p95 at 1× and the 100–250 ms tasks at 4×.
+- With the TeX preview a drop also re-renders the patch layer and the hidden native drawing, and the forced style recalculation is larger.
+
+**The headless crash (D104 item 3): not reproduced.**
+- The full TeX-preview set on the 200-node picture ran once headless and four times windowed without a crash.
+- Headless with the TeX preview, the page's JS heap stays between 18 and 29 MB for 90 s after opening the picture, with 41,000 DOM nodes once TeX's picture is in. The engine worker's memory (about 330 MB, D97) is separate.
+- If it comes back, the bench reports the crashed page as a failed row and carries on.
+
+**Options for the owner** (step 2 stops here, as the owner asked on 2026-10-16: when a target needs disproportionate work, report the numbers and the options):
+1. **Re-read only what an edit changes.** About 2–3 days.
+   - When an edit touches one statement, parse only that statement and keep the rest of the syntax (offsets shifted). Then lay out from the recorded state before it, again only for what depends on it, with the machinery the drag layout already uses.
+   - Every result must equal a full analysis, checked on every corpus picture and template like `draglayout.test.ts`. Anything that would parse differently in context (braces, a `%`, a new statement) falls back to the full parse, so D17 holds.
+   - It cuts each check from about 20 ms to a few. That reaches the drop target in both previews and the 4× targets for corner and resize, and makes typing faster. Milestone 7's dense networks will need it too.
+2. **Plan corner and resize drags in a worker** (the auto-layout worker of D87). Frames stay on time at 4× while the preview trails the pointer by one plan; drop times don't change. About 1 day.
+3. **Redraw only what changed in a corner or resize preview**, compared by what each item draws, as the stale patch does. Likely enough for 95% at 1× with TeX; not for 4×. About half a day.
+4. **Accept this state and move on to step 3.** Node and group drags, the common case, are smooth in both previews. Record the rest as known limits, with a looser drop target for the TeX preview (under 150 ms).
+
+**Tests changed, and why:**
+- `test/e2e/preview.spec.ts`, "shows TeX's picture over the native one…": the node is clicked with a real mouse click at its center (`page.mouse.click`) instead of `locator.click()`.
+  - Why: the native node is `visibility: hidden` under TeX's drawing, and Playwright's `locator.click()` refuses an element it can't see.
+  - The expectations are unchanged: one node selected, and the status doesn't say "Kept as written".
+  - New: the element under the pointer there is the native node, with `visibility: hidden`.
+  - Real mouse events reaching hidden native nodes are also covered by the drag test in the same file, and by every TeX row of the drag bench, which drags through DevTools mouse events and writes code.
+- `test/e2e/edges.spec.ts`, "a locked edge says why": waits for the new picture's two nodes before reading its edges. Under load it could read the template's edges and click one that was then replaced. Expectation unchanged.
+- `test/offline/offline.spec.ts`, "…nothing but this server is asked": a `blob:` URL counts as the host inside it. URL's own `host` is empty for it, so CI on 8ce418e failed with `["localhost:5175", ""]`. The expected list is unchanged.
+- `test/live/live.spec.ts`, "first visit: …nothing but this site is asked…": the same change, for the same reason (it failed on the `m6` preview with `["m6.tikzflow.pages.dev", ""]`). The expected list is unchanged.
+- New: `test/draglayout.test.ts` (45).
+
+**Why:** D102 item 1 (the target) and step 2's plan; the owner's instruction of 2026-10-16 to stop and report when a target needs disproportionate work.

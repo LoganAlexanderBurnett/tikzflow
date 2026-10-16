@@ -22,7 +22,7 @@ Milestone 0 is done and was approved on 2026-10-07:
 
 **Milestone 5 (user experience and website): done, reviewed by the owner, merged into `trunk` and live at https://tikzflow.pages.dev (2026-10-12, D101).** SPEC Milestone 5 was split (D89): M5 is the user-facing work, M6 the performance target and the release paperwork (license audit, README). Steps 0–8 are done; the owner's review answers (marker beyond 3 pt, a Neural networks heading, the toolbar wrapping at laptop widths) are D101. See "Milestone 5: merged and live" and "Milestone 5 report" below, and "M5 plan and status". **Milestone 7 (neural network diagrams)** was added after M6 by the owner (D96), to be planned later.
 
-**Milestone 6 (performance and release paperwork): in progress on `m6` (plan approved 2026-10-12, D102).** The owner added a step: placement links made visible, Unlink, Detach, Detach from style, and a proposal for the dragging default. Steps 0 (the baseline, D103), 1 (placement links and dragging only the dragged node, D104, D105) and 1b (the Venn template, D106) are done, pushed and checked on the `m6` preview (`test:live` 16 of 16); **stopped for the owner's review** before step 2 (drag performance). See "M6 plan and status" and "M6 steps 1 and 1b: checks" below.
+**Milestone 6 (performance and release paperwork): in progress on `m6` (plan approved 2026-10-12, D102).** The owner added a step: placement links made visible, Unlink, Detach, Detach from style, and a proposal for the dragging default. Steps 0 (the baseline, D103), 1 (placement links and dragging only the dragged node, D104, D105), 1b (the Venn template, D106) and the fixes after their review (D107) are done. **Step 2 (drag performance) stopped short of the target, for the owner's decision (D108):** node and group drags are smooth in both previews; the drop with the TeX preview and corner and resize drags at 4× CPU slowdown are not there yet, and the fix they share is a bigger piece of work. See "M6 step 2" below.
 
 Also read "Notes for later milestones" below.
 
@@ -33,11 +33,47 @@ Also read "Notes for later milestones" below.
 | 1 | Links made visible (follows / followed by, Unlink, faint followers while dragging), Detach, Detach from style; dragging moves only the dragged node, Ctrl or the toolbar switch "Move followers too" moves its followers (D104) | Done (D105) |
 | 1b | A Venn diagram template under "Other diagrams" (D104 item 4) | Done (D106) |
 | 1c | The owner's review of 1 and 1b: the icon toggle; resizing follows the dragging rule; the diagonal and `at` fixes found with pdfTeX, and the check of rewritten pictures against TeX; labels move with their node | Done (D107) |
-| 2 | Drag performance to the target (D102 item 1): 60 fps, 30 fps at 4× CPU slowdown, drop under 100 ms; no golden file changes | |
+| 2 | Drag performance to the target (D102 item 1): 60 fps, 30 fps at 4× CPU slowdown, drop under 100 ms; no golden file changes | Partly met; **stopped for the owner's decision** (D108) |
 | 3 | The phone note: under 768 px, Edit anyway per browser tab | |
 | 4 | License audit, `THIRD_PARTY_LICENSES.md` (script and staleness test), `/licenses/`, the web2js issue text for the owner | |
 | 5 | README with screenshots made by a script; deployment steps | |
 | 6 | Release check (tests, CI, fidelity, `test:live` on the `m6` preview, docs); **Milestone 6 report** | |
+
+## M6 step 2: drag performance (2026-10-13 to 2026-10-16)
+**Stopped here for the owner's decision.** Details, the full table and the options are in D108.
+
+### How to try it
+- **By hand:** https://m6.tikzflow.pages.dev (or `npm run dev`); any template, or a big picture of your own. Drag a node, a group, an edge's corner and a resize handle, with the TeX preview off and on.
+- **The numbers:** `npm run drag:bench` (about 30 minutes; keep its Edge window uncovered), or one row, e.g. `npm run drag:bench -- --only=200 --modes=tex --throttle=1 --interactions=group`. It opens the 200-node picture itself.
+
+### Against the target (200 nodes, 250 edges; D102 item 1)
+- **60 fps:** node and group drags in both previews (100% of frames on time; were 13–33%); corner and resize drags in the quick preview (100%). With the TeX preview, corner 91–93% and resize 83–93%.
+- **30 fps at 4× slowdown:** node drags in both previews (96–99%). Not yet: group drags (86–98% quick, 37–49% TeX), corner (63–87%) and resize (18–27%).
+- **Drop under 100 ms:** corner and resize in both previews (35–89 ms); group in the quick preview (99 ms; was 1,206). At the line: node in the quick preview (100–102 ms; was 232). Not yet: with the TeX preview, node 108–144 ms (was 304) and group 146–213 ms (was 1,268).
+- **Measured only:** the 500-node picture drags at 60 fps in both previews (drop 171–211 ms); the dense 4–16–16–4 network meets every target.
+- **Typing in the code pane** on the 200-node picture: about 60 ms from a key to its frame in the quick preview, about 100 ms with TeX.
+- **The cause of what is left:** every edit that has to be checked is parsed and laid out in full (about 20 ms on this picture): three times per node drop, and once per millimetre of a corner or resize drag, which then redraws the whole canvas.
+
+### Decisions for you (D108)
+1. **Re-read only what an edit changes** (about 2–3 days): reaches the drop and the 4× targets, and speeds up typing; Milestone 7 needs it too.
+2. **Plan corner and resize drags in a worker** (about 1 day): smooth at 4×, drops unchanged.
+3. **Redraw only what changed in corner and resize previews** (about half a day): likely 95% at 1× with TeX.
+4. **Accept this state**, with a TeX-preview drop target of 150 ms, and go on to step 3.
+
+### The headless crash (D104 item 3)
+Not reproduced: the TeX-preview set on the 200-node picture ran once headless and four times windowed. Headless, the page's JS heap stays at 18–29 MB for 90 s after opening it. Twice a windowed run measured frames exactly a second apart (a covered window, most likely); the bench now marks such runs "not valid".
+
+### Tests
+- **Vitest:** 1,952 passed, 9 skipped (new: `test/draglayout.test.ts`, 45: every node of every corpus picture and template dragged alone, with followers, and as a group, equals a full layout; work counts on the bench pictures). **No golden file changed.**
+- **Playwright:** 213 of 213. **`npm run test:offline`:** 9 of 9. **`typecheck`, `build`, `check:dist`:** pass.
+- **CI on `m6` (fe5f688): green**, all three jobs. CI on 8ce418e had failed one offline test (item 3 below).
+- **`TIKZFLOW_URL=https://m6.tikzflow.pages.dev npm run test:live`: 16 of 16** on the deploy of fe5f688 (the preview serves `assets/editor-CaVoXcDX.js`, the same as the local build), after the change in item 4.
+- **Every test expectation changed in step 2, and why:**
+  1. `test/e2e/preview.spec.ts`, "shows TeX's picture over the native one…": the node is clicked with a real mouse click at its center instead of Playwright's `locator.click()`, because native nodes are `visibility: hidden` under TeX's drawing and `locator.click()` refuses an element it can't see. Expectations unchanged. New: the element under the pointer there is the native node, hidden. Real clicks and drags reaching the hidden native nodes are covered by this test, by the drag test in the same file, and by every TeX row of the drag bench (it drags through DevTools mouse events and writes code).
+  2. `test/e2e/edges.spec.ts`, "a locked edge says why": waits for the new picture before reading its edges (under load it read the template's). Expectation unchanged.
+  3. `test/offline/offline.spec.ts`, "…nothing but this server is asked": a `blob:` URL (TeX's picture as an image) counts as the host inside it. CI on 8ce418e failed with `["localhost:5175", ""]`. Expected list unchanged.
+  4. `test/live/live.spec.ts`, "first visit: …nothing but this site is asked…": the same change, for the same reason (on the `m6` preview it failed with `["m6.tikzflow.pages.dev", ""]`). Expected list unchanged.
+  - Not changed: no golden file, and no other test.
 
 ## M6 fixes after the step 1 review (2026-10-13)
 The owner's review of steps 1 and 1b and the three fixes are D107.

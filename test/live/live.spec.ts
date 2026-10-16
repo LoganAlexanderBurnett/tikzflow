@@ -71,7 +71,12 @@ test.describe("the app", () => {
     page.on("console", (m) => (m.type() === "error" || /content security policy|refused to/i.test(m.text())) && problems.push(m.text()));
     page.on("pageerror", (e) => problems.push(String(e)));
     page.on("requestfailed", (r) => problems.push(`${r.url()} ${r.failure()?.errorText}`));
-    page.on("request", (r) => hosts.add(new URL(r.url()).host));
+    // A blob: URL (TeX's picture as an image while it is out of date, D108) is made in the page: its host is the
+    // one inside it ("blob:https://tikzflow.pages.dev/…"), which URL's own host leaves empty.
+    page.on("request", (r) => {
+      const u = new URL(r.url());
+      hosts.add(u.protocol === "blob:" ? new URL(u.pathname).host : u.host);
+    });
     page.on("response", (r) => {
       if (r.url().includes(`${engine}/core.dump.gz`) && !r.fromServiceWorker()) engineBytes.gz++;
       if (r.url().includes(engine) && !r.fromServiceWorker()) engineBytes.requests++;
