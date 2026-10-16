@@ -89,6 +89,8 @@ test("moving the cursor into an edge's code selects that edge", async ({ page })
 
 test("a locked edge says why", async ({ page }) => {
   await setCode(page, "\\begin{tikzpicture}\n\\node (a) {A};\n\\node (b) at (2,0) {B};\n\\draw (a) -- (b) -- (2,-1) -- cycle;\n\\end{tikzpicture}\n");
+  // The new picture drawn first: under load, the template's edges can still be on screen.
+  await expect(page.locator("g.tf-node")).toHaveCount(2);
   const ids = await edgeIds(page);
   const p = await onEdge(page, ids[0]!);
   await page.mouse.click(p.x, p.y);

@@ -57,23 +57,73 @@ export function isPlacementKey(key: string): boolean {
 /** Names that can be referred to in emitted code. */
 const SIMPLE_NAME = /^[A-Za-z0-9_\-:]+$/;
 
+/**
+ * Per layout (D108): each node by id, the names that move with a node (its own, and the bounding
+ * boxes around it), the nodes that refer to each name (their index in code order), and the
+ * dependents worked out so far. A drop asks for the dependents of every member of a group, often
+ * more than once, and walking the whole picture for each made a group drop take 50 ms more.
+ */
+interface DependencyIndex {
+  count: number;
+  byId: Map<string, LaidOutNode>;
+  movesWith: Map<string, string[]>;
+  referrers: Map<string, number[]>;
+  known: Map<string, ReadonlySet<string>>;
+}
+const dependencyIndexes = new WeakMap<PictureLayout, DependencyIndex>();
+
+function dependencyIndex(layout: PictureLayout): DependencyIndex {
+  const known = dependencyIndexes.get(layout);
+  // Layouts don't change once made; the count guards against one read while it is being built.
+  if (known && known.count === layout.nodes.length) return known;
+  const byId = new Map<string, LaidOutNode>();
+  const movesWith = new Map<string, string[]>();
+  const referrers = new Map<string, number[]>();
+  layout.nodes.forEach((n, i) => {
+    if (!byId.has(n.id)) byId.set(n.id, n);
+    for (const r of new Set(n.position.refs)) {
+      const list = referrers.get(r);
+      if (list) list.push(i);
+      else referrers.set(r, [i]);
+    }
+  });
+  for (const [name, ids] of layout.boxes) {
+    for (const id of ids) {
+      const list = movesWith.get(id);
+      if (list) list.push(name);
+      else movesWith.set(id, [name]);
+    }
+  }
+  const index = { count: layout.nodes.length, byId, movesWith, referrers, known: new Map() };
+  dependencyIndexes.set(layout, index);
+  return index;
+}
+
 /** Nodes whose position depends on `id`, directly or not. */
-export function dependents(layout: PictureLayout, id: string): Set<string> {
+export function dependents(layout: PictureLayout, id: string): ReadonlySet<string> {
+  const index = dependencyIndex(layout);
+  const known = index.known.get(id);
+  if (known) return known;
   const out = new Set<string>();
   const queue = [id];
   while (queue.length) {
-    const curId = queue.pop();
-    const cur = layout.nodes.find((n) => n.id === curId);
+    const curId = queue.pop()!;
+    const cur = index.byId.get(curId);
     // Names that move when this node moves: its own, and bounding boxes around it.
-    const names = [...layout.boxes].filter(([, ids]) => ids.includes(curId!)).map(([name]) => name);
+    const names = [...(index.movesWith.get(curId) ?? [])];
     if (cur?.name) names.push(cur.name);
-    for (const m of layout.nodes) {
-      if (!out.has(m.id) && m.id !== id && m.position.refs.some((r) => names.includes(r))) {
+    // The nodes that refer to any of them, in code order.
+    const at = new Set<number>();
+    for (const name of names) for (const i of index.referrers.get(name) ?? []) at.add(i);
+    for (const i of [...at].sort((a, b) => a - b)) {
+      const m = layout.nodes[i]!;
+      if (!out.has(m.id) && m.id !== id) {
         out.add(m.id);
         queue.push(m.id);
       }
     }
   }
+  index.known.set(id, out);
   return out;
 }
 

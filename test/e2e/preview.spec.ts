@@ -79,6 +79,12 @@ test.describe("with the TeX engine", () => {
       const r = e.getBoundingClientRect();
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     });
+    // What the pointer meets there is the native node, unseen.
+    const hit = await page.evaluate((p) => {
+      const e = document.elementFromPoint(p.x, p.y);
+      return { node: e?.closest("[data-node]")?.getAttribute("data-node") ?? null, visibility: e ? getComputedStyle(e).visibility : null };
+    }, at);
+    expect(hit).toEqual({ node: expect.any(String), visibility: "hidden" });
     await page.mouse.click(at.x, at.y);
     await expect(page.locator("g.tf-node.selected")).toHaveCount(1);
     await expect(page.getByTestId("status")).not.toContainText("Kept as written");

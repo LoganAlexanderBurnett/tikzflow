@@ -21,6 +21,7 @@ spike/engines/results/compare/**/*.png
 .scratch/
 spike/engines/results/dvicheck/*.png
 
-# npm run drag:bench: debug screenshots and CPU profiles (the results' JSON is kept)
+# npm run drag:bench: debug screenshots, CPU profiles and traces (the results' JSON is kept)
 spike/perf/results/*.png
 spike/perf/results/*.cpuprofile
+spike/perf/results/*.trace.json

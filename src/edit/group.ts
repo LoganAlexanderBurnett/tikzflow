@@ -86,31 +86,43 @@ export function movingWith(layout: PictureLayout, members: readonly string[]): S
   const names = new Set<string>();
   const queue = [...members];
   const all = [...layout.nodes, ...layout.pathNodes];
+  // Looked up once (D108): a group drop asks this for 20 members of a 200-node picture.
+  const byId = new Map<string, LaidOutNode>();
+  for (const n of all) if (!byId.has(n.id)) byId.set(n.id, n);
+  const own = new Set(layout.nodes.map((n) => n.id));
+  const referrers = new Map<string, string[]>();
+  for (const m of layout.nodes) {
+    for (const r of new Set(m.position.refs)) {
+      const list = referrers.get(r);
+      if (list) list.push(m.id);
+      else referrers.set(r, [m.id]);
+    }
+  }
   const add = (id: string) => {
     if (out.has(id)) return;
     out.add(id);
-    const n = all.find((x) => x.id === id);
+    const n = byId.get(id);
     if (n?.name) {
       names.add(n.name);
       // Nodes placed against it by name (a path label isn't in `dependents`' reach).
-      for (const m of layout.nodes) if (m.position.refs.includes(n.name)) queue.push(m.id);
+      for (const m of referrers.get(n.name) ?? []) queue.push(m);
     }
-    if (layout.nodes.some((x) => x.id === id)) for (const d of dependents(layout, id)) queue.push(d);
+    if (own.has(id)) for (const d of dependents(layout, id)) queue.push(d);
   };
+  const pathRefs = layout.paths.map((p) => (p.route?.stops ?? []).flatMap((s) => [...(s.node ? [s.node] : []), ...coordNames(s.text).map((c) => c.name)]));
   for (;;) {
     while (queue.length) add(queue.pop()!);
     // Paths whose points name a moving node carry the nodes placed on them along.
     let grew = false;
-    for (const p of layout.paths) {
-      const refs = (p.route?.stops ?? []).flatMap((s) => [...(s.node ? [s.node] : []), ...coordNames(s.text).map((c) => c.name)]);
-      if (!refs.some((r) => out.has(r) || names.has(r))) continue;
+    layout.paths.forEach((p, i) => {
+      if (!pathRefs[i]!.some((r) => out.has(r) || names.has(r))) return;
       for (const n of all) {
         if (n.statement.from === p.syntax.from && n.statement.to === p.syntax.to && !out.has(n.id)) {
           queue.push(n.id);
           grew = true;
         }
       }
-    }
+    });
     if (!grew) return out;
   }
 }

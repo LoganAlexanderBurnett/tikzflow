@@ -20,6 +20,7 @@
 //   --profile         instead: one node drag on the 200-node picture in a build that isn't minified,
 //                     with a CPU profile (by source and function) and a trace (script, style, layout,
 //                     paint and GC per frame)
+//   --drop            with --profile: profile and trace only the drop, from just before the pointerup
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -78,6 +79,10 @@ interface Result {
   longTasks: number;
   longestTask: number;
   drop: number | null;
+  /** The window was hidden, or frames came a second apart (a covered window): the run is not valid. */
+  throttled: boolean;
+  /** The page was hidden (document.hidden) at some point of the drag. */
+  hidden: boolean;
   status: string;
   pass: boolean | null;
 }
@@ -86,8 +91,8 @@ interface Result {
 
 /** Installed before the app: a frame loop, long tasks, and the time from the drop to the next frame. */
 function instrument() {
-  type B = { on: boolean; start: number; end: number; frames: number[]; long: { start: number; dur: number }[]; moves: number; armDrop: boolean; drop: number | null };
-  const b: B = { on: false, start: 0, end: 0, frames: [], long: [], moves: 0, armDrop: false, drop: null };
+  type B = { on: boolean; start: number; end: number; frames: number[]; long: { start: number; dur: number }[]; moves: number; armDrop: boolean; drop: number | null; hidden: boolean };
+  const b: B = { on: false, start: 0, end: 0, frames: [], long: [], moves: 0, armDrop: false, drop: null, hidden: false };
   (window as unknown as { __bench: B }).__bench = b;
   const loop = (t: number) => {
     if (b.on) b.frames.push(t);
@@ -104,6 +109,10 @@ function instrument() {
   addEventListener("pointermove", () => {
     if (b.on) b.moves++;
   }, true);
+  // A hidden or covered window gets one frame a second: such a run measures nothing (D108).
+  addEventListener("visibilitychange", () => {
+    if (document.hidden) b.hidden = true;
+  });
   // Capturing on the window runs before the canvas's own handler, so this times all of the drop.
   addEventListener("pointerup", () => {
     if (!b.armDrop) return;
@@ -115,6 +124,7 @@ function instrument() {
 
 interface Bench {
   frames: number[];
+  hidden: boolean;
   long: { start: number; dur: number }[];
   start: number;
   end: number;
@@ -158,7 +168,7 @@ async function zoomTo(page: Page, id: string) {
 }
 
 /** Presses at `from`, gets past the drag slop, then moves along a curve to `from + (dx, dy)` with a move every 8 ms (a 125 Hz mouse), timing the frames meanwhile, and drops. */
-async function measuredDrag(page: Page, cdp: CDPSession, from: Pt, dx: number, dy: number, steps = 180): Promise<Bench> {
+async function measuredDrag(page: Page, cdp: CDPSession, from: Pt, dx: number, dy: number, steps = 180, beforeUp?: () => Promise<void>): Promise<Bench> {
   await page.mouse.move(from.x, from.y);
   await page.mouse.down();
   await page.mouse.move(from.x + 4, from.y + 2);
@@ -170,6 +180,7 @@ async function measuredDrag(page: Page, cdp: CDPSession, from: Pt, dx: number, d
     b.moves = 0;
     b.drop = null;
     b.start = performance.now();
+    b.hidden = document.hidden;
     b.on = true;
     console.timeStamp("bench-start");
   });
@@ -197,12 +208,13 @@ async function measuredDrag(page: Page, cdp: CDPSession, from: Pt, dx: number, d
   });
   // Playwright's mouse releases where it last was: tell it where the drag ended first.
   await page.mouse.move(last.x, last.y);
+  await beforeUp?.();
   await page.mouse.up();
   await page.waitForFunction(() => (window as unknown as { __bench: Bench }).__bench.drop !== null, null, { timeout: 30_000 });
   await page.waitForTimeout(200);
   return page.evaluate(() => {
     const b = (window as unknown as { __bench: Bench }).__bench;
-    return { frames: b.frames, long: b.long, start: b.start, end: b.end, moves: b.moves, drop: b.drop };
+    return { frames: b.frames, long: b.long, start: b.start, end: b.end, moves: b.moves, drop: b.drop, hidden: b.hidden };
   });
 }
 
@@ -388,6 +400,8 @@ async function runInteraction(browser: Browser, page: Page, cdp: CDPSession, c: 
     breakdown: iso?.breakdown ?? {},
     status,
     pass,
+    throttled: b.hidden || intervals.some((d) => d > 900),
+    hidden: b.hidden,
   };
 }
 
@@ -582,8 +596,14 @@ async function main() {
         const from = await prepare(page, c, kind);
         await cdp.send("Profiler.enable");
         await cdp.send("Profiler.setSamplingInterval", { interval: 100 });
-        await browser.startTracing(page, { categories: ["devtools.timeline", "disabled-by-default-devtools.timeline", "v8", "disabled-by-default-v8.gc", ...(process.env.BENCH_MUTATIONS ? ["disabled-by-default-devtools.timeline.invalidationTracking"] : [])] });
-        await cdp.send("Profiler.start");
+        // --drop: only the drop, from just before the pointerup (D108).
+        const dropOnly = flag("drop");
+        const startProfiling = async () => {
+          await browser.startTracing(page, { categories: ["devtools.timeline", "disabled-by-default-devtools.timeline", "v8", "disabled-by-default-v8.gc", ...(process.env.BENCH_MUTATIONS ? ["disabled-by-default-devtools.timeline.invalidationTracking"] : [])] });
+          await cdp.send("Profiler.start");
+          if (dropOnly) await page.evaluate(() => console.timeStamp("bench-start"));
+        };
+        if (!dropOnly) await startProfiling();
         if (process.env.BENCH_MUTATIONS) {
           await page.evaluate(() => {
             const w = window as unknown as { __muts: string[] };
@@ -600,7 +620,8 @@ async function main() {
             if (svg) new ResizeObserver((es) => es.forEach((e) => w.__muts.push(`RESIZE canvas ${Math.round(e.contentRect.width)}x${Math.round(e.contentRect.height)}`))).observe(svg);
           });
         }
-        const b = await measuredDrag(page, cdp, from, ...MOVES[kind]);
+        const b = await measuredDrag(page, cdp, from, ...MOVES[kind], 180, dropOnly ? startProfiling : undefined);
+        if (dropOnly) await page.evaluate(() => console.timeStamp("bench-end"));
         if (process.env.BENCH_MUTATIONS) {
           await page.waitForTimeout(300);
           const muts = await page.evaluate(() => (window as unknown as { __muts: string[] }).__muts);
@@ -671,7 +692,7 @@ async function main() {
               `${c.key.padEnd(6)} ${mode.padEnd(6)} ${`${throttle}×`.padEnd(3)} ${interaction.padEnd(7)} ` +
                 `frames ${String(r.frames).padStart(4)} (moves ${String(r.moves).padStart(3)})  p50 ${fmt(r.p50).padStart(5)}  p95 ${fmt(r.p95).padStart(6)}  max ${fmt(r.max).padStart(6)} ms  ` +
                 `≤1 frame ${pct(r.within60).padStart(4)}  ≤2 ${pct(r.within30).padStart(4)}  long ${r.longTasks} (max ${fmt(r.longestTask, 0)})  drop ${fmt(r.drop, 0)} ms  ` +
-                `${r.pass === null ? "(measured)" : r.pass ? "PASS" : "FAIL"}\n` +
+                `${r.pass === null ? "(measured)" : r.pass ? "PASS" : "FAIL"}${r.throttled ? `  (${r.hidden ? "PAGE HIDDEN" : "FRAMES A SECOND APART"}: not valid)` : ""}\n` +
                 `${"".padEnd(25)}one update ${fmt(r.update50)} / ${fmt(r.update95)} ms (p50 / p95; mean ${parts})  | ${r.status.slice(0, 70)}`,
             );
           }

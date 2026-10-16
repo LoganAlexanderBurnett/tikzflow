@@ -133,7 +133,10 @@ export function CompiledPicture({ scale }: { scale: number }) {
   }, [inner]);
   const image = usePictureImage(svg, scale);
   const box = useMemo(() => (svg ? viewBoxOf(svg) : null), [svg]);
-  const asImage = (overrides.value.size > 0 || !!previewLayout.value) && !!image && !!box;
+  // During a drag, and after an edit until TeX's new picture is ready (its last one, patched, D96): showing the
+  // inline picture again at the drop made the browser style and lay out its thousands of elements (40 ms of a
+  // 200-node picture's drop, D108) only to replace them a moment later.
+  const asImage = (overrides.value.size > 0 || !!previewLayout.value || !!stale) && !!image && !!box;
   if (!svg || !p) return null;
   // Canvas coordinates of a point of TeX's SVG.
   const k = 1 / p.scale;
