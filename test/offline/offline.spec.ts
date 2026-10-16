@@ -19,7 +19,12 @@ test.describe("after the first visit", () => {
     const problems: string[] = [];
     page.on("console", (m) => m.type() === "error" && problems.push(m.text()));
     page.on("requestfailed", (r) => problems.push(`${r.url()} ${r.failure()?.errorText}`));
-    page.on("request", (r) => hosts.add(new URL(r.url()).host));
+    // A blob: URL (TeX's picture as an image while it is out of date, D108) is made in the page: its host is the
+    // one inside it ("blob:http://localhost:5175/…"), which URL's own host leaves empty.
+    page.on("request", (r) => {
+      const u = new URL(r.url());
+      hosts.add(u.protocol === "blob:" ? new URL(u.pathname).host : u.host);
+    });
     await page.goto(FIRST);
     // The first picture, then the rest of the engine in the background.
     await expect(page.getByTestId("compiled-picture")).toBeAttached({ timeout: 30_000 });
